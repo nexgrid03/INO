@@ -1,0 +1,28 @@
+/// Backend credentials for Supabase + Google Sign-In.
+///
+/// Fill these in with the values from your own dashboards (see the setup
+/// guide). The Supabase anon key is safe to ship in a client app; the Google
+/// **web client secret** must NEVER live here — it stays only in the Supabase
+/// dashboard.
+///
+/// Tip: don't commit real keys to a public repo. Consider passing them with
+/// `--dart-define` instead and reading via `String.fromEnvironment(...)`.
+class SupabaseConfig {
+  SupabaseConfig._();
+
+  /// Project URL, e.g. https://abcdefgh.supabase.co
+  static const String url = 'YOUR_SUPABASE_URL';
+
+  /// Project publishable (a.k.a. "anon") public API key — safe for clients.
+  /// In the Supabase dashboard: Settings → API Keys. New projects show a
+  /// `sb_publishable_…` key; older ones show a legacy `anon` JWT — either works.
+  static const String publishableKey = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+
+  /// Google OAuth **Web** client ID (the one you also paste into Supabase's
+  /// Google provider settings). Used as the token audience on every platform.
+  /// e.g. 1234567890-abc123.apps.googleusercontent.com
+  static const String googleWebClientId = 'YOUR_GOOGLE_WEB_CLIENT_ID';
+
+  /// Google OAuth **iOS** client ID (only needed for the iOS build).
+  static const String googleIosClientId = 'YOUR_GOOGLE_IOS_CLIENT_ID';
+}

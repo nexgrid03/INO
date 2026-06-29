@@ -1,30 +1,29 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Basic smoke test for the INO app launch flow.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:inoapp/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Splash shows branding then moves to onboarding',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const InoApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Let the entrance animation play out.
+    await tester.pump(const Duration(milliseconds: 2300));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // "INO" appears twice on the splash: the logo monogram and the title.
+    expect(find.text('INO'), findsNWidgets(2));
+    expect(find.text('Simple Life, Secure Future'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Advance past the splash controller (3.5s) and the 0.5s fade to
+    // onboarding. We pump fixed durations rather than pumpAndSettle because
+    // the onboarding screen has a perpetual particle animation.
+    await tester.pump(const Duration(milliseconds: 1500)); // -> ~3.8s
+    await tester.pump(const Duration(milliseconds: 600)); // transition done
+
+    // Onboarding is now visible.
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
   });
 }
