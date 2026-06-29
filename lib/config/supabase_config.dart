@@ -11,12 +11,13 @@ class SupabaseConfig {
   SupabaseConfig._();
 
   /// Project URL, e.g. https://abcdefgh.supabase.co
-  static const String url = 'YOUR_SUPABASE_URL';
+  static const String url = 'https://ilfzppryyojoponkomrw.supabase.co';
 
   /// Project publishable (a.k.a. "anon") public API key — safe for clients.
   /// In the Supabase dashboard: Settings → API Keys. New projects show a
   /// `sb_publishable_…` key; older ones show a legacy `anon` JWT — either works.
-  static const String publishableKey = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+  static const String publishableKey =
+      'sb_publishable_AkYUQB5-mxBJkY_tZQu6EQ_JprMvI97';
 
   /// Google OAuth **Web** client ID (the one you also paste into Supabase's
   /// Google provider settings). Used as the token audience on every platform.

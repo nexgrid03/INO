@@ -5,6 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
+import 'floating_satellites.dart';
 import 'onboarding_icon.dart';
 
 /// A single onboarding slide's content.
@@ -45,11 +46,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Slow, perpetual loop for the floating background particles.
   late final AnimationController _particles;
 
-  /// One-time entrance for the bottom button (played once; never reset, so it
-  /// never blanks when changing pages).
+  /// One-time entrance for the floating arrow button (played once; never reset,
+  /// so it never blanks when changing pages).
   late final AnimationController _intro;
-  late final Animation<Offset> _buttonSlide;
-  late final Animation<double> _buttonFade;
+  late final Animation<Offset> _arrowSlide;
+  late final Animation<double> _arrowFade;
+  late final Animation<double> _arrowScale;
 
   /// Short pop played on the active indicator dot when the page changes.
   late final AnimationController _dotPop;
@@ -94,13 +96,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _buttonSlide = Tween<Offset>(
+    _arrowSlide = Tween<Offset>(
       begin: const Offset(0, 0.6),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic),
     );
-    _buttonFade = CurvedAnimation(parent: _intro, curve: Curves.easeIn);
+    _arrowFade = CurvedAnimation(parent: _intro, curve: Curves.easeIn);
+    _arrowScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _intro, curve: Curves.easeOutBack),
+    );
     _intro.forward();
 
     _dotPop = AnimationController(
@@ -203,47 +208,51 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
 
-                // Page indicator dots (active dot pops on change).
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_pages.length, (index) {
-                    final dot = _Dot(isActive: index == _currentPage);
-                    return index == _currentPage
-                        ? ScaleTransition(scale: _dotPopScale, child: dot)
-                        : dot;
-                  }),
-                ),
-                const SizedBox(height: 32),
+                // Extra breathing room between the description and the bottom
+                // indicator for a cleaner, more premium feel.
+                const SizedBox(height: 20),
 
-                // Next / Get Started button — one-time slide/fade in, soft
-                // shadow, and a press "squish".
+                // Bottom bar: centred page-indicator dots, with a small
+                // floating arrow button at the right.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-                  child: SlideTransition(
-                    position: _buttonSlide,
-                    child: FadeTransition(
-                      opacity: _buttonFade,
-                      child: PressableScale(
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: _onNextPressed,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 6,
-                              shadowColor:
-                                  AppColors.primaryGreen.withValues(alpha: 0.45),
-                            ),
-                            child: Text(
-                              _isLastPage ? 'Get Started' : 'Next',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                  child: SizedBox(
+                    height: 58,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Page indicator dots (active dot pops on change).
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(_pages.length, (index) {
+                            final dot = _Dot(isActive: index == _currentPage);
+                            return index == _currentPage
+                                ? ScaleTransition(
+                                    scale: _dotPopScale, child: dot)
+                                : dot;
+                          }),
+                        ),
+
+                        // Floating arrow — one-time fade + slide-up + scale,
+                        // with a press "squish" (ripple comes from its InkWell).
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: SlideTransition(
+                            position: _arrowSlide,
+                            child: FadeTransition(
+                              opacity: _arrowFade,
+                              child: ScaleTransition(
+                                scale: _arrowScale,
+                                child: PressableScale(
+                                  child: _FloatingArrowButton(
+                                    onTap: _onNextPressed,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -280,11 +289,19 @@ class _OnboardingSlide extends StatefulWidget {
 }
 
 class _OnboardingSlideState extends State<_OnboardingSlide>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _c;
 
-  // Staggered phases (controller 0→1 over 900ms — short, so navigation feels
-  // immediate rather than "loading").
+  /// Perpetual loop that drives the gentle bobbing of the floating satellites.
+  late final AnimationController _float;
+
+  // Staggered phases over a 1400ms controller. The order is deliberate so the
+  // eye lands on the illustration first, then the content:
+  //   circle  0.03–0.20   (appears first, completes early)
+  //   inner   0.10–0.34   (folder pop / chart draw / QR scan + glow)
+  //   chips   0.40–0.80   (satellites pop in one-by-one — see FloatingSatellites)
+  //   title   0.81–0.90   (only after the chips have appeared)
+  //   desc    0.91–1.00   (last)
   late final Animation<Offset> _contentSlide;
   late final Animation<double> _iconScale;
   late final Animation<double> _iconFade;
@@ -301,17 +318,23 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1400),
     );
 
-    _contentSlide = _slide(0.0, 0.35, 0.05);
+    _float = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    _contentSlide = _slide(0.0, 0.30, 0.05);
+    // Circle appears first and finishes early (before the chips start).
     _iconScale = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.10, 0.45, curve: Curves.easeOutBack),
+        curve: const Interval(0.03, 0.20, curve: Curves.easeOutBack),
       ),
     );
-    _iconFade = _fade(0.05, 0.35);
+    _iconFade = _fade(0.0, 0.14);
     _glow = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem(
         tween:
@@ -324,19 +347,21 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
         weight: 55,
       ),
     ]).animate(
-      CurvedAnimation(parent: _c, curve: const Interval(0.25, 0.65)),
+      CurvedAnimation(parent: _c, curve: const Interval(0.10, 0.34)),
     );
-    _reveal = _fade(0.25, 0.65, Curves.easeInOutCubic);
+    _reveal = _fade(0.10, 0.34, Curves.easeInOutCubic);
     _folderPop = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.25, 0.6, curve: Curves.elasticOut),
+        curve: const Interval(0.10, 0.32, curve: Curves.elasticOut),
       ),
     );
-    _titleSlide = _slide(0.4, 0.72, 0.5);
-    _titleFade = _fade(0.4, 0.72);
-    _descSlide = _slide(0.55, 0.9, 0.5);
-    _descFade = _fade(0.55, 0.9);
+    // Title only after all the chips (which finish ~0.80).
+    _titleSlide = _slide(0.81, 0.90, 0.5);
+    _titleFade = _fade(0.81, 0.90);
+    // Description last.
+    _descSlide = _slide(0.91, 1.0, 0.5);
+    _descFade = _fade(0.91, 1.0);
 
     _c.forward();
   }
@@ -361,6 +386,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   @override
   void dispose() {
     _c.dispose();
+    _float.dispose();
     super.dispose();
   }
 
@@ -389,27 +415,46 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icon (with parallax + swipe scale on top of its entrance).
+                // Icon + floating satellites (with parallax + swipe scale on
+                // top). The 160px SizedBox preserves the original layout; the
+                // satellites overflow it via Clip.none so spacing is unchanged.
                 Transform.translate(
                   offset: Offset(iconShift, 0),
                   child: Transform.scale(
                     scale: swipeScale,
-                    child: FadeTransition(
-                      opacity: _iconFade,
-                      child: ScaleTransition(
-                        scale: _iconScale,
-                        child: AnimatedOnboardingIcon(
-                          index: widget.index,
-                          icon: widget.page.icon,
-                          glow: _glow,
-                          reveal: _reveal,
-                          folderPop: _folderPop,
-                        ),
+                    child: SizedBox(
+                      width: 160,
+                      height: 160,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          // Contextual chips floating around the circle.
+                          FloatingSatellites(
+                            index: widget.index,
+                            pop: _c,
+                            float: _float,
+                          ),
+                          // The main animated circle (unchanged).
+                          FadeTransition(
+                            opacity: _iconFade,
+                            child: ScaleTransition(
+                              scale: _iconScale,
+                              child: AnimatedOnboardingIcon(
+                                index: widget.index,
+                                icon: widget.page.icon,
+                                glow: _glow,
+                                reveal: _reveal,
+                                folderPop: _folderPop,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 64),
 
                 // Title.
                 Transform.translate(
@@ -431,7 +476,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
 
                 // Description.
                 Transform.translate(
@@ -457,6 +502,56 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
           ),
         );
       },
+    );
+  }
+}
+
+/// Small circular "next" button shown bottom-right.
+///
+/// Premium brand-gradient circle, white arrow, soft shadow + a faint glass
+/// highlight border. Ripple comes from the [InkWell]; the press "squish" is
+/// applied by the [PressableScale] that wraps it in the parent.
+class _FloatingArrowButton extends StatelessWidget {
+  const _FloatingArrowButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 58;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: AppColors.brandGradient,
+        // Subtle glass highlight.
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withValues(alpha: 0.40),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: const Center(
+            child: Icon(
+              Icons.arrow_forward_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

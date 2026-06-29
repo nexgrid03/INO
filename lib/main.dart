@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/supabase_config.dart';
 import 'screens/splash/splash_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  // Flutter needs this before any async work runs before runApp().
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Create the Supabase client once, at startup. After this, the rest of the
+  // app reaches Supabase via `Supabase.instance.client` (see AuthService).
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.publishableKey,
+  );
+
   runApp(const InoApp());
 }
 

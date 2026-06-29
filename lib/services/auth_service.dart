@@ -34,11 +34,20 @@ class AuthService {
 
   /// Creates a new account. If email confirmation is enabled in Supabase,
   /// [AuthResponse.session] will be null until the user confirms via email.
+  ///
+  /// [fullName] is also stored in the auth user's metadata. That's handy later
+  /// (e.g. so a database trigger or Google flow can read the name), separate
+  /// from the profile row we insert into `public.users`.
   Future<AuthResponse> signUpWithEmail({
     required String email,
     required String password,
+    String? fullName,
   }) {
-    return _client.auth.signUp(email: email.trim(), password: password);
+    return _client.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: fullName != null ? {'full_name': fullName} : null,
+    );
   }
 
   Future<AuthResponse> signInWithEmail({

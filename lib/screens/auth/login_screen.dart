@@ -1,18 +1,26 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../models/user_profile.dart';
+import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/floating_particles.dart';
 import '../../widgets/ino_logo.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../widgets/soft_glow.dart';
 import '../home/home_screen.dart';
 
-/// Login / sign-up screen.
+/// Premium login / sign-up screen.
 ///
-/// Options:
-///   1. Email + password — toggle between Sign In and Create Account
-///   2. Continue with Google (native account picker)
+/// Email + password only (Google removed). Toggling "Create account" reveals a
+/// name field and switches the primary action to sign-up.
 ///
-/// Phone-number + OTP is planned as the primary method later.
+/// All motion is driven by ONE entrance [AnimationController] (staggered via
+/// Intervals) plus one perpetual controller for the logo float + background
+/// shapes — keeping it lightweight and smooth.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -20,20 +28,127 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _isSignUp = false; // false = Sign In, true = Create Account
+  bool _isSignUp = false;
   bool _obscurePassword = true;
   bool _busy = false;
 
+  // --- Animation ------------------------------------------------------------
+  late final AnimationController _entrance; // staggered page entry
+  late final AnimationController _float; // perpetual logo bob + bg shapes
+
+  late final Animation<double> _bgFade;
+  late final Animation<Offset> _cardSlide;
+  late final Animation<double> _cardFade;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoFade;
+  late final Animation<double> _glow;
+  late final Animation<double> _headingFade;
+  late final Animation<Offset> _headingSlide;
+  late final Animation<double> _subtitleFade;
+  late final Animation<Offset> _subtitleSlide;
+  late final Animation<double> _field1Fade;
+  late final Animation<Offset> _field1Slide;
+  late final Animation<double> _field2Fade;
+  late final Animation<Offset> _field2Slide;
+  late final Animation<double> _forgotFade;
+  late final Animation<double> _buttonFade;
+  late final Animation<Offset> _buttonSlide;
+  late final Animation<double> _linkFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _float = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    _bgFade = _fade(0.0, 0.20);
+    _cardSlide = _slideUp(0.05, 0.35, 0.10);
+    _cardFade = _fade(0.05, 0.30);
+    _logoScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entrance,
+        curve: const Interval(0.08, 0.40, curve: Curves.easeOutBack),
+      ),
+    );
+    _logoFade = _fade(0.08, 0.30);
+    // One gentle pulse that settles to a soft, steady glow.
+    _glow = TweenSequence<double>(<TweenSequenceItem<double>>[
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 45,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.45)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 55,
+      ),
+    ]).animate(
+      CurvedAnimation(parent: _entrance, curve: const Interval(0.15, 0.5)),
+    );
+    _headingFade = _fade(0.35, 0.52);
+    _headingSlide = _slideUp(0.35, 0.52);
+    _subtitleFade = _fade(0.45, 0.62);
+    _subtitleSlide = _slideUp(0.45, 0.62);
+    _field1Fade = _fade(0.55, 0.72);
+    _field1Slide = _slideUp(0.55, 0.72);
+    _field2Fade = _fade(0.63, 0.80);
+    _field2Slide = _slideUp(0.63, 0.80);
+    _forgotFade = _fade(0.78, 0.88);
+    _buttonFade = _fade(0.80, 0.93);
+    _buttonSlide = _slideUp(0.80, 0.93);
+    _linkFade = _fade(0.90, 1.0);
+
+    _entrance.forward();
+  }
+
+  Animation<double> _fade(double begin, double end,
+      [Curve curve = Curves.easeIn]) {
+    return CurvedAnimation(
+      parent: _entrance,
+      curve: Interval(begin, end, curve: curve),
+    );
+  }
+
+  Animation<Offset> _slideUp(double begin, double end, [double dy = 0.25]) {
+    return Tween<Offset>(begin: Offset(0, dy), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _entrance,
+        curve: Interval(begin, end, curve: Curves.easeOutCubic),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _entrance.dispose();
+    _float.dispose();
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // --- Validation -----------------------------------------------------------
+  String? _validateName(String? value) {
+    if (!_isSignUp) return null;
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) return 'Please enter your name';
+    if (name.length < 2) return 'Name is too short';
+    return null;
   }
 
   String? _validateEmail(String? value) {
@@ -51,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return null;
   }
 
+  // --- Actions --------------------------------------------------------------
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -62,10 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _goToHome() {
+  void _goToHome(UserProfile profile) {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => HomeScreen(profile: profile)),
     );
   }
 
@@ -78,25 +194,43 @@ class _LoginScreenState extends State<LoginScreen> {
         final res = await AuthService.instance.signUpWithEmail(
           email: _emailController.text,
           password: _passwordController.text,
+          fullName: _nameController.text.trim(),
         );
-        // If email confirmation is on, there's no session yet.
-        if (res.session == null) {
+        final user = res.user;
+        if (res.session != null && user != null) {
+          final profile = await UserRepository.instance.createProfile(
+            authUserId: user.id,
+            fullName: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+          );
+          _goToHome(profile);
+        } else {
           _showMessage(
             'Account created! Check your email to confirm, then sign in.',
             isError: false,
           );
           setState(() => _isSignUp = false);
-        } else {
-          _goToHome();
         }
       } else {
-        await AuthService.instance.signInWithEmail(
+        final res = await AuthService.instance.signInWithEmail(
           email: _emailController.text,
           password: _passwordController.text,
         );
-        _goToHome();
+        final user = res.user;
+        if (user == null) {
+          _showMessage('Sign in failed. Please try again.');
+          return;
+        }
+        final profile = await UserRepository.instance.ensureProfile(
+          authUserId: user.id,
+          fullName: (user.userMetadata?['full_name'] as String?) ?? 'INO User',
+          email: user.email ?? _emailController.text.trim(),
+        );
+        _goToHome(profile);
       }
     } on AuthException catch (e) {
+      _showMessage(e.message);
+    } on PostgrestException catch (e) {
       _showMessage(e.message);
     } catch (e) {
       _showMessage('Something went wrong. Please try again.');
@@ -105,265 +239,435 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _continueWithGoogle() async {
-    setState(() => _busy = true);
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (_validateEmail(email) != null) {
+      _showMessage('Enter your email above first, then tap Forgot password.');
+      return;
+    }
     try {
-      final res = await AuthService.instance.signInWithGoogle();
-      if (res == null) return; // user cancelled the picker
-      _goToHome();
+      await AuthService.instance.sendPasswordReset(email);
+      _showMessage('Password reset link sent to $email.', isError: false);
     } on AuthException catch (e) {
       _showMessage(e.message);
-    } catch (e) {
-      _showMessage('Google sign-in failed. Please try again.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+    } catch (_) {
+      _showMessage('Could not send reset email. Please try again.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+      body: Stack(
+        children: [
+          // Soft gradient background + floating shapes, both fading in.
+          Positioned.fill(
+            child: FadeTransition(
+              opacity: _bgFade,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFE9F5FB), // faint blue tint
+                      Color(0xFFEAF7F2), // faint green tint
+                      AppColors.background,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: FadeTransition(
+              opacity: _bgFade,
+              child: FloatingParticles(animation: _float),
+            ),
+          ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  const SizedBox(height: 56),
+                  _buildLogo(),
+                  const SizedBox(height: 40), // logo ↔ card
+                  _buildCard(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    // Scale + fade in, soft glow behind, then a gentle perpetual float.
+    return AnimatedBuilder(
+      animation: _float,
+      builder: (context, child) {
+        final bob = math.sin(2 * math.pi * _float.value) * 4;
+        return Transform.translate(offset: Offset(0, bob), child: child);
+      },
+      child: FadeTransition(
+        opacity: _logoFade,
+        child: ScaleTransition(
+          scale: _logoScale,
+          child: SizedBox(
+            width: 96,
+            height: 96,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Center(
+                  child: OverflowBox(
+                    maxWidth: 190,
+                    maxHeight: 190,
+                    child: SoftGlow(animation: _glow, size: 190),
+                  ),
+                ),
+                const InoLogo(size: 88),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard() {
+    return SlideTransition(
+      position: _cardSlide,
+      child: FadeTransition(
+        opacity: _cardFade,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 30, 24, 28),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 48),
-              const Center(child: InoLogo(size: 88)),
-              const SizedBox(height: 28),
-              Text(
-                _isSignUp ? 'Create your account' : 'Welcome to INO',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
+              // Welcome heading.
+              SlideTransition(
+                position: _headingSlide,
+                child: FadeTransition(
+                  opacity: _headingFade,
+                  child: Text(
+                    _isSignUp ? 'Create your account' : 'Welcome back',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _isSignUp
-                    ? 'Sign up to start your secure digital vault'
-                    : 'Sign in to access your secure digital vault',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textMuted,
+              const SizedBox(height: 10),
+              // Subtitle.
+              SlideTransition(
+                position: _subtitleSlide,
+                child: FadeTransition(
+                  opacity: _subtitleFade,
+                  child: Text(
+                    _isSignUp
+                        ? 'Sign up to start your secure digital vault'
+                        : 'Sign in to access your secure digital vault',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32), // welcome ↔ fields
 
-              // Email + password form.
+              // Inputs.
               Form(
                 key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      validator: _validateEmail,
-                      decoration: _fieldDecoration(
-                        label: 'Email address',
-                        hint: 'you@example.com',
-                        icon: Icons.mail_outline_rounded,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  child: Column(
+                    children: [
+                      if (_isSignUp) ...[
+                        _AuthField(
+                          controller: _nameController,
+                          label: 'Full name',
+                          hint: 'Tanishq Sharma',
+                          icon: Icons.person_outline_rounded,
+                          keyboardType: TextInputType.name,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          validator: _validateName,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      FadeTransition(
+                        opacity: _field1Fade,
+                        child: SlideTransition(
+                          position: _field1Slide,
+                          child: _AuthField(
+                            controller: _emailController,
+                            label: 'Email address',
+                            hint: 'you@example.com',
+                            icon: Icons.mail_outline_rounded,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            validator: _validateEmail,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FadeTransition(
+                        opacity: _field2Fade,
+                        child: SlideTransition(
+                          position: _field2Slide,
+                          child: _AuthField(
+                            controller: _passwordController,
+                            label: 'Password',
+                            hint: '••••••••',
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            validator: _validatePassword,
+                            onSubmitted: (_) => _submitEmail(),
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: AppColors.textMuted,
+                              ),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Forgot password (sign-in only).
+              if (!_isSignUp)
+                FadeTransition(
+                  opacity: _forgotFade,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _busy ? null : _forgotPassword,
+                      child: const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      validator: _validatePassword,
-                      onFieldSubmitted: (_) => _submitEmail(),
-                      decoration: _fieldDecoration(
-                        label: 'Password',
-                        hint: '••••••••',
-                        icon: Icons.lock_outline_rounded,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: AppColors.textMuted,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
+                  ),
+                ),
+              SizedBox(height: _isSignUp ? 28 : 12), // fields ↔ button
+
+              // Sign In button.
+              SlideTransition(
+                position: _buttonSlide,
+                child: FadeTransition(
+                  opacity: _buttonFade,
+                  child: PressableScale(
+                    child: SizedBox(
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _busy ? null : _submitEmail,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 6,
+                          shadowColor:
+                              AppColors.primaryGreen.withValues(alpha: 0.4),
+                        ),
+                        child: _busy
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _isSignUp ? 'Create Account' : 'Sign In',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28), // button ↔ create account
+
+              // Create account / sign in toggle.
+              FadeTransition(
+                opacity: _linkFade,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _isSignUp
+                            ? 'Already have an account?'
+                            : "Don't have an account?",
+                        style: const TextStyle(color: AppColors.textMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() => _isSignUp = !_isSignUp),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        _isSignUp ? 'Sign in' : 'Create account',
+                        style: const TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Primary action.
-              SizedBox(
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _busy ? null : _submitEmail,
-                  child: _busy
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          _isSignUp ? 'Create Account' : 'Sign In',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              const _OrDivider(),
-              const SizedBox(height: 24),
-
-              // Continue with Google.
-              SizedBox(
-                height: 54,
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _continueWithGoogle,
-                  icon: const _GoogleGlyph(),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppColors.surface,
-                    side: BorderSide(
-                      color: Colors.grey.withValues(alpha: 0.35),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Toggle between Sign In and Sign Up.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isSignUp
-                        ? 'Already have an account?'
-                        : "Don't have an account?",
-                    style: const TextStyle(color: AppColors.textMuted),
-                  ),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() => _isSignUp = !_isSignUp),
-                    child: Text(
-                      _isSignUp ? 'Sign in' : 'Sign up',
-                      style: const TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Center(
-                child: Text(
-                  'Phone number login coming soon',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                ),
-              ),
-              const SizedBox(height: 12),
             ],
           ),
         ),
       ),
     );
   }
-
-  InputDecoration _fieldDecoration({
-    required String label,
-    required String hint,
-    required IconData icon,
-    Widget? suffix,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon),
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.6),
-      ),
-    );
-  }
 }
 
-/// A horizontal "or" divider used between login methods.
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
+/// A text field with a smooth focus glow (premium "active" feel) on top of the
+/// theme's standard rounded, filled decoration.
+class _AuthField extends StatefulWidget {
+  const _AuthField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
+    this.validator,
+    this.onSubmitted,
+    this.suffix,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
+  final String? Function(String?)? validator;
+  final void Function(String)? onSubmitted;
+  final Widget? suffix;
+
+  @override
+  State<_AuthField> createState() => _AuthFieldState();
+}
+
+class _AuthFieldState extends State<_AuthField> {
+  final FocusNode _node = FocusNode();
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _node.addListener(() {
+      if (_node.hasFocus != _focused) {
+        setState(() => _focused = _node.hasFocus);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final lineColor = Colors.grey.withValues(alpha: 0.3);
-    return Row(
-      children: [
-        Expanded(child: Divider(color: lineColor)),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'or',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        // Subtle glow that appears while the field is focused/typing.
+        boxShadow: _focused
+            ? [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.18),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ]
+            : const [],
+      ),
+      child: TextFormField(
+        controller: widget.controller,
+        focusNode: _node,
+        obscureText: widget.obscureText,
+        keyboardType: widget.keyboardType,
+        textInputAction: widget.textInputAction,
+        textCapitalization: widget.textCapitalization,
+        validator: widget.validator,
+        onFieldSubmitted: widget.onSubmitted,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          hintText: widget.hint,
+          prefixIcon: Icon(widget.icon),
+          suffixIcon: widget.suffix,
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
           ),
-        ),
-        Expanded(child: Divider(color: lineColor)),
-      ],
-    );
-  }
-}
-
-/// A lightweight, asset-free Google "G" glyph for the sign-in button.
-/// Replace with the official multicolour Google logo asset when available.
-class _GoogleGlyph extends StatelessWidget {
-  const _GoogleGlyph();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      child: const Text(
-        'G',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF4285F4), // Google blue
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: AppColors.primaryGreen, width: 1.6),
+          ),
         ),
       ),
     );

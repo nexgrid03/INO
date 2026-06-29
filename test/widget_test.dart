@@ -1,5 +1,6 @@
 // Basic smoke test for the INO app launch flow.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:inoapp/main.dart';
@@ -22,8 +23,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1500)); // -> ~3.8s
     await tester.pump(const Duration(milliseconds: 600)); // transition done
 
-    // Onboarding is now visible.
+    // Onboarding is now visible: Skip + the floating arrow button.
     expect(find.text('Skip'), findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
   });
 }
