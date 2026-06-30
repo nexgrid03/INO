@@ -20,6 +20,7 @@ import '../../widgets/wallet_detail/filter_bar.dart';
 import '../../widgets/wallet_detail/recently_accessed_row.dart';
 import '../../widgets/wallet_detail/search_section.dart';
 import '../../widgets/wallet_detail/storage_analytics_card.dart';
+import '../documents/add_document_screen.dart';
 import '../shell/shell_controller.dart';
 
 /// The reusable Wallet Detail screen — the primary document-management surface.
@@ -73,6 +74,21 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         backgroundColor: AppColors.primaryGreen,
       ),
     );
+  }
+
+  void _onFabAction(QuickAction action) {
+    // Document-add actions open Add Document, pre-selecting this wallet.
+    const docActions = {'Scan Document', 'Upload PDF', 'Upload Image'};
+    if (docActions.contains(action.label)) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              AddDocumentScreen(initialWallet: widget.category.name),
+        ),
+      );
+      return;
+    }
+    _toast('${action.label} — coming soon');
   }
 
   // ---- Derived list --------------------------------------------------------
@@ -420,7 +436,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                 child: ExpandableFab(
                   actions: _detailFabActions,
-                  onAction: (a) => _toast('${a.label} — coming soon'),
+                  onAction: _onFabAction,
                 ),
               ),
             ),

@@ -31,6 +31,7 @@ class AppRadius {
 
   static const double card = 20;
   static const double large = 24; // hero / sheets
+  static const double button = 16;
   static const double chip = 12;
   static const double pill = 999;
 }

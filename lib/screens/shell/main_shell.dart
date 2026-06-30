@@ -6,6 +6,7 @@ import '../../models/user_profile.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
+import '../documents/add_document_screen.dart';
 import '../home/home_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
@@ -62,6 +63,15 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onFabAction(QuickAction action) {
+    // Document-add actions open the dedicated Add Document screen.
+    if (action.label == 'Add Document' ||
+        action.label == 'Scan' ||
+        action.label == 'Scan Document') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${action.label} — coming soon'),

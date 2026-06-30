@@ -14,6 +14,7 @@ import '../../widgets/home/floating_menu.dart';
 import '../../widgets/home/market_card.dart';
 import '../../widgets/home/priority_card.dart';
 import '../../widgets/home/quick_action_button.dart';
+import '../documents/add_document_screen.dart';
 import '../shell/shell_controller.dart';
 
 /// The INO Home — a minimal, premium fintech launcher.
@@ -64,6 +65,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _goToTab(int index) => ShellController.tab.value = index;
+
+  void _addDocument() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,15 +190,17 @@ class _HomeScreenState extends State<HomeScreen> {
           iconColor: AppColors.lightBlue,
         ),
         child: _QuickActions(
-          onScan: () => _goToTab(2),
-          onAddDocument: () => _toast('Add document — coming soon'),
+          onScan: _addDocument,
+          onAddDocument: _addDocument,
           onWallet: () => _goToTab(1),
           onReminder: () => _goToTab(3),
           onMore: () => FloatingMenu.show(
             context,
             title: 'Quick Add',
             actions: data.fabActions,
-            onSelect: (a) => _toast('${a.label} — coming soon'),
+            onSelect: (a) => a.label == 'Add Document'
+                ? _addDocument()
+                : _toast('${a.label} — coming soon'),
           ),
         ),
       ),
