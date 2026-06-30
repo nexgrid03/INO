@@ -1,26 +1,36 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../screens/scan/scan_theme.dart';
 import '../pressable_scale.dart';
+
+/// Lifecycle of the capture button, which changes its look per state.
+enum CaptureButtonState { idle, detected, capturing, success }
 
 /// The scanner's bottom control bar: Gallery · Capture · Flash.
 ///
-/// The capture button is the unmistakable primary action — a large 76dp white
-/// ring with a green gradient core and a generous touch target. Gallery and
-/// flash are quiet secondary affordances flanking it.
+/// The capture button is the unmistakable primary action — a large 78dp ring
+/// with a green→blue gradient core that morphs through idle → detected →
+/// capturing (spinner) → success (check). Gallery and flash are quiet glassy
+/// affordances flanking it.
 class ScanControls extends StatelessWidget {
   const ScanControls({
     super.key,
     required this.onGallery,
     required this.onCapture,
     required this.onToggleFlash,
-    required this.flashOn,
+    required this.flashIcon,
+    required this.flashLabel,
+    required this.captureState,
+    this.enabled = true,
   });
 
   final VoidCallback onGallery;
   final VoidCallback onCapture;
   final VoidCallback onToggleFlash;
-  final bool flashOn;
+  final IconData flashIcon;
+  final String flashLabel;
+  final CaptureButtonState captureState;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +40,17 @@ class ScanControls extends StatelessWidget {
         _SideButton(
           icon: Icons.photo_library_rounded,
           label: 'Gallery',
-          onTap: onGallery,
+          onTap: enabled ? onGallery : null,
         ),
-        _CaptureButton(onTap: onCapture),
+        _CaptureButton(
+          state: captureState,
+          onTap: enabled ? onCapture : null,
+        ),
         _SideButton(
-          icon: flashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-          label: 'Flash',
-          active: flashOn,
-          onTap: onToggleFlash,
+          icon: flashIcon,
+          label: flashLabel,
+          active: flashLabel != 'Off',
+          onTap: enabled ? onToggleFlash : null,
         ),
       ],
     );
@@ -45,28 +58,52 @@ class ScanControls extends StatelessWidget {
 }
 
 class _CaptureButton extends StatelessWidget {
-  const _CaptureButton({required this.onTap});
+  const _CaptureButton({required this.state, required this.onTap});
 
-  final VoidCallback onTap;
+  final CaptureButtonState state;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final busy = state == CaptureButtonState.capturing;
+    final success = state == CaptureButtonState.success;
+    final detected = state == CaptureButtonState.detected;
+
+    Widget core;
+    if (busy) {
+      core = const Padding(
+        padding: EdgeInsets.all(18),
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      );
+    } else if (success) {
+      core = const Icon(Icons.check_rounded, color: Colors.white, size: 30);
+    } else {
+      core = const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 26);
+    }
+
     return PressableScale(
       pressedScale: 0.9,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: busy ? null : onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: 76,
-          height: 76,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          width: 78,
+          height: 78,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 4),
+            border: Border.all(
+              color: Colors.white,
+              width: detected ? 5 : 4,
+            ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.45),
-                blurRadius: 22,
-                spreadRadius: 1,
+                color: ScanColors.green.withValues(alpha: detected ? 0.7 : 0.45),
+                blurRadius: detected ? 28 : 20,
+                spreadRadius: detected ? 2 : 1,
               ),
             ],
           ),
@@ -74,10 +111,9 @@ class _CaptureButton extends StatelessWidget {
           child: Container(
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppColors.brandGradient,
+              gradient: ScanColors.gradient,
             ),
-            child: const Icon(Icons.camera_alt_rounded,
-                color: Colors.white, size: 26),
+            child: Center(child: core),
           ),
         ),
       ),
@@ -95,46 +131,49 @@ class _SideButton extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.primaryGreen : Colors.white;
-    return PressableScale(
-      pressedScale: 0.9,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 64,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: active
-                        ? AppColors.primaryGreen
-                        : Colors.white.withValues(alpha: 0.18),
+    final color = active ? ScanColors.green : Colors.white;
+    return Opacity(
+      opacity: onTap == null ? 0.4 : 1,
+      child: PressableScale(
+        pressedScale: 0.9,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 64,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: active
+                          ? ScanColors.green
+                          : Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Icon(icon, color: color, size: 23),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: Icon(icon, color: color, size: 23),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

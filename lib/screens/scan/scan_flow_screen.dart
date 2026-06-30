@@ -42,6 +42,7 @@ class ScanFlowScreen extends StatefulWidget {
 class _ScanFlowScreenState extends State<ScanFlowScreen> {
   _Stage _stage = _Stage.scanner;
   OcrResult? _result;
+  String? _capturePath;
 
   void _go(_Stage stage) => setState(() => _stage = stage);
 
@@ -84,17 +85,21 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.scanner:
         return ScannerScreen(
           onClose: () => _exit(null),
-          onCapture: () => _go(_Stage.review),
-          onGallery: () => _go(_Stage.review),
+          onCaptured: (path) {
+            _capturePath = path;
+            _go(_Stage.review);
+          },
         );
       case _Stage.review:
         return ScanReviewScreen(
+          imagePath: _capturePath,
           onClose: () => _go(_Stage.scanner),
           onRetake: () => _go(_Stage.scanner),
           onContinue: () => _go(_Stage.processing),
         );
       case _Stage.processing:
         return OcrProcessingScreen(
+          imagePath: _capturePath,
           onResult: (r) {
             _result = r;
             _go(_Stage.result);

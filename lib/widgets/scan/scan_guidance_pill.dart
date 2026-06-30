@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../models/scan_models.dart';
-import '../../theme/app_theme.dart';
+import '../../screens/scan/scan_theme.dart';
 
 /// The floating real-time hint shown over the camera ("Hold steady",
-/// "Document detected" …). A single calm pill that tints green once the scanner
-/// has locked on, so the user always knows whether they can capture.
+/// "Document detected" …). A glassy pill that tints green once the scanner has
+/// locked on, so the user always knows whether they can capture.
 class ScanGuidancePill extends StatelessWidget {
   const ScanGuidancePill({super.key, required this.guidance});
 
@@ -14,7 +14,7 @@ class ScanGuidancePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final positive = guidance.isPositive;
-    final accent = positive ? AppColors.primaryGreen : Colors.white;
+    final accent = positive ? ScanColors.green : Colors.white;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 240),
       transitionBuilder: (child, anim) => FadeTransition(
@@ -32,12 +32,12 @@ class ScanGuidancePill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: positive
-              ? AppColors.primaryGreen.withValues(alpha: 0.18)
+              ? ScanColors.green.withValues(alpha: 0.18)
               : Colors.black.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: positive
-                ? AppColors.primaryGreen
+                ? ScanColors.green
                 : Colors.white.withValues(alpha: 0.25),
           ),
         ),

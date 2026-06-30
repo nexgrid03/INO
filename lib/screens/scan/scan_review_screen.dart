@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import '../../services/image_enhancer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
@@ -12,11 +15,14 @@ import '../../widgets/pressable_scale.dart';
 class ScanReviewScreen extends StatefulWidget {
   const ScanReviewScreen({
     super.key,
+    required this.imagePath,
     required this.onRetake,
     required this.onContinue,
     required this.onClose,
   });
 
+  /// Path to the captured/imported page, or null (renders a placeholder).
+  final String? imagePath;
   final VoidCallback onRetake;
   final VoidCallback onContinue;
   final VoidCallback onClose;
@@ -26,9 +32,34 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  // Cosmetic-only adjustments so the tools feel responsive in the prototype.
   int _quarterTurns = 0;
   bool _enhanced = false;
+  String? _enhancedPath;
+  bool _enhancing = false;
+
+  /// Path currently shown: the enhanced variant when toggled on, else original.
+  String? get _shownPath =>
+      _enhanced ? (_enhancedPath ?? widget.imagePath) : widget.imagePath;
+
+  Future<void> _toggleEnhance() async {
+    if (_enhanced) {
+      setState(() => _enhanced = false);
+      return;
+    }
+    final path = widget.imagePath;
+    if (path == null) {
+      setState(() => _enhanced = true); // placeholder mode
+      return;
+    }
+    setState(() => _enhancing = true);
+    final result = await ImageEnhancer.enhance(path);
+    if (!mounted) return;
+    setState(() {
+      _enhancedPath = result;
+      _enhanced = true;
+      _enhancing = false;
+    });
+  }
 
   void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +88,11 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                   child: AnimatedRotation(
                     turns: _quarterTurns / 4,
                     duration: const Duration(milliseconds: 250),
-                    child: _CapturePreview(enhanced: _enhanced),
+                    child: _CapturePreview(
+                      imagePath: _shownPath,
+                      enhanced: _enhanced,
+                      enhancing: _enhancing,
+                    ),
                   ),
                 ),
               ),
@@ -84,7 +119,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                     icon: Icons.auto_fix_high_rounded,
                     label: 'Enhance',
                     active: _enhanced,
-                    onTap: () => setState(() => _enhanced = !_enhanced),
+                    onTap: _toggleEnhance,
                   ),
                   _Tool(
                     icon: Icons.refresh_rounded,
@@ -156,12 +191,18 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The captured page preview (a styled placeholder standing in for the real
-/// captured image).
+/// The captured page preview. Renders the real captured/imported image when a
+/// path is available, otherwise a styled placeholder (no-path / test contexts).
 class _CapturePreview extends StatelessWidget {
-  const _CapturePreview({required this.enhanced});
+  const _CapturePreview({
+    required this.imagePath,
+    required this.enhanced,
+    required this.enhancing,
+  });
 
+  final String? imagePath;
   final bool enhanced;
+  final bool enhancing;
 
   @override
   Widget build(BuildContext context) {
@@ -169,8 +210,9 @@ class _CapturePreview extends StatelessWidget {
       aspectRatio: 0.7,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: enhanced ? Colors.white : const Color(0xFFF1F2F0),
+          color: const Color(0xFFF1F2F0),
           borderRadius: BorderRadius.circular(AppRadius.large),
           border: Border.all(
             color: AppColors.primaryGreen.withValues(alpha: enhanced ? 0.5 : 0.2),
@@ -184,30 +226,59 @@ class _CapturePreview extends StatelessWidget {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(26),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.badge_rounded,
-                  size: 40,
-                  color: AppColors.primaryGreen
-                      .withValues(alpha: enhanced ? 0.9 : 0.5)),
-              const SizedBox(height: 20),
-              for (var i = 0; i < 6; i++)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  width: (i.isEven ? 1.0 : 0.6) * 180,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: Colors.black
-                        .withValues(alpha: enhanced ? 0.30 : 0.16),
-                    borderRadius: BorderRadius.circular(4),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imagePath != null)
+              Image.file(
+                File(imagePath!),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _PlaceholderPage(),
+              )
+            else
+              const _PlaceholderPage(),
+            if (enhancing)
+              ColoredBox(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Styled document silhouette used when no real image is available.
+class _PlaceholderPage extends StatelessWidget {
+  const _PlaceholderPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(26),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.badge_rounded,
+              size: 40, color: AppColors.primaryGreen.withValues(alpha: 0.5)),
+          const SizedBox(height: 20),
+          for (var i = 0; i < 6; i++)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              width: (i.isEven ? 1.0 : 0.6) * 180,
+              height: 9,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -15,10 +15,13 @@ import '../../theme/app_theme.dart';
 class OcrProcessingScreen extends StatefulWidget {
   const OcrProcessingScreen({
     super.key,
+    required this.imagePath,
     required this.onResult,
     required this.onFailed,
   });
 
+  /// The captured/imported image to run OCR against (null in manual contexts).
+  final String? imagePath;
   final ValueChanged<OcrResult> onResult;
   final VoidCallback onFailed;
 
@@ -49,7 +52,8 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
 
   Future<void> _run() async {
     try {
-      final result = await ScanRepository.instance.extract();
+      final result =
+          await ScanRepository.instance.extract(imagePath: widget.imagePath);
       if (!mounted) return;
       widget.onResult(result);
     } on OcrException {

@@ -14,7 +14,9 @@ class OcrException implements Exception {
 /// the sample implementation can be swapped for a real OCR service (ML Kit,
 /// Textract, a backend endpoint) without touching any UI.
 abstract class ScanRepository {
-  Future<OcrResult> extract();
+  /// Runs OCR on the captured/imported image at [imagePath] (when available)
+  /// and returns the structured result.
+  Future<OcrResult> extract({String? imagePath});
 
   static ScanRepository instance = SampleScanRepository();
 }
@@ -25,7 +27,7 @@ class SampleScanRepository implements ScanRepository {
   bool failNext = false;
 
   @override
-  Future<OcrResult> extract() async {
+  Future<OcrResult> extract({String? imagePath}) async {
     // Simulates on-device OCR latency.
     await Future<void>.delayed(const Duration(milliseconds: 2200));
     if (failNext) {
