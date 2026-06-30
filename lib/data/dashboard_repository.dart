@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 /// field can be hydrated by its own query/endpoint inside the repository.
 class DashboardData {
   const DashboardData({
+    required this.hero,
     required this.market,
     required this.lifeOverview,
     required this.priorities,
@@ -25,6 +26,7 @@ class DashboardData {
     required this.insights,
   });
 
+  final HomeHero hero;
   final List<MarketQuote> market;
   final List<LifeOverviewItem> lifeOverview;
   final List<PriorityItem> priorities;
@@ -62,6 +64,16 @@ class SampleDashboardRepository implements DashboardRepository {
   }
 
   static final DashboardData _data = DashboardData(
+    hero: const HomeHero(
+      netWorth: '₹1.24 Cr',
+      growthPercent: 12.2,
+      growthAmount: '₹13.52 L',
+      trend: [38, 39, 40.5, 41, 43, 44.2, 46, 47.1, 48.6],
+      assets: 12,
+      documents: 24,
+      pendingTasks: 3,
+      protectedItems: 6,
+    ),
     market: const [
       MarketQuote(
         label: 'Gold 24K',
@@ -72,6 +84,7 @@ class SampleDashboardRepository implements DashboardRepository {
         spark: [70, 71, 70.5, 72, 71.6, 73, 73.4, 74.1],
         // Gold → hero gradient card (green → light blue).
         gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
+        accent: Color(0xFFE0A100), // amber
         filled: true,
       ),
       MarketQuote(
@@ -83,6 +96,7 @@ class SampleDashboardRepository implements DashboardRepository {
         spark: [94, 93.6, 93.8, 93.1, 92.7, 92.9, 92.4, 92.3],
         // Silver → sky-blue glass.
         gradient: [Color(0xFF7DD3FC), Color(0xFF38BDF8)],
+        accent: Color(0xFF8C9BA5), // grey
       ),
       MarketQuote(
         label: 'Petrol',
@@ -94,6 +108,7 @@ class SampleDashboardRepository implements DashboardRepository {
         spark: [105.9, 106.0, 106.1, 106.0, 106.2, 106.2, 106.3, 106.31],
         // Petrol → green accent.
         gradient: [Color(0xFF00A86B), Color(0xFF34D399)],
+        accent: Color(0xFF00A86B),
       ),
       MarketQuote(
         label: 'Diesel',
@@ -105,6 +120,7 @@ class SampleDashboardRepository implements DashboardRepository {
         spark: [94.5, 94.4, 94.4, 94.3, 94.35, 94.3, 94.28, 94.27],
         // Diesel → blue accent.
         gradient: [Color(0xFF38BDF8), Color(0xFF7DD3FC)],
+        accent: Color(0xFF38BDF8),
       ),
     ],
     lifeOverview: const [

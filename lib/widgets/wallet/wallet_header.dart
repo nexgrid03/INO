@@ -3,23 +3,25 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 1 — Wallet Hub header.
+/// Section 1 — Wallet Hub header (launcher style).
 ///
-/// Avatar + search/notification controls, then the "My Wallets" title, a warm
-/// subtitle, and a green "items secured" badge. Mirrors the home header's
-/// styling so the two tabs feel like one product.
+/// Avatar + search/notification controls, the "My Wallets" title, and a single
+/// lightweight summary line ("8 Wallets • 128 Records"). Kept deliberately
+/// compact so the wallet grid sits high on the screen.
 class WalletHeader extends StatelessWidget {
   const WalletHeader({
     super.key,
     required this.fullName,
-    required this.itemsSecured,
+    required this.walletCount,
+    required this.recordCount,
     required this.onSearch,
     required this.onNotifications,
     this.notificationCount = 0,
   });
 
   final String fullName;
-  final int itemsSecured;
+  final int walletCount;
+  final int recordCount;
   final VoidCallback onSearch;
   final VoidCallback onNotifications;
   final int notificationCount;
@@ -71,51 +73,32 @@ class WalletHeader extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
         Text(
           'My Wallets',
           style: TextStyle(
-            fontSize: 27,
+            fontSize: 26,
             fontWeight: FontWeight.w800,
             color: palette.textPrimary,
             letterSpacing: -0.6,
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          'Securely manage every important part of your life.',
-          style: TextStyle(
-            fontSize: 13.5,
-            height: 1.4,
-            color: palette.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.primaryGreen.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppColors.primaryGreen.withValues(alpha: 0.20),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.verified_user_rounded,
-                  size: 15, color: AppColors.primaryGreen),
-              const SizedBox(width: 7),
-              Text(
-                '$itemsSecured Items Secured',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.darkGreen,
-                ),
+        // Lightweight quick summary.
+        Row(
+          children: [
+            const Icon(Icons.verified_user_rounded,
+                size: 14, color: AppColors.primaryGreen),
+            const SizedBox(width: 6),
+            Text(
+              '$walletCount Wallets  •  $recordCount Records',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: palette.textSecondary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );

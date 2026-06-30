@@ -92,8 +92,14 @@ class SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
+    // The child MUST fill the declared extent exactly: a pinned persistent
+    // header whose content is shorter than [maxExtent] makes paintExtent <
+    // layoutExtent, which asserts and blanks the whole scroll view. Fixing the
+    // height (and centring the field) keeps the geometry valid.
     return Container(
+      height: _height,
       color: background,
+      alignment: Alignment.center,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: DetailSearchBar(
         controller: controller,

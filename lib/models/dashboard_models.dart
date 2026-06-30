@@ -9,6 +9,36 @@ import 'package:flutter/material.dart';
 /// maps, so the integration swap is a one-file change.
 
 // ---------------------------------------------------------------------------
+// Home hero (net worth + headline metrics)
+// ---------------------------------------------------------------------------
+
+/// Backs the Home dashboard hero card: total net worth, monthly growth, a small
+/// trend series, and the four headline metrics shown along the bottom.
+class HomeHero {
+  const HomeHero({
+    required this.netWorth,
+    required this.growthPercent,
+    required this.growthAmount,
+    required this.trend,
+    required this.assets,
+    required this.documents,
+    required this.pendingTasks,
+    required this.protectedItems,
+  });
+
+  final String netWorth; // pre-formatted, e.g. "₹1.24 Cr"
+  final double growthPercent; // monthly growth, e.g. 12.2
+  final String growthAmount; // pre-formatted gain, e.g. "₹13.52 L"
+  final List<double> trend; // net-worth series for the mini graph
+  final int assets;
+  final int documents;
+  final int pendingTasks;
+  final int protectedItems;
+
+  bool get isUp => growthPercent >= 0;
+}
+
+// ---------------------------------------------------------------------------
 // 2. Live market intelligence
 // ---------------------------------------------------------------------------
 
@@ -24,6 +54,7 @@ class MarketQuote {
     required this.changePercent,
     required this.spark,
     required this.gradient,
+    this.accent = const Color(0xFF00A86B),
     this.filled = false,
     this.location,
   });
@@ -35,6 +66,7 @@ class MarketQuote {
   final double changePercent; // +0.82, -0.31 …
   final List<double> spark; // mini trend series (oldest → newest)
   final List<Color> gradient; // premium accent for the icon tile / card fill
+  final Color accent; // flat accent (e.g. gold amber, silver grey)
   final bool filled; // true → whole card is a gradient hero (e.g. Gold)
   final String? location; // for fuels: "Mumbai"
 

@@ -4,22 +4,18 @@ import '../../data/wallet_repository.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../theme/app_theme.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/dashboard/sections/insights_section.dart';
-import '../../widgets/dashboard/sections/quick_actions_section.dart';
-import '../../widgets/wallet/recent_items.dart';
-import '../../widgets/wallet/security_center.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../../widgets/wallet/wallet_header.dart';
-import '../../widgets/wallet/wallet_overview_card.dart';
 import 'wallet_detail_screen.dart';
 
-/// The INO Wallet Hub — the secure command center for a user's digital life.
+/// The INO Wallet Hub — a premium, fast-access vault launcher.
 ///
-/// Composes, in the brief's order: header → vault overview hero → wallet
-/// categories grid → quick actions → recently accessed → security center →
-/// smart insights. Data comes from [WalletRepository] (sample today, live
-/// later); each section staggers in for a premium settle-in.
+/// Deliberately minimal: a lightweight header (avatar · search · notifications
+/// · "8 Wallets • 128 Records") above a compact grid of all wallets, so every
+/// vault is visible without scrolling — the Apple/Google Wallet model where
+/// access speed beats analytics. Tapping a wallet opens its detail screen.
+/// (Overview analytics, quick actions, recents, security and insights now live
+/// on the detail/other screens.)
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key, required this.profile});
 
@@ -100,12 +96,14 @@ class _WalletScreenState extends State<WalletScreen> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
+                  // Header — compact, with the lightweight summary line.
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                       child: WalletHeader(
                         fullName: widget.profile.fullName,
-                        itemsSecured: data?.overview.protectedItems ?? 0,
+                        walletCount: data?.categories.length ?? 0,
+                        recordCount: data?.overview.totalRecords ?? 0,
                         notificationCount: data?.insights.length ?? 0,
                         onSearch: () => _toast('Search wallets — coming soon'),
                         onNotifications: () =>
@@ -119,10 +117,14 @@ class _WalletScreenState extends State<WalletScreen> {
                       child: _LoadingState(),
                     )
                   else
+                    // Compact launcher grid — all wallets, no scrolling.
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate(_sections(data)),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverToBoxAdapter(
+                        child: WalletGrid(
+                          categories: data.categories,
+                          onOpen: _openWallet,
+                        ),
                       ),
                     ),
                 ],
@@ -132,37 +134,6 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
       ),
     );
-  }
-
-  List<Widget> _sections(WalletHubData data) {
-    final sections = <Widget>[
-      WalletOverviewCard(overview: data.overview),
-      WalletGrid(
-        categories: data.categories,
-        onOpen: _openWallet,
-      ),
-      QuickActionsSection(
-        actions: data.quickActions,
-        onAction: (a) => _toast('${a.label} — coming soon'),
-      ),
-      RecentItemsSection(
-        items: data.recents,
-        onOpen: (i) => _toast('Opening ${i.name} — coming soon'),
-      ),
-      SecurityCenter(status: data.security),
-      InsightsSection(insights: data.insights),
-    ];
-
-    return [
-      for (var i = 0; i < sections.length; i++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: FadeSlideIn(
-            delay: Duration(milliseconds: (i * 80).clamp(0, 480)),
-            child: sections[i],
-          ),
-        ),
-    ];
   }
 }
 

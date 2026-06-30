@@ -13,6 +13,7 @@ class SectionHeader extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.icon,
+    this.iconColor,
   });
 
   final String title;
@@ -20,6 +21,7 @@ class SectionHeader extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,7 @@ class SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 18, color: AppColors.primaryGreen),
+            Icon(icon, size: 18, color: iconColor ?? AppColors.primaryGreen),
             const SizedBox(width: 8),
           ],
           Expanded(
