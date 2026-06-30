@@ -11,7 +11,8 @@ import '../../widgets/floating_particles.dart';
 import '../../widgets/ino_logo.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/soft_glow.dart';
-import '../home/home_screen.dart';
+import '../../theme/theme_controller.dart';
+import '../shell/main_shell.dart';
 
 /// Premium login / sign-up screen.
 ///
@@ -181,7 +182,13 @@ class _LoginScreenState extends State<LoginScreen>
   void _goToHome(UserProfile profile) {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => HomeScreen(profile: profile)),
+      MaterialPageRoute(
+        builder: (_) => MainShell(
+          profile: profile,
+          themeMode: ThemeController.mode.value,
+          onToggleTheme: () => ThemeController.toggle(context),
+        ),
+      ),
     );
   }
 

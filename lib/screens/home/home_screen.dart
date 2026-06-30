@@ -1,73 +1,179 @@
 import 'package:flutter/material.dart';
 
+import '../../data/dashboard_repository.dart';
 import '../../models/user_profile.dart';
-import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
-import '../auth/login_screen.dart';
+import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/dashboard/sections/activity_section.dart';
+import '../../widgets/dashboard/sections/family_section.dart';
+import '../../widgets/dashboard/sections/insights_section.dart';
+import '../../widgets/dashboard/sections/investment_section.dart';
+import '../../widgets/dashboard/sections/life_overview_section.dart';
+import '../../widgets/dashboard/sections/market_section.dart';
+import '../../widgets/dashboard/sections/priority_section.dart';
+import '../../widgets/dashboard/sections/quick_actions_section.dart';
+import '../../widgets/dashboard/sections/snapshot_sections.dart';
+import '../../widgets/dashboard/sections/wallet_section.dart';
+import '../../widgets/dashboard/welcome_header.dart';
 
-/// Temporary landing screen shown after login.
+/// The INO Home Dashboard — the app's "Digital Life Command Center".
 ///
-/// It receives the signed-in user's [UserProfile] (fetched from public.users)
-/// and greets them by name — proof that we retrieved the profile. The real
-/// dashboard (documents, property, insurance, …) will replace this later.
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.profile});
+/// Composes all the dashboard sections in a single scroll, ordered by the
+/// information hierarchy in the product brief: what needs attention → market
+/// pulse → life overview → quick actions → wallets → the per-domain snapshots →
+/// family → activity → insights. Data comes from [DashboardRepository] (sample
+/// today, live later) and each section staggers in for a premium settle-in.
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({
+    super.key,
+    required this.profile,
+    this.themeMode = ThemeMode.system,
+    this.onToggleTheme,
+  });
 
   final UserProfile profile;
+  final ThemeMode themeMode;
+  final VoidCallback? onToggleTheme;
 
-  Future<void> _signOut(BuildContext context) async {
-    await AuthService.instance.signOut();
-    if (!context.mounted) return;
-    // Clear the navigation stack and return to Login.
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<DashboardData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = DashboardRepository.instance.load();
+  }
+
+  Future<void> _refresh() async {
+    final data = DashboardRepository.instance.load();
+    setState(() {
+      _future = data;
+    });
+    await data;
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primaryGreen,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final firstName = profile.fullName.split(' ').first;
-
+    final palette = AppPalette.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('INO'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => _signOut(context),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              size: 72,
-              color: AppColors.primaryGreen,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Welcome, $firstName 👋',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.textDark,
-                    fontWeight: FontWeight.w700,
+      backgroundColor: palette.bg,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: AppColors.primaryGreen,
+          onRefresh: _refresh,
+          child: FutureBuilder<DashboardData>(
+            future: _future,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  // Pinned-feel header (scrolls normally but always first).
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: WelcomeHeader(
+                        fullName: widget.profile.fullName,
+                        themeMode: widget.themeMode,
+                        notificationCount: data?.priorities.length ?? 0,
+                        onToggleTheme:
+                            widget.onToggleTheme ?? () {},
+                        onSearch: () => _toast('Global search — coming soon'),
+                        onNotifications: () =>
+                            _toast('Notification center — coming soon'),
+                      ),
+                    ),
                   ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              profile.email,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Dashboard coming soon',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ],
+
+                  if (data == null)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _LoadingState(),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate(
+                          _sections(data),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds the ordered section list, each wrapped in a staggered entrance.
+  List<Widget> _sections(DashboardData data) {
+    final sections = <Widget>[
+      MarketSection(quotes: data.market),
+      LifeOverviewSection(items: data.lifeOverview),
+      PrioritySection(items: data.priorities),
+      QuickActionsSection(
+        actions: data.quickActions,
+        onAction: (a) => _toast('${a.label} — coming soon'),
+      ),
+      WalletSection(wallets: data.wallets),
+      InvestmentSection(summary: data.investment),
+      PropertySection(summary: data.property),
+      HealthSection(summary: data.health),
+      InsuranceSection(summary: data.insurance),
+      FamilySection(events: data.familyEvents),
+      ActivitySection(items: data.activity),
+      InsightsSection(insights: data.insights),
+    ];
+
+    return [
+      for (var i = 0; i < sections.length; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: FadeSlideIn(
+            // Cap the cascade so later sections don't feel sluggish.
+            delay: Duration(milliseconds: (i * 70).clamp(0, 560)),
+            child: sections[i],
+          ),
+        ),
+    ];
+  }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.only(top: 80),
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.6,
+            color: AppColors.primaryGreen,
+          ),
         ),
       ),
     );
