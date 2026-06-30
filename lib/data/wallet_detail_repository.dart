@@ -39,15 +39,63 @@ class WalletDetailData {
 /// data for the given [WalletCategory].
 abstract class WalletDetailRepository {
   Future<WalletDetailData> load(WalletCategory category);
+  void addRecord(String walletName, DocumentRecord record);
+  void updateRecord(String walletName, DocumentRecord record);
+  void deleteRecord(String walletName, String recordId);
+  int getRecordCount(String walletName, WalletCategory fallbackCategory);
 
   static WalletDetailRepository instance = SampleWalletDetailRepository();
 }
 
 class SampleWalletDetailRepository implements WalletDetailRepository {
+  final Map<String, List<DocumentRecord>> _vault = {};
+
+  List<DocumentRecord> _getOrCreateRecords(WalletCategory category) {
+    return _vault.putIfAbsent(
+      category.name,
+      () => category.name == 'Identity Wallet'
+          ? List<DocumentRecord>.from(_identityRecords)
+          : _recordsFor(category),
+    );
+  }
+
+  @override
+  void addRecord(String walletName, DocumentRecord record) {
+    final list = _vault[walletName] ?? [];
+    _vault[walletName] = [record, ...list];
+  }
+
+  @override
+  void updateRecord(String walletName, DocumentRecord record) {
+    final list = _vault[walletName];
+    if (list != null) {
+      final idx = list.indexWhere((r) => r.id == record.id);
+      if (idx != -1) {
+        list[idx] = record;
+      }
+    }
+  }
+
+  @override
+  void deleteRecord(String walletName, String recordId) {
+    final list = _vault[walletName];
+    if (list != null) {
+      list.removeWhere((r) => r.id == recordId);
+    }
+  }
+
+  @override
+  int getRecordCount(String walletName, WalletCategory fallbackCategory) {
+    if (!_vault.containsKey(walletName)) {
+      _getOrCreateRecords(fallbackCategory);
+    }
+    return _vault[walletName]?.length ?? 0;
+  }
+
   @override
   Future<WalletDetailData> load(WalletCategory category) async {
     await Future<void>.delayed(const Duration(milliseconds: 280));
-    final records = _recordsFor(category);
+    final records = _getOrCreateRecords(category);
     final active =
         records.where((r) => r.status == DocumentStatus.active).length;
     final expiring =

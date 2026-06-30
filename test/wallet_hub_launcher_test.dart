@@ -31,7 +31,7 @@ void main() {
 
     // Header title + lightweight summary.
     expect(find.text('My Wallets'), findsOneWidget);
-    expect(find.text('8 Wallets  •  128 Records'), findsOneWidget);
+    expect(find.text('8 Wallets  •  22 Records'), findsOneWidget);
 
     // All 8 wallets are present (the launcher grid).
     for (final name in const [

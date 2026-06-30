@@ -8,28 +8,29 @@ import '../../models/wallet_models.dart' show WalletCategory;
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/dashboard/section_header.dart';
-import '../../widgets/dashboard/sections/insights_section.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
-import '../../widgets/wallet/security_center.dart';
-import '../../widgets/wallet_detail/detail_header.dart';
-import '../../widgets/wallet_detail/detail_overview_card.dart';
+import '../../widgets/wallet_detail/category_chips.dart';
 import '../../widgets/wallet_detail/document_card.dart';
+import '../../widgets/wallet_detail/document_filter_bar.dart';
+import '../../widgets/wallet_detail/document_skeleton.dart';
 import '../../widgets/wallet_detail/empty_state.dart';
-import '../../widgets/wallet_detail/filter_bar.dart';
-import '../../widgets/wallet_detail/recently_accessed_row.dart';
 import '../../widgets/wallet_detail/search_section.dart';
-import '../../widgets/wallet_detail/storage_analytics_card.dart';
+import '../../widgets/wallet_detail/smart_banner.dart';
+import '../../widgets/wallet_detail/wallet_header.dart';
+import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
 import '../shell/shell_controller.dart';
 
-/// The reusable Wallet Detail screen — the primary document-management surface.
+/// The reusable Wallet Detail screen — a premium *document manager*, not a
+/// dashboard.
 ///
 /// Opened from the Wallet Hub for ANY wallet ([category]); the structure never
-/// changes, only the data from [WalletDetailRepository]. Holds the working list
-/// of records plus search / filter / sort state, and wires premium swipe +
-/// quick-action interactions. Keeps the shared bottom nav (Wallet active) and
-/// the expandable FAB for full ecosystem consistency.
+/// changes, only the data from [WalletDetailRepository]. Everything above the
+/// document list is one-tap-tall and exists only to help the user find, open,
+/// upload, scan or share a document: a compact header, a sticky search field, a
+/// 4-fact summary card, an attention-only smart banner, category chips and a
+/// status filter. The list itself owns the screen. Keeps the shared bottom nav
+/// (Wallet active) and the gradient FAB for ecosystem consistency.
 class WalletDetailScreen extends StatefulWidget {
   const WalletDetailScreen({super.key, required this.category});
 
@@ -47,8 +48,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   // Working state.
   List<DocumentRecord> _records = const [];
   String _query = '';
+  String? _category; // null = "All" category chip
   WalletFilter _filter = WalletFilter.all;
   WalletSort _sort = WalletSort.recent;
+  bool _bannerDismissed = false;
+
+  // The brief's focused status filter set (Recent lives inside Sort).
+  static const _filters = <WalletFilter>[
+    WalletFilter.all,
+    WalletFilter.favorites,
+    WalletFilter.expiringSoon,
+    WalletFilter.archived,
+  ];
 
   @override
   void initState() {
@@ -78,7 +89,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _onFabAction(QuickAction action) {
     // Document-add actions open Add Document, pre-selecting this wallet.
-    const docActions = {'Scan Document', 'Upload PDF', 'Upload Image'};
+    const docActions = {'Scan Document', 'Upload PDF', 'Import Image'};
     if (docActions.contains(action.label)) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -91,7 +102,24 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     _toast('${action.label} — coming soon');
   }
 
-  // ---- Derived list --------------------------------------------------------
+  // ---- Derived data --------------------------------------------------------
+
+  /// Category chip labels derived from the wallet's actual records: the distinct
+  /// document categories, or — when a wallet holds a single category — the
+  /// distinct tags, so the row always resolves to real results.
+  List<String> get _categoryChips {
+    final cats = <String>{for (final r in _records) r.category};
+    if (cats.length > 1) return cats.toList()..sort();
+    final tags = <String>{for (final r in _records) ...r.tags};
+    return tags.toList()..sort();
+  }
+
+  bool _matchesCategory(DocumentRecord r) {
+    if (_category == null) return true;
+    final c = _category!.toLowerCase();
+    return r.category.toLowerCase() == c ||
+        r.tags.any((t) => t.toLowerCase() == c);
+  }
 
   List<DocumentRecord> get _visible {
     bool passFilter(DocumentRecord r) {
@@ -101,7 +129,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         case WalletFilter.active:
           return r.status == DocumentStatus.active;
         case WalletFilter.expiringSoon:
-          return r.status == DocumentStatus.expiringSoon;
+          return r.status == DocumentStatus.expiringSoon ||
+              r.status == DocumentStatus.expired;
         case WalletFilter.favorites:
           return r.isFavorite;
         case WalletFilter.shared:
@@ -111,7 +140,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       }
     }
 
-    final list = _records.where((r) => r.matches(_query) && passFilter(r)).toList();
+    final list = _records
+        .where((r) => r.matches(_query) && _matchesCategory(r) && passFilter(r))
+        .toList();
     switch (_sort) {
       case WalletSort.recent:
         list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -136,31 +167,62 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     return list;
   }
 
+  /// The single record (if any) that should drive the smart banner: the
+  /// soonest-expiring document in the wallet.
+  DocumentRecord? get _attentionRecord {
+    final expiring = _records
+        .where((r) =>
+            r.status == DocumentStatus.expiringSoon ||
+            r.status == DocumentStatus.expired)
+        .toList()
+      ..sort((a, b) {
+        final ae = a.expiresAt;
+        final be = b.expiresAt;
+        if (ae == null && be == null) return 0;
+        if (ae == null) return 1;
+        if (be == null) return -1;
+        return ae.compareTo(be);
+      });
+    return expiring.isEmpty ? null : expiring.first;
+  }
+
+  String _bannerMessage(DocumentRecord r) {
+    final exp = r.expiresAt;
+    if (exp == null) return '${r.name} needs your attention';
+    final days = exp.difference(DateTime.now()).inDays;
+    if (days < 0) return '${r.name} has expired';
+    if (days == 0) return '${r.name} expires today';
+    return '${r.name} expires in $days day${days == 1 ? '' : 's'}';
+  }
+
   // ---- Mutations -----------------------------------------------------------
 
   void _toggleFavorite(DocumentRecord r) {
+    final updated = r.copyWith(isFavorite: !r.isFavorite);
+    WalletDetailRepository.instance.updateRecord(widget.category.name, updated);
     setState(() {
       final i = _records.indexWhere((e) => e.id == r.id);
       if (i != -1) {
-        _records = [..._records]
-          ..[i] = _records[i].copyWith(isFavorite: !_records[i].isFavorite);
+        _records = [..._records]..[i] = updated;
       }
     });
     HapticFeedback.selectionClick();
   }
 
   void _archive(DocumentRecord r) {
+    final updated = r.copyWith(status: DocumentStatus.archived);
+    WalletDetailRepository.instance.updateRecord(widget.category.name, updated);
     setState(() {
       final i = _records.indexWhere((e) => e.id == r.id);
       if (i != -1) {
-        _records = [..._records]
-          ..[i] = _records[i].copyWith(status: DocumentStatus.archived);
+        _records = [..._records]..[i] = updated;
       }
     });
     _toast('${r.name} archived');
   }
 
   void _delete(DocumentRecord r) {
+    WalletDetailRepository.instance.deleteRecord(widget.category.name, r.id);
     setState(() => _records = _records.where((e) => e.id != r.id).toList());
     _toast('${r.name} deleted');
   }
@@ -236,7 +298,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final palette = AppPalette.of(context);
     final color = danger ? AppColors.critical : palette.textPrimary;
     return ListTile(
-      leading: Icon(icon, color: danger ? AppColors.critical : AppColors.primaryGreen),
+      leading: Icon(icon,
+          color: danger ? AppColors.critical : AppColors.primaryGreen),
       title: Text(label,
           style: TextStyle(color: color, fontWeight: FontWeight.w600)),
       onTap: () {
@@ -315,122 +378,27 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     parent: BouncingScrollPhysics(),
                   ),
                   slivers: [
-                    // Header.
+                    // 1. Compact header.
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                        child: DetailHeader(
-                          name: widget.category.name,
-                          subtitle: data?.subtitle ??
-                              'Manage your records securely.',
-                          icon: widget.category.icon,
-                          gradient: widget.category.gradient,
-                          totalDocuments: _records.length,
-                          lastUpdatedLabel: data?.lastUpdatedLabel ?? '—',
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        child: WalletHeader(
+                          title: widget.category.name,
                           onBack: () => Navigator.of(context).maybePop(),
                           onSearch: () => _searchFocus.requestFocus(),
                           onFilter: _openSort,
                         ),
                       ),
                     ),
-
                     if (data == null)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: 60),
-                            child: SizedBox(
-                              width: 30,
-                              height: 30,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.6,
-                                color: AppColors.primaryGreen,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else ...[
-                      // Overview hero.
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                          child: FadeSlideIn(
-                            child: DetailOverviewCard(
-                              overview: _liveOverview(data),
-                              gradient: widget.category.gradient,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Sticky search.
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: SearchHeaderDelegate(
-                          controller: _searchController,
-                          focusNode: _searchFocus,
-                          background: palette.bg,
-                          onChanged: (v) => setState(() => _query = v),
-                        ),
-                      ),
-                      // Filters.
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: FilterBar(
-                            selected: _filter,
-                            sort: _sort,
-                            onFilter: (f) => setState(() => _filter = f),
-                            onSortTap: _openSort,
-                          ),
-                        ),
-                      ),
-                      // Documents section header + list / empty state.
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                          child: SectionHeader(
-                            title: 'Documents',
-                            subtitle:
-                                '${_visible.length} of ${_records.length} shown',
-                            icon: Icons.description_rounded,
-                          ),
-                        ),
-                      ),
-                      _documentsSliver(data),
-                      // Trailing sections.
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            const SizedBox(height: 16),
-                            FadeSlideIn(
-                              child: RecentlyAccessedRow(
-                                items: data.recents,
-                                onOpen: (i) =>
-                                    _toast('Opening ${i.name} — coming soon'),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            FadeSlideIn(
-                                child: InsightsSection(insights: data.insights)),
-                            const SizedBox(height: 24),
-                            FadeSlideIn(
-                                child: SecurityCenter(status: data.security)),
-                            const SizedBox(height: 24),
-                            FadeSlideIn(
-                                child: StorageAnalyticsCard(
-                                    storage: data.storage)),
-                          ]),
-                        ),
-                      ),
-                    ],
+                      _loadingSliver()
+                    else
+                      ..._loadedSlivers(data),
                   ],
                 );
               },
             ),
-            // Expandable FAB above the floating nav.
+            // Premium gradient FAB above the floating nav.
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
@@ -447,24 +415,131 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
-  /// Overview recomputed from the live record list so counts stay in sync as
-  /// the user favorites / archives / deletes.
-  DetailOverview _liveOverview(WalletDetailData data) {
-    final active =
-        _records.where((r) => r.status == DocumentStatus.active).length;
-    final expiring =
-        _records.where((r) => r.status == DocumentStatus.expiringSoon).length;
-    return DetailOverview(
-      totalRecords: _records.length,
-      activeRecords: active,
-      expiringSoon: expiring,
-      lastAccessed: data.overview.lastAccessed,
-      storageUsedLabel: data.overview.storageUsedLabel,
-      storageFraction: data.overview.storageFraction,
+  Widget _loadingSliver() {
+    return const SliverPadding(
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 120),
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          children: [
+            SummarySkeleton(),
+            SizedBox(height: 24),
+            DocumentSkeleton(),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _documentsSliver(WalletDetailData data) {
+  List<Widget> _loadedSlivers(WalletDetailData data) {
+    final palette = AppPalette.of(context);
+    final attention = _attentionRecord;
+    final showBanner = attention != null && !_bannerDismissed;
+    final expiring = _records
+        .where((r) =>
+            r.status == DocumentStatus.expiringSoon ||
+            r.status == DocumentStatus.expired)
+        .length;
+
+    return [
+      // 2. Sticky search.
+      SliverPersistentHeader(
+        pinned: true,
+        delegate: SearchHeaderDelegate(
+          controller: _searchController,
+          focusNode: _searchFocus,
+          background: palette.bg,
+          onChanged: (v) => setState(() => _query = v),
+        ),
+      ),
+      // 3. Compact summary card.
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: FadeSlideIn(
+            child: WalletSummaryCard(
+              totalDocuments: _records.length,
+              expiring: expiring,
+              protected: data.security.vaultLocked,
+              lastUpdatedLabel: data.lastUpdatedLabel,
+              gradient: widget.category.gradient,
+              onViewVault: () => _toast('Vault overview — coming soon'),
+            ),
+          ),
+        ),
+      ),
+      // 4. Smart banner (only when something needs attention).
+      if (showBanner)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: FadeSlideIn(
+              child: SmartBanner(
+                message: _bannerMessage(attention),
+                icon: Icons.warning_amber_rounded,
+                accent: AppColors.warning,
+                actionLabel: 'Renew',
+                onAction: () {
+                  setState(() => _bannerDismissed = true);
+                  _toast('Renew ${attention.name} — coming soon');
+                },
+                onDismiss: () => setState(() => _bannerDismissed = true),
+              ),
+            ),
+          ),
+        ),
+      // 5. Category chips.
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 0, 0),
+          child: CategoryChips(
+            categories: _categoryChips,
+            selected: _category,
+            onSelected: (c) => setState(() => _category = c),
+          ),
+        ),
+      ),
+      // 6. Status filter + sort.
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: DocumentFilterBar(
+            filters: _filters,
+            selected: _filter,
+            sort: _sort,
+            onFilter: (f) => setState(() => _filter = f),
+            onSortTap: _openSort,
+          ),
+        ),
+      ),
+      // 7. Documents — the primary focus.
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+          child: Row(
+            children: [
+              Text(
+                'Documents',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_visible.length} of ${_records.length}',
+                style: TextStyle(fontSize: 12, color: palette.textFaint),
+              ),
+            ],
+          ),
+        ),
+      ),
+      _documentsSliver(),
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
+  }
+
+  Widget _documentsSliver() {
     final visible = _visible;
 
     if (visible.isEmpty) {
@@ -473,13 +548,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: WalletEmptyState(
-            title: emptyAll ? 'No Records Available' : 'No matching records',
+            title: emptyAll ? 'No Documents Yet' : 'No matching documents',
             subtitle: emptyAll
                 ? 'Start building your digital vault.'
-                : 'Try a different filter or search term.',
-            onScan: () => _toast('Scan — coming soon'),
-            onUpload: () => _toast('Upload — coming soon'),
-            onCreate: () => _toast('Create record — coming soon'),
+                : 'Try a different category, filter or search term.',
+            onScan: () => _onFabAction(_detailFabActions.first),
+            onUpload: () => _onFabAction(_detailFabActions[1]),
+            onCreate: () => _toast('Create category — coming soon'),
           ),
         ),
       );
@@ -507,7 +582,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 }
 
-// FAB actions for the detail screen (per the brief).
+// FAB actions for the document manager (per the brief).
 const List<QuickAction> _detailFabActions = [
   QuickAction(
       label: 'Scan Document',
@@ -518,15 +593,15 @@ const List<QuickAction> _detailFabActions = [
       icon: Icons.picture_as_pdf_rounded,
       color: AppColors.lightBlue),
   QuickAction(
-      label: 'Upload Image',
+      label: 'Import Image',
       icon: Icons.image_rounded,
       color: Color(0xFF38BDF8)),
   QuickAction(
-      label: 'Create Record',
-      icon: Icons.note_add_rounded,
+      label: 'Create Folder',
+      icon: Icons.create_new_folder_rounded,
       color: AppColors.secondaryGreen),
   QuickAction(
-      label: 'Import File',
-      icon: Icons.drive_folder_upload_rounded,
+      label: 'Create Category',
+      icon: Icons.new_label_rounded,
       color: Color(0xFF0EA5A5)),
 ];

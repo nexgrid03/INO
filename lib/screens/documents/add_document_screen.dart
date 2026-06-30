@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/wallet_detail_repository.dart';
+import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -83,7 +86,7 @@ const _wallets = <(String, IconData)>[
   ('Insurance Wallet', Icons.shield_rounded),
   ('Health Wallet', Icons.favorite_rounded),
   ('Investment Wallet', Icons.trending_up_rounded),
-  ('Bank Wallet', Icons.account_balance_rounded),
+  ('Banking Wallet', Icons.account_balance_rounded),
   ('Password Vault', Icons.lock_rounded),
 ];
 
@@ -122,6 +125,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _category;
   DateTime? _expiry;
 
+  // Scanner/File Picker states
+  bool _showScanner = false;
+  bool _showFilePicker = false;
+  _DocSource? _pickerType;
+  bool _isProcessing = false;
+  String _processingMessage = '';
+  double _processingProgress = 0.0;
+  String? _tempFileName;
+
   @override
   void initState() {
     super.initState();
@@ -140,18 +152,23 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   void _pickSource(_DocSource source) {
     HapticFeedback.selectionClick();
-    setState(() {
-      _source = source;
-      if (_nameController.text.trim().isEmpty) {
-        _nameController.text = source == _DocSource.image
-            ? 'New Image'
-            : 'New Document';
-      }
-    });
+    if (source == _DocSource.scan) {
+      setState(() {
+        _showScanner = true;
+      });
+    } else {
+      setState(() {
+        _showFilePicker = true;
+        _pickerType = source;
+      });
+    }
   }
 
   void _removeFile() {
-    setState(() => _source = null);
+    setState(() {
+      _source = null;
+      _tempFileName = null;
+    });
   }
 
   Future<void> _pickExpiry() async {
@@ -171,6 +188,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _toast('Please choose a wallet', error: true);
       return;
     }
+
+    final record = DocumentRecord(
+      id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
+      name: _nameController.text.trim(),
+      category: _category ?? 'Other',
+      icon: _source == _DocSource.image ? Icons.image_rounded : Icons.description_rounded,
+      uploadedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      status: DocumentStatus.active,
+      expiresAt: _expiry,
+      tags: _tagsController.text.trim().isEmpty
+          ? const []
+          : _tagsController.text.trim().split(',').map((t) => t.trim()).toList(),
+      isFavorite: false,
+    );
+
+    WalletDetailRepository.instance.addRecord(_wallet!, record);
+
     FocusScope.of(context).unfocus();
     _toast('“${_nameController.text.trim()}” saved to $_wallet');
     Navigator.of(context).maybePop();
@@ -186,9 +221,414 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
   }
 
+  void _startScanningSimulation() {
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _isProcessing = true;
+      _processingProgress = 0.1;
+      _processingMessage = 'Detecting document edges...';
+    });
+
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      setState(() {
+        _processingProgress = 0.4;
+        _processingMessage = 'Enhancing contrast and text...';
+      });
+    });
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() {
+        _processingProgress = 0.8;
+        _processingMessage = 'Saving as secure PDF...';
+      });
+    });
+
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _showScanner = false;
+        _source = _DocSource.scan;
+        _tempFileName = 'Scan_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.pdf';
+        _nameController.text = 'Aadhaar Card Scan';
+        _category = 'Identity';
+        _wallet = 'Identity Wallet';
+      });
+      _toast('Scan completed successfully!');
+    });
+  }
+
+  void _startUploadingSimulation(String fileName) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _isProcessing = true;
+      _processingProgress = 0.1;
+      _processingMessage = 'Connecting to secure server...';
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() {
+        _processingProgress = 0.5;
+        _processingMessage = 'Uploading files (50%)...';
+      });
+    });
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (!mounted) return;
+      setState(() {
+        _processingProgress = 0.8;
+        _processingMessage = 'Encrypting document in vault...';
+      });
+    });
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _showFilePicker = false;
+        _source = _pickerType;
+        _tempFileName = fileName;
+
+        // Clean display name
+        String displayName = fileName
+            .replaceAll('.pdf', '')
+            .replaceAll('.png', '')
+            .replaceAll('.jpg', '')
+            .replaceAll('_', ' ');
+        displayName = displayName.split(' ').map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1);
+        }).join(' ');
+
+        _nameController.text = displayName;
+
+        // Smart pre-select category and wallet
+        if (fileName.contains('insurance')) {
+          _category = 'Financial';
+          _wallet = 'Insurance Wallet';
+        } else if (fileName.contains('rent') || fileName.contains('property')) {
+          _category = 'Property';
+          _wallet = 'Property Wallet';
+        } else if (fileName.contains('pan') ||
+            fileName.contains('passport') ||
+            fileName.contains('dl') ||
+            fileName.contains('voter')) {
+          _category = 'Identity';
+          _wallet = 'Identity Wallet';
+        } else if (fileName.contains('health') ||
+            fileName.contains('prescription')) {
+          _category = 'Medical';
+          _wallet = 'Health Wallet';
+        } else {
+          _category = 'Other';
+          _wallet = 'Document Wallet';
+        }
+      });
+      _toast('File uploaded successfully!');
+    });
+  }
+
+  Widget _buildProcessingOverlay() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _processingMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: 140,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _processingProgress,
+                  minHeight: 4,
+                  backgroundColor: Colors.white12,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primaryGreen),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimulatedScanner() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: _isProcessing
+            ? _buildProcessingOverlay()
+            : Column(
+                children: [
+                  // Top bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white, size: 28),
+                          onPressed: () => setState(() => _showScanner = false),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'DOCUMENT SCANNER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(width: 48), // balance
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Framing viewport
+                  Container(
+                    width: 290,
+                    height: 420,
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: AppColors.primaryGreen, width: 2.5),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Viewfinder content guide
+                        Text(
+                          'Place Document Inside Frame',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Bottom controls
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Hold steady. Edge detection active.',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        GestureDetector(
+                          key: const Key('shutter_button'),
+                          onTap: _startScanningSimulation,
+                          child: Container(
+                            width: 74,
+                            height: 74,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                            ),
+                            padding: const EdgeInsets.all(5),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSimulatedFilePicker() {
+    final isPdf = _pickerType == _DocSource.pdf;
+    final palette = AppPalette.of(context);
+
+    // Sample files
+    final pdfFiles = [
+      ('salary_slip_june.pdf', '142 KB', 'Jun 28, 2026'),
+      ('rent_agreement_final.pdf', '890 KB', 'May 12, 2026'),
+      ('health_insurance_policy.pdf', '2.4 MB', 'Apr 15, 2026'),
+      ('pan_card_copy.pdf', '98 KB', 'Jan 10, 2025'),
+    ];
+
+    final imageFiles = [
+      ('IMG_passport_front.jpg', '1.8 MB', 'Today, 10:14 AM'),
+      ('IMG_dl_copy.png', '920 KB', 'Yesterday'),
+      ('prescription_rx_2026.jpg', '450 KB', 'Jun 14, 2026'),
+      ('voter_id_scan.png', '720 KB', 'Mar 08, 2025'),
+    ];
+
+    final files = isPdf ? pdfFiles : imageFiles;
+
+    return Scaffold(
+      backgroundColor: palette.bg,
+      body: SafeArea(
+        child: _isProcessing
+            ? _buildProcessingOverlay()
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back_rounded,
+                              color: palette.textPrimary),
+                          onPressed: () =>
+                              setState(() => _showFilePicker = false),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isPdf ? 'Select PDF Document' : 'Select Image',
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'RECENT FILES',
+                      style: TextStyle(
+                        color: palette.textFaint,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: files.length,
+                      separatorBuilder: (_, __) =>
+                          Divider(color: palette.border, height: 1),
+                      itemBuilder: (context, idx) {
+                        final file = files[idx];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 6, horizontal: 8),
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: (isPdf
+                                      ? AppColors.lightBlue
+                                      : AppColors.secondaryGreen)
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isPdf
+                                  ? Icons.picture_as_pdf_rounded
+                                  : Icons.image_rounded,
+                              color: isPdf
+                                  ? AppColors.lightBlue
+                                  : AppColors.secondaryGreen,
+                            ),
+                          ),
+                          title: Text(
+                            file.$1,
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${file.$2} · ${file.$3}',
+                            style: TextStyle(
+                              color: palette.textFaint,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onTap: () => _startUploadingSimulation(file.$1),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+
+    if (_showScanner) {
+      return _buildSimulatedScanner();
+    }
+
+    if (_showFilePicker) {
+      return _buildSimulatedFilePicker();
+    }
+
     return Scaffold(
       backgroundColor: palette.bg,
       body: SafeArea(
@@ -211,6 +651,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                       _DetailsForm(
                         formKey: _formKey,
                         source: _source!,
+                        fileName: _tempFileName ?? _source!.mockFileName,
                         nameController: _nameController,
                         tagsController: _tagsController,
                         notesController: _notesController,
@@ -531,6 +972,7 @@ class _DetailsForm extends StatelessWidget {
   const _DetailsForm({
     required this.formKey,
     required this.source,
+    required this.fileName,
     required this.nameController,
     required this.tagsController,
     required this.notesController,
@@ -545,6 +987,7 @@ class _DetailsForm extends StatelessWidget {
 
   final GlobalKey<FormState> formKey;
   final _DocSource source;
+  final String fileName;
   final TextEditingController nameController;
   final TextEditingController tagsController;
   final TextEditingController notesController;
@@ -570,7 +1013,7 @@ class _DetailsForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SelectedFile(source: source, onRemove: onRemoveFile),
+          _SelectedFile(source: source, fileName: fileName, onRemove: onRemoveFile),
           const SizedBox(height: AppSpacing.lg),
           _Field(
             label: 'Document Name',
@@ -759,9 +1202,14 @@ class _Selector extends StatelessWidget {
 }
 
 class _SelectedFile extends StatelessWidget {
-  const _SelectedFile({required this.source, required this.onRemove});
+  const _SelectedFile({
+    required this.source,
+    required this.fileName,
+    required this.onRemove,
+  });
 
   final _DocSource source;
+  final String fileName;
   final VoidCallback onRemove;
 
   @override
@@ -791,7 +1239,7 @@ class _SelectedFile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(source.mockFileName,
+                Text(fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.subtitle.copyWith(

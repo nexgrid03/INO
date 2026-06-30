@@ -27,8 +27,17 @@ void main() {
     expect(find.textContaining('Choose a document source'), findsOneWidget);
     expect(find.text('Save Document'), findsNothing);
 
-    // Pick a source → form + save bar appear, empty state gone.
+    // Pick a source → shows simulated scanner screen.
     await tester.tap(find.text('Scan Document'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('DOCUMENT SCANNER'), findsOneWidget);
+    expect(find.byKey(const Key('shutter_button')), findsOneWidget);
+
+    // Tap shutter button -> process scanner.
+    await tester.tap(find.byKey(const Key('shutter_button')));
+    await tester.pump(const Duration(seconds: 2)); // wait for 1.8s simulation timer
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
