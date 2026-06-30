@@ -15,6 +15,7 @@ import '../../widgets/home/market_card.dart';
 import '../../widgets/home/priority_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../documents/add_document_screen.dart';
+import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
 
 /// The INO Home — a minimal, premium fintech launcher.
@@ -71,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
     );
   }
+
+  void _scan() => launchScanFlow(context);
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
           iconColor: AppColors.lightBlue,
         ),
         child: _QuickActions(
-          onScan: _addDocument,
+          onScan: _scan,
           onAddDocument: _addDocument,
           onWallet: () => _goToTab(1),
           onReminder: () => _goToTab(3),
@@ -198,9 +201,17 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             title: 'Quick Add',
             actions: data.fabActions,
-            onSelect: (a) => a.label == 'Add Document'
-                ? _addDocument()
-                : _toast('${a.label} — coming soon'),
+            onSelect: (a) {
+              switch (a.label) {
+                case 'Add Document':
+                  _addDocument();
+                case 'Scan':
+                case 'Scan Document':
+                  _scan();
+                default:
+                  _toast('${a.label} — coming soon');
+              }
+            },
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/wallet_detail_repository.dart';
+import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -105,10 +106,14 @@ const _categories = <String>[
 /// Pick a source (scan / PDF / image), then fill a short set of details and
 /// save. Deliberately minimal: no analytics, dashboards or extra sections.
 class AddDocumentScreen extends StatefulWidget {
-  const AddDocumentScreen({super.key, this.initialWallet});
+  const AddDocumentScreen({super.key, this.initialWallet, this.prefill});
 
   /// Pre-selects a wallet when opened from a specific wallet's detail screen.
   final String? initialWallet;
+
+  /// When arriving from the Scan & OCR flow, pre-populates the form with the
+  /// confirmed extraction so the user lands straight on Save.
+  final OcrResult? prefill;
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -138,6 +143,22 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   void initState() {
     super.initState();
     _wallet = widget.initialWallet;
+    _applyPrefill();
+  }
+
+  /// Hydrates the form from a Scan & OCR result, landing the user on the filled
+  /// details + Save bar (skipping the source picker / empty state).
+  void _applyPrefill() {
+    final p = widget.prefill;
+    if (p == null) return;
+    _source = _DocSource.scan;
+    _tempFileName = 'Scan_${p.documentName.replaceAll(' ', '_')}.pdf';
+    _nameController.text = p.documentName;
+    _category = _categories.contains(p.category) ? p.category : 'Other';
+    _wallet = p.suggestedWallet;
+    _expiry = p.expiryDate;
+    if (p.tags.isNotEmpty) _tagsController.text = p.tags.join(', ');
+    if (p.notes.isNotEmpty) _notesController.text = p.notes;
   }
 
   @override
@@ -565,7 +586,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: files.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           Divider(color: palette.border, height: 1),
                       itemBuilder: (context, idx) {
                         final file = files[idx];

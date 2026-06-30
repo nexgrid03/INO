@@ -8,6 +8,7 @@ import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../documents/add_document_screen.dart';
 import '../home/home_screen.dart';
+import '../scan/scan_flow_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
 import 'shell_controller.dart';
@@ -57,16 +58,26 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _select(int i) {
+    // The centre "Scan" destination opens the focused Scan & OCR flow rather
+    // than switching the IndexedStack to a static page.
+    if (i == 2) {
+      HapticFeedback.selectionClick();
+      launchScanFlow(context);
+      return;
+    }
     if (i == _index) return;
     HapticFeedback.selectionClick();
     ShellController.tab.value = i;
   }
 
   void _onFabAction(QuickAction action) {
-    // Document-add actions open the dedicated Add Document screen.
-    if (action.label == 'Add Document' ||
-        action.label == 'Scan' ||
-        action.label == 'Scan Document') {
+    // Scan actions open the dedicated Scan & OCR flow.
+    if (action.label == 'Scan' || action.label == 'Scan Document') {
+      launchScanFlow(context);
+      return;
+    }
+    // Other document-add actions open the Add Document screen.
+    if (action.label == 'Add Document') {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
       );

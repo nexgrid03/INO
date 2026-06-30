@@ -19,6 +19,7 @@ import '../../widgets/wallet_detail/smart_banner.dart';
 import '../../widgets/wallet_detail/wallet_header.dart';
 import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
+import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
 
 /// The reusable Wallet Detail screen — a premium *document manager*, not a
@@ -88,9 +89,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 
   void _onFabAction(QuickAction action) {
-    // Document-add actions open Add Document, pre-selecting this wallet.
-    const docActions = {'Scan Document', 'Upload PDF', 'Import Image'};
-    if (docActions.contains(action.label)) {
+    // Scan opens the dedicated Scan & OCR flow, pre-selecting this wallet.
+    if (action.label == 'Scan Document') {
+      launchScanFlow(context, initialWallet: widget.category.name);
+      return;
+    }
+    // Upload actions go straight to Add Document, pre-selecting this wallet.
+    const uploadActions = {'Upload PDF', 'Import Image'};
+    if (uploadActions.contains(action.label)) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
