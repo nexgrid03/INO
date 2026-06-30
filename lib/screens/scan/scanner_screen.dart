@@ -43,6 +43,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   _Phase _phase = _Phase.initializing;
   CaptureButtonState _capture = CaptureButtonState.idle;
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
+  bool _blockBootstrap = false;
 
   @override
   void initState() {
@@ -70,7 +71,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       controller?.dispose();
     } else if (state == AppLifecycleState.resumed) {
       // Re-check permissions (covers returning from Settings) and reinitialise.
-      if (mounted) _bootstrap();
+      if (mounted && !_blockBootstrap) _bootstrap();
     }
   }
 
@@ -165,7 +166,10 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
     HapticFeedback.mediumImpact();
-    setState(() => _capture = CaptureButtonState.capturing);
+    setState(() {
+      _capture = CaptureButtonState.capturing;
+      _blockBootstrap = true;
+    });
     try {
       String? path;
       if (DocumentScannerService.instance.isSupported) {
@@ -180,7 +184,10 @@ class _ScannerScreenState extends State<ScannerScreen>
       }
       if (!mounted) return;
       if (path == null) {
-        setState(() => _capture = CaptureButtonState.idle); // cancelled
+        setState(() {
+          _capture = CaptureButtonState.idle;
+          _blockBootstrap = false;
+        }); // cancelled
         return;
       }
       HapticFeedback.lightImpact();
@@ -190,18 +197,29 @@ class _ScannerScreenState extends State<ScannerScreen>
       widget.onCaptured(path);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _capture = CaptureButtonState.idle);
+      setState(() {
+        _capture = CaptureButtonState.idle;
+        _blockBootstrap = false;
+      });
       _snack('Capture failed. Please try again.');
     }
   }
 
   Future<void> _galleryPressed() async {
+    setState(() => _blockBootstrap = true);
     try {
       final path = await GalleryImportService.instance.pickImage();
-      if (!mounted || path == null) return;
+      if (!mounted) return;
+      if (path == null) {
+        setState(() => _blockBootstrap = false);
+        return;
+      }
       widget.onCaptured(path);
     } catch (_) {
-      _snack('Could not open the gallery.');
+      if (mounted) {
+        setState(() => _blockBootstrap = false);
+        _snack('Could not open the gallery.');
+      }
     }
   }
 
