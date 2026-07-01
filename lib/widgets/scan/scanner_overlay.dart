@@ -1,25 +1,29 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../screens/scan/scan_theme.dart';
 
 /// The three detection states the overlay can reflect (per the scanner brief).
 enum ScanOverlayState {
-  /// No document framed yet — neutral border, "Position document".
+  /// No document framed yet — neutral border, sweeping scan line.
   idle,
 
-  /// A document is framed — green border, "Document Detected".
+  /// A document is framed — green border + soft pulsing glow.
   detected,
 
-  /// Locked on and sharp — green + blue glow, "Ready to Scan".
+  /// Locked on and sharp — brighter green + stronger glow.
   ready,
 }
 
 /// The animated document-detection frame painted over the live camera feed.
 ///
-/// Corner brackets, a state-driven border (neutral → green → green+blue glow)
-/// and a scan line that sweeps while searching and eases out once ready — the
-/// trustworthy language of Adobe Scan / Microsoft Lens. Purely decorative: it
-/// sits above the preview and never intercepts touches.
+/// Corner brackets, a state-driven border (neutral → green) and a scan line that
+/// sweeps while searching then eases out once a document locks in. On detection
+/// the border smoothly thickens/greens (a short "reveal" animation) and a soft
+/// green glow pulses continuously — the trustworthy language of Adobe Scan /
+/// Microsoft Lens. Purely decorative: it sits above the preview and never
+/// intercepts touches.
 class ScannerOverlay extends StatefulWidget {
   const ScannerOverlay({super.key, required this.state});
 
@@ -30,15 +34,37 @@ class ScannerOverlay extends StatefulWidget {
 }
 
 class _ScannerOverlayState extends State<ScannerOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
+    with TickerProviderStateMixin {
+  // Continuous phase: drives the searching scan line and the detected pulse.
+  late final AnimationController _phase = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2200),
   )..repeat();
 
+  // Short one-shot that eases the border/glow in as detection succeeds and out
+  // when the document is lost — so nothing ever snaps.
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+    value: widget.state == ScanOverlayState.idle ? 0 : 1,
+  );
+
+  @override
+  void didUpdateWidget(covariant ScannerOverlay old) {
+    super.didUpdateWidget(old);
+    if (widget.state != old.state) {
+      if (widget.state == ScanOverlayState.idle) {
+        _reveal.reverse();
+      } else {
+        _reveal.forward();
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _c.dispose();
+    _phase.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -46,10 +72,14 @@ class _ScannerOverlayState extends State<ScannerOverlay>
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: _c,
+        animation: Listenable.merge([_phase, _reveal]),
         builder: (context, _) {
           return CustomPaint(
-            painter: _FramePainter(progress: _c.value, state: widget.state),
+            painter: _FramePainter(
+              progress: _phase.value,
+              reveal: _reveal.value,
+              state: widget.state,
+            ),
             child: const SizedBox.expand(),
           );
         },
@@ -59,13 +89,21 @@ class _ScannerOverlayState extends State<ScannerOverlay>
 }
 
 class _FramePainter extends CustomPainter {
-  _FramePainter({required this.progress, required this.state});
+  _FramePainter({
+    required this.progress,
+    required this.reveal,
+    required this.state,
+  });
 
+  /// Continuous 0→1 phase (scan-line sweep + pulse).
   final double progress;
+
+  /// 0 = idle (neutral) … 1 = fully detected (green + glow). Eased.
+  final double reveal;
+
   final ScanOverlayState state;
 
-  bool get _locked => state == ScanOverlayState.ready;
-  bool get _active => state != ScanOverlayState.idle;
+  bool get _ready => state == ScanOverlayState.ready;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -75,36 +113,42 @@ class _FramePainter extends CustomPainter {
       const Radius.circular(radius),
     );
 
-    // Border colour by state: neutral → green → green/blue.
-    final Color borderColor = switch (state) {
-      ScanOverlayState.idle => Colors.white.withValues(alpha: 0.35),
-      ScanOverlayState.detected => ScanColors.green,
-      ScanOverlayState.ready => ScanColors.green,
-    };
-    final borderPaint = Paint()
-      ..color = borderColor.withValues(alpha: _active ? 0.95 : 0.45)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _active ? 2.6 : 1.6;
-    canvas.drawRRect(rect, borderPaint);
+    // A soft sine pulse (0..1) used to breathe the glow while locked on.
+    final pulse = 0.5 + 0.5 * math.sin(progress * 2 * math.pi);
 
-    // Ready state adds a soft blue inner glow.
-    if (_locked) {
+    // ---- Pulsing glow (grows with `reveal`, breathes with `pulse`) ---------
+    if (reveal > 0.01) {
+      final glowStrength = _ready ? 0.55 : 0.38;
       final glow = Paint()
-        ..color = ScanColors.blue.withValues(alpha: 0.5)
+        ..color = ScanColors.green
+            .withValues(alpha: reveal * glowStrength * (0.45 + 0.55 * pulse))
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 6
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+        ..strokeWidth = _ready ? 9 : 6
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, _ready ? 12 : 8);
       canvas.drawRRect(rect.deflate(2), glow);
     }
 
-    // Sweeping scan line while still searching.
-    if (!_locked) {
+    // ---- Border (neutral white → green, smoothly thickening) ---------------
+    final borderColor = Color.lerp(
+      Colors.white.withValues(alpha: 0.42),
+      ScanColors.green,
+      reveal,
+    )!;
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6 + 1.2 * reveal;
+    canvas.drawRRect(rect, borderPaint);
+
+    // ---- Sweeping scan line (fades out as detection locks in) --------------
+    final lineAlpha = 1 - reveal;
+    if (lineAlpha > 0.02) {
       final y = size.height * Curves.easeInOut.transform(progress);
-      final lineColor = _active ? ScanColors.green : Colors.white;
+      final lineColor = Color.lerp(Colors.white, ScanColors.green, reveal)!;
       final shader = LinearGradient(
         colors: [
           lineColor.withValues(alpha: 0.0),
-          lineColor.withValues(alpha: 0.55),
+          lineColor.withValues(alpha: 0.55 * lineAlpha),
           lineColor.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, y - 18, size.width, 36));
@@ -114,15 +158,19 @@ class _FramePainter extends CustomPainter {
         Offset(8, y),
         Offset(size.width - 8, y),
         Paint()
-          ..color = lineColor.withValues(alpha: 0.85)
+          ..color = lineColor.withValues(alpha: 0.85 * lineAlpha)
           ..strokeWidth = 2,
       );
     }
 
-    // Corner brackets (always the accent green).
+    // ---- Corner brackets (white → green) -----------------------------------
     const len = 30.0;
     final cornerPaint = Paint()
-      ..color = _active ? ScanColors.green : Colors.white.withValues(alpha: 0.85)
+      ..color = Color.lerp(
+        Colors.white.withValues(alpha: 0.85),
+        ScanColors.green,
+        reveal,
+      )!
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.4
       ..strokeCap = StrokeCap.round;
@@ -153,5 +201,7 @@ class _FramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FramePainter old) =>
-      old.progress != progress || old.state != state;
+      old.progress != progress ||
+      old.reveal != reveal ||
+      old.state != state;
 }

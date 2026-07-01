@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +9,7 @@ import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
 import '../../widgets/scan/scan_controls.dart';
-import '../../widgets/scan/scan_guidance_pill.dart';
-import '../../widgets/scan/scan_status_pills.dart';
+import '../../widgets/scan/scan_detection_toast.dart';
 import '../../widgets/scan/scanner_overlay.dart';
 import 'scan_theme.dart';
 
@@ -53,6 +54,18 @@ class _ScannerScreenState extends State<ScannerScreen>
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
 
+  // ---- Transient detection feedback ---------------------------------------
+  // A one-shot success toast + "hold steady" hint that appear only on a genuine
+  // idle → detected transition and fade themselves out — so the preview stays
+  // clean and the same document never re-spams a popup.
+  bool _showToast = false;
+  bool _showHoldHint = false;
+  Timer? _toastTimer;
+  Timer? _hintTimer;
+
+  static const Duration _kToastDuration = Duration(milliseconds: 1500);
+  static const Duration _kHintDuration = Duration(milliseconds: 2000);
+
   // ---- Live document detection --------------------------------------------
   final LiveDocumentDetector _detector = LiveDocumentDetector();
   final Stopwatch _throttle = Stopwatch();
@@ -83,6 +96,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _toastTimer?.cancel();
+    _hintTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -101,6 +116,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       _streaming = false;
       _detector.reset();
       _resetDetectionState();
+      _clearTransientFeedback();
       _state = ScannerState.idle;
     } else if (state == AppLifecycleState.resumed) {
       // Re-check permissions (covers returning from Settings) and reinitialise.
@@ -274,12 +290,54 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  /// Applies a new [ScannerState] (only when it actually changed), with a
-  /// gentle haptic the instant a document locks in as ready.
+  /// Applies a new [ScannerState] (only when it actually changed).
+  ///
+  /// The transient success toast + "hold steady" hint fire ONLY on a genuine
+  /// `idle`/`detecting → documentDetected` transition — never when returning
+  /// from `readyToScan` — so a document that lingers in frame can't re-spam the
+  /// popup. Collapsing back to `idle` clears any lingering feedback.
   void _enter(ScannerState next) {
     if (_state == next || !mounted) return;
-    if (next == ScannerState.readyToScan) HapticFeedback.selectionClick();
-    setState(() => _state = next);
+    final prev = _state;
+    final bool newDetection = next == ScannerState.documentDetected &&
+        (prev == ScannerState.idle || prev == ScannerState.detecting);
+
+    setState(() {
+      _state = next;
+      if (newDetection) {
+        _showToast = true;
+        _showHoldHint = true;
+      } else if (next == ScannerState.idle) {
+        _showToast = false;
+        _showHoldHint = false;
+      }
+    });
+
+    if (newDetection) {
+      HapticFeedback.selectionClick();
+      _toastTimer?.cancel();
+      _toastTimer = Timer(_kToastDuration, () {
+        if (mounted) setState(() => _showToast = false);
+      });
+      _hintTimer?.cancel();
+      _hintTimer = Timer(_kHintDuration, () {
+        if (mounted) setState(() => _showHoldHint = false);
+      });
+    } else if (next == ScannerState.idle) {
+      _toastTimer?.cancel();
+      _hintTimer?.cancel();
+    } else if (next == ScannerState.readyToScan) {
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  /// Cancels timers and hides the toast/hint without a rebuild (used during
+  /// camera teardown, where a rebuild would be wasted).
+  void _clearTransientFeedback() {
+    _toastTimer?.cancel();
+    _hintTimer?.cancel();
+    _showToast = false;
+    _showHoldHint = false;
   }
 
   // ---- Controls ------------------------------------------------------------
@@ -514,13 +572,40 @@ class _ScannerScreenState extends State<ScannerScreen>
             else
               const ColoredBox(color: Colors.black),
             // The frame reflects the live state: neutral while searching, green
-            // once a document is detected, glowing when it's ready to scan.
+            // + a soft pulsing glow once a document is detected/ready. The
+            // centre of the preview is intentionally kept clear.
             ScannerOverlay(state: _overlayState),
-            // Centered status, driven entirely by real detection results.
-            Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 240),
-                child: _statusOverlay(),
+            // Transient success toast — near the top, so it never covers the
+            // document. Mounted only briefly on a genuine new detection.
+            Positioned(
+              top: 18,
+              left: 16,
+              right: 16,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: _toastTransition,
+                  child: _showToast
+                      ? const ScanSuccessToast(key: ValueKey('toast'))
+                      : const SizedBox.shrink(key: ValueKey('no-toast')),
+                ),
+              ),
+            ),
+            // Subtle bottom guidance hint (searching / hold steady / capturing).
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 18,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  transitionBuilder: _hintTransition,
+                  child: _bottomHint(),
+                ),
               ),
             ),
           ],
@@ -554,34 +639,71 @@ class _ScannerScreenState extends State<ScannerScreen>
           ScanOverlayState.ready,
       };
 
-  /// The centered status widget for the current state. In idle/detecting only
-  /// the "Position your document inside the frame" instruction shows — the
-  /// detection badges are never mounted until a document is confirmed.
-  Widget _statusOverlay() {
+  /// The subtle bottom guidance hint for the current state. Never blocks the
+  /// document (it hugs the bottom edge) and disappears entirely once a detected
+  /// document is locked in and steady — keeping the preview clean.
+  Widget _bottomHint() {
     switch (_state) {
       case ScannerState.idle:
       case ScannerState.detecting:
-        return const ScanGuidancePill(
+        return const ScanHintPill(
           key: ValueKey('searching'),
-          guidance: ScanGuidance.searching,
+          icon: Icons.crop_free_rounded,
+          label: 'Searching for a document…',
         );
       case ScannerState.documentDetected:
-        return const ScanStatusPills(
-          key: ValueKey('detected'),
-          showReady: false,
-        );
       case ScannerState.readyToScan:
-      case ScannerState.success:
-        return const ScanStatusPills(
-          key: ValueKey('ready'),
-          showReady: true,
-        );
+        // The "hold steady" hint shows briefly on detection, then fades — after
+        // which the bottom stays clear.
+        return _showHoldHint
+            ? const ScanHintPill(
+                key: ValueKey('hold'),
+                icon: Icons.back_hand_rounded,
+                label: 'Hold steady to capture',
+                positive: true,
+              )
+            : const SizedBox.shrink(key: ValueKey('clear'));
       case ScannerState.capturing:
-        return const ScanGuidancePill(
+        return const ScanHintPill(
           key: ValueKey('capturing'),
-          guidance: ScanGuidance.holdSteady,
+          icon: Icons.camera_rounded,
+          label: 'Capturing…',
+          positive: true,
         );
+      case ScannerState.success:
+        return const SizedBox.shrink(key: ValueKey('done'));
     }
+  }
+
+  /// Success toast: fade + a gentle scale/drop from above.
+  Widget _toastTransition(Widget child, Animation<double> anim) {
+    return FadeTransition(
+      opacity: anim,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.9, end: 1).animate(anim),
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, -0.35),
+            end: Offset.zero,
+          ).animate(anim),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  /// Bottom hint: fade + a small rise from below.
+  Widget _hintTransition(Widget child, Animation<double> anim) {
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.4),
+          end: Offset.zero,
+        ).animate(anim),
+        child: child,
+      ),
+    );
   }
 }
 
