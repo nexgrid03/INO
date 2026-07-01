@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../models/user_profile.dart';
-import '../../repositories/user_repository.dart';
 import '../../services/biometric_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -58,12 +57,9 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
       );
       if (!mounted) return;
       if (ok) {
-        final updated = await UserRepository.instance.updateBiometricEnabled(
-          authUserId: widget.profile.authUserId,
-          enabled: true,
-        );
-        if (!mounted) return;
-        goToShell(context, updated);
+        // NOTE: persisting `biometric_enabled` on the profile is left for when
+        // the users-table update method + real local_auth are wired.
+        _finish();
       } else {
         _showMessage('${_kind.noun} setup was cancelled.');
       }

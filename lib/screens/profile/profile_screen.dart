@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/user_profile.dart';
-import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -260,18 +259,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           subtitle: 'Face ID / fingerprint unlock',
           trailing: _switch(
             _biometric,
-            (v) async {
+            (v) {
               setState(() => _biometric = v);
-              try {
-                await UserRepository.instance.updateBiometricEnabled(
-                  authUserId: widget.profile.authUserId,
-                  enabled: v,
-                );
-                _toast('Biometric ${v ? 'enabled' : 'disabled'}');
-              } catch (_) {
-                setState(() => _biometric = !v);
-                _toast('Failed to update biometric settings');
-              }
+              _toast('Biometric ${v ? 'enabled' : 'disabled'}');
             },
           ),
         ),

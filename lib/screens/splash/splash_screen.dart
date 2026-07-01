@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../repositories/user_repository.dart';
-import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ino_logo.dart';
 import '../../widgets/soft_glow.dart';
-import '../auth/auth_flow.dart';
-import '../auth/biometric_unlock_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 /// Premium, fintech-style animated splash screen.
@@ -133,42 +128,13 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  Future<void> _goToOnboarding() async {
+  void _goToOnboarding() {
     if (_navigated || !mounted) return;
     _navigated = true;
-
-    Widget target = const OnboardingScreen();
-
-    Session? session;
-    try {
-      session = AuthService.instance.currentSession;
-    } catch (_) {
-      // Supabase is not initialised (e.g. in tests)
-    }
-
-    if (session != null) {
-      try {
-        final profile =
-            await UserRepository.instance.getProfileByAuthId(session.user.id);
-        if (profile != null) {
-          if (profile.biometricEnabled) {
-            target = BiometricUnlockScreen(profile: profile);
-          } else {
-            if (!mounted) return;
-            goToShell(context, profile);
-            return;
-          }
-        }
-      } catch (_) {
-        // Fallback to onboarding/login on error
-      }
-    }
-
-    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => target,
+        pageBuilder: (_, _, _) => const OnboardingScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
