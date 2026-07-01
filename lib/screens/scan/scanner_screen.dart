@@ -5,18 +5,22 @@ import 'package:flutter/services.dart';
 import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
+import '../../services/live_document_detector.dart';
 import '../../widgets/scan/scan_controls.dart';
 import '../../widgets/scan/scan_guidance_pill.dart';
+import '../../widgets/scan/scan_status_pills.dart';
 import '../../widgets/scan/scanner_overlay.dart';
 import 'scan_theme.dart';
 
 /// Screen 1 — the production document scanner.
 ///
 /// Initialises the device camera, manages runtime permissions and lifecycle,
-/// and frames a real live preview with the INO overlay + controls. Capture is
-/// powered by ML Kit's on-device document scanner (auto edge detection, crop,
-/// perspective correction, enhancement) on Android, with a [camera] still-image
-/// fallback elsewhere. Gallery import feeds the same pipeline. The widget hands
+/// and frames a real live preview with the INO overlay + controls. A live
+/// image-stream detector ([LiveDocumentDetector]) drives the on-screen state
+/// machine ([ScannerState]) so the "Document Detected" / "Ready to Scan" badges
+/// only ever appear in response to a real document in frame — never by default.
+/// Capture is a plain in-app still (edge detection / crop happen downstream on
+/// the captured image). Gallery import feeds the same pipeline. The widget hands
 /// the resulting image path back via [onCaptured].
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({
@@ -40,9 +44,34 @@ class _ScannerScreenState extends State<ScannerScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
   _Phase _phase = _Phase.initializing;
-  CaptureButtonState _capture = CaptureButtonState.idle;
+
+  /// Detection/capture state — starts at [ScannerState.idle] and only ever
+  /// advances in response to real camera frames or a capture press. Never
+  /// pre-loaded to a "detected"/"ready" value.
+  ScannerState _state = ScannerState.idle;
+
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
+
+  // ---- Live document detection --------------------------------------------
+  final LiveDocumentDetector _detector = LiveDocumentDetector();
+  final Stopwatch _throttle = Stopwatch();
+  bool _streaming = false;
+
+  /// Consecutive qualifying frames seen while searching (debounces the jump
+  /// from idle → documentDetected so a single noisy frame can't flash a badge).
+  int _presentFrames = 0;
+
+  /// When the document first became stable — the anchor for the "held steady
+  /// for 1–2s" requirement before promoting to readyToScan.
+  DateTime? _stableStart;
+
+  // Tunables (may be calibrated per device).
+  static const int _kSampleIntervalMs = 150; // process ~6–7 frames/sec
+  static const int _kConfirmFrames = 2; // ~300ms of presence before badge
+  static const double _kDetectConfidence = 0.5; // enter "detected"
+  static const double _kLoseConfidence = 0.35; // hysteresis: drop back to idle
+  static const Duration _kStableDuration = Duration(milliseconds: 1200);
 
   @override
   void initState() {
@@ -68,6 +97,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       // Free the camera while backgrounded (and during the ML Kit activity).
       _controller = null;
       controller?.dispose();
+      // Tear down detection so it restarts clean (at idle) on resume.
+      _streaming = false;
+      _detector.reset();
+      _resetDetectionState();
+      _state = ScannerState.idle;
     } else if (state == AppLifecycleState.resumed) {
       // Re-check permissions (covers returning from Settings) and reinitialise.
       if (mounted && !_blockBootstrap) _bootstrap();
@@ -115,7 +149,9 @@ class _ScannerScreenState extends State<ScannerScreen>
         back,
         ResolutionPreset.veryHigh,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+        // YUV420 so we can run the live image stream for real-time detection;
+        // still capture (takePicture) returns a JPEG regardless of this group.
+        imageFormatGroup: ImageFormatGroup.yuv420,
       );
       _controller = controller;
       await controller.initialize();
@@ -126,11 +162,124 @@ class _ScannerScreenState extends State<ScannerScreen>
       }
       setState(() {
         _flash = 0;
+        _state = ScannerState.idle; // always start fresh — no pre-loaded badge
         _phase = _Phase.ready;
       });
+      await _startDetection();
     } catch (_) {
       if (mounted) setState(() => _phase = _Phase.error);
     }
+  }
+
+  // ---- Real-time detection -------------------------------------------------
+
+  /// Begins streaming camera frames into the [LiveDocumentDetector]. If the
+  /// platform can't stream, detection simply stays idle and capture remains
+  /// fully usable — we never fake a detection.
+  Future<void> _startDetection() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _streaming) {
+      return;
+    }
+    _detector.reset();
+    _resetDetectionState();
+    _throttle
+      ..reset()
+      ..start();
+    try {
+      await controller.startImageStream(_onFrame);
+      _streaming = true;
+    } catch (_) {
+      _streaming = false; // streaming unsupported — degrade gracefully
+    }
+  }
+
+  /// Stops the image stream (before a still capture, or when freeing the
+  /// camera).
+  Future<void> _stopDetection() async {
+    final controller = _controller;
+    _streaming = false;
+    if (controller != null && controller.value.isStreamingImages) {
+      try {
+        await controller.stopImageStream();
+      } catch (_) {}
+    }
+  }
+
+  void _resetDetectionState() {
+    _presentFrames = 0;
+    _stableStart = null;
+  }
+
+  void _onFrame(CameraImage image) {
+    if (!mounted || _phase != _Phase.ready) return;
+    // Detection is paused while capturing / after success.
+    if (_state == ScannerState.capturing || _state == ScannerState.success) {
+      return;
+    }
+    // Throttle the heavier work to a handful of frames per second.
+    if (_throttle.elapsedMilliseconds < _kSampleIntervalMs) return;
+    _throttle.reset();
+
+    final signal = _detector.analyze(image);
+    _handleSignal(signal.confidence, signal.steady);
+  }
+
+  /// The state machine: idle → detecting → documentDetected → readyToScan,
+  /// collapsing straight back to idle the moment the document is lost.
+  void _handleSignal(double confidence, bool steady) {
+    final bool present = confidence >= _kDetectConfidence;
+    final bool stillPresent = confidence >= _kLoseConfidence;
+
+    switch (_state) {
+      case ScannerState.idle:
+      case ScannerState.detecting:
+        if (present) {
+          _presentFrames++;
+          if (_presentFrames >= _kConfirmFrames) {
+            _stableStart = steady ? DateTime.now() : null;
+            _enter(ScannerState.documentDetected);
+          } else {
+            _enter(ScannerState.detecting);
+          }
+        } else {
+          _presentFrames = 0;
+          _enter(ScannerState.idle);
+        }
+
+      case ScannerState.documentDetected:
+      case ScannerState.readyToScan:
+        if (!stillPresent) {
+          // Document moved out of frame → hide badges immediately.
+          _resetDetectionState();
+          _enter(ScannerState.idle);
+          return;
+        }
+        if (steady) {
+          final start = _stableStart ??= DateTime.now();
+          if (DateTime.now().difference(start) >= _kStableDuration) {
+            _enter(ScannerState.readyToScan);
+          } else {
+            _enter(ScannerState.documentDetected);
+          }
+        } else {
+          // Movement restarts the "held steady" window.
+          _stableStart = null;
+          _enter(ScannerState.documentDetected);
+        }
+
+      case ScannerState.capturing:
+      case ScannerState.success:
+        break; // detection paused during capture
+    }
+  }
+
+  /// Applies a new [ScannerState] (only when it actually changed), with a
+  /// gentle haptic the instant a document locks in as ready.
+  void _enter(ScannerState next) {
+    if (_state == next || !mounted) return;
+    if (next == ScannerState.readyToScan) HapticFeedback.selectionClick();
+    setState(() => _state = next);
   }
 
   // ---- Controls ------------------------------------------------------------
@@ -165,11 +314,14 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (_phase != _Phase.ready ||
         controller == null ||
         !controller.value.isInitialized ||
-        _capture == CaptureButtonState.capturing) {
+        _state == ScannerState.capturing) {
       return;
     }
     HapticFeedback.mediumImpact();
-    setState(() => _capture = CaptureButtonState.capturing);
+    // Free the image stream before a still capture (they can't run together).
+    await _stopDetection();
+    if (!mounted) return;
+    setState(() => _state = ScannerState.capturing);
     try {
       // Capture the still image with the in-app camera preview — no external
       // scanner activity, so the user stays inside INO the whole time. Edge
@@ -177,14 +329,15 @@ class _ScannerScreenState extends State<ScannerScreen>
       final file = await controller.takePicture();
       if (!mounted) return;
       HapticFeedback.lightImpact();
-      setState(() => _capture = CaptureButtonState.success);
+      setState(() => _state = ScannerState.success);
       await Future<void>.delayed(const Duration(milliseconds: 240));
       if (!mounted) return;
       widget.onCaptured(file.path);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _capture = CaptureButtonState.idle);
+      setState(() => _state = ScannerState.idle);
       _snack('Capture failed. Please try again.');
+      _startDetection(); // resume live detection after a failed shot
     }
   }
 
@@ -237,9 +390,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                   onToggleFlash: _cycleFlash,
                   flashIcon: _flashIcon,
                   flashLabel: _flashLabel,
-                  captureState: _capture == CaptureButtonState.idle
-                      ? CaptureButtonState.detected
-                      : _capture,
+                  captureState: _captureButtonState,
                 ),
               )
             else
@@ -251,6 +402,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   Widget _header() {
+    final ready = _phase == _Phase.ready;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
       child: Row(
@@ -284,7 +436,21 @@ class _ScannerScreenState extends State<ScannerScreen>
               ],
             ),
           ),
-          const SizedBox(width: 48),
+          // Quick flash toggle (mirrors the bottom control) — only while live.
+          if (ready)
+            IconButton(
+              onPressed: _cycleFlash,
+              icon: Icon(
+                _flashIcon,
+                color: _flash == 0
+                    ? ScanColors.textPrimary
+                    : ScanColors.accentDeep,
+                size: 24,
+              ),
+              tooltip: 'Flash: $_flashLabel',
+            )
+          else
+            const SizedBox(width: 48),
         ],
       ),
     );
@@ -336,13 +502,6 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Widget _cameraViewport() {
     final controller = _controller;
-    // Camera is live and locked on; real edge detection + crop happen in the
-    // capture engine, so the overlay communicates "ready" honestly.
-    const overlayState = ScanOverlayState.ready;
-    final guidance = _capture == CaptureButtonState.capturing
-        ? ScanGuidance.holdSteady
-        : ScanGuidance.ready;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: ClipRRect(
@@ -354,17 +513,75 @@ class _ScannerScreenState extends State<ScannerScreen>
               _CoveredPreview(controller: controller)
             else
               const ColoredBox(color: Colors.black),
-            ScannerOverlay(state: overlayState),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 18,
-              child: Center(child: ScanGuidancePill(guidance: guidance)),
+            // The frame reflects the live state: neutral while searching, green
+            // once a document is detected, glowing when it's ready to scan.
+            ScannerOverlay(state: _overlayState),
+            // Centered status, driven entirely by real detection results.
+            Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                child: _statusOverlay(),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Capture button visuals derived from the detection state — idle (neutral)
+  /// until a document is actually detected.
+  CaptureButtonState get _captureButtonState => switch (_state) {
+        ScannerState.idle ||
+        ScannerState.detecting =>
+          CaptureButtonState.idle,
+        ScannerState.documentDetected ||
+        ScannerState.readyToScan =>
+          CaptureButtonState.detected,
+        ScannerState.capturing => CaptureButtonState.capturing,
+        ScannerState.success => CaptureButtonState.success,
+      };
+
+  /// Frame overlay style derived from the detection state.
+  ScanOverlayState get _overlayState => switch (_state) {
+        ScannerState.idle ||
+        ScannerState.detecting =>
+          ScanOverlayState.idle,
+        ScannerState.documentDetected => ScanOverlayState.detected,
+        ScannerState.readyToScan ||
+        ScannerState.capturing ||
+        ScannerState.success =>
+          ScanOverlayState.ready,
+      };
+
+  /// The centered status widget for the current state. In idle/detecting only
+  /// the "Position your document inside the frame" instruction shows — the
+  /// detection badges are never mounted until a document is confirmed.
+  Widget _statusOverlay() {
+    switch (_state) {
+      case ScannerState.idle:
+      case ScannerState.detecting:
+        return const ScanGuidancePill(
+          key: ValueKey('searching'),
+          guidance: ScanGuidance.searching,
+        );
+      case ScannerState.documentDetected:
+        return const ScanStatusPills(
+          key: ValueKey('detected'),
+          showReady: false,
+        );
+      case ScannerState.readyToScan:
+      case ScannerState.success:
+        return const ScanStatusPills(
+          key: ValueKey('ready'),
+          showReady: true,
+        );
+      case ScannerState.capturing:
+        return const ScanGuidancePill(
+          key: ValueKey('capturing'),
+          guidance: ScanGuidance.holdSteady,
+        );
+    }
   }
 }
 

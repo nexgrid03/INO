@@ -81,7 +81,7 @@ class _CaptureButton extends StatelessWidget {
     } else if (success) {
       core = const Icon(Icons.check_rounded, color: Colors.white, size: 30);
     } else {
-      core = const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 26);
+      core = const Icon(Icons.camera_rounded, color: Colors.white, size: 28);
     }
 
     return PressableScale(

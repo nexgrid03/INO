@@ -15,7 +15,8 @@ void main() {
 
     // "INO" appears twice on the splash: the logo monogram and the title.
     expect(find.text('INO'), findsNWidgets(2));
-    expect(find.text('Simple Life, Secure Future'), findsOneWidget);
+    expect(find.text('Intelligent Network Organizer'), findsOneWidget);
+    expect(find.text('Securely Organize Your Digital Life'), findsOneWidget);
 
     // Advance past the splash controller (3.5s) and the 0.5s fade to
     // onboarding. We pump fixed durations rather than pumpAndSettle because

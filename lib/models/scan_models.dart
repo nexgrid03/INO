@@ -37,6 +37,28 @@ extension DetectionConfidenceX on DetectionConfidence {
 }
 
 // ---------------------------------------------------------------------------
+// Scanner state machine
+// ---------------------------------------------------------------------------
+
+/// The lifecycle of the live scanner, driven entirely by real camera/document
+/// detection results (never pre-loaded):
+///
+///   idle             — camera live, no document found → instruction only
+///   detecting        — a candidate is appearing (debounce before confirming)
+///   documentDetected — a document is confirmed in-frame → green badge + glow
+///   readyToScan      — document held stable at high confidence → ready badge
+///   capturing        — shutter in progress
+///   success          — capture succeeded (then returns to idle)
+enum ScannerState {
+  idle,
+  detecting,
+  documentDetected,
+  readyToScan,
+  capturing,
+  success,
+}
+
+// ---------------------------------------------------------------------------
 // Live framing guidance
 // ---------------------------------------------------------------------------
 

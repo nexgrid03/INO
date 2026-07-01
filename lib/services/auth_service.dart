@@ -65,6 +65,40 @@ class AuthService {
     return _client.auth.resetPasswordForEmail(email.trim());
   }
 
+  // --- Email OTP (account verification) -------------------------------------
+  //
+  // Supabase can confirm a new account with a 6-digit email code instead of a
+  // magic link (set the "Confirm signup" email template to use {{ .Token }}).
+  // These two calls back the OTP Verification screen.
+
+  /// Re-sends the 6-digit sign-up confirmation code to [email].
+  Future<void> resendSignupOtp(String email) {
+    return _client.auth.resend(
+      type: OtpType.signup,
+      email: email.trim(),
+    );
+  }
+
+  /// Verifies the 6-digit sign-up code. On success the returned
+  /// [AuthResponse] carries an authenticated session.
+  Future<AuthResponse> verifySignupOtp({
+    required String email,
+    required String token,
+  }) {
+    return _client.auth.verifyOTP(
+      type: OtpType.signup,
+      email: email.trim(),
+      token: token.trim(),
+    );
+  }
+
+  // --- Apple (placeholder) --------------------------------------------------
+
+  /// Whether "Continue with Apple" should be offered. Apple requires iOS +
+  /// the `sign_in_with_apple` package, which isn't wired yet — so this returns
+  /// false for now and the UI hides the button outside iOS.
+  bool get isAppleSignInAvailable => false;
+
   // --- Google (native account picker) --------------------------------------
 
   bool _googleReady = false;

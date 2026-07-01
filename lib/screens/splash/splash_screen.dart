@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../repositories/user_repository.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ino_logo.dart';
 import '../../widgets/soft_glow.dart';
+import '../auth/auth_flow.dart';
+import '../auth/biometric_unlock_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 /// Premium, fintech-style animated splash screen.
@@ -128,13 +133,42 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _goToOnboarding() {
+  Future<void> _goToOnboarding() async {
     if (_navigated || !mounted) return;
     _navigated = true;
+
+    Widget target = const OnboardingScreen();
+
+    Session? session;
+    try {
+      session = AuthService.instance.currentSession;
+    } catch (_) {
+      // Supabase is not initialised (e.g. in tests)
+    }
+
+    if (session != null) {
+      try {
+        final profile =
+            await UserRepository.instance.getProfileByAuthId(session.user.id);
+        if (profile != null) {
+          if (profile.biometricEnabled) {
+            target = BiometricUnlockScreen(profile: profile);
+          } else {
+            if (!mounted) return;
+            goToShell(context, profile);
+            return;
+          }
+        }
+      } catch (_) {
+        // Fallback to onboarding/login on error
+      }
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => const OnboardingScreen(),
+        pageBuilder: (_, _, _) => target,
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -206,13 +240,13 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 12),
 
-                // Phase 5 — tagline.
+                // Phase 5 — subtitle (the full product name).
                 SlideTransition(
                   position: _taglineSlide,
                   child: FadeTransition(
                     opacity: _taglineFade,
                     child: Text(
-                      'Simple Life, Secure Future',
+                      'Intelligent Network Organizer',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.92),
                         fontSize: 14,
@@ -222,6 +256,31 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // Bottom tagline, anchored to the safe area (fades in with phase 5).
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 28),
+                child: FadeTransition(
+                  opacity: _taglineFade,
+                  child: Text(
+                    'Securely Organize Your Digital Life',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                      letterSpacing: 0.6,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

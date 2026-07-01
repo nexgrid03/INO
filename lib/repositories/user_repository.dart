@@ -67,4 +67,18 @@ class UserRepository {
       email: email,
     );
   }
+
+  /// Updates the biometric_enabled setting for a profile.
+  Future<UserProfile> updateBiometricEnabled({
+    required String authUserId,
+    required bool enabled,
+  }) async {
+    final row = await _client
+        .from(_table)
+        .update({'biometric_enabled': enabled})
+        .eq('auth_user_id', authUserId)
+        .select()
+        .single();
+    return UserProfile.fromMap(row);
+  }
 }

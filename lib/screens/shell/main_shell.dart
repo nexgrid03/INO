@@ -8,6 +8,8 @@ import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../documents/add_document_screen.dart';
 import '../home/home_screen.dart';
+import '../profile/profile_screen.dart';
+import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
@@ -106,16 +108,11 @@ class _MainShellState extends State<MainShell> {
         icon: Icons.document_scanner_rounded,
         message: 'Scan documents straight into your secure vault.',
       ),
-      const PlaceholderTab(
-        title: 'Reminders',
-        icon: Icons.notifications_rounded,
-        message: 'Renewals, premiums and family events in one feed.',
-      ),
-      PlaceholderTab(
-        title: 'Profile',
-        icon: Icons.person_rounded,
-        message: 'Signed in as ${widget.profile.email}.',
-        showSignOut: true,
+      RemindersScreen(profile: widget.profile),
+      ProfileScreen(
+        profile: widget.profile,
+        themeMode: widget.themeMode,
+        onToggleTheme: widget.onToggleTheme,
       ),
     ];
 
