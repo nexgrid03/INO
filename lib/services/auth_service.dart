@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -125,8 +127,24 @@ class AuthService {
   /// Triggers the native Google account picker and exchanges the resulting
   /// ID token for a Supabase session.
   ///
-  /// Returns `null` if the user cancels the picker; throws on real errors.
+  /// Returns `null` if the user cancels the picker; throws on real errors
+  /// (surfaced to the caller for a snackbar). Emits step-by-step logs under the
+  /// `auth` name so an on-device run is diagnosable.
   Future<AuthResponse?> signInWithGoogle() async {
+    developer.log('Google sign-in started', name: 'auth');
+
+    // Fail loudly (not silently) when the Google Web client ID is still the
+    // placeholder — otherwise Credential Manager can't mint a valid token and
+    // the failure is cryptic.
+    if (!SupabaseConfig.isGoogleConfigured) {
+      developer.log('Google sign-in aborted: web client ID not configured',
+          name: 'auth');
+      throw const AuthException(
+        'Google Sign-In is not configured yet. Add your Google Web client ID '
+        'in SupabaseConfig.',
+      );
+    }
+
     await _ensureGoogleInitialized();
 
     final GoogleSignInAccount googleUser;
@@ -136,12 +154,20 @@ class AuthService {
       );
     } on GoogleSignInException catch (e) {
       // Swallow user-initiated cancellation; surface everything else.
-      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        developer.log('Google sign-in cancelled by user', name: 'auth');
+        return null;
+      }
+      developer.log('Google sign-in picker failed: ${e.code} ${e.description}',
+          name: 'auth', error: e);
       rethrow;
     }
+    developer.log('Google account selected: ${googleUser.email}',
+        name: 'auth');
 
     final idToken = googleUser.authentication.idToken;
     if (idToken == null) {
+      developer.log('Google sign-in returned no ID token', name: 'auth');
       throw const AuthException('Google sign-in did not return an ID token.');
     }
 
@@ -156,11 +182,19 @@ class AuthService {
       // Non-fatal: proceed with just the ID token.
     }
 
-    return _client.auth.signInWithIdToken(
+    developer.log('Exchanging Google ID token for a Supabase session',
+        name: 'auth');
+    final res = await _client.auth.signInWithIdToken(
       provider: OAuthProvider.google,
       idToken: idToken,
       accessToken: accessToken,
     );
+    developer.log(
+      'Supabase session received: user=${res.user?.id} '
+      'session=${res.session != null}',
+      name: 'auth',
+    );
+    return res;
   }
 
   // --- Sign out -------------------------------------------------------------

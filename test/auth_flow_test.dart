@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/auth/biometric_setup_screen.dart';
+import 'package:inoapp/screens/auth/complete_profile_screen.dart';
 import 'package:inoapp/screens/auth/forgot_password_screen.dart';
 import 'package:inoapp/screens/auth/login_screen.dart';
 import 'package:inoapp/screens/auth/otp_verification_screen.dart';
@@ -85,6 +86,27 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(6)); // six OTP boxes
     expect(find.text('Verify'), findsOneWidget);
     expect(find.textContaining('Resend code in'), findsOneWidget);
+  });
+
+  testWidgets('Complete Profile renders name + phone fields and Continue',
+      (tester) async {
+    useTallView(tester);
+    await tester.pumpWidget(host(
+      const CompleteProfileScreen(
+        authUserId: 'auth1',
+        fullName: 'Ada Lovelace',
+        email: 'ada@example.com',
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Complete Your Profile'), findsOneWidget);
+    expect(find.text('Full name'), findsOneWidget);
+    expect(find.text('Mobile number'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+    // Name is pre-filled from the Google identity; phone starts empty.
+    expect(find.widgetWithText(TextFormField, 'Ada Lovelace'), findsOneWidget);
   });
 
   testWidgets('Biometric Setup renders illustration, enable and skip',

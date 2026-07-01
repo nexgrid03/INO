@@ -26,4 +26,13 @@ class SupabaseConfig {
 
   /// Google OAuth **iOS** client ID (only needed for the iOS build).
   static const String googleIosClientId = 'YOUR_GOOGLE_IOS_CLIENT_ID';
+
+  /// True once a real Google **Web** client ID has been supplied (i.e. it's no
+  /// longer the placeholder / empty). The native Google flow uses this value as
+  /// the token audience — with the placeholder, Credential Manager can't mint a
+  /// valid ID token, so we detect it up-front and surface a clear error instead
+  /// of failing silently.
+  static bool get isGoogleConfigured =>
+      googleWebClientId.isNotEmpty &&
+      !googleWebClientId.startsWith('YOUR_');
 }

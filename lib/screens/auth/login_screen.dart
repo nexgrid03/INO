@@ -1,9 +1,12 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../repositories/user_repository.dart';
+import '../../main.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -52,17 +55,20 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Actions --------------------------------------------------------------
 
   void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor:
-              isError ? AppColors.critical : AppColors.primaryGreen,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? AppColors.critical : AppColors.primaryGreen,
+      behavior: SnackBarBehavior.floating,
+    );
+    // Prefer this screen's messenger; if it was disposed (e.g. during the
+    // Google picker) fall back to the app-root messenger so the error is never
+    // swallowed silently.
+    final messenger = mounted
+        ? ScaffoldMessenger.of(context)
+        : InoApp.messengerKey.currentState;
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(snackBar);
   }
 
   Future<void> _signIn() async {
@@ -86,13 +92,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage('Sign in failed. Please try again.');
         return;
       }
-      final profile = await UserRepository.instance.ensureProfile(
+      developer.log('Email sign-in OK: user=${user.id} — routing', name: 'auth');
+      // Same resilient, completeness-aware routing as the Google path.
+      await routeAfterAuth(
         authUserId: user.id,
         fullName: (user.userMetadata?['full_name'] as String?) ?? 'INO User',
         email: user.email ?? identifier,
       );
-      if (!mounted) return;
-      goToShell(context, profile);
     } on AuthException catch (e) {
       _showMessage(e.message);
     } on PostgrestException catch (e) {
@@ -108,24 +114,45 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _googleBusy = true);
     try {
       final res = await AuthService.instance.signInWithGoogle();
-      if (res == null) return; // user cancelled the picker
+      if (res == null) {
+        developer.log('Google sign-in cancelled — staying on login',
+            name: 'auth');
+        return; // user cancelled the picker
+      }
       final user = res.user;
       if (user == null) {
+        developer.log('Google sign-in: null user in response', name: 'auth');
         _showMessage('Google sign-in failed. Please try again.');
         return;
       }
-      final profile = await UserRepository.instance.ensureProfile(
+      developer.log('Google sign-in OK: user=${user.id} — routing', name: 'auth');
+      // Route via the app-root navigator (inside routeAfterAuth) so it works
+      // even if THIS widget was disposed while the Google picker (Credential
+      // Manager) was open — the previous code used the local context + a
+      // `!mounted` guard here, which is exactly why nothing happened after
+      // picking an account.
+      await routeAfterAuth(
         authUserId: user.id,
         fullName: (user.userMetadata?['full_name'] as String?) ??
             (user.userMetadata?['name'] as String?) ??
             'INO User',
         email: user.email ?? '',
       );
-      if (!mounted) return;
-      goToShell(context, profile);
+    } on GoogleSignInException catch (e) {
+      developer.log('Google sign-in exception: ${e.code} ${e.description}',
+          name: 'auth', error: e);
+      _showMessage('Could not sign in with Google. Please try again.');
     } on AuthException catch (e) {
+      developer.log('Auth exception during Google sign-in: ${e.message}',
+          name: 'auth', error: e);
       _showMessage(e.message);
-    } catch (_) {
+    } on PostgrestException catch (e) {
+      developer.log('Profile DB error during Google sign-in: ${e.message}',
+          name: 'auth', error: e);
+      _showMessage(e.message);
+    } catch (e) {
+      developer.log('Unexpected Google sign-in error: $e',
+          name: 'auth', error: e);
       _showMessage('Could not sign in with Google. Please try again.');
     } finally {
       if (mounted) setState(() => _googleBusy = false);

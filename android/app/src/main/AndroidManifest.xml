@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network access for Supabase auth / Google Sign-In (release builds must
+         not rely on this being merged in from a plugin manifest). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Scanner: camera + gallery import permissions. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />

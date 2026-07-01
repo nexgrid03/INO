@@ -28,6 +28,7 @@ class UserRepository {
     required String authUserId,
     required String fullName,
     required String email,
+    String? phone,
   }) async {
     final row = await _client
         .from(_table)
@@ -35,9 +36,41 @@ class UserRepository {
           'auth_user_id': authUserId,
           'full_name': fullName,
           'email': email,
+          if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         })
         .select() // ask Supabase to return the inserted row
         .single(); // expect exactly one row back
+    return UserProfile.fromMap(row);
+  }
+
+  /// Updates the signed-in user's profile with the provided (non-null) fields
+  /// and returns the fresh row. Used by the Complete Profile step to persist
+  /// details Google sign-in can't supply (e.g. phone number).
+  ///
+  /// RLS note: succeeds only while signed in (UPDATE policy requires
+  /// `auth.uid() = auth_user_id`).
+  Future<UserProfile> updateProfile({
+    required String authUserId,
+    String? phone,
+    String? fullName,
+    String? preferredLanguage,
+    String? profilePhoto,
+    bool? biometricEnabled,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (phone != null) updates['phone'] = phone.trim();
+    if (fullName != null) updates['full_name'] = fullName.trim();
+    if (preferredLanguage != null) {
+      updates['preferred_language'] = preferredLanguage;
+    }
+    if (profilePhoto != null) updates['profile_photo'] = profilePhoto;
+    if (biometricEnabled != null) updates['biometric_enabled'] = biometricEnabled;
+    final row = await _client
+        .from(_table)
+        .update(updates)
+        .eq('auth_user_id', authUserId)
+        .select()
+        .single();
     return UserProfile.fromMap(row);
   }
 

@@ -67,6 +67,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     final email = _emailController.text.trim();
     final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
 
     setState(() => _busy = true);
     try {
@@ -83,13 +84,14 @@ class _SignupScreenState extends State<SignupScreen> {
           authUserId: user.id,
           fullName: name,
           email: email,
+          phone: phone,
         );
         if (!mounted) return;
         _goToBiometric(profile);
       } else {
         // Email confirmation required — verify the 6-digit code next.
         if (!mounted) return;
-        _goToOtp(email: email, name: name);
+        _goToOtp(email: email, name: name, phone: phone);
       }
     } on AuthException catch (e) {
       _showMessage(e.message);
@@ -102,7 +104,11 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _goToOtp({required String email, required String name}) {
+  void _goToOtp({
+    required String email,
+    required String name,
+    required String phone,
+  }) {
     UserProfile? verified;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -117,11 +123,13 @@ class _SignupScreenState extends State<SignupScreen> {
             );
             final user = res.user;
             if (user == null) return false;
-            // Session is now active → create the profile row.
+            // Session is now active → create the profile row (with the phone
+            // the user provided at signup, so it isn't lost).
             verified = await UserRepository.instance.createProfile(
               authUserId: user.id,
               fullName: name,
               email: email,
+              phone: phone,
             );
             return true;
           },
