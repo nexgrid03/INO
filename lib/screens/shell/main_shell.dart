@@ -40,6 +40,10 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = ShellController.tab.value;
 
+  /// Held in state so a profile edit (from the Profile tab) propagates to every
+  /// destination that shows the user's details.
+  late UserProfile _profile = widget.profile;
+
   @override
   void initState() {
     super.initState();
@@ -98,21 +102,22 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = [
       HomeScreen(
-        profile: widget.profile,
+        profile: _profile,
         themeMode: widget.themeMode,
         onToggleTheme: widget.onToggleTheme,
       ),
-      WalletScreen(profile: widget.profile),
+      WalletScreen(profile: _profile),
       const PlaceholderTab(
         title: 'Scan',
         icon: Icons.document_scanner_rounded,
         message: 'Scan documents straight into your secure vault.',
       ),
-      RemindersScreen(profile: widget.profile),
+      RemindersScreen(profile: _profile),
       ProfileScreen(
-        profile: widget.profile,
+        profile: _profile,
         themeMode: widget.themeMode,
         onToggleTheme: widget.onToggleTheme,
+        onProfileUpdated: (updated) => setState(() => _profile = updated),
       ),
     ];
 

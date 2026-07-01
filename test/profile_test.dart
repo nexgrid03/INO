@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/models/user_profile.dart';
+import 'package:inoapp/screens/profile/edit_profile_screen.dart';
 import 'package:inoapp/screens/profile/profile_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
 
@@ -40,31 +41,29 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // Header + identity.
+    // Large title + compact identity header (name, email, one subtle badge).
     expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Tanishq Sharma'), findsWidgets);
     expect(find.text('tanishq@example.com'), findsOneWidget);
-    expect(find.text('+91 98765 43210'), findsOneWidget);
-    expect(find.text('Edit Profile'), findsOneWidget);
+    expect(find.text('Vault protected'), findsOneWidget);
 
-    // Account status + storage.
-    expect(find.text('Account Active'), findsOneWidget);
-    expect(find.text('Cloud Synced'), findsOneWidget);
-    expect(find.text('1.2 GB'), findsOneWidget);
+    // Grouped settings captions (rendered uppercase).
+    expect(find.text('SECURITY'), findsOneWidget);
+    expect(find.text('DATA & STORAGE'), findsOneWidget);
+    expect(find.text('PREFERENCES'), findsOneWidget);
+    expect(find.text('SUPPORT'), findsOneWidget);
+    expect(find.text('LEGAL'), findsOneWidget);
 
-    // Every section title.
-    expect(find.text('Security Center'), findsOneWidget);
-    expect(find.text('Data & Storage'), findsOneWidget);
-    expect(find.text('Preferences'), findsOneWidget);
-    expect(find.text('Support'), findsOneWidget);
-
-    // A few representative rows + toggles.
+    // Representative rows + toggles across the groups.
+    expect(find.text('Storage'), findsOneWidget);
     expect(find.text('Biometric Authentication'), findsOneWidget);
     expect(find.text('Two-Factor Authentication'), findsOneWidget);
+    expect(find.text('Dark Mode'), findsOneWidget);
     expect(find.text('About INO'), findsOneWidget);
     expect(find.byType(Switch), findsWidgets);
 
-    // Logout at the bottom.
+    // Destructive actions sit quietly at the bottom.
+    expect(find.text('Delete Account'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
   });
 
@@ -89,8 +88,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 800));
 
-    await tester.ensureVisible(find.text('Logout'));
-    await tester.tap(find.text('Logout'));
+    final logoutRow = find.widgetWithText(InkWell, 'Logout');
+    await tester.ensureVisible(logoutRow);
+    await tester.pumpAndSettle();
+    await tester.tap(logoutRow);
     await tester.pumpAndSettle();
 
     // Confirmation modal appears; we cancel (tapping "Log Out" would hit
@@ -100,5 +101,38 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Log out of INO?'), findsNothing);
+  });
+
+  testWidgets('Edit Profile prefills editable fields and locks email',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 8000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: EditProfileScreen(profile: _profile()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Edit Profile'), findsOneWidget);
+
+    // Three fields: name, email, phone — with the name pre-filled & editable.
+    expect(find.byType(TextFormField), findsNWidgets(3));
+    expect(find.widgetWithText(TextFormField, 'Tanishq Sharma'), findsOneWidget);
+
+    // Email is shown but read-only (its field is disabled).
+    final emailField = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'tanishq@example.com'),
+    );
+    expect(emailField.enabled, isFalse);
+
+    expect(find.text('Save Changes'), findsOneWidget);
   });
 }

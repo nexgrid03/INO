@@ -6,43 +6,51 @@ import '../../services/auth_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/dashboard/ino_card.dart';
-import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/pressable_scale.dart';
-import '../../widgets/profile/account_status_card.dart';
 import '../../widgets/profile/profile_header_card.dart';
-import '../../widgets/profile/settings_section.dart';
-import '../../widgets/profile/settings_tile.dart';
-import '../../widgets/profile/storage_meter.dart';
+import '../../widgets/profile/settings_group.dart';
+import '../../widgets/profile/settings_row.dart';
 import '../auth/login_screen.dart';
+import 'edit_profile_screen.dart';
 
-/// The Profile screen — INO's account management & security center.
+/// The Profile screen — a premium, grouped **settings** page (Apple Settings /
+/// Google Account), NOT a dashboard.
 ///
-/// A premium, vault-like settings surface: profile header, account status,
-/// Security Center, Data & Storage, Preferences, Support, and a confirmed
-/// logout. No FAB, no analytics — clean and professional. All data-driven from
-/// [UserProfile]; the theme row is wired to the app's live theme toggle.
+/// One primary element (the tappable identity header) followed by quiet,
+/// uniform rows organised under small section captions. Emphasis comes from
+/// typography and grouping; destructive actions sit at the very bottom as small
+/// red rows. All controls preserve their existing behaviour (biometric,
+/// language picker, theme toggle, confirmed logout, …).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     required this.profile,
     required this.themeMode,
     required this.onToggleTheme,
+    this.onProfileUpdated,
   });
 
   final UserProfile profile;
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
 
+  /// Notifies the owner (the shell) when the profile is edited, so every tab
+  /// reflects the change — not just this screen.
+  final ValueChanged<UserProfile>? onProfileUpdated;
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  /// Local copy so edits show immediately; also pushed up via onProfileUpdated.
+  late UserProfile _profile = widget.profile;
   late bool _biometric = widget.profile.biometricEnabled;
   bool _notifications = true;
   bool _autoBackup = true;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
+
+  bool get _isDark => widget.themeMode == ThemeMode.dark;
 
   static String _languageLabel(String code) {
     switch (code) {
@@ -63,17 +71,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: AppColors.primaryGreen,
       ),
     );
-  }
-
-  String get _themeLabel {
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        return 'Light';
-      case ThemeMode.dark:
-        return 'Dark';
-      case ThemeMode.system:
-        return 'System';
-    }
   }
 
   Future<void> _pickLanguage() async {
@@ -118,7 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked != null) setState(() => _language = picked);
   }
 
-  // ---- Logout --------------------------------------------------------------
+  // ---- Destructive actions -------------------------------------------------
 
   Future<void> _confirmLogout() async {
     final palette = AppPalette.of(context);
@@ -196,30 +193,171 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ---- Build ---------------------------------------------------------------
 
+  Future<void> _editProfile() async {
+    final updated = await Navigator.of(context).push<UserProfile>(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(profile: _profile),
+      ),
+    );
+    if (updated == null || !mounted) return;
+    setState(() {
+      _profile = updated;
+      _biometric = updated.biometricEnabled;
+      _language = _languageLabel(updated.preferredLanguage);
+    });
+    widget.onProfileUpdated?.call(updated);
+    _toast('Profile updated');
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final p = widget.profile;
+    final p = _profile;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    final sections = <Widget>[
+    // Ordered content: title, identity header, then grouped settings.
+    final blocks = <Widget>[
+      _Title(),
       ProfileHeaderCard(
         fullName: p.fullName,
         email: p.email,
-        phone: p.phone ?? '',
         photoUrl: p.profilePhoto,
-        onEdit: () => _toast('Edit Profile — coming soon'),
+        onEdit: _editProfile,
       ),
-      AccountStatusCard(
-        lastBackup: 'Today, 9:24 AM',
-        cloudSynced: true,
-        vaultEnabled: true,
-        biometricEnabled: _biometric,
+      SettingsGroup(
+        caption: 'Security',
+        children: [
+          SettingsRow(
+            icon: Icons.fingerprint_rounded,
+            title: 'Biometric Authentication',
+            trailing: _switch(_biometric, (v) {
+              setState(() => _biometric = v);
+              _toast('Biometric ${v ? 'enabled' : 'disabled'}');
+            }),
+          ),
+          SettingsRow(
+            icon: Icons.password_rounded,
+            title: 'Change Password',
+            onTap: () => _toast('Change Password — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.verified_user_rounded,
+            title: 'Two-Factor Authentication',
+            onTap: () => _toast('Two-Factor Authentication — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.devices_rounded,
+            title: 'Trusted Devices',
+            onTap: () => _toast('Trusted Devices — coming soon'),
+          ),
+        ],
       ),
-      _securitySection(),
-      _dataSection(),
-      _preferencesSection(),
-      _supportSection(),
-      _logoutButton(),
+      SettingsGroup(
+        caption: 'Data & Storage',
+        children: [
+          _StorageRow(
+            usedLabel: '1.2 GB',
+            totalLabel: '5 GB',
+            fraction: 0.24,
+          ),
+          SettingsRow(
+            icon: Icons.cloud_sync_rounded,
+            title: 'Auto Backup',
+            trailing:
+                _switch(_autoBackup, (v) => setState(() => _autoBackup = v)),
+          ),
+          SettingsRow(
+            icon: Icons.backup_rounded,
+            title: 'Cloud Backup',
+            onTap: () => _toast('Cloud Backup — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.file_download_outlined,
+            title: 'Export Data',
+            onTap: () => _toast('Export Data — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.download_for_offline_outlined,
+            title: 'Download Account Data',
+            onTap: () => _toast('Download Account Data — coming soon'),
+          ),
+        ],
+      ),
+      SettingsGroup(
+        caption: 'Preferences',
+        children: [
+          SettingsRow(
+            icon: Icons.notifications_rounded,
+            title: 'Notifications',
+            trailing: _switch(
+                _notifications, (v) => setState(() => _notifications = v)),
+          ),
+          SettingsRow(
+            icon: Icons.dark_mode_rounded,
+            title: 'Dark Mode',
+            trailing: _switch(_isDark, (_) => widget.onToggleTheme()),
+          ),
+          SettingsRow(
+            icon: Icons.language_rounded,
+            title: 'Language',
+            value: _language,
+            onTap: _pickLanguage,
+          ),
+        ],
+      ),
+      SettingsGroup(
+        caption: 'Support',
+        children: [
+          SettingsRow(
+            icon: Icons.help_center_rounded,
+            title: 'Help Center',
+            onTap: () => _toast('Help Center — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.support_agent_rounded,
+            title: 'Contact Support',
+            onTap: () => _toast('Contact Support — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.info_outline_rounded,
+            title: 'About INO',
+            value: '1.0.0',
+            onTap: () => _toast('About INO — coming soon'),
+          ),
+        ],
+      ),
+      SettingsGroup(
+        caption: 'Legal',
+        children: [
+          SettingsRow(
+            icon: Icons.privacy_tip_rounded,
+            title: 'Privacy Policy',
+            onTap: () => _toast('Privacy Policy — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.description_rounded,
+            title: 'Terms & Conditions',
+            onTap: () => _toast('Terms & Conditions — coming soon'),
+          ),
+        ],
+      ),
+      // Destructive actions, lowest visual weight, at the very bottom.
+      SettingsGroup(
+        children: [
+          SettingsRow(
+            icon: Icons.delete_outline_rounded,
+            title: 'Delete Account',
+            danger: true,
+            onTap: () => _toast('Delete Account — coming soon'),
+          ),
+          SettingsRow(
+            icon: Icons.logout_rounded,
+            title: 'Logout',
+            danger: true,
+            onTap: _confirmLogout,
+          ),
+        ],
+      ),
     ];
 
     return Scaffold(
@@ -230,241 +368,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screen, AppSpacing.md, AppSpacing.screen, 120),
-          itemCount: sections.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.lg),
-          itemBuilder: (context, i) {
-            if (i == 0) return _Header(name: p.fullName);
-            final section = sections[i - 1];
-            return FadeSlideIn(
-              delay: Duration(milliseconds: (i * 55).clamp(0, 360)),
-              child: section,
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _securitySection() {
-    return SettingsSection(
-      title: 'Security Center',
-      icon: Icons.shield_rounded,
-      tiles: [
-        SettingsTile(
-          icon: Icons.fingerprint_rounded,
-          color: AppColors.primaryGreen,
-          title: 'Biometric Authentication',
-          subtitle: 'Face ID / fingerprint unlock',
-          trailing: _switch(
-            _biometric,
-            (v) {
-              setState(() => _biometric = v);
-              _toast('Biometric ${v ? 'enabled' : 'disabled'}');
-            },
+          padding: EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
+              AppSpacing.screen, bottomInset + 100),
+          itemCount: blocks.length,
+          separatorBuilder: (_, i) => SizedBox(
+            // Big breath under the title & header; roomy section gaps elsewhere.
+            height: i < 1 ? AppSpacing.lg : AppSpacing.section,
           ),
-        ),
-        SettingsTile(
-          icon: Icons.password_rounded,
-          color: AppColors.lightBlue,
-          title: 'Change Password',
-          subtitle: 'Update your account password',
-          onTap: () => _toast('Change Password — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.verified_user_rounded,
-          color: AppColors.secondaryGreen,
-          title: 'Two-Factor Authentication',
-          subtitle: 'Add an extra layer of security',
-          onTap: () => _toast('Two-Factor Authentication — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.devices_rounded,
-          color: const Color(0xFF8B6CEF),
-          title: 'Device Management',
-          subtitle: 'Manage signed-in devices',
-          onTap: () => _toast('Device Management — coming soon'),
-        ),
-      ],
-    );
-  }
-
-  Widget _dataSection() {
-    final palette = AppPalette.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(
-          title: 'Data & Storage',
-          icon: Icons.cloud_rounded,
-          iconColor: AppColors.lightBlue,
-        ),
-        InoCard(
-          radius: AppRadius.card,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(4),
-                child: StorageMeter(
-                  usedLabel: '1.2 GB',
-                  totalLabel: '5 GB',
-                  fraction: 0.24,
-                ),
-              ),
-              Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 12,
-                  endIndent: 12,
-                  color: palette.border),
-              SettingsTile(
-                icon: Icons.backup_rounded,
-                color: AppColors.primaryGreen,
-                title: 'Cloud Backup',
-                subtitle: 'Encrypted backup to the cloud',
-                onTap: () => _toast('Cloud Backup — coming soon'),
-              ),
-              _divider(palette),
-              SettingsTile(
-                icon: Icons.file_download_outlined,
-                color: AppColors.lightBlue,
-                title: 'Export Data',
-                subtitle: 'Export documents & records',
-                onTap: () => _toast('Export Data — coming soon'),
-              ),
-              _divider(palette),
-              SettingsTile(
-                icon: Icons.download_for_offline_outlined,
-                color: AppColors.secondaryGreen,
-                title: 'Download Account Data',
-                subtitle: 'Get a copy of everything',
-                onTap: () => _toast('Download Account Data — coming soon'),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _preferencesSection() {
-    final palette = AppPalette.of(context);
-    return SettingsSection(
-      title: 'Preferences',
-      icon: Icons.tune_rounded,
-      tiles: [
-        SettingsTile(
-          icon: Icons.notifications_rounded,
-          color: const Color(0xFFF5704A),
-          title: 'Notifications',
-          subtitle: 'Reminders & alerts',
-          trailing: _switch(
-            _notifications,
-            (v) => setState(() => _notifications = v),
-          ),
-        ),
-        SettingsTile(
-          icon: Icons.language_rounded,
-          color: AppColors.lightBlue,
-          title: 'Language',
-          onTap: _pickLanguage,
-          trailing: _valueTrailing(_language, palette),
-        ),
-        SettingsTile(
-          icon: widget.themeMode == ThemeMode.dark
-              ? Icons.dark_mode_rounded
-              : Icons.light_mode_rounded,
-          color: AppColors.primaryGreen,
-          title: 'Theme',
-          onTap: widget.onToggleTheme,
-          trailing: _valueTrailing(_themeLabel, palette),
-        ),
-        SettingsTile(
-          icon: Icons.cloud_sync_rounded,
-          color: AppColors.secondaryGreen,
-          title: 'Auto Backup',
-          subtitle: 'Back up daily over Wi-Fi',
-          trailing:
-              _switch(_autoBackup, (v) => setState(() => _autoBackup = v)),
-        ),
-      ],
-    );
-  }
-
-  Widget _supportSection() {
-    return SettingsSection(
-      title: 'Support',
-      icon: Icons.help_outline_rounded,
-      tiles: [
-        SettingsTile(
-          icon: Icons.help_center_rounded,
-          color: AppColors.primaryGreen,
-          title: 'Help Center',
-          onTap: () => _toast('Help Center — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.support_agent_rounded,
-          color: AppColors.lightBlue,
-          title: 'Contact Support',
-          onTap: () => _toast('Contact Support — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.privacy_tip_rounded,
-          color: AppColors.secondaryGreen,
-          title: 'Privacy Policy',
-          onTap: () => _toast('Privacy Policy — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.description_rounded,
-          color: const Color(0xFF8B6CEF),
-          title: 'Terms & Conditions',
-          onTap: () => _toast('Terms & Conditions — coming soon'),
-        ),
-        SettingsTile(
-          icon: Icons.info_outline_rounded,
-          color: AppColors.warning,
-          title: 'About INO',
-          subtitle: 'Version 1.0.0',
-          onTap: () => _toast('About INO — coming soon'),
-        ),
-      ],
-    );
-  }
-
-  Widget _logoutButton() {
-    return PressableScale(
-      child: Material(
-        color: AppColors.critical.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppRadius.button),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: _confirmLogout,
-          child: Container(
-            height: 52,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.button),
-              border: Border.all(
-                  color: AppColors.critical.withValues(alpha: 0.5)),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.logout_rounded,
-                    color: AppColors.critical, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Logout',
-                  style: TextStyle(
-                    color: AppColors.critical,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
+          itemBuilder: (context, i) => FadeSlideIn(
+            delay: Duration(milliseconds: (i * 50).clamp(0, 320)),
+            child: blocks[i],
           ),
         ),
       ),
@@ -483,56 +396,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
       activeTrackColor: AppColors.primaryGreen,
     );
   }
-
-  Widget _valueTrailing(String value, AppPalette palette) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(value,
-            style: AppText.caption.copyWith(
-                color: palette.textSecondary, fontWeight: FontWeight.w600)),
-        const SizedBox(width: 4),
-        Icon(Icons.chevron_right_rounded, size: 22, color: palette.textFaint),
-      ],
-    );
-  }
-
-  Widget _divider(AppPalette palette) => Divider(
-        height: 1,
-        thickness: 1,
-        indent: 58,
-        endIndent: 12,
-        color: palette.border,
-      );
 }
 
-/// The page title header ("Profile" + a short subtitle).
-class _Header extends StatelessWidget {
-  const _Header({required this.name});
-
-  final String name;
+/// The large settings-style page title.
+class _Title extends StatelessWidget {
+  const _Title();
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Profile',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
-            color: palette.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 0),
+      child: Text(
+        'Profile',
+        style: AppText.display.copyWith(color: palette.textPrimary),
+      ),
+    );
+  }
+}
+
+/// The Storage summary — a normal settings row (icon · title · usage) with a
+/// slim gradient bar, so the progress cue stays without a dashboard card.
+class _StorageRow extends StatelessWidget {
+  const _StorageRow({
+    required this.usedLabel,
+    required this.totalLabel,
+    required this.fraction,
+  });
+
+  final String usedLabel;
+  final String totalLabel;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: palette.surfaceVariant,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.storage_rounded,
+                size: 19, color: palette.textSecondary),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Manage your account & security',
-          style: TextStyle(fontSize: 13.5, color: palette.textSecondary),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Storage',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.1,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$usedLabel of $totalLabel',
+                      style:
+                          AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: SizedBox(
+                    height: 5,
+                    child: Stack(
+                      children: [
+                        Container(color: palette.surfaceVariant),
+                        FractionallySizedBox(
+                          widthFactor: fraction.clamp(0.0, 1.0),
+                          child: const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: AppColors.brandGradient,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

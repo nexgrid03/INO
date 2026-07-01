@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
-/// The Profile header card: a gradient avatar, the user's name / email / phone,
-/// and an Edit Profile action. Premium, calm, vault-like.
+/// The compact identity header at the top of the Profile settings page.
+///
+/// Just what a user needs to recognise the account and edit it: a gradient
+/// avatar, name, email, one subtle "Vault protected" trust cue, and a small
+/// edit affordance. The ENTIRE row is tappable ([onEdit]) — the Apple ID / your
+/// Google Account pattern — so there's no oversized "Edit Profile" button.
 class ProfileHeaderCard extends StatelessWidget {
   const ProfileHeaderCard({
     super.key,
     required this.fullName,
     required this.email,
-    required this.phone,
     required this.onEdit,
     this.photoUrl,
   });
 
   final String fullName;
   final String email;
-  final String phone;
   final String? photoUrl;
   final VoidCallback onEdit;
 
@@ -33,43 +34,62 @@ class ProfileHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.large,
-      padding: const EdgeInsets.all(AppSpacing.internal),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _Avatar(initials: _initials, photoUrl: photoUrl),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fullName.trim().isEmpty ? 'Your Name' : fullName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.headline.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 20,
-                      ),
+    return PressableScale(
+      pressedScale: 0.99,
+      child: Material(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onEdit,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: palette.border),
+              boxShadow: palette.cardShadow,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  _Avatar(initials: _initials, photoUrl: photoUrl),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fullName.trim().isEmpty ? 'Your Name' : fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.body
+                              .copyWith(color: palette.textSecondary),
+                        ),
+                        const SizedBox(height: 7),
+                        const _VaultBadge(),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    _InfoLine(icon: Icons.mail_outline_rounded, text: email),
-                    const SizedBox(height: 3),
-                    _InfoLine(
-                      icon: Icons.phone_outlined,
-                      text: phone.trim().isEmpty ? 'Add phone number' : phone,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(Icons.edit_outlined,
+                      size: 19, color: palette.textFaint),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          _EditButton(onTap: onEdit),
-        ],
+        ),
       ),
     );
   }
@@ -84,16 +104,16 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 64,
-      height: 64,
+      width: 54,
+      height: 54,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: AppColors.brandGradient,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.30),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: AppColors.primaryGreen.withValues(alpha: 0.26),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -126,7 +146,7 @@ class _InitialsFill extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: 22,
+            fontSize: 19,
           ),
         ),
       ),
@@ -134,68 +154,26 @@ class _InitialsFill extends StatelessWidget {
   }
 }
 
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
+/// The single, subtle trust cue allowed in the header.
+class _VaultBadge extends StatelessWidget {
+  const _VaultBadge();
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: palette.textFaint),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: palette.textSecondary),
+        Icon(Icons.shield_rounded,
+            size: 13, color: AppColors.primaryGreen.withValues(alpha: 0.9)),
+        const SizedBox(width: 4),
+        Text(
+          'Vault protected',
+          style: AppText.label.copyWith(
+            color: AppColors.primaryGreen.withValues(alpha: 0.9),
+            fontSize: 11.5,
           ),
         ),
       ],
-    );
-  }
-}
-
-class _EditButton extends StatelessWidget {
-  const _EditButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return PressableScale(
-      child: Material(
-        color: palette.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            height: 44,
-            width: double.infinity,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.edit_outlined,
-                    size: 18, color: AppColors.primaryGreen),
-                const SizedBox(width: 8),
-                Text(
-                  'Edit Profile',
-                  style: AppText.subtitle.copyWith(
-                    color: palette.textPrimary,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
