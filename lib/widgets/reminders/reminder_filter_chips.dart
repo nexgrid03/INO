@@ -5,8 +5,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Horizontally scrolling filter chips: a leading "All" then one per
-/// [ReminderCategory]. The selected chip uses the brand green→blue accent.
+/// Horizontally scrolling filter chips — the curated six: All · Documents ·
+/// Insurance · Health · Property · Family. The selected chip uses the brand
+/// green→blue accent.
 class ReminderFilterChips extends StatelessWidget {
   const ReminderFilterChips({
     super.key,
@@ -14,31 +15,24 @@ class ReminderFilterChips extends StatelessWidget {
     required this.onSelected,
   });
 
-  /// Currently selected category, or `null` for "All".
-  final ReminderCategory? selected;
-  final ValueChanged<ReminderCategory?> onSelected;
+  final ReminderFilterKind selected;
+  final ValueChanged<ReminderFilterKind> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 34,
+      height: 36,
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         children: [
-          _Chip(
-            label: 'All',
-            icon: Icons.apps_rounded,
-            selected: selected == null,
-            onTap: () => onSelected(null),
-          ),
-          for (final c in ReminderCategory.values)
+          for (final kind in ReminderFilterKind.values)
             _Chip(
-              label: c.label,
-              icon: c.icon,
-              selected: c == selected,
-              onTap: () => onSelected(c),
+              label: kind.label,
+              icon: kind.icon,
+              selected: kind == selected,
+              onTap: () => onSelected(kind),
             ),
         ],
       ),
@@ -74,8 +68,7 @@ class _Chip extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOut,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 gradient: selected ? AppColors.brandGradient : null,
                 color: selected ? null : palette.surface,

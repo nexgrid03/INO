@@ -187,6 +187,124 @@ class Reminder {
       );
 }
 
+/// The colour that communicates a reminder's *time urgency* (independent of its
+/// priority accent): red when overdue/today, orange tomorrow, green this week,
+/// blue for anything further out. Used by the due badge and complete control.
+Color reminderUrgencyColor(Reminder r, DateTime today) {
+  final d = r.daysFrom(today);
+  if (d <= 0) return AppColors.critical; // overdue or due today
+  if (d == 1) return AppColors.warning; // due tomorrow
+  if (d <= 7) return AppColors.primaryGreen; // this week
+  return AppColors.lightBlue; // later
+}
+
+// ---------------------------------------------------------------------------
+// Filters
+// ---------------------------------------------------------------------------
+
+/// The curated set of top-level filters shown on the Reminders screens. Kept
+/// deliberately short (six chips) — "Family" groups birthdays + anniversaries;
+/// investments/custom items surface only under "All".
+enum ReminderFilterKind { all, documents, insurance, health, property, family }
+
+extension ReminderFilterKindX on ReminderFilterKind {
+  String get label {
+    switch (this) {
+      case ReminderFilterKind.all:
+        return 'All';
+      case ReminderFilterKind.documents:
+        return 'Documents';
+      case ReminderFilterKind.insurance:
+        return 'Insurance';
+      case ReminderFilterKind.health:
+        return 'Health';
+      case ReminderFilterKind.property:
+        return 'Property';
+      case ReminderFilterKind.family:
+        return 'Family';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ReminderFilterKind.all:
+        return Icons.apps_rounded;
+      case ReminderFilterKind.documents:
+        return Icons.description_rounded;
+      case ReminderFilterKind.insurance:
+        return Icons.shield_rounded;
+      case ReminderFilterKind.health:
+        return Icons.favorite_rounded;
+      case ReminderFilterKind.property:
+        return Icons.home_work_rounded;
+      case ReminderFilterKind.family:
+        return Icons.people_alt_rounded;
+    }
+  }
+
+  bool matches(Reminder r) {
+    switch (this) {
+      case ReminderFilterKind.all:
+        return true;
+      case ReminderFilterKind.documents:
+        return r.category == ReminderCategory.documents;
+      case ReminderFilterKind.insurance:
+        return r.category == ReminderCategory.insurance;
+      case ReminderFilterKind.health:
+        return r.category == ReminderCategory.health;
+      case ReminderFilterKind.property:
+        return r.category == ReminderCategory.property;
+      case ReminderFilterKind.family:
+        return r.category == ReminderCategory.birthdays ||
+            r.category == ReminderCategory.anniversaries;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Time grouping
+// ---------------------------------------------------------------------------
+
+/// A labelled bucket of reminders (e.g. "Overdue", "Today") for the grouped
+/// All-Reminders list.
+class ReminderGroup {
+  const ReminderGroup(this.label, this.items);
+  final String label;
+  final List<Reminder> items;
+}
+
+/// Splits reminders into ordered, non-empty time buckets relative to [today].
+/// Assumes [reminders] is already sorted ascending by date.
+List<ReminderGroup> groupRemindersByTime(
+    List<Reminder> reminders, DateTime today) {
+  final overdue = <Reminder>[];
+  final todayItems = <Reminder>[];
+  final tomorrow = <Reminder>[];
+  final thisWeek = <Reminder>[];
+  final later = <Reminder>[];
+  for (final r in reminders) {
+    final d = r.daysFrom(today);
+    if (d < 0) {
+      overdue.add(r);
+    } else if (d == 0) {
+      todayItems.add(r);
+    } else if (d == 1) {
+      tomorrow.add(r);
+    } else if (d <= 7) {
+      thisWeek.add(r);
+    } else {
+      later.add(r);
+    }
+  }
+  return [
+    if (overdue.isNotEmpty) ReminderGroup('Overdue', overdue),
+    if (todayItems.isNotEmpty) ReminderGroup('Today', todayItems),
+    if (tomorrow.isNotEmpty) ReminderGroup('Tomorrow', tomorrow),
+    if (thisWeek.isNotEmpty) ReminderGroup('This Week', thisWeek),
+    if (later.isNotEmpty) ReminderGroup('Later', later),
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------

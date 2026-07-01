@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/data/reminder_store.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/reminders/reminders_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
@@ -15,78 +16,91 @@ UserProfile _profile() => UserProfile(
       updatedAt: DateTime(2026, 1, 1),
     );
 
-void main() {
-  testWidgets('Reminders Dashboard renders its command-center sections',
-      (tester) async {
-    // Tall canvas so every off-screen sliver child is laid out.
-    tester.view.physicalSize = const Size(1200, 7000);
-    tester.view.devicePixelRatio = 3.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: RemindersScreen(profile: _profile()),
-      ),
-    );
-    // Repo's 260ms delayed load + entrance animations.
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 1200));
-
-    expect(tester.takeException(), isNull);
-
-    // Header + all four summary cards.
-    expect(find.text('Reminders'), findsOneWidget);
-    expect(find.text("Today's Reminders"), findsOneWidget);
-    expect(find.text('Upcoming This Week'), findsOneWidget);
-    expect(find.text('Expiring Soon'), findsOneWidget);
-    expect(find.text('Completed This Month'), findsOneWidget);
-
-    // Filters, priorities, timeline, calendar, quick actions, completed.
-    expect(find.text('All'), findsOneWidget);
-    expect(find.text("Today's Priorities"), findsOneWidget);
-    expect(find.text('Upcoming Events'), findsOneWidget);
-    expect(find.text('Month View'), findsOneWidget);
-    expect(find.text('Quick Actions'), findsOneWidget);
-    expect(find.text('Recently Completed'), findsOneWidget);
-
-    // Real sample data surfaces. "Passport Renewal" is due today, so it appears
-    // both as a priority and in the calendar's today list.
-    expect(find.text('Passport Renewal'), findsWidgets);
-    expect(find.text('Insurance Premium Paid'), findsOneWidget); // completed
+// Wide canvas so the horizontally-scrolling filter chips all lay out (a lazy
+// ListView won't build chips past the viewport edge).
+Future<void> _pumpReminders(WidgetTester tester, {Size size = const Size(2400, 7000)}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 3.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
   });
 
-  testWidgets('Filtering by a category narrows the reminders', (tester) async {
-    // Wide canvas so the "Health" chip is visible without horizontal scroll.
-    tester.view.physicalSize = const Size(2400, 9000);
-    tester.view.devicePixelRatio = 3.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: RemindersScreen(profile: _profile()),
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 400)); // repo load
+  await tester.pumpAndSettle(); // entrance animations
+}
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: RemindersScreen(profile: _profile()),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 1200));
+void main() {
+  // Each test hydrates the shared store fresh for isolation.
+  setUp(() => ReminderStore.instance.reset());
 
-    // Tap the "Health" filter chip (first match; a quick-action tile also reads
-    // "Health") → only health reminders remain anywhere.
+  testWidgets('Main screen is minimal: header, summary, filters, priorities',
+      (tester) async {
+    await _pumpReminders(tester);
+    expect(tester.takeException(), isNull);
+
+    // Header + compact 2x2 summary (short labels).
+    expect(find.text('Reminders'), findsOneWidget);
+    for (final label in const ['Today', 'This Week', 'Expiring Soon', 'Completed']) {
+      expect(find.text(label), findsWidgets, reason: '$label summary card');
+    }
+
+    // Curated six filters.
+    for (final chip in const [
+      'All', 'Documents', 'Insurance', 'Health', 'Property', 'Family',
+    ]) {
+      expect(find.text(chip), findsWidgets, reason: '$chip filter chip');
+    }
+
+    // Today's Priorities is the hero + a real due-today item surfaces.
+    expect(find.text("Today's Priorities"), findsOneWidget);
+    expect(find.text('Passport Renewal'), findsWidgets);
+
+    // One clean entry to the full list.
+    expect(find.text('View All Reminders'), findsOneWidget);
+
+    // Sections that were moved off the home screen must NOT appear here.
+    for (final gone in const [
+      'Month View',
+      'Upcoming Events',
+      'Quick Actions',
+      'Recently Completed',
+    ]) {
+      expect(find.text(gone), findsNothing, reason: '$gone should be gone');
+    }
+  });
+
+  testWidgets('Filtering by a category narrows the priorities', (tester) async {
+    // Wide canvas so the "Health" chip is on-screen without horizontal scroll.
+    await _pumpReminders(tester, size: const Size(2400, 7000));
+
+    // The chip renders above the cards, so `.first` is the filter chip.
     final healthChip = find.text('Health').first;
     await tester.ensureVisible(healthChip);
     await tester.tap(healthChip);
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('Medical Checkup'), findsWidgets);
-    // A documents reminder should no longer appear (filtered everywhere).
+    // A documents reminder should no longer be a priority.
     expect(find.text('Passport Renewal'), findsNothing);
+  });
+
+  testWidgets('View All opens the grouped full-list screen', (tester) async {
+    await _pumpReminders(tester);
+
+    await tester.tap(find.text('View All Reminders'));
+    await tester.pumpAndSettle();
+
+    // The dedicated All Reminders screen with its grouped list.
+    expect(find.text('All Reminders'), findsOneWidget);
+    expect(find.text('Today'), findsWidgets); // a time-bucket header
+    expect(find.text('Passport Renewal'), findsWidgets);
   });
 }
