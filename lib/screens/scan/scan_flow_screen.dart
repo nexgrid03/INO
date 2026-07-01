@@ -11,8 +11,8 @@ import 'scanner_screen.dart';
 
 /// The outcome handed back to whoever launched the scan flow.
 class ScanFlowResult {
-  const ScanFlowResult.completed(this.ocr) : manual = false;
-  const ScanFlowResult.manual()
+  const ScanFlowResult.completed(this.ocr, {this.imagePath}) : manual = false;
+  const ScanFlowResult.manual({this.imagePath})
       : ocr = null,
         manual = true;
 
@@ -21,6 +21,10 @@ class ScanFlowResult {
 
   /// True when the user opted to skip OCR and enter details by hand.
   final bool manual;
+
+  /// Local path of the captured/imported image, so the caller can upload the
+  /// actual file (null when the flow produced no image).
+  final String? imagePath;
 }
 
 enum _Stage { scanner, review, processing, result, failed }
@@ -112,13 +116,14 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           onClose: () => _go(_Stage.review),
           onRetake: () => _go(_Stage.scanner),
           onContinue: (updated) =>
-              _exit(ScanFlowResult.completed(updated)),
+              _exit(ScanFlowResult.completed(updated, imagePath: _capturePath)),
         );
       case _Stage.failed:
         return _FailedStage(
           onBack: () => _go(_Stage.scanner),
           onTryAgain: () => _go(_Stage.processing),
-          onManualEntry: () => _exit(const ScanFlowResult.manual()),
+          onManualEntry: () =>
+              _exit(ScanFlowResult.manual(imagePath: _capturePath)),
         );
     }
   }
@@ -173,7 +178,10 @@ Future<void> launchScanFlow(
   if (result.manual) {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddDocumentScreen(initialWallet: initialWallet),
+        builder: (_) => AddDocumentScreen(
+          initialWallet: initialWallet,
+          initialFilePath: result.imagePath,
+        ),
       ),
     );
   } else if (result.ocr != null) {
@@ -182,6 +190,7 @@ Future<void> launchScanFlow(
         builder: (_) => AddDocumentScreen(
           prefill: result.ocr,
           initialWallet: initialWallet,
+          initialFilePath: result.imagePath,
         ),
       ),
     );

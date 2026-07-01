@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
-import '../../services/document_scanner_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../widgets/scan/scan_controls.dart';
 import '../../widgets/scan/scan_guidance_pill.dart';
@@ -162,45 +161,29 @@ class _ScannerScreenState extends State<ScannerScreen>
       };
 
   Future<void> _capturePressed() async {
-    if (_phase != _Phase.ready || _capture == CaptureButtonState.capturing) {
+    final controller = _controller;
+    if (_phase != _Phase.ready ||
+        controller == null ||
+        !controller.value.isInitialized ||
+        _capture == CaptureButtonState.capturing) {
       return;
     }
     HapticFeedback.mediumImpact();
-    setState(() {
-      _capture = CaptureButtonState.capturing;
-      _blockBootstrap = true;
-    });
+    setState(() => _capture = CaptureButtonState.capturing);
     try {
-      String? path;
-      if (DocumentScannerService.instance.isSupported) {
-        // Real document scan: edge detection, crop, perspective, enhancement.
-        path = await DocumentScannerService.instance.scan();
-      } else {
-        final controller = _controller;
-        if (controller != null && controller.value.isInitialized) {
-          final file = await controller.takePicture();
-          path = file.path;
-        }
-      }
+      // Capture the still image with the in-app camera preview — no external
+      // scanner activity, so the user stays inside INO the whole time. Edge
+      // detection / crop happen downstream on the captured image.
+      final file = await controller.takePicture();
       if (!mounted) return;
-      if (path == null) {
-        setState(() {
-          _capture = CaptureButtonState.idle;
-          _blockBootstrap = false;
-        }); // cancelled
-        return;
-      }
       HapticFeedback.lightImpact();
       setState(() => _capture = CaptureButtonState.success);
       await Future<void>.delayed(const Duration(milliseconds: 240));
       if (!mounted) return;
-      widget.onCaptured(path);
+      widget.onCaptured(file.path);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _capture = CaptureButtonState.idle;
-        _blockBootstrap = false;
-      });
+      setState(() => _capture = CaptureButtonState.idle);
       _snack('Capture failed. Please try again.');
     }
   }
@@ -226,9 +209,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: ScanColors.surface,
+        backgroundColor: ScanColors.textPrimary,
       ),
     );
   }
@@ -274,7 +257,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         children: [
           IconButton(
             onPressed: widget.onClose,
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
+            icon: const Icon(Icons.close_rounded,
+                color: ScanColors.textPrimary, size: 26),
             tooltip: 'Close',
           ),
           const Expanded(
@@ -283,7 +267,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 Text(
                   'Scan Document',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: ScanColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -292,7 +276,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 Text(
                   'Position your document inside the frame',
                   style: TextStyle(
-                    color: Colors.white60,
+                    color: ScanColors.textSecondary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -425,7 +409,7 @@ class _CenterStatus extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white24, size: 46),
+          Icon(icon, color: ScanColors.textSecondary, size: 46),
           const SizedBox(height: 16),
           if (spinner) ...[
             const SizedBox(
@@ -433,7 +417,7 @@ class _CenterStatus extends StatelessWidget {
               height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(ScanColors.green),
+                valueColor: AlwaysStoppedAnimation<Color>(ScanColors.accent),
               ),
             ),
             const SizedBox(height: 14),
@@ -441,7 +425,7 @@ class _CenterStatus extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white70,
+              color: ScanColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -484,18 +468,18 @@ class _StatusView extends StatelessWidget {
               width: 92,
               height: 92,
               decoration: BoxDecoration(
-                color: ScanColors.surface,
+                color: ScanColors.surfaceVariant,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: ScanColors.border),
               ),
-              child: Icon(icon, color: ScanColors.green, size: 42),
+              child: Icon(icon, color: ScanColors.accent, size: 42),
             ),
             const SizedBox(height: 22),
             Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: ScanColors.textPrimary,
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
               ),
@@ -505,7 +489,7 @@ class _StatusView extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white60,
+                color: ScanColors.textSecondary,
                 fontSize: 13.5,
                 height: 1.5,
               ),
@@ -519,7 +503,7 @@ class _StatusView extends StatelessWidget {
                 child: Text(
                   secondaryLabel!,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: ScanColors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

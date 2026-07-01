@@ -95,13 +95,15 @@ class _CaptureButton extends StatelessWidget {
           height: 78,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
+            color: ScanColors.surface,
             border: Border.all(
-              color: Colors.white,
+              color: detected ? ScanColors.accent : ScanColors.border,
               width: detected ? 5 : 4,
             ),
             boxShadow: [
               BoxShadow(
-                color: ScanColors.green.withValues(alpha: detected ? 0.7 : 0.45),
+                color:
+                    ScanColors.accent.withValues(alpha: detected ? 0.55 : 0.35),
                 blurRadius: detected ? 28 : 20,
                 spreadRadius: detected ? 2 : 1,
               ),
@@ -136,7 +138,7 @@ class _SideButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? ScanColors.green : Colors.white;
+    final color = active ? ScanColors.accent : ScanColors.textSecondary;
     return Opacity(
       opacity: onTap == null ? 0.4 : 1,
       child: PressableScale(
@@ -153,12 +155,10 @@ class _SideButton extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
+                    color: ScanColors.surfaceVariant,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: active
-                          ? ScanColors.green
-                          : Colors.white.withValues(alpha: 0.18),
+                      color: active ? ScanColors.accent : ScanColors.border,
                     ),
                   ),
                   child: Icon(icon, color: color, size: 23),

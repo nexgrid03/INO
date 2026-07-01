@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../data/wallet_detail_repository.dart';
 import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
+import '../../repositories/document_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -106,7 +107,12 @@ const _categories = <String>[
 /// Pick a source (scan / PDF / image), then fill a short set of details and
 /// save. Deliberately minimal: no analytics, dashboards or extra sections.
 class AddDocumentScreen extends StatefulWidget {
-  const AddDocumentScreen({super.key, this.initialWallet, this.prefill});
+  const AddDocumentScreen({
+    super.key,
+    this.initialWallet,
+    this.prefill,
+    this.initialFilePath,
+  });
 
   /// Pre-selects a wallet when opened from a specific wallet's detail screen.
   final String? initialWallet;
@@ -114,6 +120,9 @@ class AddDocumentScreen extends StatefulWidget {
   /// When arriving from the Scan & OCR flow, pre-populates the form with the
   /// confirmed extraction so the user lands straight on Save.
   final OcrResult? prefill;
+
+  /// Local path of the captured/imported image, uploaded to Storage on save.
+  final String? initialFilePath;
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -138,12 +147,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String _processingMessage = '';
   double _processingProgress = 0.0;
   String? _tempFileName;
+  String? _localFilePath; // real on-device file to upload to Storage
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _wallet = widget.initialWallet;
+    _localFilePath = widget.initialFilePath;
     _applyPrefill();
+    // Manual entry from the scan flow: an image exists but there's no OCR
+    // prefill — still show the form (with the file attached) so it can be saved.
+    if (_localFilePath != null && _source == null) {
+      _source = _DocSource.scan;
+      _tempFileName ??= 'Scan_${_localFilePath!.split('/').last}';
+    }
   }
 
   /// Hydrates the form from a Scan & OCR result, landing the user on the filled
@@ -203,33 +221,73 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     if (picked != null) setState(() => _expiry = picked);
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     if (_wallet == null) {
       _toast('Please choose a wallet', error: true);
       return;
     }
 
-    final record = DocumentRecord(
-      id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
-      name: _nameController.text.trim(),
-      category: _category ?? 'Other',
-      icon: _source == _DocSource.image ? Icons.image_rounded : Icons.description_rounded,
-      uploadedAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      status: DocumentStatus.active,
-      expiresAt: _expiry,
-      tags: _tagsController.text.trim().isEmpty
-          ? const []
-          : _tagsController.text.trim().split(',').map((t) => t.trim()).toList(),
-      isFavorite: false,
-    );
-
-    WalletDetailRepository.instance.addRecord(_wallet!, record);
+    final name = _nameController.text.trim();
+    final tags = _tagsController.text.trim().isEmpty
+        ? <String>[]
+        : _tagsController.text.trim().split(',').map((t) => t.trim()).toList();
+    final notes = _notesController.text.trim();
 
     FocusScope.of(context).unfocus();
-    _toast('“${_nameController.text.trim()}” saved to $_wallet');
-    Navigator.of(context).maybePop();
+    setState(() => _saving = true);
+
+    try {
+      // 1) Upload the actual file to Storage (if we have one), getting back its
+      //    location to store on the row.
+      String? filePath;
+      if (_localFilePath != null) {
+        filePath = await DocumentRepository.instance.uploadFile(_localFilePath!);
+      }
+
+      // 2) Persist to Supabase (the `documents` table). RLS ties the row to the
+      //    signed-in user automatically.
+      final doc = await DocumentRepository.instance.create(
+        wallet: _wallet!,
+        name: name,
+        category: _category ?? 'Other',
+        tags: tags,
+        notes: notes.isEmpty ? null : notes,
+        expiresAt: _expiry,
+        filePath: filePath,
+      );
+
+      if (!mounted) return;
+
+      // 3) Keep the in-memory wallet list in sync so the detail screen shows the
+      //    new document immediately (using the real id returned by the DB).
+      WalletDetailRepository.instance.addRecord(
+        _wallet!,
+        DocumentRecord(
+          id: doc.id,
+          name: doc.name,
+          category: doc.category ?? 'Other',
+          icon: _source == _DocSource.image
+              ? Icons.image_rounded
+              : Icons.description_rounded,
+          uploadedAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          status: DocumentStatus.active,
+          expiresAt: doc.expiresAt,
+          tags: doc.tags,
+          isFavorite: doc.isFavorite,
+        ),
+      );
+
+      _toast('“$name” saved to $_wallet');
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _toast('Could not save to the cloud. Please try again.', error: true);
+      debugPrint('Document save failed: $e');
+    }
   }
 
   void _toast(String message, {bool error = false}) {
@@ -695,6 +753,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           ? _SaveBar(
               onSave: _save,
               onCancel: () => Navigator.of(context).maybePop(),
+              saving: _saving,
             )
           : null,
     );
@@ -1343,10 +1402,15 @@ class _PickerTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SaveBar extends StatelessWidget {
-  const _SaveBar({required this.onSave, required this.onCancel});
+  const _SaveBar({
+    required this.onSave,
+    required this.onCancel,
+    this.saving = false,
+  });
 
   final VoidCallback onSave;
   final VoidCallback onCancel;
+  final bool saving;
 
   @override
   Widget build(BuildContext context) {
@@ -1372,7 +1436,7 @@ class _SaveBar extends StatelessWidget {
                 side: BorderSide(color: palette.border),
               ),
               child: InkWell(
-                onTap: onCancel,
+                onTap: saving ? null : onCancel,
                 child: SizedBox(
                   height: AppSizes.button,
                   width: 104,
@@ -1404,21 +1468,31 @@ class _SaveBar extends StatelessWidget {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: onSave,
+                    onTap: saving ? null : onSave,
                     borderRadius: BorderRadius.circular(AppRadius.button),
                     child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_rounded,
-                              color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Save Document',
-                              style: AppText.subtitle.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
-                        ],
-                      ),
+                      child: saving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_rounded,
+                                    color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                Text('Save Document',
+                                    style: AppText.subtitle.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700)),
+                              ],
+                            ),
                     ),
                   ),
                 ),

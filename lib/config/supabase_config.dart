@@ -1,4 +1,4 @@
-/// Backend credentials for Supabase + Google Sign-In.
+////// Backend credentials for Supabase + Google Sign-In.
 ///
 /// Fill these in with the values from your own dashboards (see the setup
 /// guide). The Supabase anon key is safe to ship in a client app; the Google
@@ -10,7 +10,7 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
-  /// Project URL, e.g. https://abcdefgh.supabase.co
+  /// Project URL, e.g. https://ab544cdefgh.supabase.co
   static const String url = 'https://ilfzppryyojoponkomrw.supabase.co';
 
   /// Project publishable (a.k.a. "anon") public API key — safe for clients.
