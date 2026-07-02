@@ -10,9 +10,9 @@ import '../pressable_scale.dart';
 ///
 /// Net worth as the single focal point on a clean white surface with a faint
 /// mint wash: monthly growth (% + amount), a green trend graph, a "View
-/// details" CTA, then a four-metric strip (Assets · Documents · Pending ·
-/// Protected) with soft-tinted icon chips. Those four are the ONLY counts on
-/// Home — every other module's numbers live on its own page.
+/// details" CTA, then a metric strip (Assets · Pending · Protected) with
+/// soft-tinted icon chips. Those are the ONLY counts on Home — every other
+/// module's numbers live on its own page.
 class DashboardCard extends StatelessWidget {
   const DashboardCard({super.key, required this.hero, this.onCta});
 
@@ -20,7 +20,6 @@ class DashboardCard extends StatelessWidget {
   final VoidCallback? onCta;
 
   static const _assets = AppColors.primaryGreen;
-  static const _documents = AppColors.lightBlue;
   static const _pending = AppColors.warning;
   static const _protected = Color(0xFF8B6CEF);
 
@@ -62,12 +61,6 @@ class DashboardCard extends StatelessWidget {
                       color: _assets,
                       value: '${hero.assets}',
                       label: 'Assets'),
-                  _divider(palette),
-                  _Stat(
-                      icon: Icons.folder_rounded,
-                      color: _documents,
-                      value: '${hero.documents}',
-                      label: 'Documents'),
                   _divider(palette),
                   _Stat(
                       icon: Icons.assignment_rounded,
