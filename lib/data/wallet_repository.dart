@@ -105,6 +105,17 @@ class SupabaseWalletRepository implements WalletRepository {
     ),
   ];
 
+  /// The wallet categories the app offers (app structure, not stored data).
+  static const List<WalletCategory> categories = _categories;
+
+  /// Finds a wallet category by its full name (e.g. "Insurance Wallet").
+  static WalletCategory? categoryFor(String name) {
+    for (final c in _categories) {
+      if (c.name == name) return c;
+    }
+    return null;
+  }
+
   @override
   Future<WalletHubData> load() async {
     List<Document> docs;

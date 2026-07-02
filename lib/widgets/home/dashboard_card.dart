@@ -61,13 +61,11 @@ class DashboardCard extends StatelessWidget {
                       color: _assets,
                       value: '${hero.assets}',
                       label: 'Assets'),
-                  _divider(palette),
                   _Stat(
                       icon: Icons.assignment_rounded,
                       color: _pending,
                       value: '${hero.pendingTasks}',
                       label: 'Pending'),
-                  _divider(palette),
                   _Stat(
                       icon: Icons.verified_user_rounded,
                       color: _protected,
@@ -82,12 +80,6 @@ class DashboardCard extends StatelessWidget {
     );
   }
 
-  Widget _divider(AppPalette palette) => Container(
-        width: 1,
-        height: 40,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        color: palette.border,
-      );
 }
 
 class _NetWorth extends StatelessWidget {
@@ -261,36 +253,32 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Expanded(
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: AppSizes.iconContainerSm - 6,
-            height: AppSizes.iconContainerSm - 6,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
             child: Icon(icon, size: 19, color: color),
           ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.label.copyWith(
-                      color: palette.textSecondary, fontSize: 11),
-                ),
-                Text(
-                  value,
-                  style: AppText.title
-                      .copyWith(color: palette.textPrimary, fontSize: 16),
-                ),
-              ],
-            ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppText.title
+                .copyWith(color: palette.textPrimary, fontSize: 16),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style:
+                AppText.label.copyWith(color: palette.textSecondary, fontSize: 11),
           ),
         ],
       ),

@@ -43,14 +43,18 @@ class QuickActionButton extends StatelessWidget {
             child: Icon(icon, color: color, size: 23),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(
-              color: palette.textSecondary,
-              fontWeight: FontWeight.w600,
-              fontSize: 11.5,
+          // Scale the label down to fit rather than truncating, so full names
+          // (e.g. "Reminder", "Document") always show.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+              ),
             ),
           ),
         ],

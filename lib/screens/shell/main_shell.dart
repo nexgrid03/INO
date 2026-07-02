@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/wallet_repository.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_theme.dart';
@@ -11,6 +12,7 @@ import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
+import '../wallet/wallet_detail_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
 import 'shell_controller.dart';
@@ -77,24 +79,44 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onFabAction(QuickAction action) {
-    // Scan actions open the dedicated Scan & OCR flow.
-    if (action.label == 'Scan' || action.label == 'Scan Document') {
-      launchScanFlow(context);
-      return;
+    switch (action.label) {
+      // Scan actions open the dedicated Scan flow.
+      case 'Scan':
+      case 'Scan Document':
+        launchScanFlow(context);
+      // Reminder goes to the Reminders tab.
+      case 'Add Reminder':
+        ShellController.tab.value = 3;
+      case 'Add Document':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
+        );
+      // Category adds open their respective wallet pages.
+      case 'Add Property':
+        _openWallet('Property Wallet');
+      case 'Add Insurance':
+        _openWallet('Insurance Wallet');
+      case 'Add Investment':
+        _openWallet('Investment Wallet');
+      case 'Add Health Record':
+        _openWallet('Health Wallet');
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${action.label} — coming soon'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryGreen,
+          ),
+        );
     }
-    // Other document-add actions open the Add Document screen.
-    if (action.label == 'Add Document') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
-      );
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${action.label} — coming soon'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
-      ),
+  }
+
+  /// Opens a specific wallet's page (e.g. Insurance, Investment) by name.
+  void _openWallet(String walletName) {
+    final category = SupabaseWalletRepository.categoryFor(walletName);
+    if (category == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WalletDetailScreen(category: category)),
     );
   }
 

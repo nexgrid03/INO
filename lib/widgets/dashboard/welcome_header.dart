@@ -123,24 +123,17 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      '$_greeting, $_firstName',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text('👋', style: TextStyle(fontSize: 16)),
-                ],
+              Text(
+                '$_greeting, $_firstName 👋',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                  letterSpacing: -0.2,
+                  height: 1.15,
+                ),
               ),
               const SizedBox(height: 2),
               Text(

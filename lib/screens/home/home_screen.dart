@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/dashboard_repository.dart';
+import '../../data/wallet_repository.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -16,6 +17,7 @@ import '../../widgets/home/quick_action_button.dart';
 import '../documents/add_document_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
+import '../wallet/wallet_detail_screen.dart';
 
 /// The INO Home — a minimal, premium fintech launcher.
 ///
@@ -72,6 +74,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Opens a specific wallet's page (e.g. Insurance, Investment) by name.
+  void _openWallet(String walletName) {
+    final category = SupabaseWalletRepository.categoryFor(walletName);
+    if (category == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WalletDetailScreen(category: category)),
+    );
+  }
+
   void _scan() => launchScanFlow(context);
 
   @override
@@ -94,15 +105,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 slivers: [
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                          AppSpacing.sm, AppSpacing.screen, AppSpacing.xs),
-                      child: WelcomeHeader(
-                        fullName: widget.profile.fullName,
-                        notificationCount: data?.priorities.length ?? 0,
-                        onSearch: () => _toast('Global search — coming soon'),
-                        onNotifications: () =>
-                            _toast('Notifications — coming soon'),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: palette.surface,
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(AppRadius.large)),
+                        border: Border(
+                          bottom: BorderSide(color: palette.border),
+                        ),
+                        boxShadow: palette.cardShadow,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
+                            AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
+                        child: WelcomeHeader(
+                          fullName: widget.profile.fullName,
+                          notificationCount: data?.priorities.length ?? 0,
+                          onSearch: () => _toast('Global search — coming soon'),
+                          onNotifications: () =>
+                              _toast('Notifications — coming soon'),
+                        ),
                       ),
                     ),
                   ),
@@ -134,23 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // 2. Net-worth hero.
       DashboardCard(
         hero: data.hero,
-        onCta: () => _toast('Portfolio — coming soon'),
+        onCta: () => _goToTab(1), // View details → Wallet hub
       ),
-      // 3. Market Snapshot — compact.
-      _Section(
-        header: SectionHeader(
-          title: 'Market Snapshot',
-          subtitle: 'Live rates near you',
-          icon: Icons.trending_up_rounded,
-          actionLabel: 'View markets',
-          onAction: () => _toast('Markets — coming soon'),
-        ),
-        child: MarketCard(
-          quotes: data.market,
-          onTap: () => _toast('Markets — coming soon'),
-        ),
-      ),
-      // 5. Quick Actions.
+      // Quick Actions — moved to the top, right under the hero.
       _Section(
         header: const SectionHeader(
           title: 'Quick Actions',
@@ -174,6 +182,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 case 'Scan':
                 case 'Scan Document':
                   _scan();
+                case 'Add Reminder':
+                  _goToTab(3); // Reminders tab
+                case 'Add Property':
+                  _openWallet('Property Wallet');
+                case 'Add Insurance':
+                  _openWallet('Insurance Wallet');
+                case 'Add Investment':
+                  _openWallet('Investment Wallet');
+                case 'Add Health Record':
+                  _openWallet('Health Wallet');
                 default:
                   _toast('${a.label} — coming soon');
               }
@@ -181,7 +199,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      // 6. Recent Activity — latest 5.
+      // Live Market — above Recent Activity.
+      _Section(
+        header: SectionHeader(
+          title: 'Market Snapshot',
+          subtitle: 'Live rates near you',
+          icon: Icons.trending_up_rounded,
+          actionLabel: 'View markets',
+          onAction: () => _toast('Markets — coming soon'),
+        ),
+        child: MarketCard(
+          quotes: data.market,
+          onTap: () => _toast('Markets — coming soon'),
+        ),
+      ),
+      // Recent Activity — latest 5 (kept at the bottom of the page).
       _Section(
         header: SectionHeader(
           title: 'Recent Activity',
@@ -210,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var i = 0; i < sections.length; i++)
         Padding(
           padding: EdgeInsets.only(
-              bottom: i == sections.length - 1 ? 0 : AppSpacing.section),
+              bottom: i == sections.length - 1 ? 0 : AppSpacing.sm),
           child: FadeSlideIn(
             delay: Duration(milliseconds: (i * 70).clamp(0, 420)),
             child: sections[i],
