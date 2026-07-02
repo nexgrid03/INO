@@ -185,6 +185,56 @@ class Reminder {
         completed: completed ?? this.completed,
         completedLabel: completedLabel ?? this.completedLabel,
       );
+
+  /// Builds a [Reminder] from a `public.reminders` table row.
+  factory Reminder.fromMap(Map<String, dynamic> m) {
+    final completedAt = m['completed_at'] == null
+        ? null
+        : DateTime.parse(m['completed_at'] as String);
+    return Reminder(
+      id: m['id'] as String,
+      title: m['title'] as String,
+      subtitle: (m['subtitle'] as String?) ?? '',
+      category: ReminderCategory.values.firstWhere(
+        (c) => c.name == m['category'],
+        orElse: () => ReminderCategory.custom,
+      ),
+      priority: ReminderPriority.values.firstWhere(
+        (p) => p.name == m['priority'],
+        orElse: () => ReminderPriority.normal,
+      ),
+      date: DateTime.parse(m['due_date'] as String),
+      completed: (m['completed'] as bool?) ?? false,
+      completedLabel:
+          completedAt == null ? null : reminderRelativeLabel(completedAt),
+    );
+  }
+
+  /// Columns the app owns on insert; the DB fills id / auth_user_id / timestamps.
+  Map<String, dynamic> toInsert() => {
+        'title': title,
+        'subtitle': subtitle,
+        'category': category.name,
+        'priority': priority.name,
+        'due_date': _reminderDateOnly(date),
+        'completed': completed,
+      };
+}
+
+/// Formats a [DateTime] as a DATE-only string (YYYY-MM-DD) for the DB.
+String _reminderDateOnly(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
+/// A short relative label like "Just now", "2h ago", "3 days ago".
+String reminderRelativeLabel(DateTime t) {
+  final diff = DateTime.now().difference(t);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays == 1) return 'Yesterday';
+  return '${diff.inDays} days ago';
 }
 
 /// The colour that communicates a reminder's *time urgency* (independent of its

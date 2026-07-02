@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/reminder_models.dart';
@@ -132,6 +134,11 @@ class ReminderStore extends ChangeNotifier {
     _completed.insert(
         0, r.copyWith(completed: true, completedLabel: 'Just now'));
     notifyListeners();
+    // Persist (fire-and-forget; UI already updated optimistically).
+    unawaited(ReminderRepository.instance.setCompleted(r.id, true).catchError(
+        (Object e) {
+      debugPrint('Reminder complete failed: $e');
+    }));
   }
 
   void restore(Reminder r) {
@@ -139,18 +146,37 @@ class ReminderStore extends ChangeNotifier {
     _active.add(r.copyWith(completed: false, completedLabel: null));
     _sort();
     notifyListeners();
+    unawaited(ReminderRepository.instance.setCompleted(r.id, false).catchError(
+        (Object e) {
+      debugPrint('Reminder restore failed: $e');
+    }));
   }
 
   void add(Reminder r) {
+    // Optimistically show it, then insert to Supabase and swap in the real id.
     _active.add(r);
     _sort();
     notifyListeners();
+    unawaited(ReminderRepository.instance.add(r).then((saved) {
+      final i = _active.indexWhere((e) => e.id == r.id);
+      if (i != -1) {
+        _active[i] = saved;
+        _sort();
+        notifyListeners();
+      }
+      debugPrint('Reminder saved: ${saved.id}');
+    }).catchError((Object e) {
+      debugPrint('Reminder save failed: $e');
+    }));
   }
 
   void remove(Reminder r) {
     _active.removeWhere((e) => e.id == r.id);
     _completed.removeWhere((e) => e.id == r.id);
     notifyListeners();
+    unawaited(ReminderRepository.instance.remove(r.id).catchError((Object e) {
+      debugPrint('Reminder delete failed: $e');
+    }));
   }
 
   /// Test hook: clears all state so each test hydrates fresh.

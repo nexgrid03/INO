@@ -493,17 +493,19 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             ),
           ),
         ),
-      // 5. Category chips.
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 0, 0),
-          child: CategoryChips(
-            categories: _categoryChips,
-            selected: _category,
-            onSelected: (c) => setState(() => _category = c),
+      // 5. Category chips — only when the wallet actually has distinct
+      //    categories/tags (otherwise it's a redundant lone "All" row).
+      if (_categoryChips.isNotEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 0, 0),
+            child: CategoryChips(
+              categories: _categoryChips,
+              selected: _category,
+              onSelected: (c) => setState(() => _category = c),
+            ),
           ),
         ),
-      ),
       // 6. Status filter + sort.
       SliverToBoxAdapter(
         child: Padding(

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/reminder_store.dart';
 import '../../data/wallet_detail_repository.dart';
+import '../../models/reminder_models.dart';
 import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
@@ -304,6 +306,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         ),
       );
 
+      // If the document has an expiry date, also create a reminder for it so it
+      // shows up on the Reminders page (persisted to Supabase).
+      if (_expiry != null) {
+        ReminderStore.instance.add(
+          Reminder(
+            id: 'doc-${doc.id}',
+            title: name,
+            subtitle: '$_wallet · Expiry',
+            category: _reminderCategoryForWallet(_wallet!),
+            priority: ReminderPriority.important,
+            date: _expiry!,
+          ),
+        );
+      }
+
       _toast('“$name” saved to $_wallet');
       Navigator.of(context).maybePop();
     } catch (e) {
@@ -313,6 +330,23 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       // instead of a generic message, so failures are diagnosable on-device.
       _toast('Save failed: $e', error: true);
       debugPrint('Document save failed: $e');
+    }
+  }
+
+  /// Maps a wallet to the matching reminder category for auto-created expiry
+  /// reminders.
+  ReminderCategory _reminderCategoryForWallet(String wallet) {
+    switch (wallet) {
+      case 'Insurance Wallet':
+        return ReminderCategory.insurance;
+      case 'Health Wallet':
+        return ReminderCategory.health;
+      case 'Property Wallet':
+        return ReminderCategory.property;
+      case 'Investment Wallet':
+        return ReminderCategory.investments;
+      default:
+        return ReminderCategory.documents;
     }
   }
 
