@@ -12,7 +12,6 @@ import '../../widgets/home/activity_tile.dart';
 import '../../widgets/home/dashboard_card.dart';
 import '../../widgets/home/floating_menu.dart';
 import '../../widgets/home/market_card.dart';
-import '../../widgets/home/priority_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../documents/add_document_screen.dart';
 import '../scan/scan_flow_screen.dart';
@@ -100,9 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           AppSpacing.sm, AppSpacing.screen, AppSpacing.xs),
                       child: WelcomeHeader(
                         fullName: widget.profile.fullName,
-                        themeMode: widget.themeMode,
                         notificationCount: data?.priorities.length ?? 0,
-                        onToggleTheme: widget.onToggleTheme ?? () {},
                         onSearch: () => _toast('Global search — coming soon'),
                         onNotifications: () =>
                             _toast('Notifications — coming soon'),
@@ -139,38 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         hero: data.hero,
         onCta: () => _toast('Portfolio — coming soon'),
       ),
-      // 3. Priority Center — top 3 only, horizontal cards.
-      _Section(
-        header: SectionHeader(
-          title: 'Priority Center',
-          subtitle: 'Items that need your attention',
-          icon: Icons.error_rounded,
-          iconColor: AppColors.critical,
-          actionLabel: 'View all',
-          onAction: () => _toast('All priorities — coming soon'),
-        ),
-        child: SizedBox(
-          height: 152,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.zero,
-            physics: const BouncingScrollPhysics(),
-            itemCount: data.priorities.take(3).length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, i) {
-              final p = data.priorities[i];
-              return SizedBox(
-                width: 190,
-                child: PriorityCard(
-                  item: p,
-                  onTap: () => _toast('${p.title} — coming soon'),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-      // 4. Market Snapshot — compact.
+      // 3. Market Snapshot — compact.
       _Section(
         header: SectionHeader(
           title: 'Market Snapshot',

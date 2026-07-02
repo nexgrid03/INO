@@ -15,16 +15,12 @@ class WelcomeHeader extends StatefulWidget {
   const WelcomeHeader({
     super.key,
     required this.fullName,
-    required this.themeMode,
-    required this.onToggleTheme,
     required this.onSearch,
     required this.onNotifications,
     this.notificationCount = 0,
   });
 
   final String fullName;
-  final ThemeMode themeMode;
-  final VoidCallback onToggleTheme;
   final VoidCallback onSearch;
   final VoidCallback onNotifications;
   final int notificationCount;
@@ -57,6 +53,21 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
     return 'Good evening';
   }
 
+  static const _weekdays = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', //
+    'Friday', 'Saturday', 'Sunday',
+  ];
+  static const _months = [
+    'January', 'February', 'March', 'April', 'May', 'June', //
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  /// Today's date, e.g. "Thursday, 2 July 2026".
+  String get _todayLabel {
+    final n = DateTime.now();
+    return '${_weekdays[n.weekday - 1]}, ${n.day} ${_months[n.month - 1]} ${n.year}';
+  }
+
   @override
   void dispose() {
     _pulse.dispose();
@@ -66,7 +77,6 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final isDark = palette.isDark;
 
     return Row(
       children: [
@@ -134,7 +144,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
               ),
               const SizedBox(height: 2),
               Text(
-                'Welcome back to INO',
+                _todayLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 13, color: palette.textSecondary),
               ),
             ],
@@ -144,12 +156,6 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
           icon: Icons.search_rounded,
           onTap: widget.onSearch,
           tooltip: 'Search',
-        ),
-        const SizedBox(width: 8),
-        _HeaderIcon(
-          icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-          onTap: widget.onToggleTheme,
-          tooltip: isDark ? 'Light mode' : 'Dark mode',
         ),
         const SizedBox(width: 8),
         _HeaderIcon(

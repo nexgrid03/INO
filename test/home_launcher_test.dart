@@ -42,17 +42,17 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // The six focused sections.
+    // The focused sections.
     expect(find.text('Total Net Worth'), findsOneWidget);
-    expect(find.text('Priority Center'), findsOneWidget);
     expect(find.text('Market Snapshot'), findsOneWidget);
     expect(find.text('Quick Actions'), findsOneWidget);
     expect(find.text('Recent Activity'), findsOneWidget);
 
-    // Hero shows the four headline metrics — and only those.
-    for (final m in const ['Assets', 'Documents', 'Pending', 'Protected']) {
+    // Hero shows the headline metrics — Documents was removed (unreliable count).
+    for (final m in const ['Assets', 'Pending', 'Protected']) {
       expect(find.text(m), findsOneWidget);
     }
+    expect(find.text('Documents'), findsNothing);
 
     // The five quick actions are present (some labels, e.g. "Reminder", also
     // appear as a priority status chip — so assert presence, not uniqueness).
@@ -62,6 +62,7 @@ void main() {
 
     // Removed / module-owned sections must NOT appear on Home anymore.
     for (final gone in const [
+      'Priority Center',
       'Life Overview',
       'Wallet Ecosystem',
       'Family & Events',
