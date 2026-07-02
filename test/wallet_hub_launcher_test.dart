@@ -29,9 +29,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // Header title + lightweight summary.
+    // Header title + lightweight summary. No documents exist in a test (the
+    // Supabase-backed repo returns empty), so the record count is 0.
     expect(find.text('My Wallets'), findsOneWidget);
-    expect(find.text('8 Wallets  •  22 Records'), findsOneWidget);
+    expect(find.text('8 Wallets  •  0 Records'), findsOneWidget);
 
     // All 8 wallets are present (the launcher grid).
     for (final name in const [

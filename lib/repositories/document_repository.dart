@@ -97,6 +97,12 @@ class DocumentRepository {
     return [for (final r in rows) Document.fromMap(r)];
   }
 
+  /// Updates a few columns on an existing row (e.g. favourite / status).
+  /// RLS guarantees the user can only touch their own rows.
+  Future<void> update(String id, Map<String, dynamic> fields) async {
+    await _client.from(_table).update(fields).eq('id', id);
+  }
+
   /// Deletes a document row by id.
   Future<void> delete(String id) async {
     await _client.from(_table).delete().eq('id', id);

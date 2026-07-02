@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_models.dart' show SmartInsight;
+import '../models/document.dart';
 import '../models/wallet_detail_models.dart';
 import '../models/wallet_models.dart' show RecentItem, SecurityStatus, WalletCategory;
+import '../repositories/document_repository.dart';
 import '../theme/app_theme.dart';
 
 /// Aggregate read model for one wallet's detail screen.
@@ -35,84 +37,58 @@ class WalletDetailData {
 }
 
 /// Source of Wallet Detail data. The screen depends only on this abstraction.
-/// The same UI is reused for every wallet — [load] simply returns different
-/// data for the given [WalletCategory].
+/// The same UI is reused for every wallet — [load] returns the signed-in user's
+/// real documents for the given wallet, straight from Supabase.
 abstract class WalletDetailRepository {
   Future<WalletDetailData> load(WalletCategory category);
   void addRecord(String walletName, DocumentRecord record);
   void updateRecord(String walletName, DocumentRecord record);
   void deleteRecord(String walletName, String recordId);
-  int getRecordCount(String walletName, WalletCategory fallbackCategory);
 
-  static WalletDetailRepository instance = SampleWalletDetailRepository();
+  static WalletDetailRepository instance = SupabaseWalletDetailRepository();
 }
 
-class SampleWalletDetailRepository implements WalletDetailRepository {
-  final Map<String, List<DocumentRecord>> _vault = {};
-
-  List<DocumentRecord> _getOrCreateRecords(WalletCategory category) {
-    return _vault.putIfAbsent(
-      category.name,
-      () => category.name == 'Identity Wallet'
-          ? List<DocumentRecord>.from(_identityRecords)
-          : _recordsFor(category),
-    );
-  }
-
-  @override
-  void addRecord(String walletName, DocumentRecord record) {
-    final list = _vault[walletName] ?? [];
-    _vault[walletName] = [record, ...list];
-  }
-
-  @override
-  void updateRecord(String walletName, DocumentRecord record) {
-    final list = _vault[walletName];
-    if (list != null) {
-      final idx = list.indexWhere((r) => r.id == record.id);
-      if (idx != -1) {
-        list[idx] = record;
-      }
-    }
-  }
-
-  @override
-  void deleteRecord(String walletName, String recordId) {
-    final list = _vault[walletName];
-    if (list != null) {
-      list.removeWhere((r) => r.id == recordId);
-    }
-  }
-
-  @override
-  int getRecordCount(String walletName, WalletCategory fallbackCategory) {
-    if (!_vault.containsKey(walletName)) {
-      _getOrCreateRecords(fallbackCategory);
-    }
-    return _vault[walletName]?.length ?? 0;
-  }
+/// Live implementation backed by the `documents` table in Supabase.
+///
+/// Keeps a small in-memory cache per wallet so favourite / archive toggles feel
+/// instant; the real writes go to Supabase via [DocumentRepository] so they
+/// survive an app restart.
+class SupabaseWalletDetailRepository implements WalletDetailRepository {
+  final Map<String, List<DocumentRecord>> _cache = {};
 
   @override
   Future<WalletDetailData> load(WalletCategory category) async {
-    await Future<void>.delayed(const Duration(milliseconds: 280));
-    final records = _getOrCreateRecords(category);
+    List<DocumentRecord> records;
+    try {
+      final docs =
+          await DocumentRepository.instance.listForWallet(category.name);
+      records = docs.map(_toRecord).toList();
+      _cache[category.name] = records;
+    } catch (_) {
+      // Offline / not signed in — fall back to whatever we already have.
+      records = _cache[category.name] ?? const [];
+    }
+
     final active =
         records.where((r) => r.status == DocumentStatus.active).length;
-    final expiring =
-        records.where((r) => r.status == DocumentStatus.expiringSoon).length;
-    final usedMb = records.length * 4; // ~4 MB / record for the demo
+    final expiring = records
+        .where((r) =>
+            r.status == DocumentStatus.expiringSoon ||
+            r.status == DocumentStatus.expired)
+        .length;
+    final usedMb = records.length * 4; // rough estimate for the storage bar
 
     return WalletDetailData(
       walletName: category.name,
       subtitle: _subtitleFor(category.name),
       icon: category.icon,
       gradient: category.gradient,
-      lastUpdatedLabel: 'Updated Today',
+      lastUpdatedLabel: records.isEmpty ? 'No documents yet' : 'Updated Today',
       overview: DetailOverview(
         totalRecords: records.length,
         activeRecords: active,
         expiringSoon: expiring,
-        lastAccessed: 'Today',
+        lastAccessed: records.isEmpty ? '—' : 'Today',
         storageUsedLabel: '$usedMb MB',
         storageFraction: (usedMb / 5120).clamp(0.0, 1.0),
       ),
@@ -120,21 +96,106 @@ class SampleWalletDetailRepository implements WalletDetailRepository {
       recents: _recentsFrom(records, category),
       insights: _insightsFor(category, expiring),
       security: const SecurityStatus(
-        score: 98,
+        score: 100,
         vaultLocked: true,
         biometricEnabled: true,
-        lastBackup: 'Today, 9:24 AM',
+        lastBackup: 'Synced',
         cloudSynced: true,
       ),
       storage: StorageAnalytics(
         totalFiles: records.length,
         usedLabel: '$usedMb MB',
-        availableLabel: '${(5120 - usedMb) ~/ 1024}.${((5120 - usedMb) % 1024) ~/ 103} GB',
+        availableLabel: '5 GB',
         usedFraction: (usedMb / 5120).clamp(0.0, 1.0),
-        monthlyUploads: 6,
-        monthly: const [2.0, 4.0, 3.0, 5.0, 4.0, 6.0],
+        monthlyUploads: records.length,
+        monthly: const [0, 0, 0, 0, 0, 0],
       ),
     );
+  }
+
+  @override
+  void addRecord(String walletName, DocumentRecord record) {
+    final list = _cache[walletName] ?? [];
+    _cache[walletName] = [record, ...list];
+  }
+
+  @override
+  void updateRecord(String walletName, DocumentRecord record) {
+    final list = _cache[walletName];
+    if (list != null) {
+      final idx = list.indexWhere((r) => r.id == record.id);
+      if (idx != -1) list[idx] = record;
+    }
+    // Persist the change so it survives a restart (fire-and-forget).
+    DocumentRepository.instance.update(record.id, {
+      'is_favorite': record.isFavorite,
+      'status': record.status.name,
+    }).catchError((_) {});
+  }
+
+  @override
+  void deleteRecord(String walletName, String recordId) {
+    _cache[walletName]?.removeWhere((r) => r.id == recordId);
+    DocumentRepository.instance.delete(recordId).catchError((_) {});
+  }
+
+  // ---- Mapping ------------------------------------------------------------
+
+  /// Turns a database [Document] into the UI's [DocumentRecord].
+  DocumentRecord _toRecord(Document d) {
+    return DocumentRecord(
+      id: d.id,
+      name: d.name,
+      category: d.category ?? 'Other',
+      icon: _iconFor(d.category),
+      uploadedAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      expiresAt: d.expiresAt,
+      status: _statusFor(d),
+      recordNumber: d.recordNumber,
+      tags: d.tags,
+      isFavorite: d.isFavorite,
+    );
+  }
+
+  /// Derives a display status: an expiry date always wins over the stored
+  /// string so the UI stays honest about what's expired / expiring.
+  DocumentStatus _statusFor(Document d) {
+    final exp = d.expiresAt;
+    if (exp != null) {
+      final days = exp.difference(DateTime.now()).inDays;
+      if (days < 0) return DocumentStatus.expired;
+      if (days <= 30) return DocumentStatus.expiringSoon;
+    }
+    switch (d.status) {
+      case 'shared':
+        return DocumentStatus.shared;
+      case 'archived':
+        return DocumentStatus.archived;
+      case 'expired':
+        return DocumentStatus.expired;
+      case 'expiringSoon':
+        return DocumentStatus.expiringSoon;
+      default:
+        return DocumentStatus.active;
+    }
+  }
+
+  IconData _iconFor(String? category) {
+    switch (category) {
+      case 'Identity':
+        return Icons.badge_rounded;
+      case 'Financial':
+        return Icons.account_balance_rounded;
+      case 'Legal':
+        return Icons.gavel_rounded;
+      case 'Medical':
+        return Icons.favorite_rounded;
+      case 'Property':
+        return Icons.home_work_rounded;
+      default:
+        return Icons.description_rounded;
+    }
   }
 
   String _subtitleFor(String name) {
@@ -151,115 +212,19 @@ class SampleWalletDetailRepository implements WalletDetailRepository {
     return map[name] ?? 'Manage your records securely.';
   }
 
-  // ---- Records ------------------------------------------------------------
-
-  List<DocumentRecord> _recordsFor(WalletCategory category) {
-    if (category.name == 'Identity Wallet') return _identityRecords;
-    // Data-driven fallback: build records from the wallet's content labels so
-    // every wallet type renders meaningfully without bespoke datasets.
-    final statuses = [
-      DocumentStatus.active,
-      DocumentStatus.active,
-      DocumentStatus.expiringSoon,
-      DocumentStatus.shared,
-      DocumentStatus.archived,
-    ];
-    final contents = category.contents;
-    return [
-      for (var i = 0; i < contents.length; i++)
-        DocumentRecord(
-          id: '${category.name}-$i',
-          name: contents[i],
-          category: _shortName(category.name),
-          icon: category.icon,
-          uploadedAt: DateTime(2026, 6, 2 + i * 3),
-          updatedAt: DateTime(2026, 6, 20 + i),
-          expiresAt: i.isEven ? DateTime(2026, 11, 10 + i) : null,
-          status: statuses[i % statuses.length],
-          recordNumber: 'REC-${1000 + i}',
-          tags: const ['important'],
-          isFavorite: i == 0,
-        ),
-    ];
-  }
-
-  String _shortName(String walletName) =>
-      walletName.replaceAll(' Wallet', '').replaceAll(' Vault', '');
-
-  static final List<DocumentRecord> _identityRecords = [
-    DocumentRecord(
-      id: 'id-aadhaar',
-      name: 'Aadhaar Card',
-      category: 'Identity',
-      icon: Icons.fingerprint_rounded,
-      uploadedAt: DateTime(2025, 3, 12),
-      updatedAt: DateTime(2026, 6, 28),
-      status: DocumentStatus.active,
-      recordNumber: 'XXXX-XXXX-1234',
-      tags: const ['govt', 'kyc'],
-      isFavorite: true,
-    ),
-    DocumentRecord(
-      id: 'id-pan',
-      name: 'PAN Card',
-      category: 'Identity',
-      icon: Icons.badge_rounded,
-      uploadedAt: DateTime(2025, 1, 8),
-      updatedAt: DateTime(2026, 6, 20),
-      status: DocumentStatus.active,
-      recordNumber: 'ABCDE1234F',
-      tags: const ['govt', 'tax'],
-      isFavorite: true,
-    ),
-    DocumentRecord(
-      id: 'id-passport',
-      name: 'Passport',
-      category: 'Identity',
-      icon: Icons.book_rounded,
-      uploadedAt: DateTime(2024, 9, 2),
-      updatedAt: DateTime(2026, 5, 14),
-      expiresAt: DateTime(2026, 10, 30),
-      status: DocumentStatus.expiringSoon,
-      recordNumber: 'P1234567',
-      tags: const ['travel', 'govt'],
-    ),
-    DocumentRecord(
-      id: 'id-dl',
-      name: 'Driving License',
-      category: 'Identity',
-      icon: Icons.directions_car_rounded,
-      uploadedAt: DateTime(2025, 2, 18),
-      updatedAt: DateTime(2026, 4, 9),
-      expiresAt: DateTime(2027, 2, 18),
-      status: DocumentStatus.active,
-      recordNumber: 'MH-0420231234',
-      tags: const ['vehicle', 'govt'],
-    ),
-    DocumentRecord(
-      id: 'id-voter',
-      name: 'Voter ID',
-      category: 'Identity',
-      icon: Icons.how_to_vote_rounded,
-      uploadedAt: DateTime(2024, 11, 22),
-      updatedAt: DateTime(2026, 3, 1),
-      status: DocumentStatus.shared,
-      recordNumber: 'WB/12/345/678',
-      tags: const ['govt'],
-    ),
-  ];
-
-  // ---- Recents / insights -------------------------------------------------
+  // ---- Recents / insights (derived from real records) ---------------------
 
   List<RecentItem> _recentsFrom(
       List<DocumentRecord> records, WalletCategory category) {
-    const times = ['2h ago', '5h ago', 'Yesterday', '2 days ago', '4 days ago'];
+    final sorted = [...records]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return [
-      for (var i = 0; i < records.length && i < 5; i++)
+      for (final r in sorted.take(5))
         RecentItem(
-          name: records[i].name,
-          category: records[i].category,
-          lastOpened: times[i % times.length],
-          icon: records[i].icon,
+          name: r.name,
+          category: r.category,
+          lastOpened: _relativeTime(r.updatedAt),
+          icon: r.icon,
           color: category.gradient.first,
         ),
     ];
@@ -274,21 +239,14 @@ class SampleWalletDetailRepository implements WalletDetailRepository {
           icon: Icons.timelapse_rounded,
           accent: AppColors.warning,
         ),
-      const SmartInsight(
-        message: '3 documents need a fresh backup to stay protected.',
-        icon: Icons.cloud_upload_rounded,
-        accent: AppColors.lightBlue,
-      ),
-      const SmartInsight(
-        message: '2 records are missing tags — add them to find files faster.',
-        icon: Icons.sell_rounded,
-        accent: AppColors.primaryGreen,
-      ),
-      SmartInsight(
-        message: 'A ${_shortName(category.name)} record requires verification.',
-        icon: Icons.verified_rounded,
-        accent: const Color(0xFF3B82F6),
-      ),
     ];
+  }
+
+  String _relativeTime(DateTime t) {
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays} days ago';
   }
 }

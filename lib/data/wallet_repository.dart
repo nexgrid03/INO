@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_models.dart' show QuickAction, SmartInsight;
+import '../models/document.dart';
 import '../models/wallet_models.dart';
+import '../repositories/document_repository.dart';
 import '../theme/app_theme.dart';
-import 'wallet_detail_repository.dart';
 
 /// Aggregate read model for the Wallet Hub — fetched once, fanned out to the
 /// section widgets.
@@ -25,22 +26,24 @@ class WalletHubData {
   final List<SmartInsight> insights;
 }
 
-/// Source of Wallet Hub data. The screen depends only on this abstraction;
-/// swap [SampleWalletRepository] for a Supabase/vault-backed impl to go live.
+/// Source of Wallet Hub data. The screen depends only on this abstraction.
+/// [SupabaseWalletRepository] fills the wallet counts and recents from the
+/// signed-in user's real documents.
 abstract class WalletRepository {
   Future<WalletHubData> load();
 
-  static WalletRepository instance = SampleWalletRepository();
+  static WalletRepository instance = SupabaseWalletRepository();
 }
 
-
-class SampleWalletRepository implements WalletRepository {
+class SupabaseWalletRepository implements WalletRepository {
+  /// The eight wallet "buckets" the app offers. These are the app's structure
+  /// (not stored data) — the counts below are filled in from real documents.
   static const List<WalletCategory> _categories = [
     WalletCategory(
       name: 'Identity Wallet',
       icon: Icons.badge_rounded,
       contents: ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID'],
-      metric: '5',
+      metric: '0',
       metricLabel: 'documents',
       gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
     ),
@@ -48,7 +51,7 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Document Wallet',
       icon: Icons.folder_shared_rounded,
       contents: ['Certificates', 'Contracts', 'Personal Documents'],
-      metric: '24',
+      metric: '0',
       metricLabel: 'files',
       gradient: [Color(0xFF3B82F6), Color(0xFF7DD3FC)],
     ),
@@ -56,7 +59,7 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Property Wallet',
       icon: Icons.home_work_rounded,
       contents: ['Property Documents', 'Tax Records', 'Sale Deeds'],
-      metric: '3',
+      metric: '0',
       metricLabel: 'properties',
       gradient: [Color(0xFF38BDF8), Color(0xFF7DD3FC)],
     ),
@@ -64,7 +67,7 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Insurance Wallet',
       icon: Icons.shield_rounded,
       contents: ['Health', 'Vehicle', 'Life Insurance'],
-      metric: '5',
+      metric: '0',
       metricLabel: 'policies',
       gradient: [Color(0xFF00A86B), Color(0xFF34D399)],
     ),
@@ -72,7 +75,7 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Health Wallet',
       icon: Icons.favorite_rounded,
       contents: ['Medical Records', 'Reports', 'Prescriptions'],
-      metric: '12',
+      metric: '0',
       metricLabel: 'records',
       gradient: [Color(0xFF3B82F6), Color(0xFF38BDF8)],
     ),
@@ -80,15 +83,15 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Investment Wallet',
       icon: Icons.trending_up_rounded,
       contents: ['Gold', 'Stocks', 'Mutual Funds', 'Land'],
-      metric: '₹48.6L',
-      metricLabel: 'portfolio',
+      metric: '0',
+      metricLabel: 'holdings',
       gradient: [Color(0xFF34D399), Color(0xFF7DD3FC)],
     ),
     WalletCategory(
       name: 'Banking Wallet',
       icon: Icons.account_balance_rounded,
       contents: ['Accounts', 'Statements', 'Cards'],
-      metric: '4',
+      metric: '0',
       metricLabel: 'accounts',
       gradient: [Color(0xFF00875A), Color(0xFF00A86B)],
     ),
@@ -96,7 +99,7 @@ class SampleWalletRepository implements WalletRepository {
       name: 'Password Vault',
       icon: Icons.lock_rounded,
       contents: ['Website Credentials', 'Bank Credentials'],
-      metric: '38',
+      metric: '0',
       metricLabel: 'passwords',
       gradient: [Color(0xFF0EA5A5), Color(0xFF34D399)],
     ),
@@ -104,35 +107,55 @@ class SampleWalletRepository implements WalletRepository {
 
   @override
   Future<WalletHubData> load() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final detailRepo = WalletDetailRepository.instance;
+    List<Document> docs;
+    try {
+      docs = await DocumentRepository.instance.listAll();
+    } catch (_) {
+      docs = const []; // offline / not signed in → everything reads as empty
+    }
+
+    // Count documents per wallet.
+    final counts = <String, int>{};
+    for (final d in docs) {
+      counts[d.wallet] = (counts[d.wallet] ?? 0) + 1;
+    }
 
     int totalRecords = 0;
     final updatedCategories = _categories.map((c) {
-      if (c.metricLabel != 'portfolio') {
-        final count = detailRepo.getRecordCount(c.name, c);
-        totalRecords += count;
-        return WalletCategory(
-          name: c.name,
-          icon: c.icon,
-          contents: c.contents,
-          metric: '$count',
-          metricLabel: c.metricLabel,
-          gradient: c.gradient,
-        );
-      } else {
-        return c;
-      }
+      final count = counts[c.name] ?? 0;
+      totalRecords += count;
+      return WalletCategory(
+        name: c.name,
+        icon: c.icon,
+        contents: c.contents,
+        metric: '$count',
+        metricLabel: c.metricLabel,
+        gradient: c.gradient,
+      );
     }).toList();
 
     final usedMb = totalRecords * 4;
 
+    // Recents: the five most-recently updated real documents.
+    final recent = [...docs]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final recents = [
+      for (final d in recent.take(5))
+        RecentItem(
+          name: d.name,
+          category: d.category ?? 'Document',
+          lastOpened: _relativeTime(d.updatedAt),
+          icon: _iconFor(d.category),
+          color: _colorFor(d.wallet),
+        ),
+    ];
+
     return WalletHubData(
       overview: WalletOverview(
-        totalWallets: 8,
+        totalWallets: _categories.length,
         totalRecords: totalRecords,
         protectedItems: totalRecords,
-        lastBackup: 'Today, 9:24 AM',
+        lastBackup: totalRecords == 0 ? 'No documents yet' : 'Synced',
         storageUsedLabel: '$usedMb MB of 5 GB',
         storageFraction: (usedMb / 5120).clamp(0.0, 1.0),
       ),
@@ -163,63 +186,47 @@ class SampleWalletRepository implements WalletRepository {
             icon: Icons.password_rounded,
             color: Color(0xFF0EA5A5)),
       ],
-      recents: const [
-        RecentItem(
-            name: 'PAN Card',
-            category: 'Identity',
-            lastOpened: '2h ago',
-            icon: Icons.badge_rounded,
-            color: AppColors.primaryGreen),
-        RecentItem(
-            name: 'Passport',
-            category: 'Identity',
-            lastOpened: '5h ago',
-            icon: Icons.book_rounded,
-            color: AppColors.lightBlue),
-        RecentItem(
-            name: 'Property Deed — Pune',
-            category: 'Property',
-            lastOpened: 'Yesterday',
-            icon: Icons.home_work_rounded,
-            color: Color(0xFF38BDF8)),
-        RecentItem(
-            name: 'Health Report',
-            category: 'Health',
-            lastOpened: '2 days ago',
-            icon: Icons.favorite_rounded,
-            color: Color(0xFF3B82F6)),
-        RecentItem(
-            name: 'Car Insurance Policy',
-            category: 'Insurance',
-            lastOpened: '3 days ago',
-            icon: Icons.shield_rounded,
-            color: AppColors.secondaryGreen),
-      ],
+      recents: recents,
       security: const SecurityStatus(
-        score: 98,
+        score: 100,
         vaultLocked: true,
         biometricEnabled: true,
-        lastBackup: 'Today, 9:24 AM',
+        lastBackup: 'Synced',
         cloudSynced: true,
       ),
-      insights: const [
-        SmartInsight(
-            message: '3 documents require attention before they expire.',
-            icon: Icons.description_rounded,
-            accent: AppColors.lightBlue),
-        SmartInsight(
-            message: 'Car insurance expires in 12 days. Renew to stay covered.',
-            icon: Icons.shield_rounded,
-            accent: AppColors.warning),
-        SmartInsight(
-            message: 'Property tax is due next month for your Pune flat.',
-            icon: Icons.home_work_rounded,
-            accent: AppColors.primaryGreen),
-        SmartInsight(
-            message: 'A health checkup reminder is available to schedule.',
-            icon: Icons.health_and_safety_rounded,
-            accent: Color(0xFF3B82F6)),
-      ],
+      insights: const [],
     );
+  }
+
+  IconData _iconFor(String? category) {
+    switch (category) {
+      case 'Identity':
+        return Icons.badge_rounded;
+      case 'Financial':
+        return Icons.account_balance_rounded;
+      case 'Legal':
+        return Icons.gavel_rounded;
+      case 'Medical':
+        return Icons.favorite_rounded;
+      case 'Property':
+        return Icons.home_work_rounded;
+      default:
+        return Icons.description_rounded;
+    }
+  }
+
+  Color _colorFor(String wallet) {
+    for (final c in _categories) {
+      if (c.name == wallet) return c.gradient.first;
+    }
+    return AppColors.primaryGreen;
+  }
+
+  String _relativeTime(DateTime t) {
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays} days ago';
   }
 }

@@ -6,6 +6,9 @@ import '../../data/wallet_detail_repository.dart';
 import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
+import '../../services/camera_permission_service.dart';
+import '../../services/document_scanner_service.dart';
+import '../../services/gallery_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -68,17 +71,6 @@ extension _DocSourceX on _DocSource {
         return Icons.image_rounded;
     }
   }
-
-  String get mockFileName {
-    switch (this) {
-      case _DocSource.scan:
-        return 'Scan_20260701.pdf';
-      case _DocSource.pdf:
-        return 'Document.pdf';
-      case _DocSource.image:
-        return 'IMG_0042.jpg';
-    }
-  }
 }
 
 const _wallets = <(String, IconData)>[
@@ -104,8 +96,8 @@ const _categories = <String>[
 
 /// Add Document — the fastest path to get a document into the vault.
 ///
-/// Pick a source (scan / PDF / image), then fill a short set of details and
-/// save. Deliberately minimal: no analytics, dashboards or extra sections.
+/// Pick a source (scan / image), then fill a short set of details and save.
+/// Deliberately minimal: no analytics, dashboards or extra sections.
 class AddDocumentScreen extends StatefulWidget {
   const AddDocumentScreen({
     super.key,
@@ -139,44 +131,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _category;
   DateTime? _expiry;
 
-  // Scanner/File Picker states
-  bool _showScanner = false;
-  bool _showFilePicker = false;
-  _DocSource? _pickerType;
-  bool _isProcessing = false;
-  String _processingMessage = '';
-  double _processingProgress = 0.0;
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
   bool _saving = false;
+  bool _capturing = false; // true while the camera/gallery picker is open
 
   @override
   void initState() {
     super.initState();
-    _wallet = widget.initialWallet;
     _localFilePath = widget.initialFilePath;
-    _applyPrefill();
-    // Manual entry from the scan flow: an image exists but there's no OCR
-    // prefill — still show the form (with the file attached) so it can be saved.
-    if (_localFilePath != null && _source == null) {
+    // If we arrived from the scan/OCR flow (or with a captured file), keep the
+    // file attached and land on the form — but leave EVERY detail field blank so
+    // the user fills in all details themselves. No auto-fill.
+    if (widget.prefill != null || _localFilePath != null) {
       _source = _DocSource.scan;
-      _tempFileName ??= 'Scan_${_localFilePath!.split('/').last}';
+      _tempFileName = _localFilePath != null
+          ? _localFilePath!.split(RegExp(r'[\\/]')).last
+          : 'Scanned document';
     }
-  }
-
-  /// Hydrates the form from a Scan & OCR result, landing the user on the filled
-  /// details + Save bar (skipping the source picker / empty state).
-  void _applyPrefill() {
-    final p = widget.prefill;
-    if (p == null) return;
-    _source = _DocSource.scan;
-    _tempFileName = 'Scan_${p.documentName.replaceAll(' ', '_')}.pdf';
-    _nameController.text = p.documentName;
-    _category = _categories.contains(p.category) ? p.category : 'Other';
-    _wallet = p.suggestedWallet;
-    _expiry = p.expiryDate;
-    if (p.tags.isNotEmpty) _tagsController.text = p.tags.join(', ');
-    if (p.notes.isNotEmpty) _notesController.text = p.notes;
   }
 
   @override
@@ -189,17 +161,68 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   bool get _hasFile => _source != null;
 
-  void _pickSource(_DocSource source) {
+  /// Opens the real device source for [source] and attaches the chosen file so
+  /// it uploads to Storage on save.
+  Future<void> _pickSource(_DocSource source) async {
+    if (_capturing) return;
     HapticFeedback.selectionClick();
-    if (source == _DocSource.scan) {
+
+    if (source == _DocSource.pdf) {
+      // PDF picking needs the `file_picker` package, which isn't wired yet.
+      _toast('PDF upload is coming soon — use Scan or Upload Image for now.',
+          error: true);
+      return;
+    }
+
+    setState(() => _capturing = true);
+    try {
+      String? path;
+      if (source == _DocSource.scan &&
+          DocumentScannerService.instance.isSupported) {
+        // Ask for camera access first (shows the "Allow" prompt), then scan.
+        final access = await CameraPermissionService.instance.requestCamera();
+        if (access != CameraAccess.granted) {
+          _handleDenied(access, 'camera');
+          return;
+        }
+        path = await DocumentScannerService.instance.scan();
+      } else {
+        // Ask for photo access first (shows the "Allow" prompt), then open the
+        // gallery.
+        final access = await CameraPermissionService.instance.requestPhotos();
+        if (access != CameraAccess.granted) {
+          _handleDenied(access, 'photos');
+          return;
+        }
+        path = await GalleryImportService.instance.pickImage();
+      }
+
+      if (path == null || !mounted) return; // user cancelled
+      final captured = path;
+      // Attach the file only — leave all detail fields blank for the user.
       setState(() {
-        _showScanner = true;
+        _source = source;
+        _localFilePath = captured;
+        _tempFileName = captured.split(RegExp(r'[\\/]')).last;
       });
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Could not open ${source.title.toLowerCase()}: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
+  }
+
+  /// Shows the right message when the user declines a permission (and opens
+  /// Settings if they've permanently blocked it).
+  void _handleDenied(CameraAccess access, String what) {
+    if (!mounted) return;
+    if (access == CameraAccess.permanentlyDenied) {
+      _toast('$what access is blocked. Enable it in Settings to continue.',
+          error: true);
+      CameraPermissionService.instance.openSettings();
     } else {
-      setState(() {
-        _showFilePicker = true;
-        _pickerType = source;
-      });
+      _toast('Please allow $what access to add a document.', error: true);
     }
   }
 
@@ -207,11 +230,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     setState(() {
       _source = null;
       _tempFileName = null;
+      _localFilePath = null;
     });
   }
 
   Future<void> _pickExpiry() async {
-    final now = DateTime(2026, 7, 1);
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _expiry ?? now,
@@ -285,7 +309,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _toast('Could not save to the cloud. Please try again.', error: true);
+      // Surface the real reason (bucket missing, RLS denial, not signed in, …)
+      // instead of a generic message, so failures are diagnosable on-device.
+      _toast('Save failed: $e', error: true);
       debugPrint('Document save failed: $e');
     }
   }
@@ -300,413 +326,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
   }
 
-  void _startScanningSimulation() {
-    HapticFeedback.heavyImpact();
-    setState(() {
-      _isProcessing = true;
-      _processingProgress = 0.1;
-      _processingMessage = 'Detecting document edges...';
-    });
-
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted) return;
-      setState(() {
-        _processingProgress = 0.4;
-        _processingMessage = 'Enhancing contrast and text...';
-      });
-    });
-
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      setState(() {
-        _processingProgress = 0.8;
-        _processingMessage = 'Saving as secure PDF...';
-      });
-    });
-
-    Future.delayed(const Duration(milliseconds: 1800), () {
-      if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-        _showScanner = false;
-        _source = _DocSource.scan;
-        _tempFileName = 'Scan_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.pdf';
-        _nameController.text = 'Aadhaar Card Scan';
-        _category = 'Identity';
-        _wallet = 'Identity Wallet';
-      });
-      _toast('Scan completed successfully!');
-    });
-  }
-
-  void _startUploadingSimulation(String fileName) {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _isProcessing = true;
-      _processingProgress = 0.1;
-      _processingMessage = 'Connecting to secure server...';
-    });
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _processingProgress = 0.5;
-        _processingMessage = 'Uploading files (50%)...';
-      });
-    });
-
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!mounted) return;
-      setState(() {
-        _processingProgress = 0.8;
-        _processingMessage = 'Encrypting document in vault...';
-      });
-    });
-
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-        _showFilePicker = false;
-        _source = _pickerType;
-        _tempFileName = fileName;
-
-        // Clean display name
-        String displayName = fileName
-            .replaceAll('.pdf', '')
-            .replaceAll('.png', '')
-            .replaceAll('.jpg', '')
-            .replaceAll('_', ' ');
-        displayName = displayName.split(' ').map((word) {
-          if (word.isEmpty) return '';
-          return word[0].toUpperCase() + word.substring(1);
-        }).join(' ');
-
-        _nameController.text = displayName;
-
-        // Smart pre-select category and wallet
-        if (fileName.contains('insurance')) {
-          _category = 'Financial';
-          _wallet = 'Insurance Wallet';
-        } else if (fileName.contains('rent') || fileName.contains('property')) {
-          _category = 'Property';
-          _wallet = 'Property Wallet';
-        } else if (fileName.contains('pan') ||
-            fileName.contains('passport') ||
-            fileName.contains('dl') ||
-            fileName.contains('voter')) {
-          _category = 'Identity';
-          _wallet = 'Identity Wallet';
-        } else if (fileName.contains('health') ||
-            fileName.contains('prescription')) {
-          _category = 'Medical';
-          _wallet = 'Health Wallet';
-        } else {
-          _category = 'Other';
-          _wallet = 'Document Wallet';
-        }
-      });
-      _toast('File uploaded successfully!');
-    });
-  }
-
-  Widget _buildProcessingOverlay() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-                    strokeWidth: 3,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _processingMessage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: 140,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: _processingProgress,
-                  minHeight: 4,
-                  backgroundColor: Colors.white12,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryGreen),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSimulatedScanner() {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: _isProcessing
-            ? _buildProcessingOverlay()
-            : Column(
-                children: [
-                  // Top bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white, size: 28),
-                          onPressed: () => setState(() => _showScanner = false),
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'DOCUMENT SCANNER',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const Spacer(),
-                        const SizedBox(width: 48), // balance
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // Framing viewport
-                  Container(
-                    width: 290,
-                    height: 420,
-                    decoration: BoxDecoration(
-                      border:
-                          Border.all(color: AppColors.primaryGreen, width: 2.5),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.15),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Viewfinder content guide
-                        Text(
-                          'Place Document Inside Frame',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // Bottom controls
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 40),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Hold steady. Edge detection active.',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        GestureDetector(
-                          key: const Key('shutter_button'),
-                          onTap: _startScanningSimulation,
-                          child: Container(
-                            width: 74,
-                            height: 74,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 4),
-                            ),
-                            padding: const EdgeInsets.all(5),
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildSimulatedFilePicker() {
-    final isPdf = _pickerType == _DocSource.pdf;
-    final palette = AppPalette.of(context);
-
-    // Sample files
-    final pdfFiles = [
-      ('salary_slip_june.pdf', '142 KB', 'Jun 28, 2026'),
-      ('rent_agreement_final.pdf', '890 KB', 'May 12, 2026'),
-      ('health_insurance_policy.pdf', '2.4 MB', 'Apr 15, 2026'),
-      ('pan_card_copy.pdf', '98 KB', 'Jan 10, 2025'),
-    ];
-
-    final imageFiles = [
-      ('IMG_passport_front.jpg', '1.8 MB', 'Today, 10:14 AM'),
-      ('IMG_dl_copy.png', '920 KB', 'Yesterday'),
-      ('prescription_rx_2026.jpg', '450 KB', 'Jun 14, 2026'),
-      ('voter_id_scan.png', '720 KB', 'Mar 08, 2025'),
-    ];
-
-    final files = isPdf ? pdfFiles : imageFiles;
-
-    return Scaffold(
-      backgroundColor: palette.bg,
-      body: SafeArea(
-        child: _isProcessing
-            ? _buildProcessingOverlay()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back_rounded,
-                              color: palette.textPrimary),
-                          onPressed: () =>
-                              setState(() => _showFilePicker = false),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isPdf ? 'Select PDF Document' : 'Select Image',
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      'RECENT FILES',
-                      style: TextStyle(
-                        color: palette.textFaint,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: files.length,
-                      separatorBuilder: (_, _) =>
-                          Divider(color: palette.border, height: 1),
-                      itemBuilder: (context, idx) {
-                        final file = files[idx];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 6, horizontal: 8),
-                          leading: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: (isPdf
-                                      ? AppColors.lightBlue
-                                      : AppColors.secondaryGreen)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isPdf
-                                  ? Icons.picture_as_pdf_rounded
-                                  : Icons.image_rounded,
-                              color: isPdf
-                                  ? AppColors.lightBlue
-                                  : AppColors.secondaryGreen,
-                            ),
-                          ),
-                          title: Text(
-                            file.$1,
-                            style: TextStyle(
-                              color: palette.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${file.$2} · ${file.$3}',
-                            style: TextStyle(
-                              color: palette.textFaint,
-                              fontSize: 12,
-                            ),
-                          ),
-                          onTap: () => _startUploadingSimulation(file.$1),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-
-    if (_showScanner) {
-      return _buildSimulatedScanner();
-    }
-
-    if (_showFilePicker) {
-      return _buildSimulatedFilePicker();
-    }
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -722,15 +344,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _UploadOptions(selected: _source, onPick: _pickSource),
+                    _UploadOptions(
+                      selected: _source,
+                      busy: _capturing,
+                      onPick: _pickSource,
+                    ),
                     const SizedBox(height: AppSpacing.lg),
                     if (!_hasFile)
-                      const _EmptyState()
+                      _EmptyState(busy: _capturing)
                     else
                       _DetailsForm(
                         formKey: _formKey,
                         source: _source!,
-                        fileName: _tempFileName ?? _source!.mockFileName,
+                        fileName: _tempFileName ?? 'Document',
                         nameController: _nameController,
                         tagsController: _tagsController,
                         notesController: _notesController,
@@ -892,9 +518,14 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _UploadOptions extends StatelessWidget {
-  const _UploadOptions({required this.selected, required this.onPick});
+  const _UploadOptions({
+    required this.selected,
+    required this.busy,
+    required this.onPick,
+  });
 
   final _DocSource? selected;
+  final bool busy;
   final void Function(_DocSource) onPick;
 
   @override
@@ -907,7 +538,7 @@ class _UploadOptions extends StatelessWidget {
             child: _OptionCard(
               source: _DocSource.values[i],
               selected: _DocSource.values[i] == selected,
-              onTap: () => onPick(_DocSource.values[i]),
+              onTap: busy ? null : () => onPick(_DocSource.values[i]),
             ),
           ),
         ],
@@ -925,7 +556,7 @@ class _OptionCard extends StatelessWidget {
 
   final _DocSource source;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -998,7 +629,9 @@ class _OptionCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({this.busy = false});
+
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -1021,11 +654,23 @@ class _EmptyState extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.cloud_upload_rounded,
-                color: Colors.white, size: 50),
+            child: busy
+                ? const Center(
+                    child: SizedBox(
+                      width: 34,
+                      height: 34,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  )
+                : const Icon(Icons.cloud_upload_rounded,
+                    color: Colors.white, size: 50),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('No document selected',
+          Text(busy ? 'Opening…' : 'No document selected',
               style:
                   AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),

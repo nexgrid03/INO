@@ -48,17 +48,17 @@ void main() {
     // 'Documents' is both the summary stat label and the list label.
     expect(find.text('Documents'), findsWidgets);
 
-    // Smart banner: the Passport is expiring → a single actionable banner.
-    expect(find.text('Renew'), findsOneWidget);
+    // No documents exist in a test (the Supabase-backed repo returns empty),
+    // so there's nothing expiring and no attention banner.
+    expect(find.text('Renew'), findsNothing);
 
     // Status filter chips (focused subset; 'All' also appears as a category).
     expect(find.text('Favorites'), findsOneWidget);
     expect(find.text('Archived'), findsOneWidget);
     expect(find.text('All'), findsWidgets);
 
-    // The document list itself.
-    expect(find.text('Passport'), findsOneWidget);
-    expect(find.text('Aadhaar Card'), findsOneWidget);
+    // With no real documents, the empty state is shown instead of a list.
+    expect(find.text('No Documents Yet'), findsOneWidget);
 
     // Removed dashboard sections must NOT be present.
     expect(find.text('Recently Accessed'), findsNothing);
