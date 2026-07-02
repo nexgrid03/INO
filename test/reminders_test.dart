@@ -73,12 +73,13 @@ void main() {
 
   testWidgets('A created reminder surfaces in Today\'s Priorities',
       (tester) async {
-    await ReminderStore.instance.ensureLoaded();
-    ReminderStore.instance
-        .add(_reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0));
-
     await _pumpReminders(tester);
     expect(tester.takeException(), isNull);
+
+    ReminderStore.instance.add(
+      _reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0),
+    );
+    await tester.pumpAndSettle();
 
     // Content (not the empty state) renders, showing the created reminder.
     expect(find.text('No reminders yet'), findsNothing);
@@ -87,13 +88,15 @@ void main() {
   });
 
   testWidgets('Filtering by a category narrows the priorities', (tester) async {
-    await ReminderStore.instance.ensureLoaded();
-    ReminderStore.instance
-        .add(_reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0));
-    ReminderStore.instance
-        .add(_reminder('t2', 'Medical Checkup', ReminderCategory.health, 2));
-
     await _pumpReminders(tester);
+
+    ReminderStore.instance.add(
+      _reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0),
+    );
+    ReminderStore.instance.add(
+      _reminder('t2', 'Medical Checkup', ReminderCategory.health, 2),
+    );
+    await tester.pumpAndSettle();
 
     // The chip renders above the cards, so `.first` is the filter chip.
     final healthChip = find.text('Health').first;
