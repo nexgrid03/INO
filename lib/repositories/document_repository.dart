@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/document.dart';
@@ -21,6 +22,13 @@ class DocumentRepository {
 
   static const String _table = 'documents';
   static const String _bucket = 'documents';
+
+  /// Bumped every time the document set changes (create / delete / upload) so
+  /// listeners — e.g. the Profile storage meter — can refresh automatically
+  /// without polling.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  static void _bump() => revision.value++;
 
   /// Uploads a local image/PDF to the `documents` Storage bucket and returns
   /// its object path (which you save in the row's `file_path`).
@@ -42,6 +50,7 @@ class DocumentRepository {
       'uploaded to bucket=$_bucket path=$objectPath (key=$stored)',
       name: 'storage',
     );
+    _bump();
     return objectPath;
   }
 
@@ -104,6 +113,7 @@ class DocumentRepository {
         })
         .select() // ask Supabase to return the inserted row
         .single(); // expect exactly one row back
+    _bump();
     return Document.fromMap(row);
   }
 
@@ -133,6 +143,53 @@ class DocumentRepository {
   /// Deletes a document row by id.
   Future<void> delete(String id) async {
     await _client.from(_table).delete().eq('id', id);
+    _bump();
+  }
+
+  // ---- Storage introspection / account deletion ---------------------------
+
+  /// Lists the raw Storage objects under the signed-in user's folder — used by
+  /// the storage meter (sizes) and account deletion (cleanup). Returns an empty
+  /// list when signed out. [subFolder] targets e.g. the `backups` sub-folder.
+  Future<List<FileObject>> listUserObjects({String? subFolder}) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return const [];
+    final path = subFolder == null ? userId : '$userId/$subFolder';
+    final objects = await _client.storage.from(_bucket).list(path: path);
+    // Storage returns folder entries with a null id; keep only real files.
+    return objects.where((o) => o.id != null).toList();
+  }
+
+  /// Removes Storage objects by their full object paths (`<uid>/<file>`).
+  Future<void> removeObjects(List<String> objectPaths) async {
+    if (objectPaths.isEmpty) return;
+    await _client.storage.from(_bucket).remove(objectPaths);
+    developer.log('removed ${objectPaths.length} object(s)', name: 'storage');
+  }
+
+  /// Deletes every document row belonging to the signed-in user. RLS already
+  /// scopes this to their own rows; the explicit filter satisfies Supabase's
+  /// "delete needs a filter" guard.
+  Future<void> deleteAllRowsForUser() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _client.from(_table).delete().eq('auth_user_id', userId);
+    _bump();
+  }
+
+  /// Uploads arbitrary bytes to an object path (used for JSON cloud backups).
+  /// Overwrites any existing object at that path.
+  Future<void> uploadBytes(
+    String objectPath,
+    Uint8List bytes, {
+    String contentType = 'application/octet-stream',
+  }) async {
+    await _client.storage.from(_bucket).uploadBinary(
+          objectPath,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+    developer.log('uploaded ${bytes.length}B to $objectPath', name: 'storage');
   }
 
   String _dateOnly(DateTime d) =>

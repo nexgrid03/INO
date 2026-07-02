@@ -54,6 +54,10 @@ dependencies:
   path_provider: ^2.1.4
   open_filex: ^4.5.0
   share_plus: ^10.1.2
+  # About screen (real app version / build number) and opening external links
+  # (support email, legal pages) from Profile settings.
+  package_info_plus: ^8.3.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

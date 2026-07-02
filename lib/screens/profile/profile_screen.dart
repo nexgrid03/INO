@@ -2,13 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models/user_profile.dart';
+import '../../repositories/document_repository.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/app_settings.dart';
 import '../../services/auth_service.dart';
+import '../../services/backup_service.dart';
 import '../../services/biometric_service.dart';
+import '../../services/data_export_service.dart';
+import '../../services/storage_stats_service.dart';
+import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_controller.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
@@ -16,16 +24,24 @@ import '../../widgets/profile/profile_header_card.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
 import '../auth/login_screen.dart';
+import '../legal/legal_document_screen.dart';
+import 'about_screen.dart';
+import 'change_password_screen.dart';
+import 'cloud_backup_screen.dart';
+import 'contact_support_screen.dart';
+import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
+import 'help_center_screen.dart';
+import 'trusted_devices_screen.dart';
+import 'two_factor_screen.dart';
 
 /// The Profile screen — a premium, grouped **settings** page (Apple Settings /
 /// Google Account), NOT a dashboard.
 ///
-/// One primary element (the tappable identity header) followed by quiet,
-/// uniform rows organised under small section captions. Emphasis comes from
-/// typography and grouping; destructive actions sit at the very bottom as small
-/// red rows. All controls preserve their existing behaviour (biometric,
-/// language picker, theme toggle, confirmed logout, …).
+/// Every row is fully functional: real biometric lock, Supabase-backed password
+/// change / 2FA / account deletion, a live storage meter, persisted preferences
+/// (theme, language, notifications, auto-backup) and real export / backup /
+/// support flows. No placeholders, no "coming soon".
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
@@ -51,27 +67,36 @@ class _ProfileScreenState extends State<ProfileScreen>
     with WidgetsBindingObserver {
   /// Local copy so edits show immediately; also pushed up via onProfileUpdated.
   late UserProfile _profile = widget.profile;
-  // Reflects the *device's* actual biometric-lock state (loaded at startup),
-  // which is the source of truth for whether the app locks.
+
+  // Security / preference state — sourced from the persisted stores so it
+  // survives restarts. Reading a store's `.value` never touches disk.
   late bool _biometric = BiometricService.instance.lockEnabled.value;
-  bool _notifications = true;
-  bool _autoBackup = true;
+  late bool _notifications = AppSettings.instance.notifications.value;
+  late bool _autoBackup = AppSettings.instance.autoBackup.value;
+  bool _twoFactor = AppSettings.instance.twoFactor.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
+
+  // Live storage meter, computed from real Storage objects.
+  StorageUsage _storage = StorageUsage.empty;
+  bool _storageLoading = true;
 
   /// True while we've sent the user to the OS to enrol a biometric and are
   /// waiting for them to return, so we can re-check and continue automatically.
   bool _awaitingEnrollment = false;
 
-  bool get _isDark => widget.themeMode == ThemeMode.dark;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Refresh the storage meter whenever documents change (upload / delete).
+    DocumentRepository.revision.addListener(_onDocsChanged);
+    _loadStorage();
+    _syncTwoFactor();
   }
 
   @override
   void dispose() {
+    DocumentRepository.revision.removeListener(_onDocsChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -86,6 +111,23 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  void _onDocsChanged() => _loadStorage();
+
+  Future<void> _loadStorage() async {
+    final usage = await StorageStatsService.instance.load();
+    if (!mounted) return;
+    setState(() {
+      _storage = usage;
+      _storageLoading = false;
+    });
+  }
+
+  Future<void> _syncTwoFactor() async {
+    final enabled = await TwoFactorService.instance.isEnabled();
+    if (!mounted) return;
+    if (enabled != _twoFactor) setState(() => _twoFactor = enabled);
+  }
+
   static String _languageLabel(String code) {
     switch (code) {
       case 'hi':
@@ -97,15 +139,29 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
-      ),
-    );
+  static String _languageCode(String label) {
+    switch (label) {
+      case 'हिन्दी':
+        return 'hi';
+      case 'தமிழ்':
+        return 'ta';
+      default:
+        return 'en';
+    }
   }
+
+  void _toast(String message, {bool error = false}) {
+    if (!mounted) return;
+    error
+        ? BiometricUx.errorSnack(context, message)
+        : BiometricUx.successSnack(context, message);
+  }
+
+  Future<T?> _push<T>(Widget screen) => Navigator.of(context).push<T>(
+        MaterialPageRoute(builder: (_) => screen),
+      );
+
+  // ---- Preferences ---------------------------------------------------------
 
   Future<void> _pickLanguage() async {
     final palette = AppPalette.of(context);
@@ -146,7 +202,62 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ),
     );
-    if (picked != null) setState(() => _language = picked);
+    if (picked == null || picked == _language) return;
+    setState(() => _language = picked);
+    final code = _languageCode(picked);
+    // Persist locally (instant) and mirror onto the profile row (best effort).
+    await AppSettings.instance.setLanguage(code);
+    _persistLanguage(code);
+    _toast('Language set to $picked');
+  }
+
+  void _persistLanguage(String code) {
+    unawaited(() async {
+      try {
+        final updated = await UserRepository.instance.updateProfile(
+          authUserId: _profile.authUserId,
+          preferredLanguage: code,
+        );
+        if (!mounted) return;
+        setState(() => _profile = updated);
+        widget.onProfileUpdated?.call(updated);
+      } catch (_) {
+        // Local preference is the source of truth for this device.
+      }
+    }());
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    setState(() => _notifications = value);
+    await AppSettings.instance.setNotifications(value);
+    _toast(value ? 'Notifications enabled' : 'Notifications turned off');
+  }
+
+  Future<void> _toggleAutoBackup(bool value) async {
+    setState(() => _autoBackup = value);
+    await AppSettings.instance.setAutoBackup(value);
+    if (!mounted) return;
+    if (value) {
+      _toast('Auto backup on — backing up now…');
+      unawaited(_silentBackup());
+    } else {
+      _toast('Auto backup turned off');
+    }
+  }
+
+  Future<void> _silentBackup() async {
+    try {
+      await BackupService.instance.backupNow(profile: _profile);
+    } catch (_) {
+      // Silent — the manual Cloud Backup screen surfaces errors explicitly.
+    }
+  }
+
+  void _toggleDarkMode() {
+    HapticFeedback.selectionClick();
+    // Toggle + persist via the controller using this (live) context, so it
+    // works even though the shell's original toggle context is long gone.
+    ThemeController.toggle(context);
   }
 
   // ---- Biometric app-lock --------------------------------------------------
@@ -154,9 +265,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _toggleBiometric(bool value) =>
       value ? _enableBiometric() : _disableBiometric();
 
-  /// First-time setup: verify the device supports biometrics and has one
-  /// enrolled; if not, send the user to the OS enrollment screen and resume the
-  /// flow when they return. Only enables after a successful native prompt.
   Future<void> _enableBiometric() async {
     final support = await BiometricService.instance.support();
     if (!mounted) return;
@@ -170,7 +278,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         if (openSettings) {
           _awaitingEnrollment = true;
           await BiometricService.instance.openEnrollmentSettings();
-          // Continues in didChangeAppLifecycleState → _recheckEnrollmentThenEnable.
         }
       case BiometricSupport.ready:
         await _confirmAndEnable();
@@ -180,13 +287,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _recheckEnrollmentThenEnable() async {
     final support = await BiometricService.instance.support();
     if (!mounted) return;
-    // Only continue if a biometric is now actually enrolled.
-    if (support == BiometricSupport.ready) {
-      await _confirmAndEnable();
-    }
+    if (support == BiometricSupport.ready) await _confirmAndEnable();
   }
 
-  /// Shows the native prompt and, on success, enables + persists the lock.
   Future<void> _confirmAndEnable() async {
     final outcome = await BiometricService.instance.authenticateDetailed(
       reason: 'Confirm your identity to enable biometric lock',
@@ -201,7 +304,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       BiometricUx.successSnack(
           context, 'Biometric authentication enabled successfully.');
     } else {
-      // Failure/cancel → keep disabled, save nothing.
       final error = outcome.error;
       if (error != null && !error.isSilent) {
         BiometricUx.errorSnack(context, error.message);
@@ -209,7 +311,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  /// Disabling is a sensitive action: confirm, then require a successful prompt.
   Future<void> _disableBiometric() async {
     final confirmed = await BiometricUx.disableBiometricDialog(context);
     if (!mounted || !confirmed) return;
@@ -232,8 +333,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     BiometricUx.successSnack(context, 'Biometric authentication disabled.');
   }
 
-  /// Best-effort mirror of the choice onto the profile row (the lock itself is
-  /// already applied locally, so a failed sync doesn't matter to the user).
   void _persistBiometric(bool value) {
     unawaited(() async {
       try {
@@ -248,6 +347,50 @@ class _ProfileScreenState extends State<ProfileScreen>
         // Ignore — local lock state is the source of truth for this device.
       }
     }());
+  }
+
+  // ---- Security / support navigation --------------------------------------
+
+  Future<void> _openChangePassword() async {
+    await _push(ChangePasswordScreen(email: _profile.email));
+  }
+
+  Future<void> _openTwoFactor() async {
+    await _push(const TwoFactorScreen());
+    if (!mounted) return;
+    setState(() => _twoFactor = AppSettings.instance.twoFactor.value);
+  }
+
+  // ---- Data & storage ------------------------------------------------------
+
+  /// Builds the full account archive with a progress dialog, then shares it.
+  Future<void> _exportData({required String subject}) async {
+    final progress = ValueNotifier<double>(0);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ProgressDialog(
+        title: 'Preparing your data',
+        progress: progress,
+      ),
+    );
+    try {
+      final archive = await DataExportService.instance.build(
+        profile: _profile,
+        onProgress: (p) => progress.value = p,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(); // dismiss progress
+      await Share.shareXFiles([XFile(archive.file.path)], subject: subject);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _toast('Export failed. Please try again.', error: true);
+    } finally {
+      // Dispose after the dialog's exit transition, so its listener is already
+      // detached (avoids "used after disposed" on the fast error path).
+      Future.delayed(const Duration(milliseconds: 400), progress.dispose);
+    }
   }
 
   // ---- Destructive actions -------------------------------------------------
@@ -326,8 +469,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ---- Build ---------------------------------------------------------------
-
   Future<void> _editProfile() async {
     final updated = await Navigator.of(context).push<UserProfile>(
       MaterialPageRoute(
@@ -344,13 +485,15 @@ class _ProfileScreenState extends State<ProfileScreen>
     _toast('Profile updated');
   }
 
+  // ---- Build ---------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final p = _profile;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Ordered content: title, identity header, then grouped settings.
     final blocks = <Widget>[
       _Title(),
       ProfileHeaderCard(
@@ -370,17 +513,18 @@ class _ProfileScreenState extends State<ProfileScreen>
           SettingsRow(
             icon: Icons.password_rounded,
             title: 'Change Password',
-            onTap: () => _toast('Change Password — coming soon'),
+            onTap: _openChangePassword,
           ),
           SettingsRow(
             icon: Icons.verified_user_rounded,
             title: 'Two-Factor Authentication',
-            onTap: () => _toast('Two-Factor Authentication — coming soon'),
+            value: _twoFactor ? 'On' : 'Off',
+            onTap: _openTwoFactor,
           ),
           SettingsRow(
             icon: Icons.devices_rounded,
             title: 'Trusted Devices',
-            onTap: () => _toast('Trusted Devices — coming soon'),
+            onTap: () => _push(const TrustedDevicesScreen()),
           ),
         ],
       ),
@@ -388,30 +532,29 @@ class _ProfileScreenState extends State<ProfileScreen>
         caption: 'Data & Storage',
         children: [
           _StorageRow(
-            usedLabel: '1.2 GB',
-            totalLabel: '5 GB',
-            fraction: 0.24,
+            usedLabel: _storageLoading ? '…' : _storage.usedLabel,
+            totalLabel: _storage.quotaLabel,
+            fraction: _storage.fraction,
           ),
           SettingsRow(
             icon: Icons.cloud_sync_rounded,
             title: 'Auto Backup',
-            trailing:
-                _switch(_autoBackup, (v) => setState(() => _autoBackup = v)),
+            trailing: _switch(_autoBackup, _toggleAutoBackup),
           ),
           SettingsRow(
             icon: Icons.backup_rounded,
             title: 'Cloud Backup',
-            onTap: () => _toast('Cloud Backup — coming soon'),
+            onTap: () => _push(CloudBackupScreen(profile: _profile)),
           ),
           SettingsRow(
             icon: Icons.file_download_outlined,
             title: 'Export Data',
-            onTap: () => _toast('Export Data — coming soon'),
+            onTap: () => _exportData(subject: 'INO data export'),
           ),
           SettingsRow(
             icon: Icons.download_for_offline_outlined,
             title: 'Download Account Data',
-            onTap: () => _toast('Download Account Data — coming soon'),
+            onTap: () => _exportData(subject: 'INO account archive'),
           ),
         ],
       ),
@@ -421,13 +564,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           SettingsRow(
             icon: Icons.notifications_rounded,
             title: 'Notifications',
-            trailing: _switch(
-                _notifications, (v) => setState(() => _notifications = v)),
+            trailing: _switch(_notifications, _toggleNotifications),
           ),
           SettingsRow(
             icon: Icons.dark_mode_rounded,
             title: 'Dark Mode',
-            trailing: _switch(_isDark, (_) => widget.onToggleTheme()),
+            trailing: _switch(isDark, (_) => _toggleDarkMode()),
           ),
           SettingsRow(
             icon: Icons.language_rounded,
@@ -443,18 +585,18 @@ class _ProfileScreenState extends State<ProfileScreen>
           SettingsRow(
             icon: Icons.help_center_rounded,
             title: 'Help Center',
-            onTap: () => _toast('Help Center — coming soon'),
+            onTap: () => _push(HelpCenterScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.support_agent_rounded,
             title: 'Contact Support',
-            onTap: () => _toast('Contact Support — coming soon'),
+            onTap: () =>
+                _push(ContactSupportScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.info_outline_rounded,
             title: 'About INO',
-            value: '1.0.0',
-            onTap: () => _toast('About INO — coming soon'),
+            onTap: () => _push(const AboutScreen()),
           ),
         ],
       ),
@@ -464,12 +606,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           SettingsRow(
             icon: Icons.privacy_tip_rounded,
             title: 'Privacy Policy',
-            onTap: () => _toast('Privacy Policy — coming soon'),
+            onTap: () => _push(LegalDocumentScreen.privacy()),
           ),
           SettingsRow(
             icon: Icons.description_rounded,
             title: 'Terms & Conditions',
-            onTap: () => _toast('Terms & Conditions — coming soon'),
+            onTap: () => _push(LegalDocumentScreen.terms()),
           ),
         ],
       ),
@@ -480,7 +622,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.delete_outline_rounded,
             title: 'Delete Account',
             danger: true,
-            onTap: () => _toast('Delete Account — coming soon'),
+            onTap: () => _push(DeleteAccountScreen(email: _profile.email)),
           ),
           SettingsRow(
             icon: Icons.logout_rounded,
@@ -504,7 +646,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               AppSpacing.screen, bottomInset + 100),
           itemCount: blocks.length,
           separatorBuilder: (_, i) => SizedBox(
-            // Big breath under the title & header; roomy section gaps elsewhere.
             height: i < 1 ? AppSpacing.lg : AppSpacing.section,
           ),
           itemBuilder: (context, i) => FadeSlideIn(
@@ -516,7 +657,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ---- Small helpers -------------------------------------------------------
+  /// The address Contact Support / Help Center compose to.
+  String get _supportEmail => 'support@ino.app';
 
   Widget _switch(bool value, ValueChanged<bool> onChanged) {
     return Switch.adaptive(
@@ -548,7 +690,7 @@ class _Title extends StatelessWidget {
 }
 
 /// The Storage summary — a normal settings row (icon · title · usage) with a
-/// slim gradient bar, so the progress cue stays without a dashboard card.
+/// slim gradient bar, fed by real Storage usage.
 class _StorageRow extends StatelessWidget {
   const _StorageRow({
     required this.usedLabel,
@@ -630,6 +772,49 @@ class _StorageRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A small, non-dismissible progress dialog for export / archive builds.
+class _ProgressDialog extends StatelessWidget {
+  const _ProgressDialog({required this.title, required this.progress});
+
+  final String title;
+  final ValueNotifier<double> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Dialog(
+      backgroundColor: palette.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.large),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const SizedBox(height: AppSpacing.md),
+            ValueListenableBuilder<double>(
+              valueListenable: progress,
+              builder: (context, value, _) => ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: LinearProgressIndicator(
+                  value: value == 0 ? null : value,
+                  minHeight: 6,
+                  backgroundColor: palette.surfaceVariant,
+                  valueColor:
+                      const AlwaysStoppedAnimation(AppColors.primaryGreen),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

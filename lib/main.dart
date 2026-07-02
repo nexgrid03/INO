@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/app_settings.dart';
+import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
 import 'services/document_protection_store.dart';
+import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
@@ -21,14 +26,22 @@ Future<void> main() async {
     publishableKey: SupabaseConfig.publishableKey,
   );
 
-  // Load the biometric app-lock preference before the first frame so the lock
-  // screen is already up on cold start when it's enabled (no content flash).
+  // Hydrate persisted preferences before the first frame so the UI (theme, lock
+  // screen, settings toggles) renders in its saved state with no flash.
+  await ThemeController.load();
   await BiometricService.instance.loadLockState();
+  await AppSettings.instance.load();
 
   // Biometric security services: the per-document protection flags and the
   // session guard that gates protected documents / sensitive actions.
   await DocumentProtectionStore.instance.load();
   VaultGuard.instance.init();
+
+  // Record this device in the local trusted-devices registry (non-blocking).
+  unawaited(TrustedDeviceService.instance.registerCurrent());
+
+  // Auto-backup: when enabled, back up shortly after documents change.
+  AutoBackupCoordinator.instance.start();
 
   runApp(const InoApp());
 }
