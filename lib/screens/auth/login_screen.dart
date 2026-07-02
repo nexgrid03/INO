@@ -49,8 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  bool get _showApple =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  bool get _showApple => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   // --- Actions --------------------------------------------------------------
 
@@ -92,7 +91,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage('Sign in failed. Please try again.');
         return;
       }
-      developer.log('Email sign-in OK: user=${user.id} — routing', name: 'auth');
+      developer.log(
+        'Email sign-in OK: user=${user.id} — routing',
+        name: 'auth',
+      );
       // Same resilient, completeness-aware routing as the Google path.
       await routeAfterAuth(
         authUserId: user.id,
@@ -115,8 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await AuthService.instance.signInWithGoogle();
       if (res == null) {
-        developer.log('Google sign-in cancelled — staying on login',
-            name: 'auth');
+        developer.log(
+          'Google sign-in cancelled — staying on login',
+          name: 'auth',
+        );
         return; // user cancelled the picker
       }
       final user = res.user;
@@ -125,7 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage('Google sign-in failed. Please try again.');
         return;
       }
-      developer.log('Google sign-in OK: user=${user.id} — routing', name: 'auth');
+      developer.log(
+        'Google sign-in OK: user=${user.id} — routing',
+        name: 'auth',
+      );
       // Route via the app-root navigator (inside routeAfterAuth) so it works
       // even if THIS widget was disposed while the Google picker (Credential
       // Manager) was open — the previous code used the local context + a
@@ -133,26 +140,39 @@ class _LoginScreenState extends State<LoginScreen> {
       // picking an account.
       await routeAfterAuth(
         authUserId: user.id,
-        fullName: (user.userMetadata?['full_name'] as String?) ??
+        fullName:
+            (user.userMetadata?['full_name'] as String?) ??
             (user.userMetadata?['name'] as String?) ??
             'INO User',
         email: user.email ?? '',
       );
     } on GoogleSignInException catch (e) {
-      developer.log('Google sign-in exception: ${e.code} ${e.description}',
-          name: 'auth', error: e);
+      developer.log(
+        'Google sign-in exception: ${e.code} ${e.description}',
+        name: 'auth',
+        error: e,
+      );
       _showMessage('Could not sign in with Google. Please try again.');
     } on AuthException catch (e) {
-      developer.log('Auth exception during Google sign-in: ${e.message}',
-          name: 'auth', error: e);
+      developer.log(
+        'Auth exception during Google sign-in: ${e.message}',
+        name: 'auth',
+        error: e,
+      );
       _showMessage(e.message);
     } on PostgrestException catch (e) {
-      developer.log('Profile DB error during Google sign-in: ${e.message}',
-          name: 'auth', error: e);
+      developer.log(
+        'Profile DB error during Google sign-in: ${e.message}',
+        name: 'auth',
+        error: e,
+      );
       _showMessage(e.message);
     } catch (e) {
-      developer.log('Unexpected Google sign-in error: $e',
-          name: 'auth', error: e);
+      developer.log(
+        'Unexpected Google sign-in error: $e',
+        name: 'auth',
+        error: e,
+      );
       _showMessage('Could not sign in with Google. Please try again.');
     } finally {
       if (mounted) setState(() => _googleBusy = false);
@@ -164,15 +184,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToSignup() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SignupScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SignupScreen()));
   }
 
   void _goToForgotPassword() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ForgotPasswordScreen(
+        builder: (_l) => ForgotPasswordScreen(
           initialIdentifier: _identifierController.text.trim(),
         ),
       ),
@@ -189,9 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 24),
-          FadeSlideIn(
-            child: Center(child: InoLogo(size: 72)),
-          ),
+          FadeSlideIn(child: Center(child: InoLogo(size: 72))),
           const SizedBox(height: 24),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
@@ -249,9 +267,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onSubmitted: (_) => _signIn(),
                     suffix: _VisibilityToggle(
                       obscured: _obscurePassword,
-                      onTap: () => setState(
-                        () => _obscurePassword = !_obscurePassword,
-                      ),
+                      onTap: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                 ),
@@ -349,9 +366,7 @@ class _VisibilityToggle extends StatelessWidget {
     return IconButton(
       onPressed: onTap,
       icon: Icon(
-        obscured
-            ? Icons.visibility_off_outlined
-            : Icons.visibility_outlined,
+        obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
         color: AppColors.textMuted,
       ),
     );
@@ -382,14 +397,18 @@ class _RememberMe extends StatelessWidget {
                 color: value ? AppColors.primaryGreen : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color:
-                      value ? AppColors.primaryGreen : const Color(0xFFCBD5E1),
+                  color: value
+                      ? AppColors.primaryGreen
+                      : const Color(0xFFCBD5E1),
                   width: 1.6,
                 ),
               ),
               child: value
-                  ? const Icon(Icons.check_rounded,
-                      size: 14, color: Colors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    )
                   : null,
             ),
             const SizedBox(width: 8),
