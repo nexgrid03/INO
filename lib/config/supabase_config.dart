@@ -22,7 +22,8 @@ class SupabaseConfig {
   /// Google OAuth **Web** client ID (the one you also paste into Supabase's
   /// Google provider settings). Used as the token audience on every platform.
   /// e.g. 1234567890-abc123.apps.googleusercontent.com
-  static const String googleWebClientId = 'YOUR_GOOGLE_WEB_CLIENT_ID';
+  static const String googleWebClientId =
+      '535920485088-rk5bv3pg2erg484tsvmugq5dpvanii6e.apps.googleusercontent.com';
 
   /// Google OAuth **iOS** client ID (only needed for the iOS build).
   static const String googleIosClientId = 'YOUR_GOOGLE_IOS_CLIENT_ID';
