@@ -1,4 +1,6 @@
+import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,14 +34,39 @@ class DocumentRepository {
     }
     final ext = localPath.contains('.') ? localPath.split('.').last : 'jpg';
     final objectPath = '$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-    await _client.storage.from(_bucket).upload(objectPath, File(localPath));
+    final stored =
+        await _client.storage.from(_bucket).upload(objectPath, File(localPath));
+    // `upload` returns the full "<bucket>/<path>" key on success; the value we
+    // persist and read back is the object path (without the bucket prefix).
+    developer.log(
+      'uploaded to bucket=$_bucket path=$objectPath (key=$stored)',
+      name: 'storage',
+    );
     return objectPath;
   }
 
   /// A temporary, signed URL for viewing a stored file (private bucket).
-  Future<String> signedUrl(String objectPath, {int expiresInSeconds = 3600}) {
-    return _client.storage.from(_bucket).createSignedUrl(objectPath, expiresInSeconds);
+  Future<String> signedUrl(String objectPath, {int expiresInSeconds = 3600}) async {
+    developer.log('createSignedUrl bucket=$_bucket path=$objectPath', name: 'storage');
+    final url = await _client.storage
+        .from(_bucket)
+        .createSignedUrl(objectPath, expiresInSeconds);
+    return url;
   }
+
+  /// Downloads the raw bytes of a stored file (private bucket). Throws if the
+  /// object no longer exists.
+  Future<Uint8List> download(String objectPath) {
+    developer.log('download bucket=$_bucket path=$objectPath', name: 'storage');
+    return _client.storage.from(_bucket).download(objectPath);
+  }
+
+  /// Renames a document (updates the `name` column).
+  Future<void> rename(String id, String name) =>
+      update(id, {'name': name.trim()});
+
+  /// Moves a document to a different wallet.
+  Future<void> move(String id, String wallet) => update(id, {'wallet': wallet});
 
   /// Inserts a new document row and returns it.
   ///

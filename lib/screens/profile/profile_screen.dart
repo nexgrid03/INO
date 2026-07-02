@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/user_profile.dart';
+import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/biometric_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/profile_header_card.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
@@ -42,15 +47,44 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   /// Local copy so edits show immediately; also pushed up via onProfileUpdated.
   late UserProfile _profile = widget.profile;
-  late bool _biometric = widget.profile.biometricEnabled;
+  // Reflects the *device's* actual biometric-lock state (loaded at startup),
+  // which is the source of truth for whether the app locks.
+  late bool _biometric = BiometricService.instance.lockEnabled.value;
   bool _notifications = true;
   bool _autoBackup = true;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
 
+  /// True while we've sent the user to the OS to enrol a biometric and are
+  /// waiting for them to return, so we can re-check and continue automatically.
+  bool _awaitingEnrollment = false;
+
   bool get _isDark => widget.themeMode == ThemeMode.dark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning from the OS biometric-enrollment screen → check again and, if a
+    // biometric is now enrolled, continue straight to the confirm prompt.
+    if (state == AppLifecycleState.resumed && _awaitingEnrollment) {
+      _awaitingEnrollment = false;
+      _recheckEnrollmentThenEnable();
+    }
+  }
 
   static String _languageLabel(String code) {
     switch (code) {
@@ -113,6 +147,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (picked != null) setState(() => _language = picked);
+  }
+
+  // ---- Biometric app-lock --------------------------------------------------
+
+  Future<void> _toggleBiometric(bool value) =>
+      value ? _enableBiometric() : _disableBiometric();
+
+  /// First-time setup: verify the device supports biometrics and has one
+  /// enrolled; if not, send the user to the OS enrollment screen and resume the
+  /// flow when they return. Only enables after a successful native prompt.
+  Future<void> _enableBiometric() async {
+    final support = await BiometricService.instance.support();
+    if (!mounted) return;
+    switch (support) {
+      case BiometricSupport.unsupported:
+        BiometricUx.errorSnack(
+            context, 'This device does not support biometric authentication.');
+      case BiometricSupport.notEnrolled:
+        final openSettings = await BiometricUx.noBiometricsDialog(context);
+        if (!mounted) return;
+        if (openSettings) {
+          _awaitingEnrollment = true;
+          await BiometricService.instance.openEnrollmentSettings();
+          // Continues in didChangeAppLifecycleState → _recheckEnrollmentThenEnable.
+        }
+      case BiometricSupport.ready:
+        await _confirmAndEnable();
+    }
+  }
+
+  Future<void> _recheckEnrollmentThenEnable() async {
+    final support = await BiometricService.instance.support();
+    if (!mounted) return;
+    // Only continue if a biometric is now actually enrolled.
+    if (support == BiometricSupport.ready) {
+      await _confirmAndEnable();
+    }
+  }
+
+  /// Shows the native prompt and, on success, enables + persists the lock.
+  Future<void> _confirmAndEnable() async {
+    final outcome = await BiometricService.instance.authenticateDetailed(
+      reason: 'Confirm your identity to enable biometric lock',
+      title: 'Enable Biometric Lock',
+    );
+    if (!mounted) return;
+    if (outcome.ok) {
+      await BiometricService.instance.setLockEnabled(true);
+      if (!mounted) return;
+      setState(() => _biometric = true);
+      _persistBiometric(true);
+      BiometricUx.successSnack(
+          context, 'Biometric authentication enabled successfully.');
+    } else {
+      // Failure/cancel → keep disabled, save nothing.
+      final error = outcome.error;
+      if (error != null && !error.isSilent) {
+        BiometricUx.errorSnack(context, error.message);
+      }
+    }
+  }
+
+  /// Disabling is a sensitive action: confirm, then require a successful prompt.
+  Future<void> _disableBiometric() async {
+    final confirmed = await BiometricUx.disableBiometricDialog(context);
+    if (!mounted || !confirmed) return;
+    final outcome = await BiometricService.instance.authenticateDetailed(
+      reason: 'Confirm your identity to disable biometric lock',
+      title: 'Disable Biometric Lock',
+    );
+    if (!mounted) return;
+    if (!outcome.ok) {
+      final error = outcome.error;
+      if (error != null && !error.isSilent) {
+        BiometricUx.errorSnack(context, error.message);
+      }
+      return;
+    }
+    await BiometricService.instance.setLockEnabled(false);
+    if (!mounted) return;
+    setState(() => _biometric = false);
+    _persistBiometric(false);
+    BiometricUx.successSnack(context, 'Biometric authentication disabled.');
+  }
+
+  /// Best-effort mirror of the choice onto the profile row (the lock itself is
+  /// already applied locally, so a failed sync doesn't matter to the user).
+  void _persistBiometric(bool value) {
+    unawaited(() async {
+      try {
+        final updated = await UserRepository.instance.updateProfile(
+          authUserId: _profile.authUserId,
+          biometricEnabled: value,
+        );
+        if (!mounted) return;
+        setState(() => _profile = updated);
+        widget.onProfileUpdated?.call(updated);
+      } catch (_) {
+        // Ignore — local lock state is the source of truth for this device.
+      }
+    }());
   }
 
   // ---- Destructive actions -------------------------------------------------
@@ -230,10 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SettingsRow(
             icon: Icons.fingerprint_rounded,
             title: 'Biometric Authentication',
-            trailing: _switch(_biometric, (v) {
-              setState(() => _biometric = v);
-              _toast('Biometric ${v ? 'enabled' : 'disabled'}');
-            }),
+            trailing: _switch(_biometric, _toggleBiometric),
           ),
           SettingsRow(
             icon: Icons.password_rounded,

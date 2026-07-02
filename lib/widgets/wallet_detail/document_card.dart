@@ -18,6 +18,7 @@ class DocumentCard extends StatelessWidget {
     required this.onOpen,
     required this.onFavorite,
     required this.onMore,
+    this.protected = false,
   });
 
   final DocumentRecord record;
@@ -25,6 +26,9 @@ class DocumentCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
   final VoidCallback onMore;
+
+  /// When true, this document is biometric-protected — shows a lock badge.
+  final bool protected;
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +103,21 @@ class DocumentCard extends StatelessWidget {
                       ),
                       child: const Icon(Icons.star_rounded,
                           size: 13, color: AppColors.warning),
+                    ),
+                  ),
+                if (protected)
+                  Positioned(
+                    bottom: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: const Icon(Icons.lock_rounded,
+                          size: 10, color: Colors.white),
                     ),
                   ),
               ],

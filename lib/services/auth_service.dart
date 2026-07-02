@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import 'biometric_service.dart';
 
 /// Single place that talks to Supabase auth.
 ///
@@ -200,6 +201,8 @@ class AuthService {
   // --- Sign out -------------------------------------------------------------
 
   Future<void> signOut() async {
+    // Drop the biometric app-lock so the login screen isn't gated behind it.
+    await BiometricService.instance.setLockEnabled(false);
     try {
       await GoogleSignIn.instance.signOut();
     } catch (_) {

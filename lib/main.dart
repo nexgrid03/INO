@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'screens/lock/app_lock.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/biometric_service.dart';
+import 'services/document_protection_store.dart';
+import 'services/vault_guard.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -16,6 +20,15 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
+
+  // Load the biometric app-lock preference before the first frame so the lock
+  // screen is already up on cold start when it's enabled (no content flash).
+  await BiometricService.instance.loadLockState();
+
+  // Biometric security services: the per-document protection flags and the
+  // session guard that gates protected documents / sensitive actions.
+  await DocumentProtectionStore.instance.load();
+  VaultGuard.instance.init();
 
   runApp(const InoApp());
 }
@@ -49,6 +62,11 @@ class InoApp extends StatelessWidget {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: mode,
+          // Wrap every route in the biometric app-lock gate. It's inert unless
+          // the user has enabled the lock, in which case it covers the app on
+          // cold start and each return from the background.
+          builder: (context, child) =>
+              AppLock(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),
         );
       },

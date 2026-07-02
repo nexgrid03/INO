@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../models/user_profile.dart';
+import '../../repositories/user_repository.dart';
 import '../../services/biometric_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -52,13 +55,34 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
   Future<void> _enable() async {
     setState(() => _busy = true);
     try {
+      final available = await BiometricService.instance.isAvailable();
+      if (!mounted) return;
+      if (!available) {
+        _showMessage(
+          'No biometrics are set up on this device. You can enable this later '
+          'in Settings.',
+          isError: false,
+        );
+        _finish();
+        return;
+      }
       final ok = await BiometricService.instance.authenticate(
         reason: 'Enable ${_kind.noun} to unlock INO',
       );
       if (!mounted) return;
       if (ok) {
-        // NOTE: persisting `biometric_enabled` on the profile is left for when
-        // the users-table update method + real local_auth are wired.
+        // Turn the app-lock on (persisted locally) and mirror the choice on the
+        // profile row (best-effort — the lock itself is already active).
+        await BiometricService.instance.setLockEnabled(true);
+        unawaited(
+          UserRepository.instance
+              .updateProfile(
+                authUserId: widget.profile.authUserId,
+                biometricEnabled: true,
+              )
+              .catchError((Object _) => widget.profile),
+        );
+        if (!mounted) return;
         _finish();
       } else {
         _showMessage('${_kind.noun} setup was cancelled.');

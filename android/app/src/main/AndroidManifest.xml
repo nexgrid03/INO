@@ -3,6 +3,9 @@
          not rely on this being merged in from a plugin manifest). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Biometric app-lock (fingerprint / Face unlock). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
     <!-- Scanner: camera + gallery import permissions. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />

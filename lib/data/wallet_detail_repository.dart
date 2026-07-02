@@ -45,6 +45,10 @@ abstract class WalletDetailRepository {
   void updateRecord(String walletName, DocumentRecord record);
   void deleteRecord(String walletName, String recordId);
 
+  /// Removes a record from the in-memory cache only (no DB delete) — used when a
+  /// document is *moved* to another wallet.
+  void deleteRecordLocal(String walletName, String recordId);
+
   static WalletDetailRepository instance = SupabaseWalletDetailRepository();
 }
 
@@ -139,6 +143,11 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
     DocumentRepository.instance.delete(recordId).catchError((_) {});
   }
 
+  @override
+  void deleteRecordLocal(String walletName, String recordId) {
+    _cache[walletName]?.removeWhere((r) => r.id == recordId);
+  }
+
   // ---- Mapping ------------------------------------------------------------
 
   /// Turns a database [Document] into the UI's [DocumentRecord].
@@ -155,6 +164,7 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
       recordNumber: d.recordNumber,
       tags: d.tags,
       isFavorite: d.isFavorite,
+      filePath: d.filePath,
     );
   }
 

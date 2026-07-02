@@ -110,6 +110,7 @@ class DocumentRecord {
     this.recordNumber,
     this.tags = const [],
     this.isFavorite = false,
+    this.filePath,
   });
 
   final String id;
@@ -124,11 +125,20 @@ class DocumentRecord {
   final List<String> tags;
   final bool isFavorite;
 
-  DocumentRecord copyWith({DocumentStatus? status, bool? isFavorite}) {
+  /// Storage object path of the actual uploaded file (null when there is no
+  /// backing file — e.g. a record with nothing yet uploaded).
+  final String? filePath;
+
+  DocumentRecord copyWith({
+    String? name,
+    String? category,
+    DocumentStatus? status,
+    bool? isFavorite,
+  }) {
     return DocumentRecord(
       id: id,
-      name: name,
-      category: category,
+      name: name ?? this.name,
+      category: category ?? this.category,
       icon: icon,
       uploadedAt: uploadedAt,
       updatedAt: updatedAt,
@@ -137,6 +147,7 @@ class DocumentRecord {
       recordNumber: recordNumber,
       tags: tags,
       isFavorite: isFavorite ?? this.isFavorite,
+      filePath: filePath,
     );
   }
 

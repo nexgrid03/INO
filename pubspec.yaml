@@ -41,6 +41,19 @@ dependencies:
   image_picker: ^1.2.3
   image: ^4.9.1
   google_mlkit_document_scanner: ^0.4.1
+  # Biometric / Face ID app-lock.
+  local_auth: ^2.3.0
+  # Platform interfaces — used directly for the native BiometricPrompt
+  # title/subtitle messages (AndroidAuthMessages / IOSAuthMessages).
+  local_auth_android: ^1.0.56
+  local_auth_darwin: ^1.6.1
+  # Local persistence for the biometric-lock preference (instant on cold start).
+  shared_preferences: ^2.3.2
+  # Document viewer: temp file caching, opening non-image files with the system
+  # app (PDF/office), and sharing the real stored file.
+  path_provider: ^2.1.4
+  open_filex: ^4.5.0
+  share_plus: ^10.1.2
 
 dev_dependencies:
   flutter_test:

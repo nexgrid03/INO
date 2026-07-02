@@ -9,6 +9,7 @@ import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
+import '../../services/document_protection_store.dart';
 import '../../services/document_scanner_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../theme/app_dimens.dart';
@@ -137,6 +138,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _localFilePath; // real on-device file to upload to Storage
   bool _saving = false;
   bool _capturing = false; // true while the camera/gallery picker is open
+  bool _protect = false; // require biometrics to open this document
 
   @override
   void initState() {
@@ -284,6 +286,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         filePath: filePath,
       );
 
+      // 2b) If the user asked to protect it, store the secure biometric flag
+      //     for this document (by its real DB id).
+      if (_protect) {
+        await DocumentProtectionStore.instance.setProtected(doc.id, true);
+      }
+
       if (!mounted) return;
 
       // 3) Keep the in-memory wallet list in sync so the detail screen shows the
@@ -303,6 +311,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           expiresAt: doc.expiresAt,
           tags: doc.tags,
           isFavorite: doc.isFavorite,
+          filePath: doc.filePath,
         ),
       );
 
@@ -386,7 +395,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     if (!_hasFile)
                       _EmptyState(busy: _capturing)
-                    else
+                    else ...[
                       _DetailsForm(
                         formKey: _formKey,
                         source: _source!,
@@ -402,6 +411,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                         onPickCategory: _chooseCategory,
                         onPickExpiry: _pickExpiry,
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      _ProtectToggle(
+                        value: _protect,
+                        onChanged: (v) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _protect = v);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1071,6 +1089,65 @@ class _PickerTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Biometric protection toggle
+// ---------------------------------------------------------------------------
+
+class _ProtectToggle extends StatelessWidget {
+  const _ProtectToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final color = value ? AppColors.primaryGreen : palette.textSecondary;
+    return InoCard(
+      radius: AppRadius.card,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      borderColor: value ? AppColors.primaryGreen : null,
+      child: Row(
+        children: [
+          Container(
+            width: AppSizes.iconContainerSm,
+            height: AppSizes.iconContainerSm,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+            ),
+            child: Icon(Icons.lock_rounded, color: color, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Protect with Biometrics',
+                  style: AppText.subtitle
+                      .copyWith(color: palette.textPrimary, fontSize: 13.5),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Require fingerprint or Face ID to open this document.',
+                  style: AppText.caption.copyWith(color: palette.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: AppColors.primaryGreen,
+          ),
+        ],
       ),
     );
   }

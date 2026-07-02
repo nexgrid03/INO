@@ -5,6 +5,8 @@ import '../../data/wallet_detail_repository.dart';
 import '../../models/dashboard_models.dart' show QuickAction;
 import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../services/document_protection_store.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -21,6 +23,7 @@ import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
+import 'document_viewer_screen.dart';
 
 /// The reusable Wallet Detail screen — a premium *document manager*, not a
 /// dashboard.
@@ -233,6 +236,64 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     _toast('${r.name} deleted');
   }
 
+  // ---- Biometric protection ------------------------------------------------
+
+  /// Opens a document in the full viewer — gating protected ones behind the
+  /// native biometric prompt first. Never reveals the document before a
+  /// successful unlock; a cancel simply returns the user to the list. Changes
+  /// made inside the viewer (favorite / rename / archive / delete / move) are
+  /// applied back to the list on return.
+  Future<void> _openDocument(DocumentRecord r) async {
+    final isProtected = DocumentProtectionStore.instance.isProtected(r.id);
+    if (isProtected) {
+      final unlocked = await VaultGuard.instance.ensureUnlocked(
+        context,
+        reason: 'Authenticate to access this protected document.',
+        title: 'Verify your identity',
+      );
+      if (!unlocked || !mounted) return;
+    }
+    final result = await Navigator.of(context).push<DocumentViewerResult>(
+      MaterialPageRoute(
+        builder: (_) => DocumentViewerScreen(
+          record: r,
+          walletName: widget.category.name,
+          accent: widget.category.gradient,
+          protected: isProtected,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      if (result.removed) {
+        _records = _records.where((e) => e.id != r.id).toList();
+      } else if (result.updated != null) {
+        final i = _records.indexWhere((e) => e.id == r.id);
+        if (i != -1) _records = [..._records]..[i] = result.updated!;
+      }
+    });
+  }
+
+  /// Toggles per-document biometric protection. Changing a security setting is
+  /// itself sensitive, so it requires a successful prompt first.
+  Future<void> _toggleProtection(DocumentRecord r) async {
+    final isProtected = DocumentProtectionStore.instance.isProtected(r.id);
+    final unlocked = await VaultGuard.instance.ensureUnlocked(
+      context,
+      reason: isProtected
+          ? 'Authenticate to remove protection from this document.'
+          : 'Authenticate to protect this document.',
+      title: 'Verify your identity',
+    );
+    if (!unlocked || !mounted) return;
+    await DocumentProtectionStore.instance.setProtected(r.id, !isProtected);
+    if (!mounted) return;
+    setState(() {}); // refresh the lock badge
+    _toast(isProtected
+        ? '${r.name} is no longer protected'
+        : '${r.name} is now protected');
+  }
+
   // ---- Action sheets -------------------------------------------------------
 
   void _openActions(DocumentRecord r) {
@@ -276,19 +337,21 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 ],
               ),
             ),
-            _action(Icons.ios_share_rounded, 'Share',
-                () => _toast('Share — coming soon')),
-            _action(Icons.download_rounded, 'Download',
-                () => _toast('Download — coming soon')),
-            _action(Icons.edit_rounded, 'Edit',
-                () => _toast('Edit — coming soon')),
+            _action(Icons.open_in_full_rounded, 'Open', () => _openDocument(r)),
+            _action(
+              DocumentProtectionStore.instance.isProtected(r.id)
+                  ? Icons.lock_open_rounded
+                  : Icons.lock_rounded,
+              DocumentProtectionStore.instance.isProtected(r.id)
+                  ? 'Remove protection'
+                  : 'Protect with Biometrics',
+              () => _toggleProtection(r),
+            ),
             _action(
               r.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
               r.isFavorite ? 'Remove favorite' : 'Favorite',
               () => _toggleFavorite(r),
             ),
-            _action(Icons.drive_file_move_rounded, 'Move',
-                () => _toast('Move — coming soon')),
             _action(Icons.archive_rounded, 'Archive', () => _archive(r)),
             _action(Icons.delete_outline_rounded, 'Delete',
                 () => _delete(r), danger: true),
@@ -578,7 +641,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             return DocumentCard(
               record: record,
               accent: widget.category.gradient,
-              onOpen: () => _toast('Opening ${record.name} — coming soon'),
+              protected: DocumentProtectionStore.instance.isProtected(record.id),
+              onOpen: () => _openDocument(record),
               onFavorite: () => _toggleFavorite(record),
               onMore: () => _openActions(record),
             );
