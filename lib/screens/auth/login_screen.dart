@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _goToForgotPassword() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_l) => ForgotPasswordScreen(
+        builder: (_) => ForgotPasswordScreen(
           initialIdentifier: _identifierController.text.trim(),
         ),
       ),
