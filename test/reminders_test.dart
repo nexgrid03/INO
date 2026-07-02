@@ -17,9 +17,11 @@ UserProfile _profile() => UserProfile(
       updatedAt: DateTime(2026, 1, 1),
     );
 
-// Wide canvas so the horizontally-scrolling filter chips all lay out (a lazy
-// ListView won't build chips past the viewport edge).
-Future<void> _pumpReminders(WidgetTester tester,
+// Wide canvas so the horizontally-scrolling filter chips all lay out. Pumps the
+// screen and advances time so the store's async load completes (the screen's
+// initState kicks it off — we must NOT await the load ourselves, since its
+// Future.delayed only fires when the test clock is pumped).
+Future<void> _pump(WidgetTester tester,
     {Size size = const Size(2400, 7000)}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 3.0;
@@ -34,8 +36,8 @@ Future<void> _pumpReminders(WidgetTester tester,
       home: RemindersScreen(profile: _profile()),
     ),
   );
-  await tester.pump(const Duration(milliseconds: 400)); // repo load
-  await tester.pumpAndSettle(); // entrance animations
+  await tester.pump(const Duration(milliseconds: 400)); // repo load completes
+  await tester.pump(const Duration(milliseconds: 600)); // entrance animations
 }
 
 Reminder _reminder(
@@ -59,7 +61,7 @@ void main() {
 
   testWidgets('Empty by default: shows the placeholder, no dummy data',
       (tester) async {
-    await _pumpReminders(tester);
+    await _pump(tester);
     expect(tester.takeException(), isNull);
 
     // The empty-state placeholder is shown.
@@ -73,33 +75,36 @@ void main() {
 
   testWidgets('A created reminder surfaces in Today\'s Priorities',
       (tester) async {
-    await ReminderStore.instance.ensureLoaded();
+    await _pump(tester);
+
+    // Add a reminder after the (empty) load; the store notifies and rebuilds.
     ReminderStore.instance
         .add(_reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0));
+    await tester.pump(); // rebuild from notifyListeners
+    await tester.pump(const Duration(milliseconds: 600)); // entrance animations
 
-    await _pumpReminders(tester);
     expect(tester.takeException(), isNull);
-
-    // Content (not the empty state) renders, showing the created reminder.
     expect(find.text('No reminders yet'), findsNothing);
     expect(find.text("Today's Priorities"), findsOneWidget);
     expect(find.text('Passport Renewal'), findsWidgets);
   });
 
   testWidgets('Filtering by a category narrows the priorities', (tester) async {
-    await ReminderStore.instance.ensureLoaded();
+    await _pump(tester);
+
     ReminderStore.instance
         .add(_reminder('t1', 'Passport Renewal', ReminderCategory.documents, 0));
     ReminderStore.instance
         .add(_reminder('t2', 'Medical Checkup', ReminderCategory.health, 2));
-
-    await _pumpReminders(tester);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     // The chip renders above the cards, so `.first` is the filter chip.
     final healthChip = find.text('Health').first;
     await tester.ensureVisible(healthChip);
     await tester.tap(healthChip);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
     expect(find.text('Medical Checkup'), findsWidgets);
