@@ -54,11 +54,13 @@ void main() {
     }
     expect(find.text('Documents'), findsNothing);
 
-    // The five quick actions are present (some labels, e.g. "Reminder", also
-    // appear as a priority status chip — so assert presence, not uniqueness).
-    for (final a in const ['Scan', 'Document', 'Wallet', 'Reminder', 'More']) {
+    // The four redesigned quick actions are present.
+    for (final a in const ['Add Asset', 'Scan & Upload', 'AI Insights', 'Protect']) {
       expect(find.text(a), findsWidgets);
     }
+
+    // The Net Worth Trend chart section was removed from Home.
+    expect(find.text('Net Worth Trend'), findsNothing);
 
     // Removed / module-owned sections must NOT appear on Home anymore.
     for (final gone in const [

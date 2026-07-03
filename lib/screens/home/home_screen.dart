@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../data/dashboard_repository.dart';
-import '../../data/wallet_repository.dart';
+import '../../data/reminder_store.dart';
+import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
+import '../../repositories/document_repository.dart';
+import '../../services/activity_service.dart';
+import '../../services/document_protection_store.dart';
+import '../../services/net_worth_service.dart';
+import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -11,20 +17,44 @@ import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/activity_tile.dart';
 import '../../widgets/home/dashboard_card.dart';
-import '../../widgets/home/floating_menu.dart';
+import '../../widgets/home/empty_state.dart';
 import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
+import '../../widgets/home/skeletons.dart';
+import '../assets/assets_screen.dart';
 import '../documents/add_document_screen.dart';
+import '../home/activity_history_screen.dart';
+import '../home/ai_insights_screen.dart';
+import '../home/pending_actions_screen.dart';
+import '../home/protection_center_screen.dart';
+import '../markets/markets_screen.dart';
+import '../networth/net_worth_analytics_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../scan/scan_flow_screen.dart';
+import '../search/global_search_screen.dart';
 import '../shell/shell_controller.dart';
-import '../wallet/wallet_detail_screen.dart';
 
-/// The INO Home — a minimal, premium fintech launcher.
+/// The read model the Home screen renders: a real-data hero + activity feed, and
+/// the market snapshot (realistic fallback) — assembled in one load.
+class _HomeData {
+  const _HomeData({
+    required this.hero,
+    required this.market,
+    required this.activity,
+  });
+
+  final HomeHero hero;
+  final List<MarketQuote> market;
+  final List<ActivityItem> activity;
+}
+
+/// The INO Home — a premium fintech dashboard.
 ///
-/// Six focused sections, one job each, nothing duplicated: header → net-worth
-/// hero → top-3 priorities → compact market snapshot → 5 quick actions →
-/// recent activity. Every module's own numbers (insurance, health, property,
-/// goals, investments) live on their dedicated pages, not here.
+/// Header (search · notifications · profile) → net-worth hero (tappable stats +
+/// analytics) → quick actions → market snapshot → recent activity. The hero
+/// counts, activity feed and notification badge are driven by the user's real
+/// data; wealth figures are realistic fallbacks until live feeds are connected.
+/// Every control routes to a real page.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -42,46 +72,75 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<DashboardData> _future;
+  late Future<_HomeData> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = DashboardRepository.instance.load();
+    _future = _load();
+    // Refresh the notification feed so the bell badge is accurate.
+    NotificationCenter.instance.load();
+  }
+
+  Future<_HomeData> _load() async {
+    // Market + FAB actions come from the (sample) dashboard repository.
+    final dashboard = await DashboardRepository.instance.load();
+
+    // Real activity feed.
+    final activity = await ActivityService.instance.load(limit: 6);
+
+    // Real hero counts.
+    var documentCount = 0;
+    var expiringDocuments = 0;
+    try {
+      final docs = await DocumentRepository.instance.listAll();
+      documentCount = docs.length;
+      final now = DateTime.now();
+      expiringDocuments = docs.where((d) {
+        final e = d.expiresAt;
+        if (e == null) return false;
+        final days = e.difference(now).inDays;
+        return days >= 0 && days <= 30;
+      }).length;
+    } catch (_) {
+      // Offline / signed out — hero still shows the fallback net worth.
+    }
+
+    var pending = expiringDocuments;
+    try {
+      await ReminderStore.instance.ensureLoaded();
+      final today = ReminderStore.instance.today;
+      pending +=
+          ReminderStore.instance.active.where((r) => r.daysFrom(today) <= 7).length;
+    } catch (_) {}
+
+    final hero = NetWorthService.instance.heroFrom(
+      assets: documentCount,
+      documents: documentCount,
+      pendingTasks: pending,
+      protectedItems: DocumentProtectionStore.instance.protectedCount,
+    );
+
+    return _HomeData(
+      hero: hero,
+      market: dashboard.market,
+      activity: activity,
+    );
   }
 
   Future<void> _refresh() async {
-    final data = DashboardRepository.instance.load();
+    final data = _load();
     setState(() => _future = data);
+    await NotificationCenter.instance.refresh();
     await data;
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
-      ),
-    );
-  }
+  // ---- Navigation ----------------------------------------------------------
 
   void _goToTab(int index) => ShellController.tab.value = index;
 
-  void _addDocument() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
-    );
-  }
-
-  /// Opens a specific wallet's page (e.g. Insurance, Investment) by name.
-  void _openWallet(String walletName) {
-    final category = SupabaseWalletRepository.categoryFor(walletName);
-    if (category == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => WalletDetailScreen(category: category)),
-    );
-  }
+  Future<T?> _push<T>(Widget screen) => Navigator.of(context)
+      .push<T>(MaterialPageRoute(builder: (_) => screen));
 
   void _scan() => launchScanFlow(context);
 
@@ -95,43 +154,29 @@ class _HomeScreenState extends State<HomeScreen> {
         child: RefreshIndicator(
           color: AppColors.primaryGreen,
           onRefresh: _refresh,
-          child: FutureBuilder<DashboardData>(
+          child: FutureBuilder<_HomeData>(
             future: _future,
             builder: (context, snapshot) {
               final data = snapshot.data;
+              final hasError =
+                  snapshot.connectionState == ConnectionState.done &&
+                      snapshot.hasError;
               return CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: palette.surface,
-                        borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(AppRadius.large)),
-                        border: Border(
-                          bottom: BorderSide(color: palette.border),
-                        ),
-                        boxShadow: palette.cardShadow,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                            AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
-                        child: WelcomeHeader(
-                          fullName: widget.profile.fullName,
-                          notificationCount: data?.priorities.length ?? 0,
-                          onSearch: () => _toast('Global search — coming soon'),
-                          onNotifications: () =>
-                              _toast('Notifications — coming soon'),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (data == null)
-                    const SliverFillRemaining(
+                  SliverToBoxAdapter(child: _header(palette, data?.hero)),
+                  if (hasError)
+                    SliverFillRemaining(
                       hasScrollBody: false,
-                      child: _LoadingState(),
+                      child: ErrorRetry(onRetry: _refresh),
+                    )
+                  else if (data == null)
+                    const SliverPadding(
+                      padding: EdgeInsets.fromLTRB(AppSpacing.screen,
+                          AppSpacing.md, AppSpacing.screen, 120),
+                      sliver: SliverToBoxAdapter(child: DashboardSkeleton()),
                     )
                   else
                     SliverPadding(
@@ -150,15 +195,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  List<Widget> _sections(DashboardData data) {
-    final recent = data.activity.take(5).toList();
+  Widget _header(AppPalette palette, HomeHero? hero) {
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(AppRadius.large)),
+        border: Border(bottom: BorderSide(color: palette.border)),
+        boxShadow: palette.cardShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+            AppSpacing.screen, AppSpacing.md),
+        child: ListenableBuilder(
+          listenable: NotificationCenter.instance,
+          builder: (context, _) => WelcomeHeader(
+            fullName: widget.profile.fullName,
+            photoUrl: widget.profile.profilePhoto,
+            notificationCount: NotificationCenter.instance.unreadCount,
+            onProfile: () => _goToTab(4),
+            onSearch: () => _push(const GlobalSearchScreen()),
+            onNotifications: () => _push(const NotificationsScreen()),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _sections(_HomeData data) {
     final sections = <Widget>[
-      // 2. Net-worth hero.
+      // Net-worth hero with tappable stats.
       DashboardCard(
         hero: data.hero,
-        onCta: () => _goToTab(1), // View details → Wallet hub
+        onCta: () => _push(const NetWorthAnalyticsScreen()),
+        onAssets: () => _push(const AssetsScreen()),
+        onPending: () => _push(const PendingActionsScreen()),
+        onProtected: () => _push(const ProtectionCenterScreen()),
       ),
-      // Quick Actions — moved to the top, right under the hero.
+      // Quick actions.
       _Section(
         header: const SectionHeader(
           title: 'Quick Actions',
@@ -167,74 +241,36 @@ class _HomeScreenState extends State<HomeScreen> {
           iconColor: AppColors.lightBlue,
         ),
         child: _QuickActions(
+          onAddAsset: () => _push(const AddDocumentScreen()),
           onScan: _scan,
-          onAddDocument: _addDocument,
-          onWallet: () => _goToTab(1),
-          onReminder: () => _goToTab(3),
-          onMore: () => FloatingMenu.show(
-            context,
-            title: 'Quick Add',
-            actions: data.fabActions,
-            onSelect: (a) {
-              switch (a.label) {
-                case 'Add Document':
-                  _addDocument();
-                case 'Scan':
-                case 'Scan Document':
-                  _scan();
-                case 'Add Reminder':
-                  _goToTab(3); // Reminders tab
-                case 'Add Property':
-                  _openWallet('Property Wallet');
-                case 'Add Insurance':
-                  _openWallet('Insurance Wallet');
-                case 'Add Investment':
-                  _openWallet('Investment Wallet');
-                case 'Add Health Record':
-                  _openWallet('Health Wallet');
-                default:
-                  _toast('${a.label} — coming soon');
-              }
-            },
-          ),
+          onInsights: () => _push(const AiInsightsScreen()),
+          onProtect: () => _push(const ProtectionCenterScreen()),
         ),
       ),
-      // Live Market — above Recent Activity.
+      // Market snapshot.
       _Section(
         header: SectionHeader(
           title: 'Market Snapshot',
           subtitle: 'Live rates near you',
           icon: Icons.trending_up_rounded,
           actionLabel: 'View markets',
-          onAction: () => _toast('Markets — coming soon'),
+          onAction: () => _push(MarketsScreen(quotes: data.market)),
         ),
         child: MarketCard(
           quotes: data.market,
-          onTap: () => _toast('Markets — coming soon'),
+          onTap: () => _push(MarketsScreen(quotes: data.market)),
         ),
       ),
-      // Recent Activity — latest 5 (kept at the bottom of the page).
+      // Recent activity (real).
       _Section(
         header: SectionHeader(
           title: 'Recent Activity',
           subtitle: 'Your latest updates',
           icon: Icons.access_time_rounded,
           actionLabel: 'View all',
-          onAction: () => _toast('Activity history — coming soon'),
+          onAction: () => _push(const ActivityHistoryScreen()),
         ),
-        child: InoCard(
-          radius: AppRadius.card,
-          padding: const EdgeInsets.all(AppSpacing.internal),
-          child: Column(
-            children: [
-              for (var i = 0; i < recent.length; i++)
-                ActivityTile(
-                  item: recent[i],
-                  isLast: i == recent.length - 1,
-                ),
-            ],
-          ),
-        ),
+        child: _ActivityList(items: data.activity, onAdd: _scan),
       ),
     ];
 
@@ -270,49 +306,40 @@ class _Section extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
+    required this.onAddAsset,
     required this.onScan,
-    required this.onAddDocument,
-    required this.onWallet,
-    required this.onReminder,
-    required this.onMore,
+    required this.onInsights,
+    required this.onProtect,
   });
 
+  final VoidCallback onAddAsset;
   final VoidCallback onScan;
-  final VoidCallback onAddDocument;
-  final VoidCallback onWallet;
-  final VoidCallback onReminder;
-  final VoidCallback onMore;
+  final VoidCallback onInsights;
+  final VoidCallback onProtect;
 
   @override
   Widget build(BuildContext context) {
-    // Each action shares the row equally so labels never overflow on small
-    // phones; the 52px icon target stays fixed and centred.
     final actions = <Widget>[
       QuickActionButton(
-          icon: AppIcons.scan,
-          label: 'Scan',
+          icon: Icons.add_chart_rounded,
+          label: 'Add Asset',
           color: AppColors.primaryGreen,
+          onTap: onAddAsset),
+      QuickActionButton(
+          icon: Icons.document_scanner_rounded,
+          label: 'Scan & Upload',
+          color: AppColors.lightBlue,
           onTap: onScan),
       QuickActionButton(
-          icon: AppIcons.addDocument,
-          label: 'Document',
-          color: AppColors.lightBlue,
-          onTap: onAddDocument),
+          icon: Icons.auto_awesome_rounded,
+          label: 'AI Insights',
+          color: const Color(0xFF8B6CEF),
+          onTap: onInsights),
       QuickActionButton(
-          icon: AppIcons.wallet,
-          label: 'Wallet',
-          color: AppColors.secondaryGreen,
-          onTap: onWallet),
-      QuickActionButton(
-          icon: AppIcons.reminder,
-          label: 'Reminder',
-          color: const Color(0xFFF5704A),
-          onTap: onReminder),
-      QuickActionButton(
-          icon: AppIcons.more,
-          label: 'More',
-          color: AppColors.darkGreen,
-          onTap: onMore),
+          icon: Icons.verified_user_rounded,
+          label: 'Protect',
+          color: const Color(0xFF2BB6A3),
+          onTap: onProtect),
     ];
     return Row(
       children: [
@@ -325,22 +352,37 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
+/// The recent-activity list, with a proper empty state when there's nothing yet.
+class _ActivityList extends StatelessWidget {
+  const _ActivityList({required this.items, required this.onAdd});
+
+  final List<ActivityItem> items;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.only(top: 80),
-        child: SizedBox(
-          width: 30,
-          height: 30,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.6,
-            color: AppColors.primaryGreen,
-          ),
+    if (items.isEmpty) {
+      return InoCard(
+        radius: AppRadius.card,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: EmptyState(
+          icon: Icons.timeline_rounded,
+          title: 'No activity yet',
+          message: 'Scan or add your first document to see your activity here.',
+          actionLabel: 'Scan a document',
+          onAction: onAdd,
+          compact: true,
         ),
+      );
+    }
+    return InoCard(
+      radius: AppRadius.card,
+      padding: const EdgeInsets.all(AppSpacing.internal),
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++)
+            ActivityTile(item: items[i], isLast: i == items.length - 1),
+        ],
       ),
     );
   }

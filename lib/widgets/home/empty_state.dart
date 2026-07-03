@@ -1,0 +1,104 @@
+import 'package:flutter/material.dart';
+
+import '../../theme/app_dimens.dart';
+import '../../theme/app_theme.dart';
+import '../profile/settings_scaffold.dart';
+
+/// A meaningful empty state: a soft gradient illustration, a title, a short
+/// description and an optional call-to-action. Reused across the dashboard's
+/// destination pages (no activity, no notifications, no assets, …).
+class EmptyState extends StatelessWidget {
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.compact = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: compact ? 72 : 96,
+              height: compact ? 72 : 96,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primaryGreen.withValues(alpha: 0.16),
+                    AppColors.lightBlue.withValues(alpha: 0.16),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon,
+                  size: compact ? 34 : 44, color: AppColors.primaryGreen),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppText.body
+                  .copyWith(color: palette.textSecondary, height: 1.5),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: 220,
+                child: SettingsPrimaryButton(
+                  label: actionLabel!,
+                  onPressed: onAction,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A full-page error state with a retry action — used for network / load
+/// failures on the dashboard destination pages.
+class ErrorRetry extends StatelessWidget {
+  const ErrorRetry({
+    super.key,
+    required this.onRetry,
+    this.message = 'Something went wrong. Please try again.',
+  });
+
+  final VoidCallback onRetry;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return EmptyState(
+      icon: Icons.wifi_off_rounded,
+      title: 'Couldn’t load',
+      message: message,
+      actionLabel: 'Retry',
+      onAction: onRetry,
+    );
+  }
+}

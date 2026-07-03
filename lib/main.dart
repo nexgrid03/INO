@@ -9,6 +9,7 @@ import 'screens/splash/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
+import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
@@ -42,6 +43,9 @@ Future<void> main() async {
 
   // Auto-backup: when enabled, back up shortly after documents change.
   AutoBackupCoordinator.instance.start();
+
+  // Warm the notification feed so the bell badge is accurate on first paint.
+  unawaited(NotificationCenter.instance.load());
 
   runApp(const InoApp());
 }

@@ -286,18 +286,32 @@ class FamilyEvent {
 // 12. Recent activity timeline
 // ---------------------------------------------------------------------------
 
+/// The kind of activity — drives the icon/colour and the history filters.
+enum ActivityKind { document, asset, reminder, backup, insurance, security, system }
+
 class ActivityItem {
   const ActivityItem({
     required this.title,
     required this.icon,
     required this.time,
     required this.color,
+    this.subtitle,
+    this.at,
+    this.kind = ActivityKind.system,
   });
 
   final String title;
   final IconData icon;
   final String time; // "2h ago", "Yesterday"
   final Color color;
+
+  /// Optional one-line description shown under the title on the history page.
+  final String? subtitle;
+
+  /// The real timestamp, used for sorting / grouping / filtering when available.
+  final DateTime? at;
+
+  final ActivityKind kind;
 }
 
 // ---------------------------------------------------------------------------

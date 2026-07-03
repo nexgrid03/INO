@@ -17,12 +17,21 @@ class WelcomeHeader extends StatefulWidget {
     required this.fullName,
     required this.onSearch,
     required this.onNotifications,
+    this.onProfile,
+    this.photoUrl,
     this.notificationCount = 0,
   });
 
   final String fullName;
   final VoidCallback onSearch;
   final VoidCallback onNotifications;
+
+  /// Opens the Profile page when the avatar is tapped.
+  final VoidCallback? onProfile;
+
+  /// Optional profile photo; falls back to gradient initials when null/empty.
+  final String? photoUrl;
+
   final int notificationCount;
 
   @override
@@ -46,11 +55,24 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
+  Widget _initialsLabel() => Center(
+        child: Text(
+          _initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+      );
+
   String get _greeting {
     final h = DateTime.now().hour;
+    if (h < 5) return 'Good night';
     if (h < 12) return 'Good morning';
     if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 21) return 'Good evening';
+    return 'Good night';
   }
 
   static const _weekdays = [
@@ -80,40 +102,55 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
 
     return Row(
       children: [
-        // Avatar with a soft pulsing halo (the "voice greeting" cue).
-        AnimatedBuilder(
-          animation: _pulse,
-          builder: (context, child) {
-            final t = Curves.easeOut.transform(_pulse.value);
-            final ring = math.sin(t * math.pi); // 0→1→0
-            return Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.35 * ring),
-                    blurRadius: 18,
-                    spreadRadius: 2 * ring,
+        // Avatar with a soft pulsing halo (the "voice greeting" cue). Tapping it
+        // opens the Profile page.
+        PressableScale(
+          pressedScale: 0.92,
+          child: GestureDetector(
+            onTap: widget.onProfile,
+            behavior: HitTestBehavior.opaque,
+            child: Tooltip(
+              message: 'Profile',
+              child: AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, child) {
+                  final t = Curves.easeOut.transform(_pulse.value);
+                  final ring = math.sin(t * math.pi); // 0→1→0
+                  return Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryGreen
+                              .withValues(alpha: 0.35 * ring),
+                          blurRadius: 18,
+                          spreadRadius: 2 * ring,
+                        ),
+                      ],
+                    ),
+                    child: child,
+                  );
+                },
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.brandGradient,
                   ),
-                ],
-              ),
-              child: child,
-            );
-          },
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.brandGradient,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.antiAlias,
+                  child: (widget.photoUrl != null &&
+                          widget.photoUrl!.isNotEmpty)
+                      ? Image.network(
+                          widget.photoUrl!,
+                          fit: BoxFit.cover,
+                          width: 52,
+                          height: 52,
+                          errorBuilder: (_, _, _) => _initialsLabel(),
+                        )
+                      : _initialsLabel(),
+                ),
               ),
             ),
           ),
@@ -196,19 +233,32 @@ class _HeaderIcon extends StatelessWidget {
               height: 42,
               child: Stack(
                 alignment: Alignment.center,
+                clipBehavior: Clip.none,
                 children: [
                   Icon(icon, size: 21, color: palette.textPrimary),
                   if (badge > 0)
                     Positioned(
-                      top: 9,
-                      right: 9,
+                      top: 5,
+                      right: 4,
                       child: Container(
-                        width: 8,
-                        height: 8,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
                         decoration: BoxDecoration(
                           color: AppColors.critical,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: palette.surface, width: 1.5),
+                          borderRadius: BorderRadius.circular(999),
+                          border:
+                              Border.all(color: palette.surface, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          badge > 9 ? '9+' : '$badge',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
                         ),
                       ),
                     ),

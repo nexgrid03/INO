@@ -14,10 +14,20 @@ import '../pressable_scale.dart';
 /// soft-tinted icon chips. Those are the ONLY counts on Home — every other
 /// module's numbers live on its own page.
 class DashboardCard extends StatelessWidget {
-  const DashboardCard({super.key, required this.hero, this.onCta});
+  const DashboardCard({
+    super.key,
+    required this.hero,
+    this.onCta,
+    this.onAssets,
+    this.onPending,
+    this.onProtected,
+  });
 
   final HomeHero hero;
   final VoidCallback? onCta;
+  final VoidCallback? onAssets;
+  final VoidCallback? onPending;
+  final VoidCallback? onProtected;
 
   static const _assets = AppColors.primaryGreen;
   static const _pending = AppColors.warning;
@@ -60,17 +70,20 @@ class DashboardCard extends StatelessWidget {
                       icon: Icons.account_balance_wallet_rounded,
                       color: _assets,
                       value: '${hero.assets}',
-                      label: 'Assets'),
+                      label: 'Assets',
+                      onTap: onAssets),
                   _Stat(
                       icon: Icons.assignment_rounded,
                       color: _pending,
                       value: '${hero.pendingTasks}',
-                      label: 'Pending'),
+                      label: 'Pending',
+                      onTap: onPending),
                   _Stat(
                       icon: Icons.verified_user_rounded,
                       color: _protected,
                       value: '${hero.protectedItems}',
-                      label: 'Protected'),
+                      label: 'Protected',
+                      onTap: onProtected),
                 ],
               ),
             ),
@@ -235,53 +248,66 @@ class _CtaButton extends StatelessWidget {
   }
 }
 
-/// One metric in the hero strip: soft-tinted icon chip + label/value.
+/// One metric in the hero strip: soft-tinted icon chip + label/value. Tappable
+/// when [onTap] is provided (deep-links to the matching page).
 class _Stat extends StatelessWidget {
   const _Stat({
     required this.icon,
     required this.color,
     required this.value,
     required this.label,
+    this.onTap,
   });
 
   final IconData icon;
   final Color color;
   final String value;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
+          child: Icon(icon, size: 19, color: color),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style:
+              AppText.title.copyWith(color: palette.textPrimary, fontSize: 16),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppText.label
+              .copyWith(color: palette.textSecondary, fontSize: 11),
+        ),
+      ],
+    );
     return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(AppRadius.chip),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: content,
+              ),
             ),
-            child: Icon(icon, size: 19, color: color),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppText.title
-                .copyWith(color: palette.textPrimary, fontSize: 16),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style:
-                AppText.label.copyWith(color: palette.textSecondary, fontSize: 11),
-          ),
-        ],
-      ),
     );
   }
 }
