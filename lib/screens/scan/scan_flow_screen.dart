@@ -1,25 +1,33 @@
 import 'package:flutter/material.dart';
 
+import '../../models/scan_models.dart';
 import '../documents/add_document_screen.dart';
+import 'ocr_processing_screen.dart';
+import 'ocr_result_screen.dart';
 import 'scan_review_screen.dart';
 import 'scanner_screen.dart';
 
 /// The outcome handed back to whoever launched the scan flow.
 class ScanFlowResult {
-  const ScanFlowResult({this.imagePath});
+  const ScanFlowResult({this.imagePath, this.ocr});
 
   /// Local path of the captured/imported image, so the caller can upload the
   /// actual file (null when the flow produced no image).
   final String? imagePath;
+
+  /// The confirmed OCR extraction, used to auto-fill Add Document (null when OCR
+  /// produced nothing usable and the user chose to enter details manually).
+  final OcrResult? ocr;
 }
 
-enum _Stage { scanner, review }
+enum _Stage { scanner, review, processing, result }
 
-/// Orchestrates the Scan flow: capture → review → continue.
+/// Orchestrates the Scan flow: capture → review image → OCR → confirm → continue.
 ///
-/// Auto-extraction (OCR) was removed — it only ever returned fake sample data,
-/// and the user now fills in every detail themselves on Add Document. This flow
-/// simply captures a clean image and hands its path off to Add Document.
+/// Real on-device OCR (ML Kit) runs on the captured image, detects the document
+/// type, extracts its fields, and hands a confirmed [OcrResult] to Add Document
+/// so the form auto-fills. If OCR can't read the document, the flow falls back
+/// to manual entry rather than failing.
 class ScanFlowScreen extends StatefulWidget {
   const ScanFlowScreen({super.key});
 
@@ -30,6 +38,7 @@ class ScanFlowScreen extends StatefulWidget {
 class _ScanFlowScreenState extends State<ScanFlowScreen> {
   _Stage _stage = _Stage.scanner;
   String? _capturePath;
+  OcrResult? _ocr;
 
   void _go(_Stage stage) => setState(() => _stage = stage);
 
@@ -42,8 +51,21 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
         _exit(null);
       case _Stage.review:
         _go(_Stage.scanner);
+      case _Stage.processing:
+      case _Stage.result:
+        _go(_Stage.review);
     }
   }
+
+  /// A minimal, low-confidence result so the user can still file the document
+  /// manually when OCR fails or the document is unsupported.
+  OcrResult get _manualFallback => const OcrResult(
+        documentName: '',
+        detectedType: 'Document',
+        suggestedWallet: 'Document Wallet',
+        category: 'Other',
+        confidence: DetectionConfidence.low,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -77,15 +99,41 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           imagePath: _capturePath,
           onClose: () => _go(_Stage.scanner),
           onRetake: () => _go(_Stage.scanner),
-          onContinue: () =>
-              _exit(ScanFlowResult(imagePath: _capturePath)),
+          onContinue: (editedPath) {
+            // Use the edited image (crop / rotate / enhance) for OCR and save.
+            if (editedPath != null) _capturePath = editedPath;
+            _go(_Stage.processing);
+          },
+        );
+      case _Stage.processing:
+        return OcrProcessingScreen(
+          imagePath: _capturePath,
+          onResult: (result) {
+            _ocr = result;
+            _go(_Stage.result);
+          },
+          // OCR couldn't read it → fall back to manual entry (never a dead end).
+          onFailed: () {
+            _ocr = _manualFallback;
+            _go(_Stage.result);
+          },
+        );
+      case _Stage.result:
+        return OcrResultScreen(
+          result: _ocr ?? _manualFallback,
+          onClose: () => _go(_Stage.review),
+          onRetake: () => _go(_Stage.scanner),
+          onContinue: (confirmed) => _exit(
+            ScanFlowResult(imagePath: _capturePath, ocr: confirmed),
+          ),
         );
     }
   }
 }
 
 /// Launches the Scan flow and, on completion, continues to Add Document with the
-/// captured image attached and a blank form for the user to fill in.
+/// captured image attached and the form **auto-filled** from the confirmed OCR
+/// extraction.
 Future<void> launchScanFlow(
   BuildContext context, {
   String? initialWallet,
@@ -100,6 +148,7 @@ Future<void> launchScanFlow(
       builder: (_) => AddDocumentScreen(
         initialWallet: initialWallet,
         initialFilePath: result.imagePath,
+        prefill: result.ocr,
       ),
     ),
   );

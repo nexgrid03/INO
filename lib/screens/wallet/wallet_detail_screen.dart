@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/wallet_detail_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart' show QuickAction;
 import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
@@ -10,6 +11,7 @@ import '../../services/vault_guard.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/wallet_detail/category_chips.dart';
 import '../../widgets/wallet_detail/document_card.dart';
@@ -57,6 +59,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   WalletSort _sort = WalletSort.recent;
   bool _bannerDismissed = false;
 
+  /// Categories the user created from this screen — surfaced as filter chips
+  /// straight away, even before a document uses them.
+  final Set<String> _customChips = {};
+
   // The brief's focused status filter set (Recent lives inside Sort).
   static const _filters = <WalletFilter>[
     WalletFilter.all,
@@ -97,6 +103,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       launchScanFlow(context, initialWallet: widget.category.name);
       return;
     }
+    if (action.label == 'Create Category') {
+      _createCategory();
+      return;
+    }
     // Upload actions go straight to Add Document, pre-selecting this wallet.
     const uploadActions = {'Upload PDF', 'Import Image'};
     if (uploadActions.contains(action.label)) {
@@ -108,7 +118,32 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       );
       return;
     }
-    _toast('${action.label} — coming soon');
+    // Every other action opens Add Document as a safe default.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddDocumentScreen(initialWallet: widget.category.name),
+      ),
+    );
+  }
+
+  /// Resets every filter, category and search term so the full vault is shown.
+  void _viewFullVault() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _filter = WalletFilter.all;
+      _category = null;
+      _query = '';
+      _searchController.clear();
+    });
+  }
+
+  /// Opens the Create Category sheet; on success the new category shows as a
+  /// filter chip immediately and is selectable when adding documents.
+  Future<void> _createCategory() async {
+    final created = await showCreateCategorySheet(context);
+    if (created == null || !mounted) return;
+    setState(() => _customChips.add(created.name));
+    _toast('Category “${created.name}” created');
   }
 
   // ---- Derived data --------------------------------------------------------
@@ -117,7 +152,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// document categories, or — when a wallet holds a single category — the
   /// distinct tags, so the row always resolves to real results.
   List<String> get _categoryChips {
-    final cats = <String>{for (final r in _records) r.category};
+    final cats = <String>{for (final r in _records) r.category, ..._customChips};
     if (cats.length > 1) return cats.toList()..sort();
     final tags = <String>{for (final r in _records) ...r.tags};
     return tags.toList()..sort();
@@ -531,7 +566,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               protected: data.security.vaultLocked,
               lastUpdatedLabel: data.lastUpdatedLabel,
               gradient: widget.category.gradient,
-              onViewVault: () => _toast('Vault overview — coming soon'),
+              onViewVault: _viewFullVault,
             ),
           ),
         ),
@@ -546,10 +581,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 message: _bannerMessage(attention),
                 icon: Icons.warning_amber_rounded,
                 accent: AppColors.warning,
-                actionLabel: 'Renew',
+                actionLabel: 'Open',
                 onAction: () {
                   setState(() => _bannerDismissed = true);
-                  _toast('Renew ${attention.name} — coming soon');
+                  _openDocument(attention);
                 },
                 onDismiss: () => setState(() => _bannerDismissed = true),
               ),
@@ -619,13 +654,15 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: WalletEmptyState(
-            title: emptyAll ? 'No Documents Yet' : 'No matching documents',
+            title: emptyAll
+                ? AppLocalizations.of(context).t('noDocumentsYet')
+                : 'No matching documents',
             subtitle: emptyAll
                 ? 'Start building your digital vault.'
                 : 'Try a different category, filter or search term.',
             onScan: () => _onFabAction(_detailFabActions.first),
             onUpload: () => _onFabAction(_detailFabActions[1]),
-            onCreate: () => _toast('Create category — coming soon'),
+            onCreate: _createCategory,
           ),
         ),
       );
@@ -668,10 +705,6 @@ const List<QuickAction> _detailFabActions = [
       label: 'Import Image',
       icon: Icons.image_rounded,
       color: Color(0xFF38BDF8)),
-  QuickAction(
-      label: 'Create Folder',
-      icon: Icons.create_new_folder_rounded,
-      color: AppColors.secondaryGreen),
   QuickAction(
       label: 'Create Category',
       icon: Icons.new_label_rounded,

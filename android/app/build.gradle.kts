@@ -6,7 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.inoapp"
-    compileSdk = flutter.compileSdkVersion
+    // Pinned to 36 explicitly: transitive plugins (flutter_plugin_android_lifecycle,
+    // file_picker) declare minCompileSdk=36 in their AAR metadata, so the app must
+    // compile against SDK 36 or `checkDebugAarMetadata` fails. Flutter 3.44's
+    // `flutter.compileSdkVersion` already defaults to 36; pinning it here guarantees
+    // the build stays correct regardless of Flutter version.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

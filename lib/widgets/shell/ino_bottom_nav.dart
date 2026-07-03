@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -155,7 +156,8 @@ class _NavButton extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                item.label,
+                // The label doubles as the localization key (home/wallet/…).
+                AppLocalizations.of(context).t(item.label.toLowerCase()),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

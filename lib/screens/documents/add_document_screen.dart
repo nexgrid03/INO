@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_detail_repository.dart';
 import '../../models/reminder_models.dart';
@@ -9,12 +10,15 @@ import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
+import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/document_scanner_service.dart';
 import '../../services/gallery_import_service.dart';
+import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
 
 /// The source a user picks to add a document.
@@ -29,6 +33,19 @@ extension _DocSourceX on _DocSource {
         return 'Upload PDF';
       case _DocSource.image:
         return 'Upload Image';
+    }
+  }
+
+  /// The localized card title.
+  String localizedTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    switch (this) {
+      case _DocSource.scan:
+        return l10n.t('scanDocument');
+      case _DocSource.pdf:
+        return l10n.t('uploadPdf');
+      case _DocSource.image:
+        return l10n.t('uploadImage');
     }
   }
 
@@ -87,15 +104,9 @@ const _wallets = <(String, IconData)>[
   ('Password Vault', Icons.lock_rounded),
 ];
 
-const _categories = <String>[
-  'Identity',
-  'Financial',
-  'Legal',
-  'Medical',
-  'Property',
-  'Personal',
-  'Other',
-];
+/// Sentinel returned by the category picker when the user taps "Create new
+/// category" instead of an existing one.
+const String _kCreateCategory = '__create_category__';
 
 /// Add Document — the fastest path to get a document into the vault.
 ///
@@ -136,6 +147,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
+  String? _recordNumber; // OCR-extracted document number (Aadhaar / PAN / …)
   bool _saving = false;
   bool _capturing = false; // true while the camera/gallery picker is open
   bool _protect = false; // require biometrics to open this document
@@ -144,14 +156,41 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   void initState() {
     super.initState();
     _localFilePath = widget.initialFilePath;
-    // If we arrived from the scan/OCR flow (or with a captured file), keep the
-    // file attached and land on the form — but leave EVERY detail field blank so
-    // the user fills in all details themselves. No auto-fill.
-    if (widget.prefill != null || _localFilePath != null) {
+    // Pre-select a wallet passed in by the launcher (e.g. from a wallet page).
+    if (widget.initialWallet != null &&
+        _wallets.any((w) => w.$1 == widget.initialWallet)) {
+      _wallet = widget.initialWallet;
+    }
+
+    final prefill = widget.prefill;
+    if (prefill != null) {
+      // Arrived from the Scan → OCR flow: AUTO-FILL the form from the confirmed
+      // extraction so the user just reviews and saves.
       _source = _DocSource.scan;
       _tempFileName = _localFilePath != null
           ? _localFilePath!.split(RegExp(r'[\\/]')).last
           : 'Scanned document';
+      if (prefill.documentName.isNotEmpty) {
+        _nameController.text = prefill.documentName;
+      }
+      if (_wallets.any((w) => w.$1 == prefill.suggestedWallet)) {
+        _wallet = prefill.suggestedWallet;
+      }
+      if (CategoryStore.instance.exists(prefill.category)) {
+        _category = prefill.category;
+      }
+      if (prefill.tags.isNotEmpty) {
+        _tagsController.text = prefill.tags.join(', ');
+      }
+      if (prefill.notes.isNotEmpty) {
+        _notesController.text = prefill.notes;
+      }
+      _expiry = prefill.expiryDate;
+      _recordNumber = prefill.documentNumber;
+    } else if (_localFilePath != null) {
+      // Captured without OCR data — attach the file, leave fields for the user.
+      _source = _DocSource.scan;
+      _tempFileName = _localFilePath!.split(RegExp(r'[\\/]')).last;
     }
   }
 
@@ -172,9 +211,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     HapticFeedback.selectionClick();
 
     if (source == _DocSource.pdf) {
-      // PDF picking needs the `file_picker` package, which isn't wired yet.
-      _toast('PDF upload is coming soon — use Scan or Upload Image for now.',
-          error: true);
+      await _pickPdf();
       return;
     }
 
@@ -215,6 +252,37 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// Picks a PDF from device storage, validates it, and attaches it for upload.
+  /// The name field is pre-filled from the PDF's file name (sans extension) so
+  /// the user lands closer to Save.
+  Future<void> _pickPdf() async {
+    if (_capturing) return;
+    setState(() => _capturing = true);
+    try {
+      final picked = await PdfImportService.instance.pickPdf();
+      if (picked == null || !mounted) return; // cancelled
+      setState(() {
+        _source = _DocSource.pdf;
+        _localFilePath = picked.path;
+        _tempFileName = picked.name;
+        if (_nameController.text.trim().isEmpty) {
+          _nameController.text = _stripExtension(picked.name);
+        }
+      });
+    } on PdfImportException catch (e) {
+      if (mounted) _toast(e.message, error: true);
+    } catch (e) {
+      if (mounted) _toast('Could not import the PDF: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
+  }
+
+  String _stripExtension(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    return dot > 0 ? fileName.substring(0, dot) : fileName;
   }
 
   /// Shows the right message when the user declines a permission (and opens
@@ -280,6 +348,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         wallet: _wallet!,
         name: name,
         category: _category ?? 'Other',
+        recordNumber: _recordNumber,
         tags: tags,
         notes: notes.isEmpty ? null : notes,
         expiresAt: _expiry,
@@ -302,9 +371,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           id: doc.id,
           name: doc.name,
           category: doc.category ?? 'Other',
-          icon: _source == _DocSource.image
-              ? Icons.image_rounded
-              : Icons.description_rounded,
+          icon: switch (_source) {
+            _DocSource.image => Icons.image_rounded,
+            _DocSource.pdf => Icons.picture_as_pdf_rounded,
+            _ => Icons.description_rounded,
+          },
           uploadedAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           status: DocumentStatus.active,
@@ -447,12 +518,67 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   }
 
   Future<void> _chooseCategory() async {
-    final picked = await _showPicker(
-      title: 'Select Category',
-      options: _categories.map((c) => (c, Icons.label_rounded)).toList(),
-      selected: _category,
+    final store = CategoryStore.instance;
+    final palette = AppPalette.of(context);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text('Select Category',
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+                children: [
+                  for (final c in store.all)
+                    _PickerTile(
+                      label: c.name,
+                      icon: c.icon,
+                      iconColor: c.color,
+                      selected: c.name == _category,
+                      onTap: () => Navigator.of(context).pop(c.name),
+                    ),
+                  Divider(color: palette.border, height: AppSpacing.md),
+                  _PickerTile(
+                    label: 'Create new category',
+                    icon: Icons.add_rounded,
+                    selected: false,
+                    onTap: () => Navigator.of(context).pop(_kCreateCategory),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-    if (picked != null) setState(() => _category = picked);
+    if (picked == null || !mounted) return;
+    if (picked == _kCreateCategory) {
+      final created = await showCreateCategorySheet(context);
+      if (created != null && mounted) setState(() => _category = created.name);
+      return;
+    }
+    setState(() => _category = picked);
   }
 
   Future<String?> _showPicker({
@@ -549,7 +675,7 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add Document',
+                Text(AppLocalizations.of(context).t('addDocument'),
                     style: AppText.headline.copyWith(
                         color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
@@ -654,7 +780,7 @@ class _OptionCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            source.title,
+            source.localizedTitle(context),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1046,16 +1172,19 @@ class _PickerTile extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.iconColor,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final tint = iconColor ?? AppColors.primaryGreen;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1070,10 +1199,10 @@ class _PickerTile extends StatelessWidget {
                 width: AppSizes.iconContainerSm,
                 height: AppSizes.iconContainerSm,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.10),
+                  color: tint.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: Icon(icon, color: AppColors.primaryGreen, size: 21),
+                child: Icon(icon, color: tint, size: 21),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -1197,7 +1326,7 @@ class _SaveBar extends StatelessWidget {
                   height: AppSizes.button,
                   width: 104,
                   child: Center(
-                    child: Text('Cancel',
+                    child: Text(AppLocalizations.of(context).t('cancel'),
                         style: AppText.subtitle
                             .copyWith(color: palette.textSecondary)),
                   ),
@@ -1243,7 +1372,7 @@ class _SaveBar extends StatelessWidget {
                                 const Icon(Icons.check_rounded,
                                     color: Colors.white, size: 20),
                                 const SizedBox(width: 8),
-                                Text('Save Document',
+                                Text(AppLocalizations.of(context).t('saveDocument'),
                                     style: AppText.subtitle.copyWith(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700)),

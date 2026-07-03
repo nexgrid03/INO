@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/image_enhancer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
+import 'document_crop_editor.dart';
 
 /// Screen 2 — review the capture.
 ///
@@ -24,7 +26,10 @@ class ScanReviewScreen extends StatefulWidget {
   /// Path to the captured/imported page, or null (renders a placeholder).
   final String? imagePath;
   final VoidCallback onRetake;
-  final VoidCallback onContinue;
+
+  /// Called with the *edited* image path (crop / rotate / enhance baked in) so
+  /// OCR and the saved document use exactly what the user sees.
+  final ValueChanged<String?> onContinue;
   final VoidCallback onClose;
 
   @override
@@ -32,27 +37,72 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  int _quarterTurns = 0;
-  bool _enhanced = false;
-  String? _enhancedPath;
-  bool _enhancing = false;
+  /// The committed edited image (crop / rotate baked in). Starts as the capture.
+  String? _workingPath;
 
-  /// Path currently shown: the enhanced variant when toggled on, else original.
-  String? get _shownPath =>
-      _enhanced ? (_enhancedPath ?? widget.imagePath) : widget.imagePath;
+  /// The enhanced variant of [_workingPath], shown while [_enhanced] is on.
+  String? _enhancedPath;
+  bool _enhanced = false;
+  bool _enhancing = false;
+  bool _processing = false; // crop/rotate baking in progress
+
+  @override
+  void initState() {
+    super.initState();
+    _workingPath = widget.imagePath;
+  }
+
+  /// The path currently shown and used for OCR: the enhanced variant when the
+  /// toggle is on, otherwise the committed working image.
+  String? get _effectivePath =>
+      _enhanced ? (_enhancedPath ?? _workingPath) : _workingPath;
+
+  /// Opens the 4-corner crop editor and commits the perspective-corrected result.
+  Future<void> _openCrop() async {
+    final base = _effectivePath;
+    if (base == null || !File(base).existsSync()) {
+      _toast('Add a capture before cropping.');
+      return;
+    }
+    final cropped = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => DocumentCropEditor(imagePath: base)),
+    );
+    if (cropped == null || !mounted) return;
+    setState(() {
+      _workingPath = cropped;
+      _enhanced = false; // enhance is now baked into history
+      _enhancedPath = null;
+    });
+    _toast('Crop applied');
+  }
+
+  /// Bakes a real 90° rotation into the working image.
+  Future<void> _rotate() async {
+    final base = _effectivePath;
+    if (base == null || !File(base).existsSync()) return;
+    setState(() => _processing = true);
+    final rotated = await ImageEnhancer.rotate90(base);
+    if (!mounted) return;
+    setState(() {
+      _workingPath = rotated;
+      _enhanced = false;
+      _enhancedPath = null;
+      _processing = false;
+    });
+  }
 
   Future<void> _toggleEnhance() async {
     if (_enhanced) {
       setState(() => _enhanced = false);
       return;
     }
-    final path = widget.imagePath;
-    if (path == null) {
-      setState(() => _enhanced = true); // placeholder mode
+    final base = _workingPath;
+    if (base == null) {
+      setState(() => _enhanced = true); // placeholder mode (no real file)
       return;
     }
     setState(() => _enhancing = true);
-    final result = await ImageEnhancer.enhance(path);
+    final result = await ImageEnhancer.enhance(base);
     if (!mounted) return;
     setState(() {
       _enhancedPath = result;
@@ -74,6 +124,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: SafeArea(
@@ -85,14 +136,10 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.screen),
                 child: Center(
-                  child: AnimatedRotation(
-                    turns: _quarterTurns / 4,
-                    duration: const Duration(milliseconds: 250),
-                    child: _CapturePreview(
-                      imagePath: _shownPath,
-                      enhanced: _enhanced,
-                      enhancing: _enhancing,
-                    ),
+                  child: _CapturePreview(
+                    imagePath: _effectivePath,
+                    enhanced: _enhanced,
+                    enhancing: _enhancing || _processing,
                   ),
                 ),
               ),
@@ -106,30 +153,29 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 children: [
                   _Tool(
                     icon: Icons.crop_rounded,
-                    label: 'Crop',
-                    onTap: () => _toast('Crop — drag the handles'),
+                    label: l10n.t('crop'),
+                    onTap: _openCrop,
                   ),
                   _Tool(
                     icon: Icons.rotate_90_degrees_cw_rounded,
-                    label: 'Rotate',
-                    onTap: () =>
-                        setState(() => _quarterTurns = (_quarterTurns + 1) % 4),
+                    label: l10n.t('rotate'),
+                    onTap: _rotate,
                   ),
                   _Tool(
                     icon: Icons.auto_fix_high_rounded,
-                    label: 'Enhance',
+                    label: l10n.t('enhance'),
                     active: _enhanced,
                     onTap: _toggleEnhance,
                   ),
                   _Tool(
                     icon: Icons.refresh_rounded,
-                    label: 'Retake',
+                    label: l10n.t('retake'),
                     onTap: widget.onRetake,
                   ),
                 ],
               ),
             ),
-            _ContinueBar(onContinue: widget.onContinue),
+            _ContinueBar(onContinue: () => widget.onContinue(_effectivePath)),
           ],
         ),
       ),
@@ -175,7 +221,7 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Review Capture',
+                Text(AppLocalizations.of(context).t('reviewCapture'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
@@ -232,7 +278,8 @@ class _CapturePreview extends StatelessWidget {
             if (imagePath != null)
               Image.file(
                 File(imagePath!),
-                fit: BoxFit.cover,
+                key: ValueKey(imagePath),
+                fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const _PlaceholderPage(),
               )
             else

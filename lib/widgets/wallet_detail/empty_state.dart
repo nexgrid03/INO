@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -24,6 +25,7 @@ class WalletEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
       child: Column(
@@ -73,8 +75,8 @@ class WalletEmptyState extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onScan,
                 icon: const Icon(Icons.document_scanner_rounded, size: 19),
-                label: const Text('Scan Document',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                label: Text(l10n.t('scanDocument'),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
@@ -87,7 +89,7 @@ class WalletEmptyState extends StatelessWidget {
               Expanded(
                 child: _SecondaryButton(
                   icon: Icons.upload_file_rounded,
-                  label: 'Upload',
+                  label: l10n.t('upload'),
                   onTap: onUpload,
                 ),
               ),
@@ -95,7 +97,7 @@ class WalletEmptyState extends StatelessWidget {
               Expanded(
                 child: _SecondaryButton(
                   icon: Icons.add_circle_outline_rounded,
-                  label: 'Create',
+                  label: l10n.t('create'),
                   onTap: onCreate,
                 ),
               ),

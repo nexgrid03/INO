@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -56,7 +57,16 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
           await ScanRepository.instance.extract(imagePath: widget.imagePath);
       if (!mounted) return;
       widget.onResult(result);
-    } on OcrException {
+    } on OcrException catch (e) {
+      // Expected "couldn't read it" outcome → offer manual entry.
+      developer.log('extraction failed (OcrException): $e', name: 'ocr');
+      if (!mounted) return;
+      widget.onFailed();
+    } catch (e, st) {
+      // Any *unexpected* throwable (platform/native/isolate error) must never
+      // hang or crash the flow — log it fully and fall back to manual entry.
+      developer.log('extraction failed (unexpected): $e',
+          name: 'ocr', error: e, stackTrace: st);
       if (!mounted) return;
       widget.onFailed();
     }

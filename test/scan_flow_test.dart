@@ -8,6 +8,10 @@ import 'package:inoapp/screens/scan/scan_flow_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
 
 void main() {
+  // Production uses the real ML Kit OCR repository, which needs a device. In the
+  // test host we swap in the deterministic sample repository.
+  setUp(() => ScanRepository.instance = SampleScanRepository());
+
   // In the test host there is no camera/permission plugin, so the scanner must
   // degrade gracefully to its "camera unavailable" recovery state — never throw.
   testWidgets('Scanner handles a missing camera gracefully', (tester) async {

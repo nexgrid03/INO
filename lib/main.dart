@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/splash/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
+import 'services/category_store.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/trusted_device_service.dart';
@@ -37,6 +40,10 @@ Future<void> main() async {
   // session guard that gates protected documents / sensitive actions.
   await DocumentProtectionStore.instance.load();
   VaultGuard.instance.init();
+
+  // Custom document categories (name / icon / colour), so they're available to
+  // pickers and filters on first paint.
+  await CategoryStore.instance.load();
 
   // Record this device in the local trusted-devices registry (non-blocking).
   unawaited(TrustedDeviceService.instance.registerCurrent());
@@ -71,22 +78,53 @@ class InoApp extends StatelessWidget {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, mode, _) {
-        return MaterialApp(
-          title: 'INO',
-          debugShowCheckedModeBanner: false,
-          navigatorKey: navigatorKey,
-          scaffoldMessengerKey: messengerKey,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: mode,
-          // Wrap every route in the biometric app-lock gate. It's inert unless
-          // the user has enabled the lock, in which case it covers the app on
-          // cold start and each return from the background.
-          builder: (context, child) =>
-              AppLock(child: child ?? const SizedBox.shrink()),
-          home: const SplashScreen(),
+        // The language notifier is persisted (AppSettings) and drives the app
+        // locale, so selecting a language rebuilds every Localizations dependant
+        // instantly — no restart required.
+        return ValueListenableBuilder<String>(
+          valueListenable: AppSettings.instance.language,
+          builder: (context, langCode, _) {
+            return MaterialApp(
+              title: 'INO',
+              debugShowCheckedModeBanner: false,
+              navigatorKey: navigatorKey,
+              scaffoldMessengerKey: messengerKey,
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: mode,
+              locale: _localeForCode(langCode),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: const [
+                AppLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              // Wrap every route in the biometric app-lock gate. It's inert
+              // unless the user has enabled the lock, in which case it covers the
+              // app on cold start and each return from the background.
+              builder: (context, child) =>
+                  AppLock(child: child ?? const SizedBox.shrink()),
+              home: const SplashScreen(),
+            );
+          },
         );
       },
     );
+  }
+}
+
+/// Maps a persisted language code (`en` / `hi` / `te` / `ta`) to its [Locale],
+/// defaulting to English for anything unknown.
+Locale _localeForCode(String code) {
+  switch (code) {
+    case 'hi':
+      return const Locale('hi');
+    case 'te':
+      return const Locale('te');
+    case 'ta':
+      return const Locale('ta');
+    default:
+      return const Locale('en');
   }
 }

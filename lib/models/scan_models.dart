@@ -120,12 +120,24 @@ class OcrResult {
     this.expiryDate,
     this.tags = const [],
     this.notes = '',
+    this.fullName,
+    this.dob,
+    this.gender,
+    this.fatherName,
   });
 
   final String documentName;
   final String? documentNumber;
   final DateTime? issueDate;
   final DateTime? expiryDate;
+
+  /// Structured identity fields extracted from ID documents (Aadhaar / PAN / …).
+  /// Null when not applicable or not detected. Shown as editable inputs on the
+  /// review screen and folded into the saved document's notes.
+  final String? fullName;
+  final String? dob; // kept as the raw detected string, e.g. "01-01-1998"
+  final String? gender;
+  final String? fatherName;
 
   /// Auto-detection: what kind of document this looks like ("PAN Card").
   final String detectedType;
@@ -150,6 +162,10 @@ class OcrResult {
     DetectionConfidence? confidence,
     List<String>? tags,
     String? notes,
+    String? fullName,
+    String? dob,
+    String? gender,
+    String? fatherName,
   }) {
     return OcrResult(
       documentName: documentName ?? this.documentName,
@@ -162,6 +178,10 @@ class OcrResult {
       confidence: confidence ?? this.confidence,
       tags: tags ?? this.tags,
       notes: notes ?? this.notes,
+      fullName: fullName ?? this.fullName,
+      dob: dob ?? this.dob,
+      gender: gender ?? this.gender,
+      fatherName: fatherName ?? this.fatherName,
     );
   }
 }

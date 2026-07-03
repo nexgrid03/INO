@@ -21,10 +21,12 @@
         android:label="inoapp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- Preload the ML Kit document-scanner module from Google Play services. -->
+        <!-- Preload the ML Kit modules from Google Play services: the document
+             scanner and the OCR (text-recognition) model, so both are ready on
+             first use instead of downloading on demand. -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="docscanner" />
+            android:value="docscanner,ocr" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

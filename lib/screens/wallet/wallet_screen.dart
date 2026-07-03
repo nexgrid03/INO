@@ -6,6 +6,8 @@ import '../../models/wallet_models.dart' show WalletCategory;
 import '../../theme/app_theme.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../../widgets/wallet/wallet_header.dart';
+import '../notifications/notifications_screen.dart';
+import 'document_search_delegate.dart';
 import 'wallet_detail_screen.dart';
 
 /// The INO Wallet Hub — a premium, fast-access vault launcher.
@@ -40,14 +42,9 @@ class _WalletScreenState extends State<WalletScreen> {
     await data;
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
-      ),
-    );
+  /// Opens a real global search across every document in the vault.
+  void _searchDocuments() {
+    showSearch<void>(context: context, delegate: DocumentSearchDelegate());
   }
 
   /// Opens the reusable Wallet Detail screen with a premium slide + fade.
@@ -105,9 +102,11 @@ class _WalletScreenState extends State<WalletScreen> {
                         walletCount: data?.categories.length ?? 0,
                         recordCount: data?.overview.totalRecords ?? 0,
                         notificationCount: data?.insights.length ?? 0,
-                        onSearch: () => _toast('Search wallets — coming soon'),
-                        onNotifications: () =>
-                            _toast('Notifications — coming soon'),
+                        onSearch: () => _searchDocuments(),
+                        onNotifications: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen()),
+                        ),
                       ),
                     ),
                   ),
