@@ -185,6 +185,79 @@ Enrollment No 2017/60443/25547
       expect(f['dob'], '01/01/1998'); // not the 10/12/2014 enrolment date
     });
 
+    test('extracts a labelled YYYY/MM/DD date, normalised to DD/MM/YYYY', () {
+      const t = '''
+Government of India
+Jujuri Tanishq Vijaya Sai
+DOB: 2006/12/17
+Male
+8255 4111 2736
+''';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['dob'], '17/12/2006');
+      expect(f['name'], 'Jujuri Tanishq Vijaya Sai');
+      expect(f['number'], '825541112736');
+    });
+
+    test('extracts a labelled YYYY-MM-DD date', () {
+      const t = 'Rahul Kumar\nDOB: 2006-12-17\nMale\n2345 6789 0123';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['dob'], '17/12/2006');
+      expect(f['name'], 'Rahul Kumar');
+    });
+
+    test('extracts an unlabelled YYYY/MM/DD date', () {
+      const t = 'Sita Devi\n2006/12/17\nFemale\n3456 7890 1234';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['dob'], '17/12/2006');
+      expect(f['name'], 'Sita Devi');
+    });
+
+    test('extracts a 12-digit Aadhaar number with no separators', () {
+      const t = 'Rahul Kumar\nDOB: 01/01/1998\nMale\n825541112736';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['number'], '825541112736');
+      expect(AadhaarParser.isValid(f['number']!), isTrue);
+    });
+
+    test('extracts a hyphen-separated Aadhaar number', () {
+      const t = 'Rahul Kumar\nDOB: 01/01/1998\nMale\n8255-4111-2736';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['number'], '825541112736');
+      expect(AadhaarParser.isValid(f['number']!), isTrue);
+    });
+
+    test('handles a scanned card with noisy spacing and uppercase', () {
+      const t = '''
+GOVERNMENT  OF  INDIA
+UNIQUE  IDENTIFICATION  AUTHORITY  OF  INDIA
+Ramesh   Kumar   Gupta
+DOB :  15 / 08 / 1990
+MALE
+9876  5432  1012
+''';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['name'], 'Ramesh Kumar Gupta');
+      expect(f['dob'], '15/08/1990');
+      expect(f['gender'], 'Male');
+      expect(f['number'], '987654321012');
+    });
+
+    test('parses fields regardless of line order (rotated/reflowed scan)', () {
+      const t = '''
+8255 4111 2736
+Male
+DOB: 17/12/2006
+Jujuri Tanishq Vijaya Sai
+Government of India
+''';
+      final f = AadhaarParser.parse(t, lines(t));
+      expect(f['number'], '825541112736');
+      expect(f['dob'], '17/12/2006');
+      expect(f['gender'], 'Male');
+      expect(f['name'], 'Jujuri Tanishq Vijaya Sai');
+    });
+
     test('resolves fuzzy gender spellings', () {
       String? g(String token) =>
           AadhaarParser.parse('Rahul Kumar\nDOB: 01/01/1998\n$token',

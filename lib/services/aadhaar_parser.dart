@@ -25,14 +25,18 @@ import 'ocr_text_utils.dart';
 class AadhaarParser {
   AadhaarParser._();
 
-  // Exactly 12 digits in 4-4-4 groups — look-arounds reject a slice of a
-  // 16-digit VID.
+  // Exactly 12 digits in 4-4-4 groups, separated by an optional space OR hyphen
+  // ("8255 4111 2736", "8255-4111-2736", "825541112736"). The look-arounds
+  // reject a 12-digit slice of a longer number (e.g. a 16-digit VID).
   static final RegExp _numberRe =
-      RegExp(r'(?<!\d)(\d{4})\s?(\d{4})\s?(\d{4})(?!\s?\d)');
+      RegExp(r'(?<!\d)(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})(?![\s-]?\d)');
   // A DOB label token allowing common OCR confusions: O↔0, B↔8.
   static final RegExp _dobToken = RegExp(r'd[o0][b8]', caseSensitive: false);
-  static final RegExp _strictDate =
-      RegExp(r'(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{4})');
+  // A date with `/`, `-` or `.` separators, capturing three numeric groups. The
+  // first and last groups accept 1–4 digits so it matches whether the year is
+  // first (`YYYY/MM/DD`) or last (`DD/MM/YYYY`); [_orderDate] resolves which.
+  static final RegExp _flexDate =
+      RegExp(r'(\d{1,4})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{1,4})');
   static final RegExp _yearRe = RegExp(r'\b(19|20)\d{2}\b');
   static final RegExp _letters = RegExp(r'[A-Za-z]+');
 
@@ -47,8 +51,12 @@ class AadhaarParser {
 
   /// Returns `{name, dob, gender, number}`; values are null when not found.
   static Map<String, String?> parse(String text, List<String> lines) {
+    // OCR cleanup layer: trim, collapse duplicate whitespace, drop blank lines.
+    // Character substitutions (Do8→DOB, ldia→India, Auttaaritv→Authority, …)
+    // are absorbed downstream by the fuzzy Levenshtein matching, which is safer
+    // than blind global replace (a global `l→I` swap would corrupt real names).
     final clean = [
-      for (final l in lines) l.trim(),
+      for (final l in lines) l.trim().replaceAll(RegExp(r'\s+'), ' '),
     ].where((l) => l.isNotEmpty).toList();
 
     final log = _Debug();
@@ -140,10 +148,10 @@ class AadhaarParser {
         log.rejectedDates.add('$line (near enrolment)');
         continue;
       }
-      final m = _strictDate.firstMatch(line);
+      final m = _flexDate.firstMatch(line);
       if (m != null) {
-        final d = _fmt(m[1]!, m[2]!, m[3]!);
-        if (_validDate(d)) {
+        final d = _orderDate(m[1]!, m[2]!, m[3]!);
+        if (d != null) {
           log.candidateDobs.add('$d (unlabelled)');
           return d;
         }
@@ -152,43 +160,66 @@ class AadhaarParser {
     return null;
   }
 
-  /// Extracts the date from a DOB-labelled line, tolerating merged/duplicated
-  /// separators ("17/1212006" → 17/12/2006).
+  /// Extracts the date from a DOB-labelled line, tolerating both date orders
+  /// (`17/12/2006` and `2006/12/17`) and merged/duplicated separators
+  /// ("17/1212006" → 17/12/2006). Always returns canonical DD/MM/YYYY.
   static String? _dateFromLabelledLine(String line) {
     // Only look after the DOB token, so stray digits before it are ignored.
     var region = line;
     final t = _dobToken.firstMatch(line);
     if (t != null) region = line.substring(t.end);
 
-    final strict = _strictDate.firstMatch(region);
-    if (strict != null) {
-      final d = _fmt(strict[1]!, strict[2]!, strict[3]!);
-      if (_validDate(d)) return d;
+    final flex = _flexDate.firstMatch(region);
+    if (flex != null) {
+      final d = _orderDate(flex[1]!, flex[2]!, flex[3]!);
+      if (d != null) return d;
     }
-    // Digit reconstruction: DD, MM, then the trailing 4-digit year.
-    final digits = region.replaceAll(RegExp(r'\D'), '');
-    if (digits.length >= 8) {
-      final d = _fmt(
-        digits.substring(0, 2),
-        digits.substring(2, 4),
-        digits.substring(digits.length - 4),
-      );
-      if (_validDate(d)) return d;
-    }
-    return null;
+    // Digit reconstruction for lost/merged separators.
+    return _reconstructDate(region.replaceAll(RegExp(r'\D'), ''));
   }
 
-  static String _fmt(String d, String m, String y) =>
-      '${d.padLeft(2, '0')}/${m.padLeft(2, '0')}/$y';
+  /// Interprets three raw numeric strings as a date, auto-detecting whether the
+  /// year is first (`YYYY/MM/DD`) or last (`DD/MM/YYYY`, `DD/MM/YY`). Returns a
+  /// validated **DD/MM/YYYY** string, or null when it isn't a real date.
+  static String? _orderDate(String s1, String s2, String s3) {
+    final a = int.parse(s1);
+    final b = int.parse(s2);
+    final c = int.parse(s3);
+    if (s1.length == 4 || a > 31) return _formatDmy(c, b, a); // YYYY MM DD
+    if (s3.length == 4 || c > 31) return _formatDmy(a, b, c); // DD MM YYYY
+    return _formatDmy(a, b, _expandYear(c)); // DD MM YY
+  }
 
-  static bool _validDate(String ddmmyyyy) {
-    final m = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(ddmmyyyy);
-    if (m == null) return false;
-    final day = int.parse(m[1]!);
-    final month = int.parse(m[2]!);
-    final year = int.parse(m[3]!);
-    if (day < 1 || day > 31 || month < 1 || month > 12) return false;
-    return year >= 1900 && year <= DateTime.now().year;
+  /// Reconstructs a date from a run of digits whose separators OCR dropped or
+  /// duplicated. Tries day-first (DD MM …YYYY) then year-first (YYYY MM DD).
+  static String? _reconstructDate(String digits) {
+    if (digits.length < 8) return null;
+    final dayFirst = _formatDmy(
+      int.parse(digits.substring(0, 2)),
+      int.parse(digits.substring(2, 4)),
+      int.parse(digits.substring(digits.length - 4)),
+    );
+    if (dayFirst != null) return dayFirst;
+    return _formatDmy(
+      int.parse(digits.substring(6, 8)),
+      int.parse(digits.substring(4, 6)),
+      int.parse(digits.substring(0, 4)),
+    );
+  }
+
+  /// Expands a two-digit year: 00–30 → 2000s, 31–99 → 1900s.
+  static int _expandYear(int y) {
+    if (y >= 100) return y;
+    return y <= 30 ? 2000 + y : 1900 + y;
+  }
+
+  /// Validates a (day, month, year) triple and formats it as DD/MM/YYYY, or
+  /// returns null when out of range — so an impossible date is never fabricated.
+  static String? _formatDmy(int day, int month, int year) {
+    if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+    if (year < 1900 || year > DateTime.now().year) return null;
+    return '${day.toString().padLeft(2, '0')}/'
+        '${month.toString().padLeft(2, '0')}/$year';
   }
 
   static bool _isEnrolmentLine(String line) {
@@ -268,10 +299,10 @@ class AadhaarParser {
     return words.length >= 2 ? _NameVerdict.strong : _NameVerdict.weak;
   }
 
-  /// Letters, spaces, dots and apostrophes only; length 3–50; no digits.
+  /// Letters, spaces, dots and apostrophes only; length 3–60; no digits.
   static bool _validNameChars(String s) {
     final t = s.trim();
-    if (t.length < 3 || t.length > 50) return false;
+    if (t.length < 3 || t.length > 60) return false;
     if (RegExp(r'[0-9]').hasMatch(t)) return false;
     return RegExp(r"^[A-Za-z][A-Za-z .']*[A-Za-z.]$").hasMatch(t);
   }

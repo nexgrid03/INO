@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/scan_models.dart';
 import '../../services/category_store.dart';
+import '../../utils/date_normalizer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -162,7 +163,8 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
 
     if (_showIdentity) {
       add('Name', _fullName.text);
-      add('DOB', _dob.text);
+      // Normalize to DD/MM/YYYY before it persists to the document.
+      add('DOB', DateNormalizer.normalizeDob(_dob.text) ?? _dob.text);
       add('Gender', _gender.text);
       add("Father's Name", _fatherName.text);
     }
@@ -188,7 +190,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
           : _tags.text.trim().split(',').map((t) => t.trim()).toList(),
       notes: _composeNotes(),
       fullName: _fullName.text.trim(),
-      dob: _dob.text.trim(),
+      dob: DateNormalizer.normalizeDob(_dob.text) ?? _dob.text.trim(),
       gender: _gender.text.trim(),
       fatherName: _fatherName.text.trim(),
     );

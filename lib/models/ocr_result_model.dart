@@ -1,3 +1,4 @@
+import '../utils/date_normalizer.dart';
 import 'scan_models.dart';
 
 /// The identity document types INO's OCR can recognise. Each carries the wallet
@@ -43,7 +44,9 @@ class OcrExtraction {
   final String rawText;
 
   String? get name => _clean(fields['name']);
-  String? get dob => _clean(fields['dob']);
+
+  /// Normalized to DD/MM/YYYY regardless of the format OCR produced.
+  String? get dob => DateNormalizer.normalizeDob(_clean(fields['dob']));
   String? get gender => _clean(fields['gender']);
   String? get number => _clean(fields['number']);
   String? get fatherName => _clean(fields['fatherName']);
