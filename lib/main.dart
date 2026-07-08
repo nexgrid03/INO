@@ -7,11 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
+import 'screens/share/shared_documents_screen.dart';
 import 'screens/splash/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
 import 'services/category_store.dart';
+import 'services/deep_link_service.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/trusted_device_service.dart';
@@ -54,10 +56,15 @@ Future<void> main() async {
   // Warm the notification feed so the bell badge is accurate on first paint.
   unawaited(NotificationCenter.instance.load());
 
+  // Capture a share deep link the app may have been cold-launched from, BEFORE
+  // the first frame — so the app root can show the shared documents directly
+  // (see [InoApp._home]) instead of the splash flow overwriting it.
+  await DeepLinkService.instance.captureInitialLink();
+
   runApp(const InoApp());
 }
 
-class InoApp extends StatelessWidget {
+class InoApp extends StatefulWidget {
   const InoApp({super.key});
 
   /// App-root navigator, so post-auth navigation can run even if the screen
@@ -65,6 +72,7 @@ class InoApp extends StatelessWidget {
   /// recreating the Activity while the Google picker was open). Without this,
   /// navigation was tied to the login widget's `context`/`mounted` and was
   /// silently dropped — the "nothing happens after picking an account" bug.
+  /// Also used by [DeepLinkService] to present the shared-documents viewer.
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
@@ -72,6 +80,37 @@ class InoApp extends StatelessWidget {
   /// screen is no longer mounted (auth never fails silently).
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
       GlobalKey<ScaffoldMessengerState>();
+
+  @override
+  State<InoApp> createState() => _InoAppState();
+}
+
+class _InoAppState extends State<InoApp> {
+  /// When the app was cold-launched from a share link, show the viewer directly
+  /// as the root (resolved once, before the first frame in `main()`).
+  final String? _initialShareId = DeepLinkService.instance.initialShareId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Warm links (background → foreground / already running) are pushed onto
+    // the live navigator once it's attached.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkService.instance.startListening(InoApp.navigatorKey);
+    });
+  }
+
+  @override
+  void dispose() {
+    DeepLinkService.instance.dispose();
+    super.dispose();
+  }
+
+  /// The root screen: the shared-documents viewer for a deep-link cold start,
+  /// otherwise the normal splash flow.
+  Widget get _home => _initialShareId != null
+      ? SharedDocumentsScreen(token: _initialShareId)
+      : const SplashScreen();
 
   @override
   Widget build(BuildContext context) {
@@ -87,8 +126,8 @@ class InoApp extends StatelessWidget {
             return MaterialApp(
               title: 'INO',
               debugShowCheckedModeBanner: false,
-              navigatorKey: navigatorKey,
-              scaffoldMessengerKey: messengerKey,
+              navigatorKey: InoApp.navigatorKey,
+              scaffoldMessengerKey: InoApp.messengerKey,
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,
               themeMode: mode,
@@ -105,7 +144,7 @@ class InoApp extends StatelessWidget {
               // app on cold start and each return from the background.
               builder: (context, child) =>
                   AppLock(child: child ?? const SizedBox.shrink()),
-              home: const SplashScreen(),
+              home: _home,
             );
           },
         );

@@ -48,6 +48,43 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- ============ Secure Document Sharing — deep links ============ -->
+            <!-- Android App Links: a scanned share URL opens INO directly.
+                 android:autoVerify triggers domain verification against
+                 https://<host>/.well-known/assetlinks.json (see DEEP_LINKING.md).
+                 When INO is NOT installed, the same https link opens in the
+                 browser as normal — nothing else is needed for that fallback. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="ilfzppryyojoponkomrw.functions.supabase.co"
+                    android:pathPrefix="/share/" />
+            </intent-filter>
+
+            <!-- Optional custom domain (uncomment + set your host once you route
+                 it to the Edge Function and host assetlinks.json there):
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="ino.app"
+                      android:pathPrefix="/share/" />
+            </intent-filter>
+            -->
+
+            <!-- Custom-scheme fallback — ALWAYS opens the app (no domain
+                 verification needed). Used for testing and any non-web trigger:
+                 ino://share/<share_id> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ino" android:host="share" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

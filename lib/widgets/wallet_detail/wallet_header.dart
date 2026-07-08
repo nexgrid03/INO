@@ -17,12 +17,16 @@ class WalletHeader extends StatelessWidget {
     required this.onBack,
     required this.onSearch,
     required this.onFilter,
+    this.onManageShares,
   });
 
   final String title;
   final VoidCallback onBack;
   final VoidCallback onSearch;
   final VoidCallback onFilter;
+
+  /// Optional — opens the "Shared Links" manager. Shown as a QR action when set.
+  final VoidCallback? onManageShares;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +58,14 @@ class WalletHeader extends StatelessWidget {
           onTap: onSearch,
         ),
         const SizedBox(width: 8),
+        if (onManageShares != null) ...[
+          _HeaderIcon(
+            icon: Icons.qr_code_2_rounded,
+            tooltip: 'Shared links',
+            onTap: onManageShares!,
+          ),
+          const SizedBox(width: 8),
+        ],
         _HeaderIcon(
           icon: Icons.tune_rounded,
           tooltip: 'Sort & filter',

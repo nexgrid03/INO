@@ -67,6 +67,15 @@ dependencies:
   # PDF upload: pick a PDF from device storage via the system file picker (SAF
   # on Android), validated before it enters the vault.
   file_picker: ^8.1.6
+  # Secure document sharing: render the share link into a scannable QR code and
+  # export it as a PNG (via QrPainter.toImageData).
+  qr_flutter: ^4.1.0
+  # Fetches the public share metadata + document bytes from the `share` Edge
+  # Function (anonymous, no Supabase session) for the recipient viewer.
+  http: ^1.2.2
+  # Android App Links / deep linking: opens scanned share URLs directly in the
+  # app and routes them to SharedDocumentsScreen (cold start + warm resume).
+  app_links: ^6.3.0
 
 dev_dependencies:
   flutter_test:

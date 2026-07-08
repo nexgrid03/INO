@@ -8,7 +8,9 @@ import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/document_protection_store.dart';
 import '../../services/vault_guard.dart';
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/pressable_scale.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/documents/create_category_sheet.dart';
@@ -24,6 +26,8 @@ import '../../widgets/wallet_detail/wallet_header.dart';
 import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
 import '../scan/scan_flow_screen.dart';
+import '../share/manage_shares_screen.dart';
+import '../share/share_config_screen.dart';
 import '../shell/shell_controller.dart';
 import 'document_viewer_screen.dart';
 
@@ -58,6 +62,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   WalletFilter _filter = WalletFilter.all;
   WalletSort _sort = WalletSort.recent;
   bool _bannerDismissed = false;
+
+  // Multi-select state for "Share via QR".
+  bool _selecting = false;
+  final Set<String> _selectedIds = {};
 
   /// Categories the user created from this screen — surfaced as filter chips
   /// straight away, even before a document uses them.
@@ -271,6 +279,68 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     _toast('${r.name} deleted');
   }
 
+  // ---- Multi-select & Share via QR ----------------------------------------
+
+  void _enterSelection(DocumentRecord r) {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selecting = true;
+      _selectedIds.add(r.id);
+    });
+  }
+
+  void _toggleSelect(DocumentRecord r) {
+    setState(() {
+      // remove() returns true when it was present (and removed it).
+      if (!_selectedIds.remove(r.id)) _selectedIds.add(r.id);
+      if (_selectedIds.isEmpty) _selecting = false;
+    });
+  }
+
+  void _exitSelection() {
+    setState(() {
+      _selecting = false;
+      _selectedIds.clear();
+    });
+  }
+
+  /// Card tap: toggles selection while selecting, otherwise opens the document.
+  void _onCardTap(DocumentRecord r) =>
+      _selecting ? _toggleSelect(r) : _openDocument(r);
+
+  /// Card long-press: enters selection (or toggles when already selecting).
+  void _onCardLongPress(DocumentRecord r) =>
+      _selecting ? _toggleSelect(r) : _enterSelection(r);
+
+  void _shareSelected() =>
+      _startShare(_records.where((r) => _selectedIds.contains(r.id)).toList());
+
+  void _shareSingle(DocumentRecord r) => _startShare([r]);
+
+  /// Opens the Share Configuration flow for [docs]. Only documents with an
+  /// uploaded file can be shared; any without one are skipped (never fabricated).
+  void _startShare(List<DocumentRecord> docs) {
+    final shareable = docs.where((r) => r.filePath != null).toList();
+    final skipped = docs.length - shareable.length;
+    if (shareable.isEmpty) {
+      _toast('These documents have no uploaded file to share yet');
+      return;
+    }
+    if (skipped > 0) {
+      _toast('$skipped document${skipped == 1 ? '' : 's'} without a file skipped');
+    }
+    _exitSelection();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ShareConfigScreen(documents: shareable)),
+    );
+  }
+
+  void _openManageShares() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ManageSharesScreen()),
+    );
+  }
+
   // ---- Biometric protection ------------------------------------------------
 
   /// Opens a document in the full viewer — gating protected ones behind the
@@ -373,6 +443,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               ),
             ),
             _action(Icons.open_in_full_rounded, 'Open', () => _openDocument(r)),
+            _action(Icons.qr_code_2_rounded, 'Share via QR',
+                () => _shareSingle(r)),
             _action(
               DocumentProtectionStore.instance.isProtected(r.id)
                   ? Icons.lock_open_rounded
@@ -466,56 +538,77 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      extendBody: true,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            FutureBuilder<WalletDetailData>(
-              future: _future,
-              builder: (context, snapshot) {
-                final data = snapshot.data;
-                return CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  slivers: [
-                    // 1. Compact header.
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                        child: WalletHeader(
-                          title: widget.category.name,
-                          onBack: () => Navigator.of(context).maybePop(),
-                          onSearch: () => _searchFocus.requestFocus(),
-                          onFilter: _openSort,
+    return PopScope(
+      // While selecting, the system back gesture first exits selection mode.
+      canPop: !_selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selecting) _exitSelection();
+      },
+      child: Scaffold(
+        backgroundColor: palette.bg,
+        extendBody: true,
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              FutureBuilder<WalletDetailData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  final data = snapshot.data;
+                  return CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      // 1. Compact header.
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: WalletHeader(
+                            title: widget.category.name,
+                            onBack: () => Navigator.of(context).maybePop(),
+                            onSearch: () => _searchFocus.requestFocus(),
+                            onFilter: _openSort,
+                            onManageShares: _openManageShares,
+                          ),
                         ),
                       ),
-                    ),
-                    if (data == null)
-                      _loadingSliver()
-                    else
-                      ..._loadedSlivers(data),
-                  ],
-                );
-              },
-            ),
-            // Premium gradient FAB above the floating nav.
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                child: ExpandableFab(
-                  actions: _detailFabActions,
-                  onAction: _onFabAction,
-                ),
+                      if (data == null)
+                        _loadingSliver()
+                      else
+                        ..._loadedSlivers(data),
+                    ],
+                  );
+                },
               ),
-            ),
-          ],
+              // The selection action bar takes over from the FAB while the user
+              // is multi-selecting documents to share.
+              if (_selecting)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _SelectionBar(
+                    count: _selectedIds.length,
+                    onCancel: _exitSelection,
+                    onShare: _shareSelected,
+                  ),
+                )
+              else
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                    child: ExpandableFab(
+                      actions: _detailFabActions,
+                      onAction: _onFabAction,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
+        bottomNavigationBar: InoBottomNav(index: 1, onSelect: _onNavTab),
       ),
-      bottomNavigationBar: InoBottomNav(index: 1, onSelect: _onNavTab),
     );
   }
 
@@ -679,12 +772,116 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               record: record,
               accent: widget.category.gradient,
               protected: DocumentProtectionStore.instance.isProtected(record.id),
-              onOpen: () => _openDocument(record),
+              selectionMode: _selecting,
+              selected: _selectedIds.contains(record.id),
+              onOpen: () => _onCardTap(record),
+              onLongPress: () => _onCardLongPress(record),
               onFavorite: () => _toggleFavorite(record),
               onMore: () => _openActions(record),
             );
           },
           childCount: visible.length * 2 - 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// The floating action bar shown while multi-selecting documents to share.
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.count,
+    required this.onCancel,
+    required this.onShare,
+  });
+
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final enabled = count > 0;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(color: palette.border),
+            boxShadow: palette.cardShadow,
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onCancel,
+                icon: Icon(Icons.close_rounded, color: palette.textPrimary),
+                tooltip: 'Cancel',
+              ),
+              Expanded(
+                child: Text(
+                  '$count selected',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
+                ),
+              ),
+              PressableScale(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    boxShadow: enabled
+                        ? [
+                            BoxShadow(
+                              color:
+                                  AppColors.primaryGreen.withValues(alpha: 0.32),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  foregroundDecoration: enabled
+                      ? null
+                      : BoxDecoration(
+                          color: palette.bg.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                        ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: enabled ? onShare : null,
+                      borderRadius: BorderRadius.circular(AppRadius.button),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.qr_code_2_rounded,
+                                color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text('Share via QR',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
