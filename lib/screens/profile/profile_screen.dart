@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../utils/share_origin.dart';
+
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
 import '../../repositories/user_repository.dart';
@@ -385,7 +387,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
       if (!mounted) return;
       Navigator.of(context).pop(); // dismiss progress
-      await Share.shareXFiles([XFile(archive.file.path)], subject: subject);
+      await Share.shareXFiles([XFile(archive.file.path)],
+          subject: subject, sharePositionOrigin: shareOrigin(context));
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();

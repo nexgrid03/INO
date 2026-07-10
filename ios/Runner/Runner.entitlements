@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ==================================================================
+	     Universal Links (Associated Domains).
+	     STRUCTURE ONLY — not yet wired into the build. To activate:
+	       1. In Xcode: Runner target → Signing & Capabilities →
+	          + Capability → "Associated Domains" (this sets
+	          CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements and adds
+	          the capability to your provisioning profile).
+	       2. Replace <your-share-domain> below with the domain that serves
+	          your share links (e.g. share.inoapp.in). It CANNOT be
+	          *.functions.supabase.co — that host can't serve the required
+	          apple-app-site-association file (same limitation as Android's
+	          assetlinks.json). Use a custom domain.
+	       3. Host  https://<your-share-domain>/.well-known/apple-app-site-association
+	          with your Team ID + bundle id (see IOS_READINESS.md).
+	     Until wired, share links still open via the `ino://` custom scheme
+	     (CFBundleURLTypes in Info.plist) and the browser fallback.
+	     ================================================================== -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:your-share-domain</string>
+	</array>
+</dict>
+</plist>

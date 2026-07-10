@@ -6,6 +6,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../utils/share_origin.dart';
+
 import '../../models/public_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
@@ -93,6 +95,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   Future<void> _open(SharedDoc doc, {required bool download}) async {
     if (_busyDocId != null) return;
     setState(() => _busyDocId = doc.id);
+    final origin = shareOrigin(context);
     try {
       final file = await ShareRepository.instance
           .fetchSharedFile(widget.token, doc, download: download);
@@ -105,6 +108,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
           [XFile(path, mimeType: file.mimeType, name: file.filename)],
           subject: doc.name,
           text: 'Shared with you via INO',
+          sharePositionOrigin: origin,
         );
       } else {
         final result = await OpenFilex.open(path, type: file.mimeType);
