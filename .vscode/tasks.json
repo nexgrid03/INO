@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Runs automatically before every launch (see launch.json preLaunchTask).
+      // Kills any leftover dart/java/adb process and deletes build\ so Gradle's
+      // cleanMergeDebugAssets can never hit a locked file — the root cause of the
+      // recurring "Unable to delete directory ... mergeDebugAssets" error.
+      "label": "clean-build-lock",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Get-Process dart,java,adb -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 400; Remove-Item -LiteralPath '${workspaceFolder}\\build' -Recurse -Force -ErrorAction SilentlyContinue; exit 0"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
