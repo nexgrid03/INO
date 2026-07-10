@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import 'biometric_service.dart';
+import 'session_reset.dart';
 
 /// Single place that talks to Supabase auth.
 ///
@@ -209,5 +210,10 @@ class AuthService {
       // Ignore if Google wasn't used / not initialised.
     }
     await _client.auth.signOut();
+    // Wipe every user-scoped in-memory / local cache so the NEXT account can't
+    // see this account's reminders, notifications, categories, etc. Done after
+    // the Supabase sign-out so nothing re-hydrates from the old session. See
+    // [SessionReset]. Best-effort: never let a cache failure block sign-out.
+    await SessionReset.instance.clear();
   }
 }

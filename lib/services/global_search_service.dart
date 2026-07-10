@@ -177,4 +177,12 @@ class GlobalSearchService {
       await p.remove(_kRecent);
     } catch (_) {}
   }
+
+  /// Drops the in-memory document cache AND the persisted recent-search history
+  /// so the next account can't search the previous user's documents or see their
+  /// search terms. Called from [SessionReset] on sign-out.
+  Future<void> clear() async {
+    _docCache = null;
+    await clearRecent();
+  }
 }

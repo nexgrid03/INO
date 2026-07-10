@@ -212,4 +212,20 @@ class CategoryStore extends ChangeNotifier {
       // Best-effort; the in-memory list stays correct for this session.
     }
   }
+
+  /// Drops the user's custom categories (in-memory + persisted) so the next
+  /// account starts from just the built-ins. Custom categories are user-created
+  /// content stored under a GLOBAL key, so they MUST be cleared on sign-out.
+  /// Called from [SessionReset]. Built-ins are unaffected (they're const).
+  Future<void> clear() async {
+    _custom.clear();
+    _loaded = false;
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_key);
+    } catch (_) {
+      // Best-effort.
+    }
+  }
 }
