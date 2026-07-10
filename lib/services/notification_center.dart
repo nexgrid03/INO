@@ -205,4 +205,24 @@ class NotificationCenter extends ChangeNotifier {
       // Best-effort.
     }
   }
+
+  /// Wipes the notification feed and its persisted read/dismissed state so a new
+  /// account never inherits the previous user's notifications. The read/dismissed
+  /// ids are stored under GLOBAL keys (not per-user), so they MUST be cleared on
+  /// sign-out — otherwise the next user's notifications would show up pre-read.
+  /// Called from [SessionReset].
+  Future<void> clear() async {
+    _all = [];
+    _read.clear();
+    _dismissed.clear();
+    _loaded = false;
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kRead);
+      await p.remove(_kDismissed);
+    } catch (_) {
+      // Best-effort.
+    }
+  }
 }

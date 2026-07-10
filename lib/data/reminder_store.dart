@@ -179,15 +179,25 @@ class ReminderStore extends ChangeNotifier {
     }));
   }
 
-  /// Test hook: clears all state so each test hydrates fresh.
-  @visibleForTesting
-  void reset() {
+  /// Drops all in-memory reminders and the load flags, so the next
+  /// [ensureLoaded] re-hydrates from scratch for whoever is signed in now.
+  ///
+  /// MUST be called on sign-out (see [SessionReset]). Without it this
+  /// process-wide singleton keeps the previous user's reminders and the
+  /// `_loaded` guard makes the next user's [ensureLoaded] a no-op — i.e. the
+  /// next account would see the previous account's reminders.
+  void clear() {
     _active.clear();
     _completed.clear();
     _loaded = false;
     _loading = false;
     _today = dateOnly(DateTime.now());
+    notifyListeners();
   }
+
+  /// Test hook: clears all state so each test hydrates fresh.
+  @visibleForTesting
+  void reset() => clear();
 }
 
 /// Which slice of active reminders a full-list screen shows. Summary cards and

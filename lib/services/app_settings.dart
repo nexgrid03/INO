@@ -102,4 +102,24 @@ class AppSettings {
       developer.log('persist $key failed: $e', name: 'settings');
     }
   }
+
+  /// Resets the ACCOUNT-scoped preferences to their defaults on sign-out so the
+  /// next user doesn't inherit this account's notification / auto-backup / 2FA
+  /// state or last-backup time. [language] is a DEVICE preference and is
+  /// deliberately kept. Called from [SessionReset].
+  Future<void> resetAccountScoped() async {
+    notifications.value = true;
+    autoBackup.value = false;
+    twoFactor.value = false;
+    lastBackupAt.value = null;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kNotifications);
+      await p.remove(_kAutoBackup);
+      await p.remove(_kTwoFactor);
+      await p.remove(_kLastBackup);
+    } catch (e) {
+      developer.log('resetAccountScoped failed: $e', name: 'settings');
+    }
+  }
 }

@@ -23,6 +23,9 @@ class DocumentRepository {
   static const String _table = 'documents';
   static const String _bucket = 'documents';
 
+  /// The signed-in user's id, or null when signed out.
+  String? get _uid => _client.auth.currentUser?.id;
+
   /// Bumped every time the document set changes (create / delete / upload) so
   /// listeners — e.g. the Profile storage meter — can refresh automatically
   /// without polling.
@@ -96,9 +99,16 @@ class DocumentRepository {
     DateTime? expiresAt,
     String? filePath,
   }) async {
+    final userId = _uid;
+    if (userId == null) {
+      throw const AuthException('You must be signed in to add a document.');
+    }
     final row = await _client
         .from(_table)
         .insert({
+          // Stamp the owner explicitly (the column also defaults to auth.uid()
+          // and RLS enforces it) so no document is ever created without an owner.
+          'auth_user_id': userId,
           'wallet': wallet,
           'name': name,
           'category': category,
@@ -119,9 +129,12 @@ class DocumentRepository {
 
   /// All documents in one wallet, newest first.
   Future<List<Document>> listForWallet(String wallet) async {
+    final userId = _uid;
+    if (userId == null) return const [];
     final rows = await _client
         .from(_table)
         .select()
+        .eq('auth_user_id', userId) // defense-in-depth with RLS
         .eq('wallet', wallet)
         .order('created_at', ascending: false);
     return [for (final r in rows) Document.fromMap(r)];
@@ -129,20 +142,34 @@ class DocumentRepository {
 
   /// Every document belonging to the signed-in user, newest first.
   Future<List<Document>> listAll() async {
-    final rows =
-        await _client.from(_table).select().order('created_at', ascending: false);
+    final userId = _uid;
+    if (userId == null) return const [];
+    final rows = await _client
+        .from(_table)
+        .select()
+        .eq('auth_user_id', userId) // defense-in-depth with RLS
+        .order('created_at', ascending: false);
     return [for (final r in rows) Document.fromMap(r)];
   }
 
   /// Updates a few columns on an existing row (e.g. favourite / status).
-  /// RLS guarantees the user can only touch their own rows.
+  /// RLS guarantees the user can only touch their own rows; the explicit
+  /// auth_user_id filter is defense-in-depth so ownership is verified here too.
   Future<void> update(String id, Map<String, dynamic> fields) async {
-    await _client.from(_table).update(fields).eq('id', id);
+    final userId = _uid;
+    if (userId == null) {
+      throw const AuthException('You must be signed in to edit a document.');
+    }
+    await _client.from(_table).update(fields).eq('id', id).eq('auth_user_id', userId);
   }
 
-  /// Deletes a document row by id.
+  /// Deletes a document row by id (only if it belongs to the signed-in user).
   Future<void> delete(String id) async {
-    await _client.from(_table).delete().eq('id', id);
+    final userId = _uid;
+    if (userId == null) {
+      throw const AuthException('You must be signed in to delete a document.');
+    }
+    await _client.from(_table).delete().eq('id', id).eq('auth_user_id', userId);
     _bump();
   }
 
