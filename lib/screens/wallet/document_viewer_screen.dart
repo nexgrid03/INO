@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../../utils/share_origin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException, AuthException;
 
 import '../../data/wallet_detail_repository.dart';
@@ -430,6 +432,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Future<void> _share() async {
     if (_busy) return;
     setState(() => _busy = true);
+    final origin = shareOrigin(context);
     try {
       final file = await _localFile();
       final path = _record.filePath;
@@ -439,7 +442,11 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       }
       final named =
           await DocumentFileService.instance.namedCopy(file, _record.name, path);
-      await Share.shareXFiles([XFile(named.path)], subject: _record.name);
+      await Share.shareXFiles(
+        [XFile(named.path)],
+        subject: _record.name,
+        sharePositionOrigin: origin,
+      );
     } catch (_) {
       _snack('Could not share this document.', error: true);
     } finally {

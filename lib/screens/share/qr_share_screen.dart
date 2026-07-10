@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../utils/share_origin.dart';
+
 import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
@@ -97,12 +99,14 @@ class _QrShareScreenState extends State<QrShareScreen> {
     await Share.share(
       _share.url,
       subject: 'Documents shared with you via INO',
+      sharePositionOrigin: shareOrigin(context),
     );
   }
 
   Future<void> _downloadQr() async {
     if (!mounted || _busy) return;
     setState(() => _busy = true);
+    final origin = shareOrigin(context);
     try {
       final bytes = await _renderQrPng(_share.url);
       if (bytes == null) {
@@ -117,6 +121,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
         [XFile(file.path, mimeType: 'image/png')],
         subject: 'INO share QR code',
         text: 'Scan this QR to view the shared documents.',
+        sharePositionOrigin: origin,
       );
     } catch (_) {
       _toast('Could not export the QR image.', error: true);

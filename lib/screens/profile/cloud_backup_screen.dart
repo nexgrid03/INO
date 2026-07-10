@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../utils/share_origin.dart';
+
 import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
 import '../../services/backup_service.dart';
@@ -85,7 +87,8 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
       final file = await BackupService.instance.download(backup);
       if (!mounted) return;
       await Share.shareXFiles([XFile(file.path)],
-          subject: 'INO backup ${backup.name}');
+          subject: 'INO backup ${backup.name}',
+          sharePositionOrigin: shareOrigin(context));
     } catch (e) {
       developer.log('restore error: $e', name: 'backup', error: e);
       if (mounted) {
