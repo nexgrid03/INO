@@ -46,4 +46,18 @@ class DocumentProtectionStore extends ChangeNotifier {
       // Best-effort; the in-memory set stays correct for this session.
     }
   }
+
+  /// Clears the per-document protection flags (in-memory + persisted) so the next
+  /// account doesn't inherit the previous user's set. Called from [SessionReset].
+  Future<void> clear() async {
+    _ids.clear();
+    _loaded = false;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_key);
+    } catch (_) {
+      // Best-effort.
+    }
+  }
 }

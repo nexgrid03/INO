@@ -46,6 +46,9 @@ class ShareRepository {
 
   static const String _table = 'document_shares';
 
+  /// The signed-in owner's id, or null when signed out.
+  String? get _uid => _client.auth.currentUser?.id;
+
   /// Bumped whenever a share is created or revoked, so any open list can
   /// refresh itself without polling.
   static final ValueNotifier<int> revision = ValueNotifier<int>(0);
@@ -143,19 +146,25 @@ class ShareRepository {
 
   /// Every share the signed-in user has created, newest first.
   Future<List<DocumentShare>> listMyShares() async {
+    final uid = _uid;
+    if (uid == null) return const [];
     final rows = await _client
         .from(_table)
         .select()
+        .eq('owner_id', uid) // defense-in-depth with the owner RLS policy
         .order('created_at', ascending: false);
     return [for (final r in rows) DocumentShare.fromMap(r)];
   }
 
   /// Re-fetches a single share (for up-to-date analytics / status).
   Future<DocumentShare?> fetch(String shareId) async {
+    final uid = _uid;
+    if (uid == null) return null;
     final row = await _client
         .from(_table)
         .select()
         .eq('share_id', shareId)
+        .eq('owner_id', uid) // only the owner can read their own share
         .maybeSingle();
     return row == null ? null : DocumentShare.fromMap(row);
   }
@@ -164,11 +173,16 @@ class ShareRepository {
   /// a user can only revoke their own shares.
   Future<void> revoke(String shareId) async {
     developer.log('revoke → REQUEST share_id=$shareId', name: 'share');
+    final uid = _uid;
+    if (uid == null) {
+      throw const ShareException('You must be signed in to revoke a share.');
+    }
     try {
       await _client
           .from(_table)
           .update({'status': 'revoked'})
-          .eq('share_id', shareId);
+          .eq('share_id', shareId)
+          .eq('owner_id', uid); // only the owner can revoke their own share
       developer.log('revoke OK → $shareId', name: 'share');
       _bump();
     } on PostgrestException catch (e, st) {
@@ -184,7 +198,15 @@ class ShareRepository {
 
   /// Permanently deletes a share row (and cascades its analytics).
   Future<void> delete(String shareId) async {
-    await _client.from(_table).delete().eq('share_id', shareId);
+    final uid = _uid;
+    if (uid == null) {
+      throw const ShareException('You must be signed in to delete a share.');
+    }
+    await _client
+        .from(_table)
+        .delete()
+        .eq('share_id', shareId)
+        .eq('owner_id', uid); // only the owner can delete their own share
     _bump();
   }
 
