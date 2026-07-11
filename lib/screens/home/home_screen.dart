@@ -249,10 +249,17 @@ class _HomeScreenState extends State<HomeScreen> {
           onProtect: () => _push(const ProtectionCenterScreen()),
         ),
       ),
-      // Property & Finance — a minimal one-row chip section.
-      _PropertyFinanceRow(
-        onOpenTool: (tool) => _push(tool.builder(context)),
-        onMore: () => _push(const PropertyFinanceToolsScreen()),
+      // Property & Finance tools — same design language as Quick Actions.
+      _Section(
+        header: const SectionHeader(
+          title: 'Property & Finance Tools',
+          icon: Icons.account_balance_rounded,
+          iconColor: AppColors.primaryGreen,
+        ),
+        child: _FinanceTools(
+          onOpenTool: (tool) => _push(tool.builder(context)),
+          onMore: () => _push(const PropertyFinanceToolsScreen()),
+        ),
       ),
       // Market snapshot.
       _Section(
@@ -359,20 +366,17 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-/// The Home "Property & Finance Tools" section — a minimal single row of
-/// compact chips (the most-used tools + More), one tap away. No card, no
-/// gradient container: deliberately lightweight to keep the dashboard clean.
-class _PropertyFinanceRow extends StatelessWidget {
-  const _PropertyFinanceRow({
-    required this.onOpenTool,
-    required this.onMore,
-  });
+/// The Home "Property & Finance Tools" row — the four most-used tools (Area,
+/// EMI, SIP) plus More, rendered with the SAME [QuickActionButton] + Row layout
+/// as Quick Actions so the two sections read identically. One compact row.
+class _FinanceTools extends StatelessWidget {
+  const _FinanceTools({required this.onOpenTool, required this.onMore});
 
   final void Function(FinanceTool) onOpenTool;
   final VoidCallback onMore;
 
-  /// The four most-used tools shown inline; everything else lives behind "More".
-  static const _quickIds = ['area', 'emi', 'sip', 'gold'];
+  /// Tools shown inline; everything else (Valuation, Gold) lives behind More.
+  static const _quickIds = ['area', 'emi', 'sip'];
 
   FinanceTool? _byId(String id) {
     for (final t in financeTools) {
@@ -383,107 +387,29 @@ class _PropertyFinanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final tools = [
+    final actions = <Widget>[
       for (final id in _quickIds)
-        if (_byId(id) != null) _byId(id)!,
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: AppSpacing.xs),
-          child: Text(
-            'Property & Finance Tools',
-            style: AppText.subtitle.copyWith(
-              color: palette.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+        if (_byId(id) case final tool?)
+          QuickActionButton(
+            icon: tool.icon,
+            label: tool.shortTitle,
+            color: tool.color,
+            onTap: () => onOpenTool(tool),
           ),
-        ),
-        Row(
-          children: [
-            for (var i = 0; i < tools.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _MiniToolChip(
-                  icon: tools[i].icon,
-                  label: tools[i].shortTitle,
-                  color: tools[i].color,
-                  onTap: () => onOpenTool(tools[i]),
-                ),
-              ),
-            ],
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _MiniToolChip(
-                icon: Icons.grid_view_rounded,
-                label: 'More',
-                color: AppColors.lightBlue,
-                onTap: onMore,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// A compact rounded chip (icon + label) used in the minimal tools row.
-class _MiniToolChip extends StatelessWidget {
-  const _MiniToolChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: color.withValues(alpha: 0.14),
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: palette.border),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      QuickActionButton(
+        icon: Icons.grid_view_rounded,
+        label: 'More',
+        color: AppColors.lightBlue,
+        onTap: onMore,
       ),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.xs),
+          Expanded(child: actions[i]),
+        ],
+      ],
     );
   }
 }
