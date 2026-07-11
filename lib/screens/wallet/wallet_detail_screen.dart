@@ -25,6 +25,7 @@ import '../../widgets/wallet_detail/smart_banner.dart';
 import '../../widgets/wallet_detail/wallet_header.dart';
 import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
+import '../property/area_converter_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../share/manage_shares_screen.dart';
 import '../share/share_config_screen.dart';
@@ -312,6 +313,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   void _onCardLongPress(DocumentRecord r) =>
       _selecting ? _toggleSelect(r) : _enterSelection(r);
 
+  /// True for the Property wallet, which gets the extra Area Converter action.
+  bool get _isPropertyWallet => widget.category.name == 'Property Wallet';
+
+  /// Opens the Property Area Converter tool (a pure calculator — touches no
+  /// documents, so it can't affect existing property data).
+  void _openAreaConverter() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AreaConverterScreen()),
+    );
+  }
+
   void _shareSelected() =>
       _startShare(_records.where((r) => _selectedIds.contains(r.id)).toList());
 
@@ -570,6 +582,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             onSearch: () => _searchFocus.requestFocus(),
                             onFilter: _openSort,
                             onManageShares: _openManageShares,
+                            onAreaConverter:
+                                _isPropertyWallet ? _openAreaConverter : null,
                           ),
                         ),
                       ),

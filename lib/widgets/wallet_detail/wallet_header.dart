@@ -18,6 +18,7 @@ class WalletHeader extends StatelessWidget {
     required this.onSearch,
     required this.onFilter,
     this.onManageShares,
+    this.onAreaConverter,
   });
 
   final String title;
@@ -27,6 +28,10 @@ class WalletHeader extends StatelessWidget {
 
   /// Optional — opens the "Shared Links" manager. Shown as a QR action when set.
   final VoidCallback? onManageShares;
+
+  /// Optional — opens the Property Area Converter. Shown as a calculator action
+  /// when set (only wired for the Property wallet).
+  final VoidCallback? onAreaConverter;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +63,14 @@ class WalletHeader extends StatelessWidget {
           onTap: onSearch,
         ),
         const SizedBox(width: 8),
+        if (onAreaConverter != null) ...[
+          _HeaderIcon(
+            icon: Icons.straighten_rounded,
+            tooltip: 'Area converter',
+            onTap: onAreaConverter!,
+          ),
+          const SizedBox(width: 8),
+        ],
         if (onManageShares != null) ...[
           _HeaderIcon(
             icon: Icons.qr_code_2_rounded,
