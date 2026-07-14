@@ -15,7 +15,6 @@ import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
-import '../../widgets/wallet_detail/category_chips.dart';
 import '../../widgets/wallet_detail/document_card.dart';
 import '../../widgets/wallet_detail/document_filter_bar.dart';
 import '../../widgets/wallet_detail/document_skeleton.dart';
@@ -67,10 +66,6 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   // Multi-select state for "Share via QR".
   bool _selecting = false;
   final Set<String> _selectedIds = {};
-
-  /// Categories the user created from this screen — surfaced as filter chips
-  /// straight away, even before a document uses them.
-  final Set<String> _customChips = {};
 
   // The brief's focused status filter set (Recent lives inside Sort).
   static const _filters = <WalletFilter>[
@@ -135,37 +130,15 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
-  /// Resets every filter, category and search term so the full vault is shown.
-  void _viewFullVault() {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _filter = WalletFilter.all;
-      _category = null;
-      _query = '';
-      _searchController.clear();
-    });
-  }
-
-  /// Opens the Create Category sheet; on success the new category shows as a
-  /// filter chip immediately and is selectable when adding documents.
+  /// Opens the Create Category sheet; the new category becomes selectable when
+  /// adding documents.
   Future<void> _createCategory() async {
     final created = await showCreateCategorySheet(context);
     if (created == null || !mounted) return;
-    setState(() => _customChips.add(created.name));
     _toast('Category “${created.name}” created');
   }
 
   // ---- Derived data --------------------------------------------------------
-
-  /// Category chip labels derived from the wallet's actual records: the distinct
-  /// document categories, or — when a wallet holds a single category — the
-  /// distinct tags, so the row always resolves to real results.
-  List<String> get _categoryChips {
-    final cats = <String>{for (final r in _records) r.category, ..._customChips};
-    if (cats.length > 1) return cats.toList()..sort();
-    final tags = <String>{for (final r in _records) ...r.tags};
-    return tags.toList()..sort();
-  }
 
   bool _matchesCategory(DocumentRecord r) {
     if (_category == null) return true;
@@ -671,9 +644,6 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               totalDocuments: _records.length,
               expiring: expiring,
               protected: data.security.vaultLocked,
-              lastUpdatedLabel: data.lastUpdatedLabel,
-              gradient: widget.category.gradient,
-              onViewVault: _viewFullVault,
             ),
           ),
         ),
@@ -698,20 +668,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             ),
           ),
         ),
-      // 5. Category chips — only when the wallet actually has distinct
-      //    categories/tags (otherwise it's a redundant lone "All" row).
-      if (_categoryChips.isNotEmpty)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 0, 0),
-            child: CategoryChips(
-              categories: _categoryChips,
-              selected: _category,
-              onSelected: (c) => setState(() => _category = c),
-            ),
-          ),
-        ),
-      // 6. Status filter + sort.
+      // 5. Status filter + sort (single row).
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Typed data models that back the Home dashboard.
 ///
 /// These are intentionally UI-agnostic plain Dart objects. Today they are
@@ -316,6 +318,7 @@ class ActivityItem {
     required this.color,
     this.subtitle,
     this.at,
+    this.name,
     this.kind = ActivityKind.system,
   });
 
@@ -330,7 +333,39 @@ class ActivityItem {
   /// The real timestamp, used for sorting / grouping / filtering when available.
   final DateTime? at;
 
+  /// The raw document / reminder name (user data — not translated), used to
+  /// build the localized title at render time.
+  final String? name;
+
   final ActivityKind kind;
+
+  /// The title in the active language, built from [kind] + [name] so it
+  /// re-translates live on language switch. Falls back to [title].
+  String localizedTitle(AppLocalizations l10n) {
+    switch (kind) {
+      case ActivityKind.document:
+        return '${name ?? ''} ${l10n.t('uploaded')}'.trim();
+      case ActivityKind.reminder:
+        return '${l10n.t('reminder')} · ${name ?? ''}';
+      case ActivityKind.backup:
+        return l10n.t('cloudBackupCompleted');
+      default:
+        return title;
+    }
+  }
+
+  /// A localized relative time for recent items; older items keep [time].
+  String localizedTime(AppLocalizations l10n) {
+    final t = at;
+    if (t == null) return time;
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 1) return l10n.t('justNow');
+    if (diff.inMinutes < 60) return '${diff.inMinutes} ${l10n.t('minutesAgo')}';
+    if (diff.inHours < 24) return '${diff.inHours} ${l10n.t('hoursAgo')}';
+    if (diff.inDays == 1) return l10n.t('yesterday');
+    if (diff.inDays < 7) return '${diff.inDays} ${l10n.t('daysAgo')}';
+    return time; // absolute date fallback
+  }
 }
 
 // ---------------------------------------------------------------------------

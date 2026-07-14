@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -21,6 +22,7 @@ class ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
       child: Row(
@@ -37,7 +39,7 @@ class ActivityTile extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              item.title,
+              item.localizedTitle(l10n),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.body.copyWith(
@@ -46,7 +48,7 @@ class ActivityTile extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            item.time,
+            item.localizedTime(l10n),
             style: AppText.caption.copyWith(color: palette.textFaint),
           ),
         ],

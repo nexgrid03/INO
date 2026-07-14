@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/dashboard_repository.dart';
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
@@ -230,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> _sections(_HomeData data) {
+    final l10n = AppLocalizations.of(context);
     final sections = <Widget>[
       // Net-worth hero with tappable stats.
       DashboardCard(
@@ -241,9 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // Quick actions.
       _Section(
-        header: const SectionHeader(
-          title: 'Quick Actions',
-          subtitle: 'Do more in one tap',
+        header: SectionHeader(
+          title: l10n.t('quickActions'),
+          subtitle: l10n.t('quickActionsSubtitle'),
           icon: Icons.bolt_rounded,
           iconColor: AppColors.lightBlue,
         ),
@@ -256,8 +258,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // Property & Finance tools — same design language as Quick Actions.
       _Section(
-        header: const SectionHeader(
-          title: 'Property & Finance Tools',
+        header: SectionHeader(
+          title: l10n.t('propertyFinanceTools'),
           icon: Icons.account_balance_rounded,
           iconColor: AppColors.primaryGreen,
         ),
@@ -269,10 +271,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // Market snapshot.
       _Section(
         header: SectionHeader(
-          title: 'Market Snapshot',
-          subtitle: 'Live rates near you',
+          title: l10n.t('marketSnapshot'),
+          subtitle: l10n.t('marketSubtitle'),
           icon: Icons.trending_up_rounded,
-          actionLabel: 'View markets',
+          actionLabel: l10n.t('viewMarkets'),
           onAction: () => _push(MarketsScreen(quotes: data.market)),
         ),
         child: MarketCard(
@@ -283,10 +285,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // Recent activity (real).
       _Section(
         header: SectionHeader(
-          title: 'Recent Activity',
-          subtitle: 'Your latest updates',
+          title: l10n.t('recentActivity'),
+          subtitle: l10n.t('recentActivitySubtitle'),
           icon: Icons.access_time_rounded,
-          actionLabel: 'View all',
+          actionLabel: l10n.t('viewAll'),
           onAction: () => _push(const ActivityHistoryScreen()),
         ),
         child: _ActivityList(items: data.activity, onAdd: _scan),
@@ -338,25 +340,26 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final actions = <Widget>[
       QuickActionButton(
           icon: Icons.add_chart_rounded,
-          label: 'Add Asset',
+          label: l10n.t('addAsset'),
           color: AppColors.primaryGreen,
           onTap: onAddAsset),
       QuickActionButton(
           icon: Icons.document_scanner_rounded,
-          label: 'Scan & Upload',
+          label: l10n.t('scanUpload'),
           color: AppColors.lightBlue,
           onTap: onScan),
       QuickActionButton(
           icon: Icons.auto_awesome_rounded,
-          label: 'AI Insights',
+          label: l10n.t('aiInsights'),
           color: const Color(0xFF8B6CEF),
           onTap: onInsights),
       QuickActionButton(
           icon: Icons.verified_user_rounded,
-          label: 'Protect',
+          label: l10n.t('protect'),
           color: const Color(0xFF2BB6A3),
           onTap: onProtect),
     ];

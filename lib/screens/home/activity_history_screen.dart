@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../services/activity_service.dart';
 import '../../theme/app_dimens.dart';
@@ -196,7 +197,7 @@ class _HistoryTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title,
+                Text(item.localizedTitle(AppLocalizations.of(context)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style:
@@ -213,7 +214,7 @@ class _HistoryTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(item.time,
+          Text(item.localizedTime(AppLocalizations.of(context)),
               style: AppText.caption.copyWith(color: palette.textFaint)),
         ],
       ),

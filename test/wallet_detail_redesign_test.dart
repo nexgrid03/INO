@@ -40,11 +40,12 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // Header + the four supporting elements above the list.
+    // Header + the supporting elements above the list.
     expect(find.text('Identity Wallet'), findsOneWidget);
     expect(find.text('Search documents...'), findsOneWidget); // sticky search
-    expect(find.text('View Vault'), findsOneWidget); // summary card
     expect(find.text('Protected'), findsOneWidget); // ✓ vault protected
+    // "View Vault" button and "Updated Today" were removed from the summary card.
+    expect(find.text('View Vault'), findsNothing);
     // 'Documents' is both the summary stat label and the list label.
     expect(find.text('Documents'), findsWidgets);
 

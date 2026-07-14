@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -36,6 +37,7 @@ class DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     // White surface with a faint mint wash at the top-left (theme-aware).
     final tint = Color.alphaBlend(
         AppColors.primaryGreen.withValues(alpha: 0.06), palette.surface);
@@ -70,19 +72,19 @@ class DashboardCard extends StatelessWidget {
                       icon: Icons.account_balance_wallet_rounded,
                       color: _assets,
                       value: '${hero.assets}',
-                      label: 'Assets',
+                      label: l10n.t('assets'),
                       onTap: onAssets),
                   _Stat(
                       icon: Icons.assignment_rounded,
                       color: _pending,
                       value: '${hero.pendingTasks}',
-                      label: 'Pending',
+                      label: l10n.t('pending'),
                       onTap: onPending),
                   _Stat(
                       icon: Icons.verified_user_rounded,
                       color: _protected,
                       value: '${hero.protectedItems}',
-                      label: 'Protected',
+                      label: l10n.t('protected'),
                       onTap: onProtected),
                 ],
               ),
@@ -114,7 +116,7 @@ class _NetWorth extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Net Worth',
+              Text(AppLocalizations.of(context).t('totalNetWorth'),
                   style: AppText.caption.copyWith(color: palette.textSecondary)),
               const SizedBox(height: AppSpacing.xxs),
               Text(hero.netWorth,
@@ -230,7 +232,7 @@ class _CtaButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
-                  child: Text('View details',
+                  child: Text(AppLocalizations.of(context).t('viewDetails'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(

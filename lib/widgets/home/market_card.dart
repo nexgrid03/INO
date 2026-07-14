@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -38,11 +39,43 @@ class _QuoteCard extends StatelessWidget {
   final MarketQuote quote;
   final VoidCallback? onTap;
 
+  /// Maps the (English) quote label / unit to the active language.
+  static String _localizedLabel(AppLocalizations l10n, String label) {
+    switch (label) {
+      case 'Gold 24K':
+        return l10n.t('gold');
+      case 'Silver':
+        return l10n.t('silver');
+      case 'Petrol':
+        return l10n.t('petrol');
+      case 'Diesel':
+        return l10n.t('diesel');
+      default:
+        return label;
+    }
+  }
+
+  static String _localizedUnit(AppLocalizations l10n, String unit) {
+    switch (unit) {
+      case '/ gram':
+        return l10n.t('perGram');
+      case '/ kg':
+        return l10n.t('perKg');
+      case '/ litre':
+        return l10n.t('perLitre');
+      default:
+        return unit;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final up = quote.changePercent >= 0;
     final changeColor = up ? AppColors.positive : AppColors.negative;
+    final label = _localizedLabel(l10n, quote.label);
+    final unit = _localizedUnit(l10n, quote.unit);
 
     return InoCard(
       radius: AppRadius.card,
@@ -82,9 +115,7 @@ class _QuoteCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              quote.location == null
-                  ? quote.label
-                  : '${quote.label} · ${quote.location}',
+              quote.location == null ? label : '$label · ${quote.location}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: palette.textSecondary),
@@ -105,7 +136,7 @@ class _QuoteCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 3),
                 Text(
-                  quote.unit,
+                  unit,
                   style: AppText.caption
                       .copyWith(color: palette.textFaint, fontSize: 11),
                 ),

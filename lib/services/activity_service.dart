@@ -41,6 +41,7 @@ class ActivityService {
       for (final r in ReminderStore.instance.active) {
         items.add(ActivityItem(
           title: 'Reminder · ${r.title}',
+          name: r.title,
           subtitle: r.subtitle.isEmpty ? r.category.label : r.subtitle,
           icon: Icons.alarm_rounded,
           color: r.category.color,
@@ -84,6 +85,7 @@ class ActivityService {
     final category = d.category ?? 'Document';
     return ActivityItem(
       title: '${d.name} uploaded',
+      name: d.name,
       subtitle: '$category · ${d.wallet}',
       icon: _iconFor(category),
       color: _colorFor(category),

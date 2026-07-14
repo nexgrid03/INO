@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -66,28 +67,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
         ),
       );
 
-  String get _greeting {
+  String _greeting(AppLocalizations l10n) {
     final h = DateTime.now().hour;
-    if (h < 5) return 'Good night';
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    if (h < 21) return 'Good evening';
-    return 'Good night';
-  }
-
-  static const _weekdays = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', //
-    'Friday', 'Saturday', 'Sunday',
-  ];
-  static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June', //
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
-  /// Today's date, e.g. "Thursday, 2 July 2026".
-  String get _todayLabel {
-    final n = DateTime.now();
-    return '${_weekdays[n.weekday - 1]}, ${n.day} ${_months[n.month - 1]} ${n.year}';
+    if (h < 5) return l10n.t('greetingNight');
+    if (h < 12) return l10n.t('greetingMorning');
+    if (h < 17) return l10n.t('greetingAfternoon');
+    if (h < 21) return l10n.t('greetingEvening');
+    return l10n.t('greetingNight');
   }
 
   @override
@@ -99,6 +85,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Row(
       children: [
@@ -161,7 +148,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$_greeting, $_firstName 👋',
+                '${_greeting(l10n)}, $_firstName 👋',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -174,7 +161,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
               ),
               const SizedBox(height: 2),
               Text(
-                _todayLabel,
+                // Localized full date (weekday + month follow the app locale).
+                MaterialLocalizations.of(context).formatFullDate(DateTime.now()),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 13, color: palette.textSecondary),
