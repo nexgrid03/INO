@@ -30,8 +30,8 @@ class MarketsScreen extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Rates are indicative and refresh periodically. Connect a live '
-            'pricing feed for real-time quotes.',
+            'Gold & silver are LIVE (spot price × ₹ exchange rate, updated on '
+            'refresh). Petrol & diesel are indicative.',
             style: AppText.caption.copyWith(color: palette.textFaint, height: 1.4),
           ),
         ],

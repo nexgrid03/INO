@@ -14,7 +14,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
-        "Get-Process dart,java,adb -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 400; Remove-Item -LiteralPath '${workspaceFolder}\\build' -Recurse -Force -ErrorAction SilentlyContinue; exit 0"
+        "Get-Process java -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 400; Remove-Item -LiteralPath '${workspaceFolder}\\build' -Recurse -Force -ErrorAction SilentlyContinue; if (Test-Path '${workspaceFolder}\\ios\\Flutter\\ephemeral') { attrib -r '${workspaceFolder}\\ios\\Flutter\\ephemeral\\*' /s /d; Remove-Item -LiteralPath '${workspaceFolder}\\ios\\Flutter\\ephemeral' -Recurse -Force -ErrorAction SilentlyContinue }; exit 0"
       ],
       "presentation": {
         "reveal": "silent",

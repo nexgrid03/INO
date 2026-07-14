@@ -75,6 +75,25 @@ class MarketQuote {
       : changePercent < 0
           ? TrendDirection.down
           : TrendDirection.flat;
+
+  /// Returns a copy with live values swapped in (keeps icon/gradient/spark).
+  MarketQuote copyWith({
+    String? price,
+    String? unit,
+    double? changePercent,
+  }) =>
+      MarketQuote(
+        label: label,
+        icon: icon,
+        price: price ?? this.price,
+        unit: unit ?? this.unit,
+        changePercent: changePercent ?? this.changePercent,
+        spark: spark,
+        gradient: gradient,
+        accent: accent,
+        filled: filled,
+        location: location,
+      );
 }
 
 // ---------------------------------------------------------------------------

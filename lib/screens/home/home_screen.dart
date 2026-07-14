@@ -7,6 +7,7 @@ import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/activity_service.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/market_rates_service.dart';
 import '../../services/net_worth_service.dart';
 import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
@@ -88,6 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // Market + FAB actions come from the (sample) dashboard repository.
     final dashboard = await DashboardRepository.instance.load();
 
+    // Overlay LIVE gold & silver rates (GoldAPI). Falls back to the sample
+    // values instantly if no API key is configured or the call fails.
+    final market = await MarketRatesService.instance.fetchLive(dashboard.market);
+
     // Real activity feed.
     final activity = await ActivityService.instance.load(limit: 6);
 
@@ -125,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return _HomeData(
       hero: hero,
-      market: dashboard.market,
+      market: market,
       activity: activity,
     );
   }
