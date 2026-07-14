@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -10,7 +11,10 @@ import 'reminder_detail_sheet.dart';
 /// A real, live search over every reminder (active + completed) by title, note
 /// or category. Tapping a result opens its detail sheet.
 class ReminderSearchDelegate extends SearchDelegate<void> {
-  ReminderSearchDelegate() : super(searchFieldLabel: 'Search reminders');
+  ReminderSearchDelegate(this._l10n)
+      : super(searchFieldLabel: _l10n.t('searchReminders'));
+
+  final AppLocalizations _l10n;
 
   final _store = ReminderStore.instance;
 
@@ -20,7 +24,8 @@ class ReminderSearchDelegate extends SearchDelegate<void> {
     bool hit(Reminder r) =>
         r.title.toLowerCase().contains(q) ||
         r.subtitle.toLowerCase().contains(q) ||
-        r.category.label.toLowerCase().contains(q);
+        r.category.label.toLowerCase().contains(q) ||
+        r.category.localizedLabel(_l10n).toLowerCase().contains(q);
     return [
       ..._store.active.where(hit),
       ..._store.completed.where(hit),
@@ -72,14 +77,14 @@ class ReminderSearchDelegate extends SearchDelegate<void> {
     if (query.trim().isEmpty) {
       return _Hint(
         icon: Icons.search_rounded,
-        text: 'Search by title, note or category',
+        text: _l10n.t('searchByTitleNoteCategory'),
         palette: palette,
       );
     }
     if (results.isEmpty) {
       return _Hint(
         icon: Icons.sentiment_dissatisfied_rounded,
-        text: 'No reminders match “$query”',
+        text: _l10n.t('noRemindersMatchQuery').replaceAll('{q}', query),
         palette: palette,
       );
     }

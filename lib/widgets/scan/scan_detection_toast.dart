@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../screens/scan/scan_theme.dart';
 
 /// A small, premium success toast shown *transiently* the moment a document is
@@ -28,14 +29,14 @@ class ScanSuccessToast extends StatelessWidget {
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
-            SizedBox(width: 8),
+            const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+            const SizedBox(width: 8),
             Text(
-              'Document Detected',
-              style: TextStyle(
+              AppLocalizations.of(context).t('documentDetected'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,

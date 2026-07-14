@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -36,6 +37,7 @@ class WalletHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -75,7 +77,7 @@ class WalletHeader extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          'My Wallets',
+          l10n.t('myWallets'),
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -91,7 +93,7 @@ class WalletHeader extends StatelessWidget {
                 size: 14, color: AppColors.primaryGreen),
             const SizedBox(width: 6),
             Text(
-              '$walletCount Wallets  •  $recordCount Records',
+              '$walletCount ${l10n.t('wallets')}  •  $recordCount ${l10n.t('records')}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -27,6 +28,7 @@ class _ReminderDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final store = ReminderStore.instance;
     final categoryColor = reminder.category.color;
     final urgency = reminderUrgencyColor(reminder, store.today);
@@ -80,7 +82,7 @@ class _ReminderDetailSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        reminder.category.label,
+                        reminder.category.localizedLabel(l10n),
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary),
                       ),
@@ -102,13 +104,13 @@ class _ReminderDetailSheet extends StatelessWidget {
               children: [
                 _MetaPill(
                   icon: Icons.event_rounded,
-                  label: reminder.dueLabel(store.today),
+                  label: reminder.localizedDueLabel(store.today, l10n),
                   color: urgency,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 _MetaPill(
                   icon: Icons.flag_rounded,
-                  label: reminder.priority.label,
+                  label: reminder.priority.localizedLabel(l10n),
                   color: reminder.priority.color,
                 ),
               ],
@@ -116,7 +118,7 @@ class _ReminderDetailSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             if (!reminder.completed) ...[
               _PrimaryAction(
-                label: 'Mark as Done',
+                label: l10n.t('markAsDone'),
                 icon: Icons.check_circle_rounded,
                 onTap: () {
                   store.complete(reminder);
@@ -127,7 +129,7 @@ class _ReminderDetailSheet extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
             ],
             _SecondaryAction(
-              label: 'Delete Reminder',
+              label: l10n.t('deleteReminder'),
               icon: Icons.delete_outline_rounded,
               color: AppColors.critical,
               onTap: () {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -50,7 +51,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     if (created != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('“${created.title}” added'),
+          content: Text(AppLocalizations.of(context)
+              .t('reminderAddedToast')
+              .replaceAll('{title}', created.title)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.primaryGreen,
         ),
@@ -61,14 +64,15 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        title: Text(widget.scope.title,
+        title: Text(widget.scope.localizedTitle(l10n),
             style: AppText.title.copyWith(color: palette.textPrimary)),
         actions: [
           IconButton(
-            tooltip: 'Calendar',
+            tooltip: l10n.t('calendar'),
             icon: const Icon(Icons.calendar_month_rounded),
             onPressed: _openCalendar,
           ),
@@ -114,7 +118,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                         physics: const BouncingScrollPhysics(),
                         children: [
                           for (final g in groups) ...[
-                            _GroupHeader(label: g.label, count: g.items.length),
+                            _GroupHeader(
+                                labelKey: g.labelKey, count: g.items.length),
                             for (final r in g.items)
                               Padding(
                                 padding:
@@ -140,9 +145,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 }
 
 class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.label, required this.count});
+  const _GroupHeader({required this.labelKey, required this.count});
 
-  final String label;
+  final String labelKey;
   final int count;
 
   @override
@@ -153,7 +158,7 @@ class _GroupHeader extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            label,
+            AppLocalizations.of(context).t(labelKey),
             style: AppText.label.copyWith(
               color: palette.textSecondary,
               fontSize: 12.5,
@@ -185,6 +190,7 @@ class _EmptyList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
@@ -195,12 +201,12 @@ class _EmptyList extends StatelessWidget {
                 size: 44, color: palette.textFaint),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Nothing here',
+              l10n.t('nothingHere'),
               style: AppText.title.copyWith(color: palette.textPrimary),
             ),
             const SizedBox(height: 4),
             Text(
-              'No reminders match this view.',
+              l10n.t('noRemindersMatchView'),
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(color: palette.textSecondary),
             ),

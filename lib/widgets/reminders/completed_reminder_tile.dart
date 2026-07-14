@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -19,6 +20,7 @@ class CompletedReminderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.sm),
       child: Row(
@@ -50,7 +52,7 @@ class CompletedReminderTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  reminder.category.label,
+                  reminder.category.localizedLabel(l10n),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.caption.copyWith(color: palette.textFaint),
@@ -60,7 +62,7 @@ class CompletedReminderTile extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            reminder.completedLabel ?? 'Done',
+            reminder.completedLabel ?? l10n.t('done'),
             style: AppText.caption.copyWith(color: palette.textFaint),
           ),
         ],

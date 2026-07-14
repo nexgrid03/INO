@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -32,7 +33,7 @@ class OcrField extends StatelessWidget {
                     .copyWith(color: palette.textPrimary, fontSize: 13)),
             if (optional) ...[
               const SizedBox(width: 6),
-              Text('Optional',
+              Text(AppLocalizations.of(context).t('optional'),
                   style:
                       AppText.label.copyWith(color: palette.textFaint, fontSize: 11)),
             ],

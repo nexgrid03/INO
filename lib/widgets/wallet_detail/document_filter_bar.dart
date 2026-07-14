@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -29,6 +30,7 @@ class DocumentFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
@@ -41,7 +43,7 @@ class DocumentFilterBar extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: _Chip(
-                      label: f.label,
+                      label: f.localizedLabel(l10n),
                       selected: f == selected,
                       onTap: () => onFilter(f),
                     ),
@@ -72,7 +74,7 @@ class DocumentFilterBar extends StatelessWidget {
                         size: 18, color: AppColors.primaryGreen),
                     const SizedBox(width: 5),
                     Text(
-                      sort.label,
+                      sort.localizedLabel(l10n),
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,

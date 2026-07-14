@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Section 3 — Smart Search.
@@ -30,7 +31,7 @@ class DetailSearchBar extends StatelessWidget {
       style: TextStyle(fontSize: 14, color: palette.textPrimary),
       decoration: InputDecoration(
         isDense: true,
-        hintText: 'Search documents...',
+        hintText: AppLocalizations.of(context).t('searchDocumentsHint'),
         hintStyle: TextStyle(fontSize: 14, color: palette.textFaint),
         prefixIcon: Icon(Icons.search_rounded, color: palette.textFaint),
         suffixIcon: ValueListenableBuilder<TextEditingValue>(

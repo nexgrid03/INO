@@ -12,6 +12,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
@@ -483,7 +484,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 14),
-            Text('Sort by',
+            Text(AppLocalizations.of(context).t('sortBy'),
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -491,7 +492,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             const SizedBox(height: 6),
             for (final s in WalletSort.values)
               ListTile(
-                title: Text(s.label,
+                title: Text(s.localizedLabel(AppLocalizations.of(context)),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontWeight:
@@ -550,7 +551,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                           child: WalletHeader(
-                            title: widget.category.name,
+                            title: localizedWalletName(
+                                AppLocalizations.of(context),
+                                widget.category.name),
                             onBack: () => Navigator.of(context).maybePop(),
                             onSearch: () => _searchFocus.requestFocus(),
                             onFilter: _openSort,
@@ -688,7 +691,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           child: Row(
             children: [
               Text(
-                'Documents',
+                AppLocalizations.of(context).t('documents'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,

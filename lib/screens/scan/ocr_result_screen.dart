@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../services/category_store.dart';
 import '../../utils/date_normalizer.dart';
@@ -10,6 +11,7 @@ import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/scan/detection_badge.dart';
 import '../../widgets/scan/ocr_field_tile.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 
 const _wallets = <(String, IconData)>[
   ('Identity Wallet', Icons.badge_rounded),
@@ -126,23 +128,28 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
   }
 
   Future<void> _pickWallet() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await _showOptions(
-      title: 'Select Wallet',
+      title: l10n.t('selectWallet'),
       options: _wallets,
       selected: _wallet,
+      labelBuilder: (v) => localizedWalletName(l10n, v),
     );
     if (picked != null) setState(() => _wallet = picked);
   }
 
   Future<void> _pickCategory() async {
+    final l10n = AppLocalizations.of(context);
     final store = CategoryStore.instance;
     final picked = await _showOptions(
-      title: 'Select Category',
+      title: l10n.t('selectCategory'),
       options: [
         for (final c in store.all) (c.name, c.icon),
         (_kCreateCategory, Icons.add_rounded),
       ],
       selected: _category,
+      labelBuilder: (v) =>
+          v == _kCreateCategory ? l10n.t('createNewCategory') : v,
     );
     if (picked == null || !mounted) return;
     if (picked == _kCreateCategory) {
@@ -200,6 +207,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final r = widget.result;
     return Scaffold(
       backgroundColor: palette.bg,
@@ -224,42 +232,42 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                     // Identity fields (ID documents) — extracted, editable.
                     if (_showIdentity) ...[
                       _CardSection(
-                        title: 'Extracted Details',
+                        title: l10n.t('extractedDetails'),
                         children: [
                           OcrField(
-                            label: 'Full Name',
+                            label: l10n.t('fullName'),
                             optional: true,
                             child: OcrTextField(
                               controller: _fullName,
-                              hint: 'e.g. Rahul Kumar',
+                              hint: l10n.t('hintFullName'),
                               textCapitalization: TextCapitalization.words,
                             ),
                           ),
                           OcrField(
-                            label: 'Date of Birth',
+                            label: l10n.t('dateOfBirth'),
                             optional: true,
                             child: OcrTextField(
                               controller: _dob,
-                              hint: 'e.g. 01-01-1998',
+                              hint: l10n.t('hintDob'),
                             ),
                           ),
                           OcrField(
-                            label: 'Gender',
+                            label: l10n.t('gender'),
                             optional: true,
                             child: OcrTextField(
                               controller: _gender,
-                              hint: 'e.g. Male',
+                              hint: l10n.t('hintGender'),
                               textCapitalization: TextCapitalization.words,
                             ),
                           ),
                           if (r.detectedType.toLowerCase().contains('pan') ||
                               _fatherName.text.isNotEmpty)
                             OcrField(
-                              label: "Father's Name",
+                              label: l10n.t('fathersName'),
                               optional: true,
                               child: OcrTextField(
                                 controller: _fatherName,
-                                hint: "e.g. Suresh Kumar",
+                                hint: l10n.t('hintFathersName'),
                                 textCapitalization: TextCapitalization.words,
                               ),
                             ),
@@ -269,47 +277,47 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                     ],
                     // Document details card.
                     _CardSection(
-                      title: 'Document',
+                      title: l10n.t('document'),
                       children: [
                         OcrField(
-                          label: 'Document Name',
+                          label: l10n.t('documentName'),
                           child: OcrTextField(
                             controller: _name,
-                            hint: 'e.g. PAN Card',
+                            hint: l10n.t('hintDocumentName'),
                             validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Enter a document name'
+                                ? l10n.t('enterDocumentName')
                                 : null,
                           ),
                         ),
                         OcrField(
-                          label: 'Document Number',
+                          label: l10n.t('documentNumber'),
                           optional: true,
                           child: OcrTextField(
                             controller: _number,
-                            hint: 'e.g. ABCDE1234F',
+                            hint: l10n.t('hintDocumentNumber'),
                             textCapitalization: TextCapitalization.characters,
                           ),
                         ),
                         OcrField(
-                          label: 'Issue Date',
+                          label: l10n.t('issueDate'),
                           optional: true,
                           child: OcrSelector(
                             value:
                                 _issueDate == null ? null : _fmtDate(_issueDate!),
-                            placeholder: 'Not detected',
+                            placeholder: l10n.t('notDetected'),
                             leading: Icons.event_available_rounded,
                             trailing: Icons.calendar_today_rounded,
                             onTap: () => _pickDate(issue: true),
                           ),
                         ),
                         OcrField(
-                          label: 'Expiry Date',
+                          label: l10n.t('expiryDate'),
                           optional: true,
                           child: OcrSelector(
                             value: _expiryDate == null
                                 ? null
                                 : _fmtDate(_expiryDate!),
-                            placeholder: 'No expiry',
+                            placeholder: l10n.t('noExpiry'),
                             leading: Icons.event_busy_rounded,
                             trailing: Icons.calendar_today_rounded,
                             onTap: () => _pickDate(issue: false),
@@ -320,41 +328,41 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                     const SizedBox(height: AppSpacing.md),
                     // Filing card.
                     _CardSection(
-                      title: 'Filing',
+                      title: l10n.t('filing'),
                       children: [
                         OcrField(
-                          label: 'Category',
+                          label: l10n.t('category'),
                           child: OcrSelector(
                             value: _category,
-                            placeholder: 'Choose a category',
+                            placeholder: l10n.t('chooseCategory'),
                             leading: Icons.label_rounded,
                             onTap: _pickCategory,
                           ),
                         ),
                         OcrField(
-                          label: 'Wallet',
+                          label: l10n.t('wallet'),
                           child: OcrSelector(
-                            value: _wallet,
-                            placeholder: 'Choose a wallet',
+                            value: localizedWalletName(l10n, _wallet),
+                            placeholder: l10n.t('chooseWallet'),
                             leading: Icons.account_balance_wallet_rounded,
                             onTap: _pickWallet,
                           ),
                         ),
                         OcrField(
-                          label: 'Tags',
+                          label: l10n.t('tags'),
                           optional: true,
                           child: OcrTextField(
                             controller: _tags,
-                            hint: 'e.g. govt, tax',
+                            hint: l10n.t('hintTags'),
                             textCapitalization: TextCapitalization.none,
                           ),
                         ),
                         OcrField(
-                          label: 'Notes',
+                          label: l10n.t('notes'),
                           optional: true,
                           child: OcrTextField(
                             controller: _notes,
-                            hint: 'Add a note (optional)',
+                            hint: l10n.t('hintNotes'),
                             maxLines: 3,
                             textCapitalization: TextCapitalization.sentences,
                           ),
@@ -376,6 +384,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     required String title,
     required List<(String, IconData)> options,
     required String? selected,
+    String Function(String)? labelBuilder,
   }) {
     final palette = AppPalette.of(context);
     return showModalBottomSheet<String>(
@@ -433,7 +442,10 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
-                                child: Text(o.$1,
+                                child: Text(
+                                    labelBuilder != null
+                                        ? labelBuilder(o.$1)
+                                        : o.$1,
                                     style: AppText.subtitle.copyWith(
                                         color: palette.textPrimary,
                                         fontWeight: o.$1 == selected
@@ -466,6 +478,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
@@ -496,11 +509,11 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Confirm Details',
+                Text(l10n.t('confirmDetails'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('Review what INO extracted, then continue',
+                Text(l10n.t('confirmDetailsSubtitle'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],
@@ -550,6 +563,7 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: palette.bg,
@@ -576,7 +590,7 @@ class _ActionBar extends StatelessWidget {
                       height: AppSizes.button,
                       width: 104,
                       child: Center(
-                        child: Text('Retake',
+                        child: Text(l10n.t('retake'),
                             style: AppText.subtitle
                                 .copyWith(color: palette.textSecondary)),
                       ),
@@ -609,7 +623,7 @@ class _ActionBar extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Continue',
+                              Text(l10n.t('continue'),
                                   style: AppText.subtitle.copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700)),

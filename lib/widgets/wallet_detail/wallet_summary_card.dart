@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
@@ -26,6 +27,7 @@ class WalletSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return InoCard(
       radius: AppRadius.large,
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -35,7 +37,7 @@ class WalletSummaryCard extends StatelessWidget {
           Expanded(
             child: _Stat(
               value: '$totalDocuments',
-              label: 'Documents',
+              label: l10n.t('documents'),
               color: palette.textPrimary,
             ),
           ),
@@ -43,7 +45,7 @@ class WalletSummaryCard extends StatelessWidget {
           Expanded(
             child: _Stat(
               value: '$expiring',
-              label: 'Expiring',
+              label: l10n.t('expiring'),
               color: expiring > 0 ? AppColors.warning : palette.textPrimary,
             ),
           ),
@@ -116,7 +118,9 @@ class _ProtectedStat extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          protected ? 'Protected' : 'At risk',
+          protected
+              ? AppLocalizations.of(context).t('protected')
+              : AppLocalizations.of(context).t('atRisk'),
           style: TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,

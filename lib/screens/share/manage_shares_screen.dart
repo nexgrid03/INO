@@ -45,15 +45,18 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
       backgroundColor: palette.bg,
       appBar: AppBar(
         backgroundColor: palette.bg,
-        title: Text('Shared Links',
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+        title: Text(
+          'Shared Links',
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
       ),
       body: FutureBuilder<List<DocumentShare>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-                child: CircularProgressIndicator(color: AppColors.primaryGreen));
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            );
           }
           final shares = snapshot.data ?? const <DocumentShare>[];
           if (shares.isEmpty) {
@@ -64,11 +67,11 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
             onRefresh: () async => _reload(),
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics()),
+                parent: BouncingScrollPhysics(),
+              ),
               padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: shares.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppSpacing.sm),
+              itemCount: shares.lengt+h,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, i) => _ShareTile(
                 share: shares[i],
                 onOpen: () => _open(shares[i]),
@@ -82,9 +85,9 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
   }
 
   Future<void> _open(DocumentShare share) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => QrShareScreen(share: share)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => QrShareScreen(share: share)));
     _reload();
   }
 
@@ -153,8 +156,11 @@ class _ShareTile extends StatelessWidget {
               gradient: AppColors.brandGradient,
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
-            child: const Icon(Icons.qr_code_2_rounded,
-                color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.qr_code_2_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -166,8 +172,9 @@ class _ShareTile extends StatelessWidget {
                     Text(
                       '${share.documentCount} document'
                       '${share.documentCount == 1 ? '' : 's'}',
-                      style: AppText.subtitle
-                          .copyWith(color: palette.textPrimary),
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     _StatusDot(color: statusColor, label: statusLabel),
@@ -187,8 +194,11 @@ class _ShareTile extends StatelessWidget {
             IconButton(
               onPressed: onRevoke,
               tooltip: 'Revoke',
-              icon: const Icon(Icons.link_off_rounded,
-                  color: AppColors.critical, size: 20),
+              icon: const Icon(
+                Icons.link_off_rounded,
+                color: AppColors.critical,
+                size: 20,
+              ),
             )
           else
             Icon(Icons.chevron_right_rounded, color: palette.textFaint),
@@ -221,8 +231,10 @@ class _StatusDot extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(label,
-              style: AppText.label.copyWith(color: color, fontSize: 11)),
+          Text(
+            label,
+            style: AppText.label.copyWith(color: color, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -249,12 +261,17 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.primaryGreen.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.qr_code_2_rounded,
-                  size: 42, color: AppColors.primaryGreen),
+              child: const Icon(
+                Icons.qr_code_2_rounded,
+                size: 42,
+                color: AppColors.primaryGreen,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('No shared links yet',
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              'No shared links yet',
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Select documents in a wallet and tap “Share via QR” to create '

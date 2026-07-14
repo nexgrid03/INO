@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -20,6 +21,7 @@ class ReminderFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       height: 36,
       child: ListView(
@@ -29,7 +31,7 @@ class ReminderFilterChips extends StatelessWidget {
         children: [
           for (final kind in ReminderFilterKind.values)
             _Chip(
-              label: kind.label,
+              label: kind.localizedLabel(l10n),
               icon: kind.icon,
               selected: kind == selected,
               onTap: () => onSelected(kind),

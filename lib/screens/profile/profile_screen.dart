@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/share_origin.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
 import '../../repositories/user_repository.dart';
@@ -186,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(height: AppSpacing.sm),
             _SheetGrip(),
             const SizedBox(height: AppSpacing.sm),
-            Text('Language',
+            Text(AppLocalizations.of(context).t('language'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             for (final o in options)
@@ -497,6 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final p = _profile;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -510,33 +512,33 @@ class _ProfileScreenState extends State<ProfileScreen>
         onEdit: _editProfile,
       ),
       SettingsGroup(
-        caption: 'Security',
+        caption: l10n.t('security'),
         children: [
           SettingsRow(
             icon: Icons.fingerprint_rounded,
-            title: 'Biometric Authentication',
+            title: l10n.t('biometricAuth'),
             trailing: _switch(_biometric, _toggleBiometric),
           ),
           SettingsRow(
             icon: Icons.password_rounded,
-            title: 'Change Password',
+            title: l10n.t('changePassword'),
             onTap: _openChangePassword,
           ),
           SettingsRow(
             icon: Icons.verified_user_rounded,
-            title: 'Two-Factor Authentication',
-            value: _twoFactor ? 'On' : 'Off',
+            title: l10n.t('twoFactor'),
+            value: _twoFactor ? l10n.t('on') : l10n.t('off'),
             onTap: _openTwoFactor,
           ),
           SettingsRow(
             icon: Icons.devices_rounded,
-            title: 'Trusted Devices',
+            title: l10n.t('trustedDevices'),
             onTap: () => _push(const TrustedDevicesScreen()),
           ),
         ],
       ),
       SettingsGroup(
-        caption: 'Data & Storage',
+        caption: l10n.t('dataStorage'),
         children: [
           _StorageRow(
             usedLabel: _storageLoading ? '…' : _storage.usedLabel,
@@ -545,79 +547,79 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SettingsRow(
             icon: Icons.cloud_sync_rounded,
-            title: 'Auto Backup',
+            title: l10n.t('autoBackup'),
             trailing: _switch(_autoBackup, _toggleAutoBackup),
           ),
           SettingsRow(
             icon: Icons.backup_rounded,
-            title: 'Cloud Backup',
+            title: l10n.t('cloudBackup'),
             onTap: () => _push(CloudBackupScreen(profile: _profile)),
           ),
           SettingsRow(
             icon: Icons.file_download_outlined,
-            title: 'Export Data',
+            title: l10n.t('exportData'),
             onTap: () => _exportData(subject: 'INO data export'),
           ),
           SettingsRow(
             icon: Icons.download_for_offline_outlined,
-            title: 'Download Account Data',
+            title: l10n.t('downloadAccountData'),
             onTap: () => _exportData(subject: 'INO account archive'),
           ),
         ],
       ),
       SettingsGroup(
-        caption: 'Preferences',
+        caption: l10n.t('preferences'),
         children: [
           SettingsRow(
             icon: Icons.notifications_rounded,
-            title: 'Notifications',
+            title: l10n.t('notifications'),
             trailing: _switch(_notifications, _toggleNotifications),
           ),
           SettingsRow(
             icon: Icons.dark_mode_rounded,
-            title: 'Dark Mode',
+            title: l10n.t('darkMode'),
             trailing: _switch(isDark, (_) => _toggleDarkMode()),
           ),
           SettingsRow(
             icon: Icons.language_rounded,
-            title: 'Language',
+            title: l10n.t('language'),
             value: _language,
             onTap: _pickLanguage,
           ),
         ],
       ),
       SettingsGroup(
-        caption: 'Support',
+        caption: l10n.t('support'),
         children: [
           SettingsRow(
             icon: Icons.help_center_rounded,
-            title: 'Help Center',
+            title: l10n.t('helpCenter'),
             onTap: () => _push(HelpCenterScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.support_agent_rounded,
-            title: 'Contact Support',
+            title: l10n.t('contactSupport'),
             onTap: () =>
                 _push(ContactSupportScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.info_outline_rounded,
-            title: 'About INO',
+            title: l10n.t('aboutIno'),
             onTap: () => _push(const AboutScreen()),
           ),
         ],
       ),
       SettingsGroup(
-        caption: 'Legal',
+        caption: l10n.t('legal'),
         children: [
           SettingsRow(
             icon: Icons.privacy_tip_rounded,
-            title: 'Privacy Policy',
+            title: l10n.t('privacyPolicy'),
             onTap: () => _push(LegalDocumentScreen.privacy()),
           ),
           SettingsRow(
             icon: Icons.description_rounded,
-            title: 'Terms & Conditions',
+            title: l10n.t('termsConditions'),
             onTap: () => _push(LegalDocumentScreen.terms()),
           ),
         ],
@@ -627,13 +629,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.delete_outline_rounded,
-            title: 'Delete Account',
+            title: l10n.t('deleteAccount'),
             danger: true,
             onTap: () => _push(DeleteAccountScreen(email: _profile.email)),
           ),
           SettingsRow(
             icon: Icons.logout_rounded,
-            title: 'Logout',
+            title: l10n.t('logout'),
             danger: true,
             onTap: _confirmLogout,
           ),
@@ -689,7 +691,7 @@ class _Title extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 0),
       child: Text(
-        'Profile',
+        AppLocalizations.of(context).t('profile'),
         style: AppText.display.copyWith(color: palette.textPrimary),
       ),
     );
@@ -736,7 +738,7 @@ class _StorageRow extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Storage',
+                        AppLocalizations.of(context).t('storage'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

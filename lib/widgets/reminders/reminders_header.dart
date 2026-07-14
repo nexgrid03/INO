@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -30,6 +31,7 @@ class RemindersHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Container(
@@ -55,7 +57,7 @@ class RemindersHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Reminders',
+                l10n.t('reminders'),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -65,7 +67,7 @@ class RemindersHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Stay on top of important events',
+                l10n.t('remindersSubtitle'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 13, color: palette.textSecondary),
@@ -75,13 +77,13 @@ class RemindersHeader extends StatelessWidget {
         ),
         _HeaderIcon(
           icon: Icons.search_rounded,
-          tooltip: 'Search',
+          tooltip: l10n.t('search'),
           onTap: onSearch,
         ),
         const SizedBox(width: 8),
         _HeaderIcon(
           icon: Icons.notifications_none_rounded,
-          tooltip: 'Notifications',
+          tooltip: l10n.t('notifications'),
           onTap: onNotifications,
           badge: notificationCount,
         ),

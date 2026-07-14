@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Models backing the reusable Wallet Detail screen. The same UI renders every
@@ -49,6 +50,21 @@ extension DocumentStatusX on DocumentStatus {
         return const Color(0xFF94A3B8); // gray
     }
   }
+
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case DocumentStatus.active:
+        return l10n.t('active');
+      case DocumentStatus.expiringSoon:
+        return l10n.t('expiringSoon');
+      case DocumentStatus.expired:
+        return l10n.t('expired');
+      case DocumentStatus.shared:
+        return l10n.t('shared');
+      case DocumentStatus.archived:
+        return l10n.t('archived');
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +90,23 @@ extension WalletFilterX on WalletFilter {
         return 'Archived';
     }
   }
+
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case WalletFilter.all:
+        return l10n.t('all');
+      case WalletFilter.active:
+        return l10n.t('active');
+      case WalletFilter.expiringSoon:
+        return l10n.t('expiringSoon');
+      case WalletFilter.favorites:
+        return l10n.t('favorites');
+      case WalletFilter.shared:
+        return l10n.t('shared');
+      case WalletFilter.archived:
+        return l10n.t('archived');
+    }
+  }
 }
 
 enum WalletSort { recent, az, uploadDate, expiryDate }
@@ -89,6 +122,19 @@ extension WalletSortX on WalletSort {
         return 'Upload Date';
       case WalletSort.expiryDate:
         return 'Expiry Date';
+    }
+  }
+
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case WalletSort.recent:
+        return l10n.t('recent');
+      case WalletSort.az:
+        return l10n.t('sortAz');
+      case WalletSort.uploadDate:
+        return l10n.t('uploadDate');
+      case WalletSort.expiryDate:
+        return l10n.t('expiryDate');
     }
   }
 }

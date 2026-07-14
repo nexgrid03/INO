@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -22,6 +23,7 @@ class ScanFailState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.screen),
@@ -40,7 +42,7 @@ class ScanFailState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Unable to extract information',
+              l10n.t('unableToExtract'),
               textAlign: TextAlign.center,
               style: AppText.title.copyWith(color: palette.textPrimary),
             ),
@@ -83,7 +85,7 @@ class ScanFailState extends StatelessWidget {
                           const Icon(Icons.refresh_rounded,
                               color: Colors.white, size: 20),
                           const SizedBox(width: 8),
-                          Text('Try Again',
+                          Text(l10n.t('tryAgain'),
                               style: AppText.subtitle.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700)),
@@ -110,7 +112,7 @@ class ScanFailState extends StatelessWidget {
                     height: AppSizes.button,
                     width: double.infinity,
                     child: Center(
-                      child: Text('Manual Entry',
+                      child: Text(l10n.t('manualEntry'),
                           style: AppText.subtitle
                               .copyWith(color: palette.textSecondary)),
                     ),

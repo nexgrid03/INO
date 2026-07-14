@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../screens/scan/scan_theme.dart';
 import '../pressable_scale.dart';
 
@@ -21,6 +22,7 @@ class ScanControls extends StatelessWidget {
     required this.flashIcon,
     required this.flashLabel,
     required this.captureState,
+    this.flashActive = false,
     this.enabled = true,
   });
 
@@ -29,17 +31,21 @@ class ScanControls extends StatelessWidget {
   final VoidCallback onToggleFlash;
   final IconData flashIcon;
   final String flashLabel;
+
+  /// Whether the flash is in a non-off mode (drives the active accent).
+  final bool flashActive;
   final CaptureButtonState captureState;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _SideButton(
           icon: Icons.photo_library_rounded,
-          label: 'Gallery',
+          label: l10n.t('gallery'),
           onTap: enabled ? onGallery : null,
         ),
         _CaptureButton(
@@ -49,7 +55,7 @@ class ScanControls extends StatelessWidget {
         _SideButton(
           icon: flashIcon,
           label: flashLabel,
-          active: flashLabel != 'Off',
+          active: flashActive,
           onTap: enabled ? onToggleFlash : null,
         ),
       ],

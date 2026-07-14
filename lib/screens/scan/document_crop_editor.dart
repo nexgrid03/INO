@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/document_crop_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -71,10 +72,10 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
     if (cropped == null) {
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.critical,
-          content: Text('Could not crop this image. Please try again.'),
+          content: Text(AppLocalizations.of(context).t('cropFailed')),
         ),
       );
       return;
@@ -100,6 +101,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -110,11 +112,11 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
           icon: const Icon(Icons.close_rounded),
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
         ),
-        title: const Text('Crop',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text(l10n.t('crop'),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
         actions: [
           IconButton(
-            tooltip: 'Reset',
+            tooltip: l10n.t('reset'),
             icon: const Icon(Icons.crop_free_rounded),
             onPressed: _busy ? null : _reset,
           ),
@@ -196,7 +198,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                           side: const BorderSide(color: Colors.white24),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Cancel'),
+                        child: Text(l10n.t('cancel')),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -209,8 +211,8 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         icon: const Icon(Icons.check_rounded),
-                        label: const Text('Apply Crop',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        label: Text(l10n.t('applyCrop'),
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ],

@@ -395,18 +395,20 @@ class _FinanceTools extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final actions = <Widget>[
       for (final id in _quickIds)
         if (_byId(id) case final tool?)
           QuickActionButton(
             icon: tool.icon,
-            label: tool.shortTitle,
+            // EMI / SIP are acronyms (unchanged); Area is localized.
+            label: tool.id == 'area' ? l10n.t('area') : tool.shortTitle,
             color: tool.color,
             onTap: () => onOpenTool(tool),
           ),
       QuickActionButton(
         icon: Icons.grid_view_rounded,
-        label: 'More',
+        label: l10n.t('more'),
         color: AppColors.lightBlue,
         onTap: onMore,
       ),

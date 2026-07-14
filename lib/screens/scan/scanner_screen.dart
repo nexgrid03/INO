@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
@@ -347,11 +348,13 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (controller == null || !controller.value.isInitialized) return;
     final next = (_flash + 1) % 3;
     const modes = [FlashMode.off, FlashMode.auto, FlashMode.torch];
+    // Resolve the failure message before the await (context is unsafe after).
+    final flashError = AppLocalizations.of(context).t('flashNotAvailable');
     try {
       await controller.setFlashMode(modes[next]);
       if (mounted) setState(() => _flash = next);
     } catch (_) {
-      _snack('Flash not available on this device');
+      _snack(flashError);
     }
   }
 
@@ -362,9 +365,9 @@ class _ScannerScreenState extends State<ScannerScreen>
       };
 
   String get _flashLabel => switch (_flash) {
-        1 => 'Auto',
-        2 => 'On',
-        _ => 'Off',
+        1 => AppLocalizations.of(context).t('flashAuto'),
+        2 => AppLocalizations.of(context).t('on'),
+        _ => AppLocalizations.of(context).t('off'),
       };
 
   Future<void> _capturePressed() async {
@@ -394,7 +397,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     } catch (_) {
       if (!mounted) return;
       setState(() => _state = ScannerState.idle);
-      _snack('Capture failed. Please try again.');
+      _snack(AppLocalizations.of(context).t('captureFailed'));
       _startDetection(); // resume live detection after a failed shot
     }
   }
@@ -412,7 +415,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     } catch (_) {
       if (mounted) {
         setState(() => _blockBootstrap = false);
-        _snack('Could not open the gallery.');
+        _snack(AppLocalizations.of(context).t('galleryOpenFailed'));
       }
     }
   }
@@ -448,6 +451,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                   onToggleFlash: _cycleFlash,
                   flashIcon: _flashIcon,
                   flashLabel: _flashLabel,
+                  flashActive: _flash != 0,
                   captureState: _captureButtonState,
                 ),
               )
@@ -461,6 +465,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Widget _header() {
     final ready = _phase == _Phase.ready;
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
       child: Row(
@@ -469,23 +474,23 @@ class _ScannerScreenState extends State<ScannerScreen>
             onPressed: widget.onClose,
             icon: const Icon(Icons.close_rounded,
                 color: ScanColors.textPrimary, size: 26),
-            tooltip: 'Close',
+            tooltip: l10n.t('close'),
           ),
-          const Expanded(
+          Expanded(
             child: Column(
               children: [
                 Text(
-                  'Scan Document',
-                  style: TextStyle(
+                  l10n.t('scanDocument'),
+                  style: const TextStyle(
                     color: ScanColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Position your document inside the frame',
-                  style: TextStyle(
+                  l10n.t('positionDocument'),
+                  style: const TextStyle(
                     color: ScanColors.textSecondary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
@@ -505,7 +510,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                     : ScanColors.accentDeep,
                 size: 24,
               ),
-              tooltip: 'Flash: $_flashLabel',
+              tooltip: '${l10n.t('flash')}: $_flashLabel',
             )
           else
             const SizedBox(width: 48),
@@ -515,44 +520,42 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   Widget _viewport() {
+    final l10n = AppLocalizations.of(context);
     switch (_phase) {
       case _Phase.ready:
         return _cameraViewport();
       case _Phase.initializing:
-        return const _CenterStatus(
+        return _CenterStatus(
           icon: Icons.photo_camera_rounded,
-          title: 'Starting camera…',
+          title: l10n.t('startingCamera'),
           spinner: true,
         );
       case _Phase.denied:
         return _StatusView(
           icon: Icons.no_photography_rounded,
-          title: 'Camera access needed',
-          message:
-              'INO needs your camera to scan documents. Your scans stay private on your device.',
-          primaryLabel: 'Grant Camera Access',
+          title: l10n.t('cameraAccessNeeded'),
+          message: l10n.t('cameraAccessMessage'),
+          primaryLabel: l10n.t('grantCameraAccess'),
           onPrimary: _bootstrap,
         );
       case _Phase.permanentlyDenied:
         return _StatusView(
           icon: Icons.lock_rounded,
-          title: 'Camera permission blocked',
-          message:
-              'Camera access is turned off for INO. Enable it in Settings to scan documents.',
-          primaryLabel: 'Open Settings',
+          title: l10n.t('cameraBlocked'),
+          message: l10n.t('cameraBlockedMessage'),
+          primaryLabel: l10n.t('openSettings'),
           onPrimary: () => CameraPermissionService.instance.openSettings(),
-          secondaryLabel: 'Recheck',
+          secondaryLabel: l10n.t('recheck'),
           onSecondary: _bootstrap,
         );
       case _Phase.error:
         return _StatusView(
           icon: Icons.error_outline_rounded,
-          title: 'Camera unavailable',
-          message:
-              'We couldn’t start the camera on this device. You can still import a document from your gallery.',
-          primaryLabel: 'Retry',
+          title: l10n.t('cameraUnavailable'),
+          message: l10n.t('cameraUnavailableMessage'),
+          primaryLabel: l10n.t('retry'),
           onPrimary: _bootstrap,
-          secondaryLabel: 'Import from Gallery',
+          secondaryLabel: l10n.t('importFromGallery'),
           onSecondary: _galleryPressed,
         );
     }
@@ -643,31 +646,32 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// document (it hugs the bottom edge) and disappears entirely once a detected
   /// document is locked in and steady — keeping the preview clean.
   Widget _bottomHint() {
+    final l10n = AppLocalizations.of(context);
     switch (_state) {
       case ScannerState.idle:
       case ScannerState.detecting:
-        return const ScanHintPill(
-          key: ValueKey('searching'),
+        return ScanHintPill(
+          key: const ValueKey('searching'),
           icon: Icons.crop_free_rounded,
-          label: 'Searching for a document…',
+          label: l10n.t('searchingForDocument'),
         );
       case ScannerState.documentDetected:
       case ScannerState.readyToScan:
         // The "hold steady" hint shows briefly on detection, then fades — after
         // which the bottom stays clear.
         return _showHoldHint
-            ? const ScanHintPill(
-                key: ValueKey('hold'),
+            ? ScanHintPill(
+                key: const ValueKey('hold'),
                 icon: Icons.back_hand_rounded,
-                label: 'Hold steady to capture',
+                label: l10n.t('holdSteadyToCapture'),
                 positive: true,
               )
             : const SizedBox.shrink(key: ValueKey('clear'));
       case ScannerState.capturing:
-        return const ScanHintPill(
-          key: ValueKey('capturing'),
+        return ScanHintPill(
+          key: const ValueKey('capturing'),
           icon: Icons.camera_rounded,
-          label: 'Capturing…',
+          label: l10n.t('capturing'),
           positive: true,
         );
       case ScannerState.success:

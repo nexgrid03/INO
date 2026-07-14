@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -24,11 +25,6 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
   late DateTime _month;
   int? _selectedDay;
 
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June', //
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -48,10 +44,11 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        title: Text('Calendar',
+        title: Text(l10n.t('calendar'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
       ),
       body: ListenableBuilder(
@@ -92,7 +89,7 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.xs),
                   child: Text(
-                    '$_selectedDay ${_monthNames[_month.month - 1]}',
+                    '$_selectedDay ${MaterialLocalizations.of(context).formatMonthYear(selected).replaceAll(' ${selected.year}', '')}',
                     style:
                         AppText.title.copyWith(color: palette.textPrimary),
                   ),
@@ -139,7 +136,7 @@ class _NoReminderNote extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'No reminders on this day',
+              AppLocalizations.of(context).t('noRemindersOnDay'),
               style: AppText.caption.copyWith(color: palette.textSecondary),
             ),
           ),

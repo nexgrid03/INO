@@ -61,7 +61,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   Future<void> _openCrop() async {
     final base = _effectivePath;
     if (base == null || !File(base).existsSync()) {
-      _toast('Add a capture before cropping.');
+      _toast(AppLocalizations.of(context).t('addCaptureBeforeCrop'));
       return;
     }
     final cropped = await Navigator.of(context).push<String>(
@@ -73,7 +73,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       _enhanced = false; // enhance is now baked into history
       _enhancedPath = null;
     });
-    _toast('Crop applied');
+    _toast(AppLocalizations.of(context).t('cropApplied'));
   }
 
   /// Bakes a real 90° rotation into the working image.
@@ -225,7 +225,7 @@ class _Header extends StatelessWidget {
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('Crop, rotate or enhance before extracting',
+                Text(AppLocalizations.of(context).t('reviewCaptureSubtitle'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],
@@ -422,7 +422,7 @@ class _ContinueBar extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Extract Text',
+                        Text(AppLocalizations.of(context).t('extractText'),
                             style: AppText.subtitle.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700)),

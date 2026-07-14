@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../wallet/wallet_grid.dart' show localizedWalletName;
 
 /// Compact auto-detection summary shown above the editable OCR fields:
 /// "Detected as PAN Card · Identity Wallet" with a colour-coded confidence
@@ -23,6 +25,7 @@ class DetectionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -63,7 +66,7 @@ class DetectionBadge extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('Detected as ',
+                    Text('${l10n.t('detectedAs')} ',
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary)),
                     Flexible(
@@ -85,7 +88,7 @@ class DetectionBadge extends StatelessWidget {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        suggestedWallet,
+                        localizedWalletName(l10n, suggestedWallet),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style:
@@ -113,6 +116,7 @@ class _ConfidenceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = confidence.color;
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -129,7 +133,7 @@ class _ConfidenceChip extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            confidence.label,
+            confidence.localizedLabel(l10n),
             style: AppText.label.copyWith(color: color, fontSize: 11),
           ),
         ],

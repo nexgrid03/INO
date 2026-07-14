@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Models backing the Reminders Dashboard — the Life Events & Due Dates center.
@@ -32,6 +33,18 @@ extension ReminderPriorityX on ReminderPriority {
         return 'Important';
       case ReminderPriority.normal:
         return 'Normal';
+    }
+  }
+
+  /// Localized [label].
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case ReminderPriority.critical:
+        return l10n.t('critical');
+      case ReminderPriority.important:
+        return l10n.t('important');
+      case ReminderPriority.normal:
+        return l10n.t('normal');
     }
   }
 
@@ -81,6 +94,28 @@ extension ReminderCategoryX on ReminderCategory {
         return 'Anniversaries';
       case ReminderCategory.custom:
         return 'Custom';
+    }
+  }
+
+  /// Localized [label].
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case ReminderCategory.documents:
+        return l10n.t('documents');
+      case ReminderCategory.insurance:
+        return l10n.t('insurance');
+      case ReminderCategory.health:
+        return l10n.t('health');
+      case ReminderCategory.property:
+        return l10n.t('property');
+      case ReminderCategory.investments:
+        return l10n.t('investments');
+      case ReminderCategory.birthdays:
+        return l10n.t('birthdays');
+      case ReminderCategory.anniversaries:
+        return l10n.t('anniversaries');
+      case ReminderCategory.custom:
+        return l10n.t('custom');
     }
   }
 
@@ -172,6 +207,21 @@ class Reminder {
     if (d == 1) return 'Due Tomorrow';
     if (d <= 6) return 'In $d days';
     if (d <= 13) return 'Next week';
+    return reminderShortDate(date);
+  }
+
+  /// Localized [dueLabel] relative to [today].
+  String localizedDueLabel(DateTime today, AppLocalizations l10n) {
+    final d = daysFrom(today);
+    if (d < 0) {
+      return d == -1
+          ? l10n.t('overdueByOneDay')
+          : l10n.t('overdueByDays').replaceAll('{n}', '${-d}');
+    }
+    if (d == 0) return l10n.t('dueToday');
+    if (d == 1) return l10n.t('dueTomorrow');
+    if (d <= 6) return l10n.t('inDays').replaceAll('{n}', '$d');
+    if (d <= 13) return l10n.t('nextWeek');
     return reminderShortDate(date);
   }
 
@@ -275,6 +325,24 @@ extension ReminderFilterKindX on ReminderFilterKind {
     }
   }
 
+  /// Localized [label].
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case ReminderFilterKind.all:
+        return l10n.t('all');
+      case ReminderFilterKind.documents:
+        return l10n.t('documents');
+      case ReminderFilterKind.insurance:
+        return l10n.t('insurance');
+      case ReminderFilterKind.health:
+        return l10n.t('health');
+      case ReminderFilterKind.property:
+        return l10n.t('property');
+      case ReminderFilterKind.family:
+        return l10n.t('family');
+    }
+  }
+
   IconData get icon {
     switch (this) {
       case ReminderFilterKind.all:
@@ -315,11 +383,11 @@ extension ReminderFilterKindX on ReminderFilterKind {
 // Time grouping
 // ---------------------------------------------------------------------------
 
-/// A labelled bucket of reminders (e.g. "Overdue", "Today") for the grouped
-/// All-Reminders list.
+/// A labelled bucket of reminders for the grouped All-Reminders list. [labelKey]
+/// is an [AppLocalizations] key (e.g. `overdue`, `today`) resolved at render.
 class ReminderGroup {
-  const ReminderGroup(this.label, this.items);
-  final String label;
+  const ReminderGroup(this.labelKey, this.items);
+  final String labelKey;
   final List<Reminder> items;
 }
 
@@ -347,11 +415,11 @@ List<ReminderGroup> groupRemindersByTime(
     }
   }
   return [
-    if (overdue.isNotEmpty) ReminderGroup('Overdue', overdue),
-    if (todayItems.isNotEmpty) ReminderGroup('Today', todayItems),
-    if (tomorrow.isNotEmpty) ReminderGroup('Tomorrow', tomorrow),
-    if (thisWeek.isNotEmpty) ReminderGroup('This Week', thisWeek),
-    if (later.isNotEmpty) ReminderGroup('Later', later),
+    if (overdue.isNotEmpty) ReminderGroup('overdue', overdue),
+    if (todayItems.isNotEmpty) ReminderGroup('today', todayItems),
+    if (tomorrow.isNotEmpty) ReminderGroup('tomorrow', tomorrow),
+    if (thisWeek.isNotEmpty) ReminderGroup('thisWeek', thisWeek),
+    if (later.isNotEmpty) ReminderGroup('later', later),
   ];
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -83,6 +84,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -114,11 +116,11 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                     ),
                   ),
                 ),
-                Text('New Reminder',
+                Text(l10n.t('newReminder'),
                     style: AppText.headline.copyWith(color: palette.textPrimary)),
                 const SizedBox(height: AppSpacing.md),
 
-                _FieldLabel('Title'),
+                _FieldLabel(l10n.t('reminderTitle')),
                 const SizedBox(height: AppSpacing.xs),
                 TextField(
                   controller: _titleController,
@@ -126,11 +128,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _create(),
                   style: AppText.body.copyWith(color: palette.textPrimary),
-                  decoration: _inputDecoration(palette, 'e.g. Renew passport'),
+                  decoration:
+                      _inputDecoration(palette, l10n.t('reminderTitleHint')),
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                _FieldLabel('Type'),
+                _FieldLabel(l10n.t('type')),
                 const SizedBox(height: AppSpacing.xs),
                 Wrap(
                   spacing: AppSpacing.xs,
@@ -146,12 +149,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                _FieldLabel('Due date'),
+                _FieldLabel(l10n.t('dueDate')),
                 const SizedBox(height: AppSpacing.xs),
                 _DateRow(date: _date, onTap: _pickDate),
                 const SizedBox(height: AppSpacing.md),
 
-                _FieldLabel('Priority'),
+                _FieldLabel(l10n.t('priority')),
                 const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
@@ -257,7 +260,7 @@ class _TypeChip extends StatelessWidget {
                     color: selected ? color : palette.textSecondary),
                 const SizedBox(width: 6),
                 Text(
-                  category.label,
+                  category.localizedLabel(AppLocalizations.of(context)),
                   style: AppText.label.copyWith(
                     fontSize: 12,
                     color: selected ? color : palette.textSecondary,
@@ -350,7 +353,7 @@ class _PriorityChip extends StatelessWidget {
               ),
             ),
             child: Text(
-              priority.label,
+              priority.localizedLabel(AppLocalizations.of(context)),
               style: AppText.label.copyWith(
                 fontSize: 12.5,
                 color: selected ? color : palette.textSecondary,
@@ -395,7 +398,7 @@ class _CreateButton extends StatelessWidget {
                     const Icon(Icons.add_rounded, color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Create Reminder',
+                      AppLocalizations.of(context).t('createReminder'),
                       style: AppText.subtitle.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,

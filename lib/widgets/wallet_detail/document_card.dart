@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
@@ -305,7 +306,7 @@ class _StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            status.label,
+            status.localizedLabel(AppLocalizations.of(context)),
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,

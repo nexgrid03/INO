@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_dimens.dart';
@@ -60,15 +61,19 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   void _openCalendar() => _push(const ReminderCalendarScreen());
 
-  void _search() =>
-      showSearch<void>(context: context, delegate: ReminderSearchDelegate());
+  void _search() => showSearch<void>(
+        context: context,
+        delegate: ReminderSearchDelegate(AppLocalizations.of(context)),
+      );
 
   Future<void> _add() async {
     final created = await showAddReminderSheet(context);
     if (created != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('“${created.title}” added'),
+          content: Text(AppLocalizations.of(context)
+              .t('reminderAddedToast')
+              .replaceAll('{title}', created.title)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.primaryGreen,
         ),
@@ -172,6 +177,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   Widget _summaryGrid() {
     final s = _store.summary;
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.md),
@@ -184,7 +190,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   icon: Icons.today_rounded,
                   color: AppColors.critical,
                   count: s.dueToday,
-                  label: 'Today',
+                  label: l10n.t('today'),
                   onTap: () => _openScope(RemindersScope.today),
                 ),
               ),
@@ -194,7 +200,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   icon: Icons.date_range_rounded,
                   color: AppColors.lightBlue,
                   count: s.upcomingThisWeek,
-                  label: 'This Week',
+                  label: l10n.t('thisWeek'),
                   onTap: () => _openScope(RemindersScope.week),
                 ),
               ),
@@ -208,7 +214,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   icon: Icons.hourglass_bottom_rounded,
                   color: AppColors.warning,
                   count: s.expiringSoon,
-                  label: 'Expiring Soon',
+                  label: l10n.t('expiringSoon'),
                   onTap: () => _openScope(RemindersScope.expiring),
                 ),
               ),
@@ -218,7 +224,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   icon: Icons.check_circle_rounded,
                   color: AppColors.primaryGreen,
                   count: s.completedThisMonth,
-                  label: 'Completed',
+                  label: l10n.t('completed'),
                   onTap: _openCompleted,
                 ),
               ),
@@ -240,6 +246,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Widget _prioritiesSection(List<Reminder> priorities) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
       child: Column(
@@ -254,7 +261,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Today's Priorities",
+                    l10n.t('todaysPriorities'),
                     style: AppText.title.copyWith(
                       color: AppPalette.of(context).textPrimary,
                     ),
@@ -267,7 +274,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
-                        'View All',
+                        l10n.t('viewAll'),
                         style: AppText.label.copyWith(
                           color: AppColors.primaryGreen,
                           fontSize: 13,
@@ -309,7 +316,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           const SizedBox(width: AppSpacing.xs),
           _SquareIconButton(
             icon: Icons.calendar_month_rounded,
-            tooltip: 'Calendar',
+            tooltip: AppLocalizations.of(context).t('calendar'),
             onTap: _openCalendar,
           ),
         ],
@@ -326,6 +333,7 @@ class _CaughtUpNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
@@ -339,13 +347,13 @@ class _CaughtUpNote extends StatelessWidget {
               size: 30, color: AppColors.primaryGreen),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            "You're all caught up",
+            l10n.t('allCaughtUp'),
             style: AppText.subtitle.copyWith(
                 color: palette.textPrimary, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
-            'Nothing needs attention this week.',
+            l10n.t('nothingThisWeek'),
             style: AppText.caption.copyWith(color: palette.textSecondary),
           ),
         ],
@@ -380,7 +388,7 @@ class _ViewAllButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'View All Reminders',
+                  AppLocalizations.of(context).t('viewAllReminders'),
                   style: AppText.subtitle.copyWith(
                     color: palette.textPrimary,
                     fontWeight: FontWeight.w700,

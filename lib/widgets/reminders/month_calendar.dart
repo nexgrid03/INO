@@ -31,10 +31,6 @@ class MonthCalendar extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onNext;
 
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June', //
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
   static const _weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   bool get _isCurrentMonth =>
@@ -67,7 +63,7 @@ class MonthCalendar extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${_monthNames[month.month - 1]} ${month.year}',
+                MaterialLocalizations.of(context).formatMonthYear(month),
                 style: AppText.title.copyWith(color: palette.textPrimary),
               ),
               const Spacer(),

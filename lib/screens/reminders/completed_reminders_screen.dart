@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/reminder_store.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -29,10 +30,11 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
-        title: Text('Completed',
+        title: Text(l10n.t('completed'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
       ),
       body: ListenableBuilder(
@@ -69,7 +71,9 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
                           _store.restore(r);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('“${r.title}” restored'),
+                              content: Text(l10n
+                                  .t('reminderRestoredToast')
+                                  .replaceAll('{title}', r.title)),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: AppColors.primaryGreen,
                             ),
@@ -87,7 +91,7 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
               const SizedBox(height: AppSpacing.sm),
               Center(
                 child: Text(
-                  'Swipe left to restore',
+                  l10n.t('swipeLeftToRestore'),
                   style: AppText.caption.copyWith(color: palette.textFaint),
                 ),
               ),
@@ -116,7 +120,7 @@ class _RestoreBackground extends StatelessWidget {
               size: 18, color: AppColors.primaryGreen),
           const SizedBox(width: 6),
           Text(
-            'Restore',
+            AppLocalizations.of(context).t('restore'),
             style: AppText.label.copyWith(color: AppColors.primaryGreen),
           ),
         ],
@@ -140,11 +144,11 @@ class _Empty extends StatelessWidget {
           children: [
             Icon(Icons.task_alt_rounded, size: 44, color: palette.textFaint),
             const SizedBox(height: AppSpacing.sm),
-            Text('Nothing completed yet',
+            Text(AppLocalizations.of(context).t('nothingCompletedYet'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const SizedBox(height: 4),
             Text(
-              'Completed reminders will appear here.',
+              AppLocalizations.of(context).t('completedRemindersAppearHere'),
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(color: palette.textSecondary),
             ),

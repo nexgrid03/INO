@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/reminder_models.dart';
 import 'reminder_repository.dart';
 
@@ -215,6 +216,20 @@ extension RemindersScopeX on RemindersScope {
         return 'This Week';
       case RemindersScope.expiring:
         return 'Expiring Soon';
+    }
+  }
+
+  /// Localized [title].
+  String localizedTitle(AppLocalizations l10n) {
+    switch (this) {
+      case RemindersScope.all:
+        return l10n.t('allReminders');
+      case RemindersScope.today:
+        return l10n.t('dueNow');
+      case RemindersScope.week:
+        return l10n.t('thisWeek');
+      case RemindersScope.expiring:
+        return l10n.t('expiringSoon');
     }
   }
 }

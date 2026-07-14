@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../data/scan_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -37,11 +38,12 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
     duration: const Duration(milliseconds: 2200),
   );
 
+  // (progress threshold, AppLocalizations key) — resolved to text at render.
   static const _steps = <(double, String)>[
-    (0.0, 'Reading the document…'),
-    (0.35, 'Detecting text regions…'),
-    (0.65, 'Extracting information…'),
-    (0.9, 'Matching to a wallet…'),
+    (0.0, 'ocrReading'),
+    (0.35, 'ocrDetecting'),
+    (0.65, 'ocrExtracting'),
+    (0.9, 'ocrMatching'),
   ];
 
   @override
@@ -78,17 +80,19 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
     super.dispose();
   }
 
-  String _statusFor(double t) {
-    var label = _steps.first.$2;
+  /// Returns the [AppLocalizations] key for the active step at progress [t].
+  String _statusKeyFor(double t) {
+    var key = _steps.first.$2;
     for (final s in _steps) {
-      if (t >= s.$1) label = s.$2;
+      if (t >= s.$1) key = s.$2;
     }
-    return label;
+    return key;
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: SafeArea(
@@ -106,18 +110,18 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
                     children: [
                       _ProgressRing(progress: t),
                       const SizedBox(height: AppSpacing.xl),
-                      Text('Extracting Information',
+                      Text(l10n.t('extractingInformation'),
                           style: AppText.headline
                               .copyWith(color: palette.textPrimary)),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Please wait while INO analyzes your document.',
+                        l10n.t('ocrPleaseWait'),
                         textAlign: TextAlign.center,
                         style: AppText.body.copyWith(
                             color: palette.textSecondary, height: 1.5),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      _StatusLine(text: _statusFor(t)),
+                      _StatusLine(text: l10n.t(_statusKeyFor(t))),
                     ],
                   );
                 },
@@ -130,8 +134,10 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
                       ((1 - _c.value) * 2.2).clamp(0.0, 9.9);
                   return Text(
                     remaining < 0.15
-                        ? 'Almost done…'
-                        : 'Estimated ${remaining.toStringAsFixed(0)}s remaining',
+                        ? l10n.t('almostDone')
+                        : l10n
+                            .t('estimatedRemaining')
+                            .replaceAll('{s}', remaining.toStringAsFixed(0)),
                     style:
                         AppText.caption.copyWith(color: palette.textFaint),
                   );

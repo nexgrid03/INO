@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Models backing the Scan & OCR flow. UI-agnostic plain objects, hydrated today
@@ -21,6 +22,18 @@ extension DetectionConfidenceX on DetectionConfidence {
         return 'Medium';
       case DetectionConfidence.low:
         return 'Low';
+    }
+  }
+
+  /// Localized [label].
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case DetectionConfidence.high:
+        return l10n.t('high');
+      case DetectionConfidence.medium:
+        return l10n.t('medium');
+      case DetectionConfidence.low:
+        return l10n.t('low');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -14,6 +15,7 @@ class RemindersEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
           vertical: 48, horizontal: AppSpacing.screen),
@@ -37,11 +39,11 @@ class RemindersEmptyState extends StatelessWidget {
                 color: Colors.white, size: 50),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('No reminders yet',
+          Text(l10n.t('noRemindersYet'),
               style: AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Stay organized by creating your first reminder.',
+            l10n.t('remindersEmptySubtitle'),
             textAlign: TextAlign.center,
             style: AppText.body
                 .copyWith(color: palette.textSecondary, height: 1.5),
@@ -68,7 +70,7 @@ class RemindersEmptyState extends StatelessWidget {
                         const Icon(Icons.add_rounded,
                             color: Colors.white, size: 20),
                         const SizedBox(width: 8),
-                        Text('Create Reminder',
+                        Text(l10n.t('createReminder'),
                             style: AppText.subtitle.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700)),

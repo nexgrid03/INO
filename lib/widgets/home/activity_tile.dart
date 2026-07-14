@@ -26,6 +26,7 @@ class ActivityTile extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: AppSizes.iconContainerSm,
@@ -40,16 +41,24 @@ class ActivityTile extends StatelessWidget {
           Expanded(
             child: Text(
               item.localizedTitle(l10n),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: AppText.body.copyWith(
-                  color: palette.textPrimary, fontWeight: FontWeight.w600),
+                  color: palette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25),
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            item.localizedTime(l10n),
-            style: AppText.caption.copyWith(color: palette.textFaint),
+          // Fixed-width, top-aligned time so it never squeezes the title.
+          SizedBox(
+            width: 76,
+            child: Text(
+              item.localizedTime(l10n),
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              style: AppText.caption.copyWith(color: palette.textFaint),
+            ),
           ),
         ],
       ),

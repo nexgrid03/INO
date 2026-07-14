@@ -1,9 +1,43 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../dashboard/ino_card.dart';
+
+/// Maps a wallet name to its localized display name (the underlying name stays
+/// English so it keeps working as a data key).
+String localizedWalletName(AppLocalizations l10n, String name) {
+  const map = {
+    'Identity Wallet': 'identityWallet',
+    'Document Wallet': 'documentWallet',
+    'Property Wallet': 'propertyWallet',
+    'Insurance Wallet': 'insuranceWallet',
+    'Health Wallet': 'healthWallet',
+    'Investment Wallet': 'investmentWallet',
+    'Banking Wallet': 'bankingWallet',
+    'Password Vault': 'passwordVault',
+  };
+  final key = map[name];
+  return key == null ? name : l10n.t(key);
+}
+
+/// Maps a wallet metric label (e.g. "documents") to its localized form.
+String localizedMetricLabel(AppLocalizations l10n, String label) {
+  const map = {
+    'documents': 'metricDocuments',
+    'files': 'metricFiles',
+    'properties': 'metricProperties',
+    'policies': 'metricPolicies',
+    'records': 'metricRecords',
+    'holdings': 'metricHoldings',
+    'accounts': 'metricAccounts',
+    'passwords': 'metricPasswords',
+  };
+  final key = map[label];
+  return key == null ? label : l10n.t(key);
+}
 
 /// The Wallet Hub launcher grid.
 ///
@@ -59,6 +93,7 @@ class _WalletCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return InoCard(
       radius: 20,
       padding: const EdgeInsets.all(14),
@@ -88,7 +123,7 @@ class _WalletCard extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            category.name,
+            localizedWalletName(l10n, category.name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -100,7 +135,7 @@ class _WalletCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${category.metric} ${category.metricLabel}',
+            '${category.metric} ${localizedMetricLabel(l10n, category.metricLabel)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

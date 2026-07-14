@@ -141,7 +141,7 @@ class _NetWorth extends StatelessWidget {
                               color: growthColor, fontWeight: FontWeight.w700),
                         ),
                         TextSpan(
-                          text: 'this month',
+                          text: AppLocalizations.of(context).t('thisMonth'),
                           style: AppText.caption
                               .copyWith(color: palette.textFaint),
                         ),
