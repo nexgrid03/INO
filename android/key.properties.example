@@ -1,0 +1,15 @@
+# INO — release signing credentials (TEMPLATE).
+#
+# Copy this file to  android/key.properties  and fill in your real values.
+# `android/key.properties` and the .jks keystore are GIT-IGNORED — never commit
+# them. See RELEASE_SIGNING.md for how to create the keystore.
+#
+# storeFile: path to your .jks. Either an ABSOLUTE path, or a path relative to
+# the  android/app  directory (that's where Gradle resolves file(...) from).
+# Keep the keystore OUTSIDE the repo (e.g. in your home folder) so it can't be
+# committed by accident.
+
+storePassword=CHANGE_ME_store_password
+keyPassword=CHANGE_ME_key_password
+keyAlias=ino
+storeFile=C:/Users/you/keys/ino-release.jks
