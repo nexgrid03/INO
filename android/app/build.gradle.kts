@@ -67,6 +67,14 @@ android {
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
+                // No key.properties → debug-signed. Fine for `flutter run`, but
+                // this build must NEVER be distributed (Google Sign-In and Play
+                // require the registered release key). Warn loudly so a
+                // debug-signed release can't be shipped by accident.
+                logger.warn(
+                    "INO: android/key.properties not found — the RELEASE build " +
+                    "is DEBUG-signed. Do NOT distribute it. See RELEASE_SIGNING.md.",
+                )
                 signingConfigs.getByName("debug")
             }
 
