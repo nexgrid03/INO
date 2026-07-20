@@ -20,22 +20,12 @@ import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 
 /// The source a user picks to add a document.
 enum _DocSource { scan, pdf, image }
 
 extension _DocSourceX on _DocSource {
-  String get title {
-    switch (this) {
-      case _DocSource.scan:
-        return 'Scan Document';
-      case _DocSource.pdf:
-        return 'Upload PDF';
-      case _DocSource.image:
-        return 'Upload Image';
-    }
-  }
-
   /// The localized card title.
   String localizedTitle(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -49,14 +39,16 @@ extension _DocSourceX on _DocSource {
     }
   }
 
-  String get description {
+  /// The localized card description.
+  String localizedDescription(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     switch (this) {
       case _DocSource.scan:
-        return 'Scan using camera';
+        return l10n.t('scanUsingCamera');
       case _DocSource.pdf:
-        return 'Choose PDF file';
+        return l10n.t('choosePdfFile');
       case _DocSource.image:
-        return 'Select image';
+        return l10n.t('selectImage');
     }
   }
 
@@ -248,7 +240,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      _toast('Could not open ${source.title.toLowerCase()}: $e', error: true);
+      _toast(
+          AppLocalizations.of(context)
+              .t('couldNotOpenSource')
+              .replaceAll('{source}', source.localizedTitle(context).toLowerCase())
+              .replaceAll('{e}', '$e'),
+          error: true);
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
@@ -274,7 +271,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     } on PdfImportException catch (e) {
       if (mounted) _toast(e.message, error: true);
     } catch (e) {
-      if (mounted) _toast('Could not import the PDF: $e', error: true);
+      if (mounted) {
+        _toast(
+            AppLocalizations.of(context)
+                .t('couldNotImportPdf')
+                .replaceAll('{e}', '$e'),
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
@@ -289,12 +292,16 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   /// Settings if they've permanently blocked it).
   void _handleDenied(CameraAccess access, String what) {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    // [what] is a canonical key ('camera' / 'photos'); localize it for display.
+    final whatLabel = l10n.t(what);
     if (access == CameraAccess.permanentlyDenied) {
-      _toast('$what access is blocked. Enable it in Settings to continue.',
+      _toast(l10n.t('accessBlocked').replaceAll('{what}', whatLabel),
           error: true);
       CameraPermissionService.instance.openSettings();
     } else {
-      _toast('Please allow $what access to add a document.', error: true);
+      _toast(l10n.t('pleaseAllowAccess').replaceAll('{what}', whatLabel),
+          error: true);
     }
   }
 
@@ -321,7 +328,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     if (_wallet == null) {
-      _toast('Please choose a wallet', error: true);
+      _toast(AppLocalizations.of(context).t('pleaseChooseWallet'), error: true);
       return;
     }
 
@@ -401,14 +408,22 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         );
       }
 
-      _toast('“$name” saved to $_wallet');
+      _toast(AppLocalizations.of(context)
+          .t('savedToWallet')
+          .replaceAll('{name}', name)
+          .replaceAll('{wallet}',
+              localizedWalletName(AppLocalizations.of(context), _wallet!)));
       Navigator.of(context).maybePop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       // Surface the real reason (bucket missing, RLS denial, not signed in, …)
       // instead of a generic message, so failures are diagnosable on-device.
-      _toast('Save failed: $e', error: true);
+      _toast(
+          AppLocalizations.of(context)
+              .t('saveFailedDetail')
+              .replaceAll('{e}', '$e'),
+          error: true);
       debugPrint('Document save failed: $e');
     }
   }
@@ -509,10 +524,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   }
 
   Future<void> _chooseWallet() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await _showPicker(
-      title: 'Select Wallet',
+      title: l10n.t('selectWallet'),
       options: _wallets.map((w) => (w.$1, w.$2)).toList(),
       selected: _wallet,
+      labelBuilder: (v) => localizedWalletName(l10n, v),
     );
     if (picked != null) setState(() => _wallet = picked);
   }
@@ -541,7 +558,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('Select Category',
+            Text(AppLocalizations.of(context).t('selectCategory'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             Flexible(
@@ -560,7 +577,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     ),
                   Divider(color: palette.border, height: AppSpacing.md),
                   _PickerTile(
-                    label: 'Create new category',
+                    label: AppLocalizations.of(context).t('createNewCategory'),
                     icon: Icons.add_rounded,
                     selected: false,
                     onTap: () => Navigator.of(context).pop(_kCreateCategory),
@@ -585,6 +602,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     required String title,
     required List<(String, IconData)> options,
     required String? selected,
+    String Function(String)? labelBuilder,
   }) {
     final palette = AppPalette.of(context);
     return showModalBottomSheet<String>(
@@ -618,7 +636,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 children: [
                   for (final o in options)
                     _PickerTile(
-                      label: o.$1,
+                      label: labelBuilder != null ? labelBuilder(o.$1) : o.$1,
                       icon: o.$2,
                       selected: o.$1 == selected,
                       onTap: () => Navigator.of(context).pop(o.$1),
@@ -679,7 +697,7 @@ class _Header extends StatelessWidget {
                     style: AppText.headline.copyWith(
                         color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('Store your documents securely',
+                Text(AppLocalizations.of(context).t('storeDocsSecurely'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],
@@ -789,7 +807,7 @@ class _OptionCard extends StatelessWidget {
           ),
           const SizedBox(height: 1),
           Text(
-            source.description,
+            source.localizedDescription(context),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -848,14 +866,17 @@ class _EmptyState extends StatelessWidget {
                     color: Colors.white, size: 50),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(busy ? 'Opening…' : 'No document selected',
+          Text(
+              busy
+                  ? AppLocalizations.of(context).t('opening')
+                  : AppLocalizations.of(context).t('noDocumentSelected'),
               style:
                   AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(
-              'Choose a document source above to get started.',
+              AppLocalizations.of(context).t('chooseSourceHint'),
               textAlign: TextAlign.center,
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.5),
@@ -911,6 +932,7 @@ class _DetailsForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Form(
       key: formKey,
       child: Column(
@@ -919,53 +941,54 @@ class _DetailsForm extends StatelessWidget {
           _SelectedFile(source: source, fileName: fileName, onRemove: onRemoveFile),
           const SizedBox(height: AppSpacing.lg),
           _Field(
-            label: 'Document Name',
+            label: l10n.t('documentName'),
             child: TextFormField(
               controller: nameController,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter a document name' : null,
-              decoration: _decoration(context, 'e.g. Aadhaar Card'),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? l10n.t('enterDocumentName')
+                  : null,
+              decoration: _decoration(context, l10n.t('hintAddDocName')),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           _Field(
-            label: 'Wallet',
+            label: l10n.t('wallet'),
             child: _Selector(
-              value: wallet,
-              placeholder: 'Choose a wallet',
+              value: wallet == null ? null : localizedWalletName(l10n, wallet!),
+              placeholder: l10n.t('chooseWallet'),
               leading: Icons.account_balance_wallet_rounded,
               onTap: onPickWallet,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           _Field(
-            label: 'Category',
+            label: l10n.t('category'),
             child: _Selector(
               value: category,
-              placeholder: 'Choose a category',
+              placeholder: l10n.t('chooseCategory'),
               leading: Icons.label_rounded,
               onTap: onPickCategory,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           _Field(
-            label: 'Tags',
+            label: l10n.t('tags'),
             optional: true,
             child: TextFormField(
               controller: tagsController,
               textInputAction: TextInputAction.next,
-              decoration: _decoration(context, 'e.g. tax, 2026'),
+              decoration: _decoration(context, l10n.t('hintAddTags')),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           _Field(
-            label: 'Expiry Date',
+            label: l10n.t('expiryDate'),
             optional: true,
             child: _Selector(
               value: expiry == null ? null : _fmt(expiry!),
-              placeholder: 'No expiry',
+              placeholder: l10n.t('noExpiry'),
               leading: Icons.event_rounded,
               trailing: Icons.calendar_today_rounded,
               onTap: onPickExpiry,
@@ -973,13 +996,13 @@ class _DetailsForm extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           _Field(
-            label: 'Notes',
+            label: l10n.t('notes'),
             optional: true,
             child: TextFormField(
               controller: notesController,
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
-              decoration: _decoration(context, 'Add a note (optional)'),
+              decoration: _decoration(context, l10n.t('hintNotes')),
             ),
           ),
         ],
@@ -1033,7 +1056,7 @@ class _Field extends StatelessWidget {
                     color: palette.textPrimary, fontSize: 13)),
             if (optional) ...[
               const SizedBox(width: 6),
-              Text('Optional',
+              Text(AppLocalizations.of(context).t('optional'),
                   style: AppText.label.copyWith(
                       color: palette.textFaint, fontSize: 11)),
             ],
@@ -1148,7 +1171,7 @@ class _SelectedFile extends StatelessWidget {
                     style: AppText.subtitle.copyWith(
                         color: palette.textPrimary, fontSize: 13.5)),
                 const SizedBox(height: 1),
-                Text('Ready to save',
+                Text(AppLocalizations.of(context).t('readyToSave'),
                     style: AppText.caption
                         .copyWith(color: AppColors.primaryGreen)),
               ],
@@ -1158,7 +1181,7 @@ class _SelectedFile extends StatelessWidget {
             onPressed: onRemove,
             visualDensity: VisualDensity.compact,
             icon: Icon(Icons.close_rounded, color: palette.textFaint, size: 20),
-            tooltip: 'Remove',
+            tooltip: AppLocalizations.of(context).t('remove'),
           ),
         ],
       ),
@@ -1259,13 +1282,13 @@ class _ProtectToggle extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Protect with Biometrics',
+                  AppLocalizations.of(context).t('protectWithBiometrics'),
                   style: AppText.subtitle
                       .copyWith(color: palette.textPrimary, fontSize: 13.5),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Require fingerprint or Face ID to open this document.',
+                  AppLocalizations.of(context).t('protectBiometricsSubtitle'),
                   style: AppText.caption.copyWith(color: palette.textSecondary),
                 ),
               ],

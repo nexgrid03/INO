@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../data/wallet_repository.dart';
 import '../../services/global_search_service.dart';
 import '../../theme/app_dimens.dart';
@@ -130,10 +131,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2.4));
     }
     if (_results.isEmpty) {
+      final l10n = AppLocalizations.of(context);
       return EmptyState(
         icon: Icons.search_off_rounded,
-        title: 'No results for “$_query”',
-        message: 'Try a document name, category, tag or reminder.',
+        title: l10n.t('noResultsFor').replaceAll('{q}', _query),
+        message: l10n.t('searchTryHint'),
         compact: true,
       );
     }
@@ -149,6 +151,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   }
 
   Widget _idleState(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
@@ -157,7 +160,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         if (_recent.isNotEmpty) ...[
           Row(
             children: [
-              Text('RECENT',
+              Text(l10n.t('recentSection'),
                   style: AppText.label.copyWith(color: palette.textFaint)),
               const Spacer(),
               GestureDetector(
@@ -165,7 +168,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                   await _service.clearRecent();
                   _loadRecent();
                 },
-                child: Text('Clear',
+                child: Text(l10n.t('clear'),
                     style: AppText.caption.copyWith(
                         color: AppColors.primaryGreen,
                         fontWeight: FontWeight.w700)),
@@ -186,7 +189,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-        Text('SUGGESTIONS',
+        Text(l10n.t('suggestions'),
             style: AppText.label.copyWith(color: palette.textFaint)),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
@@ -231,7 +234,7 @@ class _SearchField extends StatelessWidget {
       textInputAction: TextInputAction.search,
       style: TextStyle(color: palette.textPrimary, fontSize: 16),
       decoration: InputDecoration(
-        hintText: 'Search documents, reminders, tags…',
+        hintText: AppLocalizations.of(context).t('searchGlobalHint'),
         hintStyle: TextStyle(color: palette.textFaint, fontSize: 15),
         border: InputBorder.none,
         suffixIcon: ValueListenableBuilder<TextEditingValue>(

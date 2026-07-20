@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../profile/settings_scaffold.dart';
@@ -85,19 +86,22 @@ class ErrorRetry extends StatelessWidget {
   const ErrorRetry({
     super.key,
     required this.onRetry,
-    this.message = 'Something went wrong. Please try again.',
+    this.message,
   });
 
   final VoidCallback onRetry;
-  final String message;
+
+  /// Overrides the default "something went wrong" copy when provided.
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return EmptyState(
       icon: Icons.wifi_off_rounded,
-      title: 'Couldn’t load',
-      message: message,
-      actionLabel: 'Retry',
+      title: l10n.t('couldntLoad'),
+      message: message ?? l10n.t('somethingWentWrong'),
+      actionLabel: l10n.t('retry'),
       onAction: onRetry,
     );
   }

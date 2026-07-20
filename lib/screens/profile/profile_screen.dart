@@ -298,9 +298,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _confirmAndEnable() async {
+    final l10n = AppLocalizations.of(context);
     final outcome = await BiometricService.instance.authenticateDetailed(
-      reason: 'Confirm your identity to enable biometric lock',
-      title: 'Enable Biometric Lock',
+      reason: l10n.t('confirmIdentityEnable'),
+      title: l10n.t('enableBiometricLock'),
     );
     if (!mounted) return;
     if (outcome.ok) {
@@ -309,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       setState(() => _biometric = true);
       _persistBiometric(true);
       BiometricUx.successSnack(
-          context, 'Biometric authentication enabled successfully.');
+          context, AppLocalizations.of(context).t('biometricEnabledMsg'));
     } else {
       final error = outcome.error;
       if (error != null && !error.isSilent) {
@@ -321,9 +322,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _disableBiometric() async {
     final confirmed = await BiometricUx.disableBiometricDialog(context);
     if (!mounted || !confirmed) return;
+    final l10n = AppLocalizations.of(context);
     final outcome = await BiometricService.instance.authenticateDetailed(
-      reason: 'Confirm your identity to disable biometric lock',
-      title: 'Disable Biometric Lock',
+      reason: l10n.t('confirmIdentityDisable'),
+      title: l10n.t('disableBiometricLock'),
     );
     if (!mounted) return;
     if (!outcome.ok) {
@@ -337,7 +339,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (!mounted) return;
     setState(() => _biometric = false);
     _persistBiometric(false);
-    BiometricUx.successSnack(context, 'Biometric authentication disabled.');
+    BiometricUx.successSnack(
+        context, AppLocalizations.of(context).t('biometricDisabledMsg'));
   }
 
   void _persistBiometric(bool value) {
@@ -377,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => _ProgressDialog(
-        title: 'Preparing your data',
+        title: AppLocalizations.of(context).t('preparingData'),
         progress: progress,
       ),
     );
@@ -393,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      _toast('Export failed. Please try again.', error: true);
+      _toast(AppLocalizations.of(context).t('exportFailed'), error: true);
     } finally {
       // Dispose after the dialog's exit transition, so its listener is already
       // detached (avoids "used after disposed" on the fast error path).
@@ -405,6 +408,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _confirmLogout() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: palette.surface,
@@ -432,11 +436,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                     color: AppColors.critical, size: 28),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Log out of INO?',
+              Text(l10n.t('logoutConfirmTitle'),
                   style: AppText.title.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Your vault stays encrypted and synced. You can sign back in anytime.',
+                l10n.t('logoutConfirmBody'),
                 textAlign: TextAlign.center,
                 style: AppText.body
                     .copyWith(color: palette.textSecondary, height: 1.5),
@@ -446,14 +450,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                 children: [
                   Expanded(
                     child: _SheetButton(
-                      label: 'Cancel',
+                      label: l10n.t('cancel'),
                       onTap: () => Navigator.of(context).pop(false),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: _SheetButton(
-                      label: 'Log Out',
+                      label: l10n.t('logOut'),
                       danger: true,
                       onTap: () => Navigator.of(context).pop(true),
                     ),

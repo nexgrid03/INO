@@ -63,13 +63,13 @@ class WalletHeader extends StatelessWidget {
             const Spacer(),
             _HeaderIcon(
               icon: Icons.search_rounded,
-              tooltip: 'Search wallets',
+              tooltip: l10n.t('searchWallets'),
               onTap: onSearch,
             ),
             const SizedBox(width: 8),
             _HeaderIcon(
               icon: Icons.notifications_none_rounded,
-              tooltip: 'Notifications',
+              tooltip: l10n.t('notifications'),
               onTap: onNotifications,
               badge: notificationCount,
             ),

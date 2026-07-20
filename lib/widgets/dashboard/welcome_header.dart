@@ -173,13 +173,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
         _HeaderIcon(
           icon: Icons.search_rounded,
           onTap: widget.onSearch,
-          tooltip: 'Search',
+          tooltip: AppLocalizations.of(context).t('search'),
         ),
         const SizedBox(width: 8),
         _HeaderIcon(
           icon: Icons.notifications_none_rounded,
           onTap: widget.onNotifications,
-          tooltip: 'Notifications',
+          tooltip: AppLocalizations.of(context).t('notifications'),
           badge: widget.notificationCount,
         ),
       ],

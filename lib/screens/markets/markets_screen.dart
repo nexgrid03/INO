@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -17,8 +18,9 @@ class MarketsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Markets',
+      title: l10n.t('markets'),
       child: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
@@ -30,8 +32,7 @@ class MarketsScreen extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Gold & silver are LIVE (spot price × ₹ exchange rate, updated on '
-            'refresh). Petrol & diesel are indicative.',
+            l10n.t('marketsInfoLine'),
             style: AppText.caption.copyWith(color: palette.textFaint, height: 1.4),
           ),
         ],

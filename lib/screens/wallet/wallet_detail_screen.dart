@@ -340,7 +340,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       final unlocked = await VaultGuard.instance.ensureUnlocked(
         context,
         reason: 'Authenticate to access this protected document.',
-        title: 'Verify your identity',
+        title: AppLocalizations.of(context).t('verifyIdentity'),
       );
       if (!unlocked || !mounted) return;
     }
@@ -776,6 +776,7 @@ class _SelectionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final enabled = count > 0;
     return SafeArea(
       top: false,
@@ -794,11 +795,11 @@ class _SelectionBar extends StatelessWidget {
               IconButton(
                 onPressed: onCancel,
                 icon: Icon(Icons.close_rounded, color: palette.textPrimary),
-                tooltip: 'Cancel',
+                tooltip: l10n.t('cancel'),
               ),
               Expanded(
                 child: Text(
-                  '$count selected',
+                  l10n.t('selectedCount').replaceAll('{n}', '$count'),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -833,17 +834,17 @@ class _SelectionBar extends StatelessWidget {
                     child: InkWell(
                       onTap: enabled ? onShare : null,
                       borderRadius: BorderRadius.circular(AppRadius.button),
-                      child: const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.qr_code_2_rounded,
+                            const Icon(Icons.qr_code_2_rounded,
                                 color: Colors.white, size: 20),
-                            SizedBox(width: 8),
-                            Text('Share via QR',
-                                style: TextStyle(
+                            const SizedBox(width: 8),
+                            Text(l10n.t('shareViaQr'),
+                                style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14)),

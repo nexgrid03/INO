@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -36,11 +37,12 @@ class WalletHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         _HeaderIcon(
           icon: Icons.arrow_back_rounded,
-          tooltip: 'Back',
+          tooltip: l10n.t('back'),
           onTap: onBack,
         ),
         const SizedBox(width: 12),
@@ -59,14 +61,14 @@ class WalletHeader extends StatelessWidget {
         ),
         _HeaderIcon(
           icon: Icons.search_rounded,
-          tooltip: 'Search',
+          tooltip: l10n.t('search'),
           onTap: onSearch,
         ),
         const SizedBox(width: 8),
         if (onAreaConverter != null) ...[
           _HeaderIcon(
             icon: Icons.straighten_rounded,
-            tooltip: 'Area converter',
+            tooltip: l10n.t('areaConverter'),
             onTap: onAreaConverter!,
           ),
           const SizedBox(width: 8),
@@ -74,14 +76,14 @@ class WalletHeader extends StatelessWidget {
         if (onManageShares != null) ...[
           _HeaderIcon(
             icon: Icons.qr_code_2_rounded,
-            tooltip: 'Shared links',
+            tooltip: l10n.t('sharedLinks'),
             onTap: onManageShares!,
           ),
           const SizedBox(width: 8),
         ],
         _HeaderIcon(
           icon: Icons.tune_rounded,
-          tooltip: 'Sort & filter',
+          tooltip: l10n.t('sortFilter'),
           onTap: onFilter,
         ),
       ],

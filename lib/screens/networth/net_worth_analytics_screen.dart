@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../services/net_worth_service.dart';
 import '../../theme/app_dimens.dart';
@@ -18,6 +19,7 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final service = NetWorthService.instance;
     final data = service.data;
     final monthSeries = service.seriesFor(NetWorthRange.month);
@@ -26,14 +28,14 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
     final yearChange = _percentChange(yearSeries);
 
     return SettingsScaffold(
-      title: 'Net Worth',
+      title: l10n.t('netWorth'),
       child: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [
           // Total + growth.
-          Text('Total net worth',
+          Text(l10n.t('netWorthTotalLabel'),
               style: AppText.caption.copyWith(color: palette.textSecondary)),
           const SizedBox(height: 4),
           Row(
@@ -58,7 +60,7 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} this month',
+            '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
             style: AppText.caption.copyWith(
                 color: data.isUp ? AppColors.positive : AppColors.negative,
                 fontWeight: FontWeight.w700),
@@ -76,13 +78,13 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
             children: [
               Expanded(
                   child: _TrendCard(
-                      label: 'Monthly trend',
+                      label: l10n.t('monthlyTrend'),
                       percent: monthChange,
                       icon: Icons.calendar_view_month_rounded)),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                   child: _TrendCard(
-                      label: 'Yearly trend',
+                      label: l10n.t('yearlyTrend'),
                       percent: yearChange,
                       icon: Icons.timeline_rounded)),
             ],
@@ -90,7 +92,7 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.section),
 
           // Asset distribution.
-          Text('Asset distribution',
+          Text(l10n.t('assetDistribution'),
               style: AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.md),
           SettingsCard(

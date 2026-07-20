@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -28,6 +29,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
@@ -38,7 +40,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('Notifications',
+        title: Text(l10n.t('notifications'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
         centerTitle: true,
         actions: [
@@ -48,8 +50,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ? const SizedBox.shrink()
                 : TextButton(
                     onPressed: _center.markAllRead,
-                    child: const Text('Mark all read',
-                        style: TextStyle(
+                    child: Text(l10n.t('markAllRead'),
+                        style: const TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                             fontSize: 13)),
@@ -64,11 +66,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (context, _) {
             final items = _center.notifications;
             if (items.isEmpty) {
-              return const EmptyState(
+              return EmptyState(
                 icon: Icons.notifications_off_rounded,
-                title: 'You’re all caught up',
-                message: 'No new notifications right now. We’ll let you know '
-                    'when something needs your attention.',
+                title: l10n.t('allCaughtUp'),
+                message: l10n.t('noNewNotifications'),
               );
             }
             return RefreshIndicator(

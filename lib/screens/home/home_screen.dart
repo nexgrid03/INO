@@ -434,14 +434,15 @@ class _ActivityList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
+      final l10n = AppLocalizations.of(context);
       return InoCard(
         radius: AppRadius.card,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: EmptyState(
           icon: Icons.timeline_rounded,
-          title: 'No activity yet',
-          message: 'Scan or add your first document to see your activity here.',
-          actionLabel: 'Scan a document',
+          title: l10n.t('noActivityYet'),
+          message: l10n.t('activityEmptySubtitle'),
+          actionLabel: l10n.t('scanADocument'),
           onAction: onAdd,
           compact: true,
         ),

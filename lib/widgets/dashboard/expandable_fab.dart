@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -161,7 +162,8 @@ class _MiniAction extends StatelessWidget {
                 boxShadow: palette.cardShadow,
               ),
               child: Text(
-                action.label,
+                localizedQuickActionLabel(
+                    AppLocalizations.of(context), action.label),
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,

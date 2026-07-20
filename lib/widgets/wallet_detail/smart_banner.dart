@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -98,7 +99,7 @@ class SmartBanner extends StatelessWidget {
             onPressed: onDismiss,
             visualDensity: VisualDensity.compact,
             iconSize: 18,
-            tooltip: 'Dismiss',
+            tooltip: AppLocalizations.of(context).t('dismiss'),
             icon: Icon(Icons.close_rounded, color: palette.textFaint),
           ),
         ],

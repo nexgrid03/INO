@@ -12,6 +12,7 @@ import '../../utils/share_origin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException, AuthException;
 
 import '../../data/wallet_detail_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/auth_service.dart';
@@ -20,6 +21,7 @@ import '../../services/document_protection_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 
 /// What changed while viewing a document, returned to the wallet list on pop.
 class DocumentViewerResult {
@@ -474,56 +476,58 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: AppColors.primaryGreen,
-            content: const Text('Saved a copy to the app'),
+            content: Text(AppLocalizations.of(context).t('savedCopyToApp')),
             action: SnackBarAction(
-              label: 'Open',
+              label: AppLocalizations.of(context).t('open'),
               textColor: Colors.white,
               onPressed: () => OpenFilex.open(named.path),
             ),
           ),
         );
     } catch (_) {
-      _snack('Download failed. Please try again.', error: true);
+      _snack(AppLocalizations.of(context).t('downloadFailed'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _openExternally() async {
+    final l10n = AppLocalizations.of(context);
     final file = await _localFile();
     if (file == null) {
-      _snack('Could not load this file.', error: true);
+      if (mounted) _snack(l10n.t('couldNotLoadFile'), error: true);
       return;
     }
     final result = await OpenFilex.open(file.path);
     if (result.type != ResultType.done && mounted) {
-      _snack('No app on this device can open this file.', error: true);
+      _snack(l10n.t('noAppToOpen'), error: true);
     }
   }
 
   Future<void> _rename() async {
     final controller = TextEditingController(text: _record.name);
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Rename document'),
+        title: Text(l10n.t('renameDocument')),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(hintText: 'Document name'),
+          decoration: InputDecoration(hintText: l10n.t('renameHint')),
           onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.t('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save'),
+            child: Text(l10n.t('save')),
           ),
         ],
       ),
@@ -533,9 +537,13 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     try {
       await DocumentRepository.instance.rename(_record.id, newName);
       WalletDetailRepository.instance.updateRecord(widget.walletName, _record);
-      _snack('Renamed to “$newName”');
+      if (!mounted) return;
+      _snack(AppLocalizations.of(context)
+          .t('renamedTo')
+          .replaceAll('{name}', newName));
     } catch (_) {
-      _snack('Rename failed. Please try again.', error: true);
+      if (!mounted) return;
+      _snack(AppLocalizations.of(context).t('renameFailed'), error: true);
     }
   }
 
@@ -551,6 +559,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       'Password Vault',
     ];
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final target = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -571,14 +580,15 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('Move to',
+            Text(l10n.t('moveToWallet'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             for (final w in wallets.where((w) => w != widget.walletName))
               ListTile(
                 leading: const Icon(Icons.account_balance_wallet_rounded,
                     color: AppColors.primaryGreen),
-                title: Text(w, style: TextStyle(color: palette.textPrimary)),
+                title: Text(localizedWalletName(l10n, w),
+                    style: TextStyle(color: palette.textPrimary)),
                 onTap: () => Navigator.of(context).pop(w),
               ),
             const SizedBox(height: AppSpacing.sm),
@@ -591,39 +601,47 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       await DocumentRepository.instance.move(_record.id, target);
       WalletDetailRepository.instance
           .deleteRecordLocal(widget.walletName, _record.id);
-      _snack('Moved to $target');
+      if (!mounted) return;
+      _snack(AppLocalizations.of(context)
+          .t('movedToWallet')
+          .replaceAll('{wallet}',
+              localizedWalletName(AppLocalizations.of(context), target)));
       if (mounted) _popRemoved();
     } catch (_) {
-      _snack('Move failed. Please try again.', error: true);
+      if (!mounted) return;
+      _snack(AppLocalizations.of(context).t('moveFailed'), error: true);
     }
   }
 
   Future<void> _archive() async {
     setState(() => _record = _record.copyWith(status: DocumentStatus.archived));
     WalletDetailRepository.instance.updateRecord(widget.walletName, _record);
-    _snack('${_record.name} archived');
+    _snack(AppLocalizations.of(context)
+        .t('archivedName')
+        .replaceAll('{name}', _record.name));
   }
 
   Future<void> _delete() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Delete document?'),
+        title: Text(l10n.t('deleteDocumentTitle')),
         content: Text(
-          'This permanently deletes “${_record.name}” and its file. This cannot be undone.',
+          l10n.t('deleteDocBodyName').replaceAll('{name}', _record.name),
           style: TextStyle(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.t('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete',
-                style: TextStyle(color: AppColors.critical)),
+            child: Text(l10n.t('delete'),
+                style: const TextStyle(color: AppColors.critical)),
           ),
         ],
       ),
@@ -637,17 +655,20 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
       reason: 'Authenticate to remove protection from this document.',
-      title: 'Verify your identity',
+      title: AppLocalizations.of(context).t('verifyIdentity'),
     );
     if (!ok || !mounted) return;
     await DocumentProtectionStore.instance.setProtected(_record.id, false);
     if (!mounted) return;
+    _snack(AppLocalizations.of(context)
+        .t('noLongerProtected')
+        .replaceAll('{name}', _record.name));
     setState(() => _protected = false);
-    _snack('${_record.name} is no longer protected');
   }
 
   void _showInfo() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
@@ -673,22 +694,25 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Document information',
+              Text(l10n.t('documentInformation'),
                   style: AppText.title.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.md),
-              _InfoRow(label: 'File name', value: _record.name),
-              _InfoRow(label: 'Category', value: _record.category),
+              _InfoRow(label: l10n.t('fileName'), value: _record.name),
+              _InfoRow(label: l10n.t('category'), value: _record.category),
               _InfoRow(
-                  label: 'Upload date',
+                  label: l10n.t('uploadDate'),
                   value: inoFormatDate(_record.uploadedAt)),
               _InfoRow(
-                  label: 'File size',
+                  label: l10n.t('fileSize'),
                   value: _fileSize > 0 ? _formatBytes(_fileSize) : '—'),
               _InfoRow(
-                  label: 'Protection',
-                  value: _protected ? 'Biometric protected' : 'Not protected'),
+                  label: l10n.t('protection'),
+                  value: _protected
+                      ? l10n.t('biometricProtected')
+                      : l10n.t('notProtected')),
               _InfoRow(
-                  label: 'Favorite', value: _record.isFavorite ? 'Yes' : 'No'),
+                  label: l10n.t('favorite'),
+                  value: _record.isFavorite ? l10n.t('yes') : l10n.t('no')),
             ],
           ),
         ),
@@ -736,7 +760,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           ),
           actions: [
             IconButton(
-              tooltip: _record.isFavorite ? 'Unfavorite' : 'Favorite',
+              tooltip: _record.isFavorite
+                  ? AppLocalizations.of(context).t('unfavorite')
+                  : AppLocalizations.of(context).t('favorite'),
               icon: Icon(
                 _record.isFavorite
                     ? Icons.star_rounded
@@ -746,12 +772,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               onPressed: _toggleFavorite,
             ),
             IconButton(
-              tooltip: 'Share',
+              tooltip: AppLocalizations.of(context).t('share'),
               icon: const Icon(Icons.ios_share_rounded),
               onPressed: _share,
             ),
             IconButton(
-              tooltip: 'Download',
+              tooltip: AppLocalizations.of(context).t('download'),
               icon: const Icon(Icons.download_rounded),
               onPressed: _download,
             ),
@@ -782,19 +808,23 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
             _showInfo();
         }
       },
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'rename', child: Text('Rename')),
-        const PopupMenuItem(value: 'move', child: Text('Move')),
-        const PopupMenuItem(value: 'archive', child: Text('Archive')),
-        if (_protected)
-          const PopupMenuItem(
-              value: 'unprotect', child: Text('Remove protection')),
-        const PopupMenuItem(value: 'info', child: Text('Document information')),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Text('Delete', style: TextStyle(color: AppColors.critical)),
-        ),
-      ],
+      itemBuilder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return [
+          PopupMenuItem(value: 'rename', child: Text(l10n.t('rename'))),
+          PopupMenuItem(value: 'move', child: Text(l10n.t('move'))),
+          PopupMenuItem(value: 'archive', child: Text(l10n.t('archive'))),
+          if (_protected)
+            PopupMenuItem(
+                value: 'unprotect', child: Text(l10n.t('removeProtection'))),
+          PopupMenuItem(value: 'info', child: Text(l10n.t('documentInformation'))),
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(l10n.t('delete'),
+                style: const TextStyle(color: AppColors.critical)),
+          ),
+        ];
+      },
     );
   }
 
@@ -1033,8 +1063,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                     label: _formatBytes(_fileSize),
                     icon: Icons.sd_storage_rounded),
               if (_protected)
-                const _MetaChip(
-                    label: 'Protected',
+                _MetaChip(
+                    label: AppLocalizations.of(context).t('protected'),
                     icon: Icons.lock_rounded,
                     accent: AppColors.primaryGreen),
             ],
@@ -1103,12 +1133,14 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                 ),
                 onPressed: _openExternally,
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: Text(isPdf ? 'Open PDF' : 'Open file'),
+                label: Text(AppLocalizations.of(context)
+                    .t(isPdf ? 'openPdf' : 'openFile')),
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Opens with your device’s ${isPdf ? 'PDF' : 'default'} app.',
+              AppLocalizations.of(context)
+                  .t(isPdf ? 'opensWithPdfApp' : 'opensWithDefaultApp'),
               style: AppText.caption.copyWith(color: palette.textFaint),
             ),
           ],

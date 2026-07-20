@@ -70,7 +70,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                 parent: BouncingScrollPhysics(),
               ),
               padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: shares.lengt+h,
+              itemCount: shares.length,
               separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, i) => _ShareTile(
                 share: shares[i],

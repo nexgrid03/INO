@@ -162,6 +162,27 @@ class QuickAction {
   final Color color;
 }
 
+/// Maps a canonical [QuickAction.label] (kept in English for dispatch) to its
+/// localized display string. Unknown labels pass through unchanged.
+String localizedQuickActionLabel(AppLocalizations l10n, String label) {
+  const map = {
+    'Add Document': 'addDocument',
+    'Add Reminder': 'addReminder',
+    'Add Investment': 'addInvestment',
+    'Add Property': 'addProperty',
+    'Add Insurance': 'addInsurance',
+    'Add Health Record': 'addHealthRecord',
+    'Add Password': 'addPassword',
+    'Scan': 'scan',
+    'Scan Document': 'scanDocument',
+    'Upload PDF': 'uploadPdf',
+    'Import Image': 'importImage',
+    'Create Category': 'createCategory',
+  };
+  final key = map[label];
+  return key == null ? label : l10n.t(key);
+}
+
 // ---------------------------------------------------------------------------
 // 6. Wallet ecosystem
 // ---------------------------------------------------------------------------

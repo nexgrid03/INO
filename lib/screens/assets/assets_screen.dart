@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../services/net_worth_service.dart';
 import '../../theme/app_dimens.dart';
@@ -54,11 +55,12 @@ class _AssetsScreenState extends State<AssetsScreen> {
         ? all
         : all.where((a) => a.label.toLowerCase().contains(_term)).toList();
 
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Assets',
+      title: l10n.t('assets'),
       actions: [
         IconButton(
-          tooltip: 'Add asset',
+          tooltip: l10n.t('addAsset'),
           icon: Icon(Icons.add_rounded, color: palette.textPrimary),
           onPressed: _addAsset,
         ),
@@ -89,8 +91,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total assets',
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    Text(l10n.t('totalAssets'),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 4),
                     Text(formatInr(total),
                         style: const TextStyle(
@@ -100,12 +103,15 @@ class _AssetsScreenState extends State<AssetsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Text('${all.length} asset classes',
+                        Text(
+                            l10n
+                                .t('assetClasses')
+                                .replaceAll('{n}', '${all.length}'),
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 12)),
                         const Spacer(),
-                        const Text('View analytics',
-                            style: TextStyle(
+                        Text(l10n.t('viewAnalytics'),
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700)),
@@ -127,7 +133,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
               controller: _query,
               style: TextStyle(color: palette.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search assets…',
+                hintText: l10n.t('searchAssets'),
                 hintStyle: TextStyle(color: palette.textFaint),
                 prefixIcon:
                     Icon(Icons.search_rounded, color: palette.textSecondary),
@@ -154,9 +160,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
             child: filtered.isEmpty
                 ? EmptyState(
                     icon: Icons.inventory_2_rounded,
-                    title: 'No matching assets',
-                    message: 'Try a different search, or add a new asset.',
-                    actionLabel: 'Add asset',
+                    title: l10n.t('noMatchingAssets'),
+                    message: l10n.t('noMatchingAssetsSubtitle'),
+                    actionLabel: l10n.t('addAsset'),
                     onAction: _addAsset,
                     compact: true,
                   )

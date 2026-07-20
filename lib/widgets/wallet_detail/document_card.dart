@@ -55,6 +55,7 @@ class DocumentCard extends StatelessWidget {
         trailing: _SelectionCheck(selected: selected),
       );
     }
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onLongPress: onLongPress,
       child: Dismissible(
@@ -65,13 +66,13 @@ class DocumentCard extends StatelessWidget {
         align: Alignment.centerLeft,
         color: AppColors.primaryGreen,
         icon: record.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-        label: record.isFavorite ? 'Unfavorite' : 'Favorite',
+        label: record.isFavorite ? l10n.t('unfavorite') : l10n.t('favorite'),
       ),
       secondaryBackground: _swipeBg(
         align: Alignment.centerRight,
         color: AppColors.lightBlue,
         icon: Icons.more_horiz_rounded,
-        label: 'Actions',
+        label: l10n.t('actions'),
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
@@ -198,7 +199,7 @@ class DocumentCard extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         icon: Icon(Icons.more_vert_rounded,
             color: AppPalette.of(context).textFaint),
-        tooltip: 'Quick actions',
+        tooltip: AppLocalizations.of(context).t('quickActionsTooltip'),
       );
 
   Widget _swipeBg({
