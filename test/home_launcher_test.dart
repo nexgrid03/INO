@@ -48,14 +48,13 @@ void main() {
     expect(find.text('Quick Actions'), findsOneWidget);
     expect(find.text('Recent Activity'), findsOneWidget);
 
-    // Hero shows the headline metrics — Documents was removed (unreliable count).
+    // Hero shows the headline metrics.
     for (final m in const ['Assets', 'Pending', 'Protected']) {
       expect(find.text(m), findsOneWidget);
     }
-    expect(find.text('Documents'), findsNothing);
 
-    // The four redesigned quick actions are present.
-    for (final a in const ['Add Asset', 'Scan & Upload', 'AI Insights', 'Protect']) {
+    // The four Quick Actions: Documents · Cards · Expenses · Notes.
+    for (final a in const ['Documents', 'Cards', 'Expenses', 'Notes']) {
       expect(find.text(a), findsWidgets);
     }
 

@@ -165,6 +165,7 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
       tags: d.tags,
       isFavorite: d.isFavorite,
       filePath: d.filePath,
+      notes: d.notes,
     );
   }
 

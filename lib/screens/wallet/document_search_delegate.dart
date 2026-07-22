@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/wallet_repository.dart';
 import '../../models/document.dart';
+import '../../models/document_extraction.dart';
 import '../../repositories/document_repository.dart';
 import '../../theme/app_theme.dart';
 import 'wallet_detail_screen.dart';
@@ -28,7 +29,13 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
             (d.category?.toLowerCase().contains(query) ?? false) ||
             (d.recordNumber?.toLowerCase().contains(query) ?? false) ||
             d.wallet.toLowerCase().contains(query) ||
-            d.tags.any((t) => t.toLowerCase().contains(query)))
+            d.tags.any((t) => t.toLowerCase().contains(query)) ||
+            // Search the OCR-extracted fields (Aadhaar / PAN / passport / license
+            // number, full name, …) stored with the document.
+            DocumentExtraction.decode(d.notes)
+                .searchableText
+                .toLowerCase()
+                .contains(query))
         .toList();
   }
 

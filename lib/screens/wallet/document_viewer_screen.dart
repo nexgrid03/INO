@@ -713,9 +713,67 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               _InfoRow(
                   label: l10n.t('favorite'),
                   value: _record.isFavorite ? l10n.t('yes') : l10n.t('no')),
+              ..._extractedInfoRows(palette),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// The "Extracted Information" section for the info sheet — the OCR fields
+  /// captured when the document was scanned, surfaced again on every reopen.
+  List<Widget> _extractedInfoRows(AppPalette palette) {
+    final extraction = _record.extraction;
+    final fields = extraction.displayFields();
+    if (fields.isEmpty) {
+      // No structured data, but a bare record number may still exist.
+      final number = _record.recordNumber;
+      if (number == null || number.trim().isEmpty) return const [];
+      return [
+        const SizedBox(height: AppSpacing.md),
+        _ExtractedHeader(),
+        _InfoRow(label: 'Document Number', value: number),
+      ];
+    }
+    return [
+      const SizedBox(height: AppSpacing.md),
+      const _ExtractedHeader(),
+      for (final f in fields) _InfoRow(label: f.label, value: f.value),
+      if (extraction.userNotes.trim().isNotEmpty)
+        _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+    ];
+  }
+
+  /// A standalone "Extracted Information" card, shown at the top of non-image
+  /// document bodies so the OCR data is visible immediately on reopen. Returns
+  /// null when there's nothing extracted.
+  Widget? _extractedCard(AppPalette palette) {
+    final extraction = _record.extraction;
+    final fields = extraction.displayFields();
+    final number = _record.recordNumber;
+    if (fields.isEmpty && (number == null || number.trim().isEmpty)) return null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _ExtractedHeader(),
+          const SizedBox(height: 4),
+          if (fields.isEmpty)
+            _InfoRow(label: 'Document Number', value: number!)
+          else ...[
+            for (final f in fields) _InfoRow(label: f.label, value: f.value),
+            if (extraction.userNotes.trim().isNotEmpty)
+              _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+          ],
+        ],
       ),
     );
   }
@@ -1069,34 +1127,49 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                     accent: AppColors.primaryGreen),
             ],
           ),
+          if (_record.extraction.hasData ||
+              (_record.recordNumber?.isNotEmpty ?? false)) ...[
+            const SizedBox(height: 12),
+            _DetailsPill(onTap: _showInfo),
+          ],
         ],
       ),
     );
   }
 
   Widget _textBody(AppPalette palette) {
+    final card = _extractedCard(palette);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: SelectableText(
-        _textContent ?? '',
-        style: TextStyle(
-          color: palette.textPrimary,
-          fontSize: 14,
-          height: 1.55,
-          fontFamily: 'monospace',
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (card != null) ...[card, const SizedBox(height: AppSpacing.lg)],
+          SelectableText(
+            _textContent ?? '',
+            style: TextStyle(
+              color: palette.textPrimary,
+              fontSize: 14,
+              height: 1.55,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _launchBody(AppPalette palette) {
     final isPdf = _kind == _FileKind.pdf;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    final card = _extractedCard(palette);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          if (card != null) ...[card, const SizedBox(height: AppSpacing.lg)],
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 96,
               height: 96,
@@ -1143,8 +1216,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                   .t(isPdf ? 'opensWithPdfApp' : 'opensWithDefaultApp'),
               style: AppText.caption.copyWith(color: palette.textFaint),
             ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1170,6 +1244,39 @@ class _RoundIconButton extends StatelessWidget {
           width: 40,
           height: 40,
           child: Icon(icon, color: Colors.white, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailsPill extends StatelessWidget {
+  const _DetailsPill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 15, color: Colors.white),
+              SizedBox(width: 7),
+              Text('View extracted details',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
         ),
       ),
     );
@@ -1203,6 +1310,25 @@ class _MetaChip extends StatelessWidget {
                   color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
         ],
       ),
+    );
+  }
+}
+
+class _ExtractedHeader extends StatelessWidget {
+  const _ExtractedHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Row(
+      children: [
+        const Icon(Icons.auto_awesome_rounded,
+            size: 15, color: AppColors.primaryGreen),
+        const SizedBox(width: 6),
+        Text('Extracted Information',
+            style: AppText.label
+                .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
+      ],
     );
   }
 }

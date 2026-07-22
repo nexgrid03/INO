@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_detail_repository.dart';
+import '../../models/document_extraction.dart';
 import '../../models/reminder_models.dart';
 import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
@@ -140,6 +141,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
   String? _recordNumber; // OCR-extracted document number (Aadhaar / PAN / …)
+
+  /// OCR-extracted structured fields (name / dob / gender / …) and the detected
+  /// document-type key. Persisted as a [DocumentExtraction] JSON envelope so the
+  /// data is always visible again when the document is reopened.
+  Map<String, String> _extractedData = const {};
+  String? _docTypeKey;
+
   bool _saving = false;
   bool _capturing = false; // true while the camera/gallery picker is open
   bool _protect = false; // require biometrics to open this document
@@ -179,6 +187,20 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       }
       _expiry = prefill.expiryDate;
       _recordNumber = prefill.documentNumber;
+
+      // Capture the structured extraction so it persists with the document.
+      _docTypeKey = DocumentExtraction.typeKeyFromLabel(prefill.detectedType);
+      final data = <String, String>{};
+      void put(String key, String? value) {
+        if (value != null && value.trim().isNotEmpty) data[key] = value.trim();
+      }
+
+      put('name', prefill.fullName);
+      put('number', prefill.documentNumber);
+      put('dob', prefill.dob);
+      put('gender', prefill.gender);
+      put('fatherName', prefill.fatherName);
+      _extractedData = data;
     } else if (_localFilePath != null) {
       // Captured without OCR data — attach the file, leave fields for the user.
       _source = _DocSource.scan;
@@ -336,7 +358,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     final tags = _tagsController.text.trim().isEmpty
         ? <String>[]
         : _tagsController.text.trim().split(',').map((t) => t.trim()).toList();
-    final notes = _notesController.text.trim();
+    final userNotes = _notesController.text.trim();
+
+    // Persist OCR-extracted fields as a structured envelope so they're always
+    // visible again on reopen. When there's no extracted data (e.g. a manually
+    // added file), keep the notes column as plain text — nothing to encode.
+    final extraction = DocumentExtraction(
+      documentType: _docTypeKey,
+      data: _extractedData,
+      userNotes: userNotes,
+    );
+    final storedNotes = extraction.hasData
+        ? extraction.encode()
+        : (userNotes.isEmpty ? null : userNotes);
 
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
@@ -357,7 +391,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         category: _category ?? 'Other',
         recordNumber: _recordNumber,
         tags: tags,
-        notes: notes.isEmpty ? null : notes,
+        notes: storedNotes,
         expiresAt: _expiry,
         filePath: filePath,
       );
@@ -387,9 +421,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           updatedAt: doc.updatedAt,
           status: DocumentStatus.active,
           expiresAt: doc.expiresAt,
+          recordNumber: doc.recordNumber,
           tags: doc.tags,
           isFavorite: doc.isFavorite,
           filePath: doc.filePath,
+          notes: doc.notes,
         ),
       );
 
