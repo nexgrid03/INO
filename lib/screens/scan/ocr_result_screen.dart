@@ -160,31 +160,13 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     setState(() => _category = picked);
   }
 
-  /// Combines the (edited) identity fields with any free-text notes, so the
-  /// structured data persists to the saved document.
-  String _composeNotes() {
-    final parts = <String>[];
-    void add(String label, String value) {
-      if (value.trim().isNotEmpty) parts.add('$label: ${value.trim()}');
-    }
-
-    if (_showIdentity) {
-      add('Name', _fullName.text);
-      // Normalize to DD/MM/YYYY before it persists to the document.
-      add('DOB', DateNormalizer.normalizeDob(_dob.text) ?? _dob.text);
-      add('Gender', _gender.text);
-      add("Father's Name", _fatherName.text);
-    }
-    final identity = parts.join('\n');
-    final userNotes = _notes.text.trim();
-    if (identity.isEmpty) return userNotes;
-    if (userNotes.isEmpty) return identity;
-    return '$identity\n\n$userNotes';
-  }
-
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
+    // The identity fields travel as STRUCTURED values (fullName/dob/gender/…),
+    // not folded into notes — Add Document persists them as a structured
+    // DocumentExtraction so they're always visible again on reopen. `notes`
+    // carries only the user's own free text.
     final updated = widget.result.copyWith(
       documentName: _name.text.trim(),
       documentNumber: _number.text.trim(),
@@ -195,7 +177,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
       tags: _tags.text.trim().isEmpty
           ? const []
           : _tags.text.trim().split(',').map((t) => t.trim()).toList(),
-      notes: _composeNotes(),
+      notes: _notes.text.trim(),
       fullName: _fullName.text.trim(),
       dob: DateNormalizer.normalizeDob(_dob.text) ?? _dob.text.trim(),
       gender: _gender.text.trim(),

@@ -1,0 +1,147 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/models/document_extraction.dart';
+import 'package:inoapp/models/ocr_result_model.dart';
+import 'package:inoapp/services/driving_license_parser.dart';
+import 'package:inoapp/services/passport_parser.dart';
+import 'package:inoapp/services/voter_id_parser.dart';
+
+List<String> _lines(String s) =>
+    s.trim().split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+
+void main() {
+  group('PassportParser', () {
+    const text = '''
+REPUBLIC OF INDIA
+PASSPORT
+Type P Country Code IND Passport No A1234567
+Surname SHARMA
+Given Name(s) RAHUL
+Nationality INDIAN
+Date of Birth 17/12/1990
+Sex M
+Place of Issue DELHI
+Date of Issue 05/06/2018
+Date of Expiry 04/06/2028
+''';
+
+    test('extracts number, name, dob, expiry and nationality', () {
+      final f = PassportParser.parse(text, _lines(text));
+      expect(f['number'], 'A1234567');
+      expect(f['name'], 'Rahul Sharma');
+      expect(f['dob'], '17/12/1990');
+      expect(f['expiryDate'], '04/06/2028');
+      expect(f['nationality'], 'Indian');
+    });
+
+    test('does not confuse issue date with date of birth', () {
+      final f = PassportParser.parse(text, _lines(text));
+      expect(f['dob'], isNot('05/06/2018'));
+    });
+  });
+
+  group('DrivingLicenseParser', () {
+    const text = '''
+INDIA UNION DRIVING LICENCE
+DL No MH12 20110012345
+Name RAHUL SHARMA
+Son/Daughter/Wife of SURESH SHARMA
+Date of Birth 17/12/1990
+Blood Group B+
+Valid Till 16/12/2040
+COV LMV MCWG
+''';
+
+    test('extracts number, name, dob, validity and vehicle class', () {
+      final f = DrivingLicenseParser.parse(text, _lines(text));
+      expect(f['number'], 'MH12 20110012345');
+      expect(f['name'], 'Rahul Sharma');
+      expect(f['dob'], '17/12/1990');
+      expect(f['validity'], '16/12/2040');
+      expect(f['vehicleClass'], 'LMV, MCWG');
+    });
+  });
+
+  group('VoterIdParser', () {
+    const text = '''
+ELECTION COMMISSION OF INDIA
+ELECTOR PHOTO IDENTITY CARD
+EPIC No ABC1234567
+Elector's Name RAHUL SHARMA
+Father's Name SURESH SHARMA
+Sex Male
+Date of Birth 17/12/1990
+''';
+
+    test('extracts EPIC number, name, gender and dob', () {
+      final f = VoterIdParser.parse(text, _lines(text));
+      expect(f['number'], 'ABC1234567');
+      expect(f['name'], 'Rahul Sharma');
+      expect(f['gender'], 'Male');
+      expect(f['dob'], '17/12/1990');
+    });
+
+    test('does not treat the card heading as the name', () {
+      final f = VoterIdParser.parse(text, _lines(text));
+      expect(f['name'], isNot(contains('Identity')));
+    });
+  });
+
+  // Proves the fields flow all the way through to the labeled display the viewer
+  // renders (the end of the persistence path audited in #4 / #5).
+  group('extraction → display end-to-end', () {
+    test('passport extras (expiry, nationality) reach labeled display fields',
+        () {
+      const ext = OcrExtraction(
+        type: IdDocumentType.passport,
+        typeConfidence: 0.9,
+        fields: {
+          'number': 'A1234567',
+          'name': 'Rahul Sharma',
+          'dob': '17/12/1990',
+          'expiryDate': '04/06/2028',
+          'nationality': 'Indian',
+        },
+        rawText: '',
+      );
+      final result = ext.toOcrResult();
+      expect(result.extractedFields['number'], 'A1234567');
+      expect(result.extractedFields['expiryDate'], '04/06/2028');
+      expect(result.extractedFields['nationality'], 'Indian');
+
+      final envelope = DocumentExtraction(
+        documentType: 'passport',
+        data: result.extractedFields,
+      );
+      final labels = {
+        for (final f in envelope.displayFields()) f.label: f.value
+      };
+      expect(labels['Passport Number'], 'A1234567');
+      expect(labels['Expiry Date'], '04/06/2028');
+      expect(labels['Nationality'], 'Indian');
+    });
+
+    test('driving licence extras (validity, vehicle class) reach display', () {
+      const ext = OcrExtraction(
+        type: IdDocumentType.drivingLicense,
+        typeConfidence: 0.9,
+        fields: {
+          'number': 'MH12 20110012345',
+          'name': 'Rahul Sharma',
+          'validity': '16/12/2040',
+          'vehicleClass': 'LMV, MCWG',
+        },
+        rawText: '',
+      );
+      final envelope = DocumentExtraction(
+        documentType: 'drivingLicense',
+        data: ext.toOcrResult().extractedFields,
+      );
+      final labels = {
+        for (final f in envelope.displayFields()) f.label: f.value
+      };
+      expect(labels['License Number'], 'MH12 20110012345');
+      expect(labels['Valid Till'], '16/12/2040');
+      expect(labels['Vehicle Class'], 'LMV, MCWG');
+    });
+  });
+}

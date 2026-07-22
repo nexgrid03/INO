@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'document_extraction.dart';
 
 /// Models backing the reusable Wallet Detail screen. The same UI renders every
 /// wallet type — only this data changes.
@@ -157,6 +158,7 @@ class DocumentRecord {
     this.tags = const [],
     this.isFavorite = false,
     this.filePath,
+    this.notes,
   });
 
   final String id;
@@ -174,6 +176,14 @@ class DocumentRecord {
   /// Storage object path of the actual uploaded file (null when there is no
   /// backing file — e.g. a record with nothing yet uploaded).
   final String? filePath;
+
+  /// The document's `notes` column — either free text OR a
+  /// [DocumentExtraction] JSON envelope carrying the OCR-extracted fields.
+  /// Decode with `DocumentExtraction.decode(notes)` to read the structured data.
+  final String? notes;
+
+  /// The structured OCR data extracted from this document (empty when none).
+  DocumentExtraction get extraction => DocumentExtraction.decode(notes);
 
   DocumentRecord copyWith({
     String? name,
@@ -194,17 +204,26 @@ class DocumentRecord {
       tags: tags,
       isFavorite: isFavorite ?? this.isFavorite,
       filePath: filePath,
+      notes: notes,
     );
   }
 
-  /// Free-text match across name, category, tags and record number.
+  /// Free-text match across name, category, tags, record number, and any
+  /// OCR-extracted fields (Aadhaar / PAN / license / passport number, name…).
   bool matches(String query) {
     if (query.trim().isEmpty) return true;
     final q = query.toLowerCase();
-    return name.toLowerCase().contains(q) ||
+    if (name.toLowerCase().contains(q) ||
         category.toLowerCase().contains(q) ||
         (recordNumber?.toLowerCase().contains(q) ?? false) ||
-        tags.any((t) => t.toLowerCase().contains(q));
+        tags.any((t) => t.toLowerCase().contains(q))) {
+      return true;
+    }
+    final notesValue = notes;
+    if (notesValue != null && notesValue.isNotEmpty) {
+      return extraction.searchableText.toLowerCase().contains(q);
+    }
+    return false;
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/dashboard_repository.dart';
 import '../../data/reminder_store.dart';
+import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
@@ -24,9 +25,9 @@ import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/skeletons.dart';
 import '../assets/assets_screen.dart';
-import '../documents/add_document_screen.dart';
+import '../expenses/expense_dashboard_screen.dart';
+import '../notes/notes_screen.dart';
 import '../home/activity_history_screen.dart';
-import '../home/ai_insights_screen.dart';
 import '../home/pending_actions_screen.dart';
 import '../home/protection_center_screen.dart';
 import '../markets/markets_screen.dart';
@@ -37,6 +38,7 @@ import '../property_finance/property_finance_tools_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../search/global_search_screen.dart';
 import '../shell/shell_controller.dart';
+import '../wallet/wallet_detail_screen.dart';
 
 /// The read model the Home screen renders: a real-data hero + activity feed, and
 /// the market snapshot (realistic fallback) — assembled in one load.
@@ -152,6 +154,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _scan() => launchScanFlow(context);
 
+  /// Opens a wallet's document manager by its name (Document Wallet, Banking
+  /// Wallet, …). No-op if the wallet name isn't recognised.
+  void _openWallet(String name) {
+    final category = SupabaseWalletRepository.categoryFor(name);
+    if (category != null) _push(WalletDetailScreen(category: category));
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -250,10 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
           iconColor: AppColors.lightBlue,
         ),
         child: _QuickActions(
-          onAddAsset: () => _push(const AddDocumentScreen()),
-          onScan: _scan,
-          onInsights: () => _push(const AiInsightsScreen()),
-          onProtect: () => _push(const ProtectionCenterScreen()),
+          onDocuments: () => _openWallet('Document Wallet'),
+          onCards: () => _openWallet('Banking Wallet'),
+          onExpenses: () => _push(const ExpenseDashboardScreen()),
+          onNotes: () => _push(const NotesScreen()),
         ),
       ),
       // Property & Finance tools — same design language as Quick Actions.
@@ -327,41 +336,40 @@ class _Section extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
-    required this.onAddAsset,
-    required this.onScan,
-    required this.onInsights,
-    required this.onProtect,
+    required this.onDocuments,
+    required this.onCards,
+    required this.onExpenses,
+    required this.onNotes,
   });
 
-  final VoidCallback onAddAsset;
-  final VoidCallback onScan;
-  final VoidCallback onInsights;
-  final VoidCallback onProtect;
+  final VoidCallback onDocuments;
+  final VoidCallback onCards;
+  final VoidCallback onExpenses;
+  final VoidCallback onNotes;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final actions = <Widget>[
       QuickActionButton(
-          icon: Icons.add_chart_rounded,
-          label: l10n.t('addAsset'),
+          icon: Icons.folder_shared_rounded,
+          label: 'Documents',
           color: AppColors.primaryGreen,
-          onTap: onAddAsset),
+          onTap: onDocuments),
       QuickActionButton(
-          icon: Icons.document_scanner_rounded,
-          label: l10n.t('scanUpload'),
-          color: AppColors.lightBlue,
-          onTap: onScan),
-      QuickActionButton(
-          icon: Icons.auto_awesome_rounded,
-          label: l10n.t('aiInsights'),
+          icon: Icons.credit_card_rounded,
+          label: 'Cards',
           color: const Color(0xFF8B6CEF),
-          onTap: onInsights),
+          onTap: onCards),
       QuickActionButton(
-          icon: Icons.verified_user_rounded,
-          label: l10n.t('protect'),
-          color: const Color(0xFF2BB6A3),
-          onTap: onProtect),
+          icon: Icons.account_balance_wallet_rounded,
+          label: 'Expenses',
+          color: AppColors.secondaryGreen,
+          onTap: onExpenses),
+      QuickActionButton(
+          icon: Icons.edit_note_rounded,
+          label: 'Notes',
+          color: AppColors.lightBlue,
+          onTap: onNotes),
     ];
     return Row(
       children: [
@@ -383,7 +391,7 @@ class _FinanceTools extends StatelessWidget {
   final void Function(FinanceTool) onOpenTool;
   final VoidCallback onMore;
 
-  /// Tools shown inline; everything else (Valuation, Gold) lives behind More.
+  /// Tools shown inline; everything else lives behind More.
   static const _quickIds = ['area', 'emi', 'sip'];
 
   FinanceTool? _byId(String id) {

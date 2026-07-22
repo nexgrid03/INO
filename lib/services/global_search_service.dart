@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/reminder_store.dart';
 import '../models/document.dart';
+import '../models/document_extraction.dart';
 import '../repositories/document_repository.dart';
 import '../theme/app_theme.dart';
 
@@ -77,6 +78,8 @@ class GlobalSearchService {
           d.wallet,
           d.recordNumber ?? '',
           ...d.tags,
+          // OCR-extracted fields (Aadhaar / PAN / passport number, name, …).
+          DocumentExtraction.decode(d.notes).searchableText,
         ].join(' ').toLowerCase();
 
         if (haystack.contains(q)) {

@@ -76,6 +76,8 @@ dependencies:
   # Android App Links / deep linking: opens scanned share URLs directly in the
   # app and routes them to SharedDocumentsScreen (cold start + warm resume).
   app_links: ^6.3.0
+  # Pure-Dart PDF generation for the ITR Tax Summary export (saved + shared).
+  pdf: ^3.11.1
 
 dev_dependencies:
   flutter_test:

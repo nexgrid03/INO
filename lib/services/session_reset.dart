@@ -5,7 +5,9 @@ import '../repositories/document_repository.dart';
 import 'app_settings.dart';
 import 'category_store.dart';
 import 'document_protection_store.dart';
+import 'expense_store.dart';
 import 'global_search_service.dart';
+import 'notes_store.dart';
 import 'notification_center.dart';
 
 /// Clears every piece of **user-scoped in-memory / local state** so that when
@@ -49,6 +51,13 @@ class SessionReset {
 
     // In-memory document cache + persisted recent-search history.
     await _guard('search', () => GlobalSearchService.instance.clear());
+
+    // In-memory expenditure tracker (transactions, budgets, recurring).
+    await _guard('expenses', () async => ExpenseStore.instance.clear());
+
+    // Notes Vault — drop the in-memory cache + re-arm the per-user loader so the
+    // next account loads its own notes (persisted data is kept per-uid).
+    await _guard('notes', () async => NotesStore.instance.clear());
 
     // Account-scoped preferences (2FA flag, last-backup, toggles). Language is a
     // device preference and is intentionally preserved.

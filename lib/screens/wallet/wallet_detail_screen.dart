@@ -18,6 +18,7 @@ import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/wallet_detail/document_card.dart';
 import '../../widgets/wallet_detail/document_filter_bar.dart';
+import '../../widgets/wallet_detail/document_quick_view.dart';
 import '../../widgets/wallet_detail/document_skeleton.dart';
 import '../../widgets/wallet_detail/empty_state.dart';
 import '../../widgets/wallet_detail/search_section.dart';
@@ -344,6 +345,22 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       );
       if (!unlocked || !mounted) return;
     }
+    // If the document carries OCR-extracted data, peek at it in a Quick View
+    // first — the user shouldn't need to open the full file every time (#6).
+    if (r.extraction.hasData && mounted) {
+      await showDocumentQuickView(
+        context,
+        record: r,
+        accent: widget.category.gradient,
+        onOpenFull: () => _openViewer(r, isProtected),
+      );
+      return;
+    }
+    await _openViewer(r, isProtected);
+  }
+
+  /// Pushes the full document viewer and applies any changes back to the list.
+  Future<void> _openViewer(DocumentRecord r, bool isProtected) async {
     final result = await Navigator.of(context).push<DocumentViewerResult>(
       MaterialPageRoute(
         builder: (_) => DocumentViewerScreen(
