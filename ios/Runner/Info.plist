@@ -79,7 +79,9 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>INO uses Face ID to unlock your secure document vault.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>The camera module may request microphone access while capturing.</string>
+	<string>INO uses the microphone for voice commands to open your documents, notes and other sections hands-free.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>INO uses speech recognition to understand your voice commands and open the section you ask for.</string>
 
 	<!-- url_launcher: schemes the app checks with canLaunchUrl (support -->
 	<!-- email, phone, and web links from Profile / legal screens).      -->

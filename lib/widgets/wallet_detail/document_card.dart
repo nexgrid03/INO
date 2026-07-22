@@ -183,6 +183,7 @@ class DocumentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 _MetaLine(record: record),
+                _ExtractedSummary(record: record),
                 const SizedBox(height: 7),
                 _StatusBadge(status: record.status),
               ],
@@ -279,6 +280,100 @@ class _MetaLine extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(fontSize: 12, color: palette.textSecondary),
+    );
+  }
+}
+
+/// A compact, at-a-glance summary of a document's KEY extracted (OCR) fields —
+/// so the user sees the essentials (name / DOB / masked number) right in the
+/// wallet list without opening the document. Renders nothing for documents with
+/// no extracted data, so non-OCR records look exactly as before.
+class _ExtractedSummary extends StatelessWidget {
+  const _ExtractedSummary({required this.record});
+
+  final DocumentRecord record;
+
+  /// Masks the document number for a list view: the last 4 stay visible, the
+  /// rest are hidden. A 12-digit Aadhaar keeps its familiar "XXXX XXXX 1234"
+  /// grouping.
+  static String _maskedNumber(String raw) {
+    final v = raw.trim();
+    if (v.isEmpty) return '';
+    final digits = v.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 12) return 'XXXX XXXX ${digits.substring(8)}';
+    if (v.length > 4) {
+      return '${'•' * (v.length - 4)}${v.substring(v.length - 4)}';
+    }
+    return v;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final data = record.extraction.data;
+    if (data.isEmpty) return const SizedBox.shrink();
+
+    final chips = <Widget>[];
+    void add(IconData icon, String? value) {
+      final v = value?.trim();
+      if (v != null && v.isNotEmpty) {
+        chips.add(_MiniChip(icon: icon, label: v, palette: palette));
+      }
+    }
+
+    add(Icons.person_rounded, data['name']);
+    add(Icons.cake_rounded, data['dob']);
+    final number = data['number'];
+    if (number != null) add(Icons.tag_rounded, _maskedNumber(number));
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(spacing: 6, runSpacing: 6, children: chips),
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({
+    required this.icon,
+    required this.label,
+    required this.palette,
+  });
+
+  final IconData icon;
+  final String label;
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: palette.surfaceVariant,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: AppColors.primaryGreen),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: palette.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

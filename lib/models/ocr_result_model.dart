@@ -18,6 +18,25 @@ enum IdDocumentType {
   final String category;
 
   bool get isKnown => this != IdDocumentType.unknown;
+
+  /// A short title fragment for auto-naming a scanned document — e.g. "Aadhaar"
+  /// so a scan reads "Tanishq Aadhaar" instead of the generic "Aadhaar Card".
+  String get shortLabel {
+    switch (this) {
+      case IdDocumentType.aadhaar:
+        return 'Aadhaar';
+      case IdDocumentType.pan:
+        return 'PAN';
+      case IdDocumentType.passport:
+        return 'Passport';
+      case IdDocumentType.drivingLicense:
+        return 'Driving License';
+      case IdDocumentType.voterId:
+        return 'Voter ID';
+      case IdDocumentType.unknown:
+        return 'Document';
+    }
+  }
 }
 
 /// The structured output of the OCR pipeline: the detected document type, a
@@ -82,7 +101,7 @@ class OcrExtraction {
     // inputs on the review screen); they're folded into `notes` when the user
     // confirms, so they persist to the document without a schema change.
     return OcrResult(
-      documentName: type.isKnown ? type.label : '',
+      documentName: _suggestedName(),
       documentNumber: number,
       detectedType: type.label,
       suggestedWallet: type.wallet,
@@ -96,6 +115,19 @@ class OcrExtraction {
       fatherName: fatherName,
       extractedFields: _buildExtractedFields(),
     );
+  }
+
+  /// A friendly default name for the scanned document. Prefers the extracted
+  /// holder's first name so the vault reads "Tanishq Aadhaar" instead of a
+  /// generic, hardcoded "Aadhaar Card"; falls back to the type label only when
+  /// no name was read. The user can always override it on the review screen.
+  String _suggestedName() {
+    final person = name;
+    if (type.isKnown && person != null && person.trim().isNotEmpty) {
+      final first = person.trim().split(RegExp(r'\s+')).first;
+      return '$first ${type.shortLabel}';
+    }
+    return type.isKnown ? type.label : '';
   }
 
   /// The full set of cleaned extracted fields (core four + any type-specific

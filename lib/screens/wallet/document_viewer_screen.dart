@@ -732,14 +732,15 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (number == null || number.trim().isEmpty) return const [];
       return [
         const SizedBox(height: AppSpacing.md),
-        _ExtractedHeader(),
-        _InfoRow(label: 'Document Number', value: number),
+        const _ExtractedHeader(),
+        _InfoRow(label: 'Document Number', value: number, copyable: true),
       ];
     }
     return [
       const SizedBox(height: AppSpacing.md),
       const _ExtractedHeader(),
-      for (final f in fields) _InfoRow(label: f.label, value: f.value),
+      for (final f in fields)
+        _InfoRow(label: f.label, value: f.value, copyable: true),
       if (extraction.userNotes.trim().isNotEmpty)
         _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
     ];
@@ -767,9 +768,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           const _ExtractedHeader(),
           const SizedBox(height: 4),
           if (fields.isEmpty)
-            _InfoRow(label: 'Document Number', value: number!)
+            _InfoRow(label: 'Document Number', value: number!, copyable: true)
           else ...[
-            for (final f in fields) _InfoRow(label: f.label, value: f.value),
+            for (final f in fields)
+              _InfoRow(label: f.label, value: f.value, copyable: true),
             if (extraction.userNotes.trim().isNotEmpty)
               _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
           ],
@@ -1334,10 +1336,18 @@ class _ExtractedHeader extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.copyable = false,
+  });
 
   final String label;
   final String value;
+
+  /// When true, shows a tap-to-copy button beside the value (used for the
+  /// extracted fields: number / name / DOB / …).
+  final bool copyable;
 
   @override
   Widget build(BuildContext context) {
@@ -1359,7 +1369,40 @@ class _InfoRow extends StatelessWidget {
                   color: palette.textPrimary, fontWeight: FontWeight.w600),
             ),
           ),
+          if (copyable) _CopyButton(label: label, value: value),
         ],
+      ),
+    );
+  }
+}
+
+/// A small tap-to-copy button used beside an extracted field value. Copies the
+/// value to the clipboard and confirms with a snackbar + haptic tick.
+class _CopyButton extends StatelessWidget {
+  const _CopyButton({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InkResponse(
+      radius: 18,
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: value));
+        HapticFeedback.selectionClick();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryGreen,
+            content: Text('$label copied'),
+          ));
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8, top: 1),
+        child: Icon(Icons.copy_rounded, size: 16, color: palette.textFaint),
       ),
     );
   }

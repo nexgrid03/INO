@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
@@ -114,7 +115,7 @@ class _QuickViewSheet extends StatelessWidget {
                         .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
                 const SizedBox(height: AppSpacing.xs),
                 for (final f in fields)
-                  _QuickRow(label: f.label, value: f.value),
+                  _QuickRow(label: f.label, value: f.value, copyable: true),
               ] else
                 Text(
                   'No extracted details for this document.',
@@ -164,10 +165,15 @@ class _QuickViewSheet extends StatelessWidget {
 }
 
 class _QuickRow extends StatelessWidget {
-  const _QuickRow({required this.label, required this.value});
+  const _QuickRow({
+    required this.label,
+    required this.value,
+    this.copyable = false,
+  });
 
   final String label;
   final String value;
+  final bool copyable;
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +196,26 @@ class _QuickRow extends StatelessWidget {
                   color: palette.textPrimary, fontWeight: FontWeight.w600),
             ),
           ),
+          if (copyable)
+            InkResponse(
+              radius: 18,
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: value));
+                HapticFeedback.selectionClick();
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppColors.primaryGreen,
+                    content: Text('$label copied'),
+                  ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8, top: 1),
+                child:
+                    Icon(Icons.copy_rounded, size: 16, color: palette.textFaint),
+              ),
+            ),
         ],
       ),
     );

@@ -96,6 +96,34 @@ class AuthService {
     );
   }
 
+  // --- Phone OTP (SMS) ------------------------------------------------------
+  //
+  // Passwordless phone sign-in. Requires an SMS provider (Twilio / MessageBird /
+  // Vonage …) enabled under Authentication → Providers → Phone in the Supabase
+  // dashboard; the client code below is provider-agnostic. Supabase creates the
+  // auth user on first successful verify, so a phone login yields the SAME
+  // account system + session as email / Google — routing, SessionReset and
+  // logout all work identically.
+
+  /// Sends a 6-digit SMS code to [phone] (E.164 format, e.g. `+919876543210`).
+  Future<void> sendPhoneOtp(String phone) {
+    return _client.auth.signInWithOtp(phone: phone.trim());
+  }
+
+  /// Verifies the SMS [token] for [phone]. On success the returned
+  /// [AuthResponse] carries an authenticated session (same shape as the Google
+  /// and email paths), so callers route through [routeAfterAuth].
+  Future<AuthResponse> verifyPhoneOtp({
+    required String phone,
+    required String token,
+  }) {
+    return _client.auth.verifyOTP(
+      type: OtpType.sms,
+      phone: phone.trim(),
+      token: token.trim(),
+    );
+  }
+
   // --- Apple (placeholder) --------------------------------------------------
 
   /// Whether "Continue with Apple" should be offered. Apple requires iOS +

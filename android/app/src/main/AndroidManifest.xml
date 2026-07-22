@@ -6,6 +6,9 @@
     <!-- Biometric app-lock (fingerprint / Face unlock). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- Voice navigation: on-device speech recognition needs the microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Scanner: camera + gallery import permissions. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -101,6 +104,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Voice navigation (speech_to_text): required on Android 11+ so the app
+             can discover the on-device speech recognition service. Without this,
+             speech recognition silently returns no results. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

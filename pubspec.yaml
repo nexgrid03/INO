@@ -78,6 +78,12 @@ dependencies:
   app_links: ^6.3.0
   # Pure-Dart PDF generation for the ITR Tax Summary export (saved + shared).
   pdf: ^3.11.1
+  # Voice navigation: on-device speech recognition (English / Telugu / Hinglish)
+  # for the Home "voice command" mic, plus text-to-speech for the spoken
+  # "Opening …" confirmation. Recognition runs on-device where the language
+  # pack is installed; the keyword→route matching is always fully offline.
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
 
 dev_dependencies:
   flutter_test:

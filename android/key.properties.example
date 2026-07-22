@@ -13,3 +13,5 @@ storePassword=CHANGE_ME_store_password
 keyPassword=CHANGE_ME_key_password
 keyAlias=ino
 storeFile=C:/Users/you/keys/ino-release.jks
+
+

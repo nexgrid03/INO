@@ -23,6 +23,13 @@ class DocumentRepository {
   static const String _table = 'documents';
   static const String _bucket = 'documents';
 
+  /// Hidden wallet that holds PROCESSED SHARE COPIES (black & white / grayscale /
+  /// compressed-PDF images produced for a QR share). They live as real
+  /// `documents` rows so the existing `share` Edge Function can serve them by id
+  /// — exactly like any other document — but are filtered out of [listAll] so
+  /// they never appear in the user's wallets, search, dashboards or exports.
+  static const String shareCacheWallet = '__ino_share_cache__';
+
   /// The signed-in user's id, or null when signed out.
   String? get _uid => _client.auth.currentUser?.id;
 
@@ -140,7 +147,9 @@ class DocumentRepository {
     return [for (final r in rows) Document.fromMap(r)];
   }
 
-  /// Every document belonging to the signed-in user, newest first.
+  /// Every document belonging to the signed-in user, newest first. Excludes the
+  /// hidden [shareCacheWallet] copies so processed share images never surface in
+  /// search / dashboards / exports.
   Future<List<Document>> listAll() async {
     final userId = _uid;
     if (userId == null) return const [];
@@ -148,8 +157,45 @@ class DocumentRepository {
         .from(_table)
         .select()
         .eq('auth_user_id', userId) // defense-in-depth with RLS
+        .neq('wallet', shareCacheWallet)
         .order('created_at', ascending: false);
     return [for (final r in rows) Document.fromMap(r)];
+  }
+
+  /// The processed share copies (hidden [shareCacheWallet] rows), newest first.
+  Future<List<Document>> listShareCopies() async {
+    final userId = _uid;
+    if (userId == null) return const [];
+    final rows = await _client
+        .from(_table)
+        .select()
+        .eq('auth_user_id', userId)
+        .eq('wallet', shareCacheWallet)
+        .order('created_at', ascending: false);
+    return [for (final r in rows) Document.fromMap(r)];
+  }
+
+  /// Best-effort cleanup of processed share copies older than [olderThan] (past
+  /// the maximum share TTL, so their QR links have already expired). Removes both
+  /// the row and its Storage object. Never throws — cleanup is opportunistic.
+  Future<void> pruneShareCopies(
+      {Duration olderThan = const Duration(days: 8)}) async {
+    try {
+      final copies = await listShareCopies();
+      if (copies.isEmpty) return;
+      final cutoff = DateTime.now().subtract(olderThan);
+      final stalePaths = <String>[];
+      for (final d in copies) {
+        if (d.createdAt.isBefore(cutoff)) {
+          final p = d.filePath;
+          if (p != null && p.isNotEmpty) stalePaths.add(p);
+          await delete(d.id);
+        }
+      }
+      if (stalePaths.isNotEmpty) await removeObjects(stalePaths);
+    } catch (e) {
+      developer.log('pruneShareCopies (non-fatal): $e', name: 'storage');
+    }
   }
 
   /// Updates a few columns on an existing row (e.g. favourite / status).

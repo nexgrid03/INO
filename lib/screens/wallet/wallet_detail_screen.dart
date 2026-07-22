@@ -29,7 +29,7 @@ import '../documents/add_document_screen.dart';
 import '../property/area_converter_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../share/manage_shares_screen.dart';
-import '../share/share_config_screen.dart';
+import '../share/share_settings_screen.dart';
 import '../shell/shell_controller.dart';
 import 'document_viewer_screen.dart';
 
@@ -318,7 +318,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     }
     _exitSelection();
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ShareConfigScreen(documents: shareable)),
+      MaterialPageRoute(
+          builder: (_) => ShareSettingsScreen(documents: shareable)),
     );
   }
 

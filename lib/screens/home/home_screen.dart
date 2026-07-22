@@ -6,6 +6,7 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
+import '../../models/voice_command.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/activity_service.dart';
 import '../../services/document_protection_store.dart';
@@ -24,8 +25,10 @@ import '../../widgets/home/empty_state.dart';
 import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/skeletons.dart';
+import '../../widgets/home/voice_mic_button.dart';
 import '../assets/assets_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
+import '../expenses/tax_records_screen.dart';
 import '../notes/notes_screen.dart';
 import '../home/activity_history_screen.dart';
 import '../home/pending_actions_screen.dart';
@@ -161,53 +164,87 @@ class _HomeScreenState extends State<HomeScreen> {
     if (category != null) _push(WalletDetailScreen(category: category));
   }
 
+  /// Routes a recognized voice command to the same destination its on-screen
+  /// button opens (Profile and Settings both live on the Profile tab).
+  void _onVoiceCommand(VoiceCommandId id) {
+    switch (id) {
+      case VoiceCommandId.documents:
+        _openWallet('Document Wallet');
+      case VoiceCommandId.cards:
+        _openWallet('Banking Wallet');
+      case VoiceCommandId.expenses:
+        _push(const ExpenseDashboardScreen());
+      case VoiceCommandId.notes:
+        _push(const NotesScreen());
+      case VoiceCommandId.scanner:
+        _scan();
+      case VoiceCommandId.taxRecords:
+        _push(const TaxRecordsScreen());
+      case VoiceCommandId.profile:
+        _goToTab(4);
+      case VoiceCommandId.settings:
+        _goToTab(4);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: AppColors.primaryGreen,
-          onRefresh: _refresh,
-          child: FutureBuilder<_HomeData>(
-            future: _future,
-            builder: (context, snapshot) {
-              final data = snapshot.data;
-              final hasError =
-                  snapshot.connectionState == ConnectionState.done &&
-                      snapshot.hasError;
-              return CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
-                  SliverToBoxAdapter(child: _header(palette, data?.hero)),
-                  if (hasError)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: ErrorRetry(onRetry: _refresh),
-                    )
-                  else if (data == null)
-                    const SliverPadding(
-                      padding: EdgeInsets.fromLTRB(AppSpacing.screen,
-                          AppSpacing.md, AppSpacing.screen, 120),
-                      sliver: SliverToBoxAdapter(child: DashboardSkeleton()),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                          AppSpacing.md, AppSpacing.screen, 120),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate(_sections(data)),
-                      ),
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              color: AppColors.primaryGreen,
+              onRefresh: _refresh,
+              child: FutureBuilder<_HomeData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  final data = snapshot.data;
+                  final hasError =
+                      snapshot.connectionState == ConnectionState.done &&
+                          snapshot.hasError;
+                  return CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                ],
-              );
-            },
+                    slivers: [
+                      SliverToBoxAdapter(child: _header(palette, data?.hero)),
+                      if (hasError)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: ErrorRetry(onRetry: _refresh),
+                        )
+                      else if (data == null)
+                        const SliverPadding(
+                          padding: EdgeInsets.fromLTRB(AppSpacing.screen,
+                              AppSpacing.md, AppSpacing.screen, 120),
+                          sliver: SliverToBoxAdapter(child: DashboardSkeleton()),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
+                              AppSpacing.md, AppSpacing.screen, 120),
+                          sliver: SliverList(
+                            delegate: SliverChildListDelegate(_sections(data)),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
-        ),
+          // Hands-free voice navigation — mirrors the "Add" FAB on the opposite
+          // side so the two don't collide.
+          Positioned(
+            left: AppSpacing.screen,
+            bottom: 96,
+            child: VoiceMicButton(onCommand: _onVoiceCommand),
+          ),
+        ],
       ),
     );
   }
