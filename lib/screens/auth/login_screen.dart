@@ -18,6 +18,7 @@ import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'forgot_password_screen.dart';
+import 'phone_login_screen.dart';
 import 'signup_screen.dart';
 
 /// Screen 3 — Login.
@@ -183,6 +184,12 @@ class _LoginScreenState extends State<LoginScreen> {
     _showMessage('Apple sign-in is coming soon.', isError: false);
   }
 
+  void _continueWithPhone() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
+    );
+  }
+
   void _goToSignup() {
     Navigator.of(
       context,
@@ -324,6 +331,16 @@ class _LoginScreenState extends State<LoginScreen> {
               brand: const GoogleGlyph(),
               busy: _googleBusy,
               onPressed: busy ? null : _continueWithGoogle,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 410),
+            child: SocialAuthButton(
+              label: 'Continue with Phone Number',
+              brand: const Icon(Icons.smartphone_rounded,
+                  color: AppColors.primaryGreen, size: 20),
+              onPressed: busy ? null : _continueWithPhone,
             ),
           ),
           if (_showApple) ...[

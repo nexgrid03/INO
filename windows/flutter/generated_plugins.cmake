@@ -5,9 +5,11 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   file_selector_windows
+  flutter_tts
   local_auth_windows
   permission_handler_windows
   share_plus
+  speech_to_text_windows
   url_launcher_windows
 )
 
