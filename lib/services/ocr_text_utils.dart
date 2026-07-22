@@ -62,3 +62,82 @@ String titleCase(String raw) {
           : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
       .join(' ');
 }
+
+// A date with 1–2 digit day/month and a 2- or 4-digit year (tolerant of the
+// spacing OCR leaves around the separators).
+final RegExp _flexDateRe =
+    RegExp(r'(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{2,4})');
+
+/// The first valid date on [s], normalised to `DD/MM/YYYY`, or null.
+String? dateOnLine(String s) {
+  final m = _flexDateRe.firstMatch(s);
+  if (m == null) return null;
+  final d = int.parse(m[1]!);
+  final mo = int.parse(m[2]!);
+  var y = int.parse(m[3]!);
+  if (y < 100) y = y <= 30 ? 2000 + y : 1900 + y;
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+  if (y < 1900 || y > DateTime.now().year + 20) return null;
+  return '${d.toString().padLeft(2, '0')}/${mo.toString().padLeft(2, '0')}/$y';
+}
+
+/// A date (`DD/MM/YYYY`) found on the first line containing any of [keywords]
+/// (or on the immediately following line). Anchoring on the label avoids
+/// confusing e.g. a passport's issue date with its date of birth.
+String? dateNear(List<String> lines, List<String> keywords) {
+  for (var i = 0; i < lines.length; i++) {
+    final low = lines[i].toLowerCase();
+    if (keywords.any(low.contains)) {
+      final onLine = dateOnLine(lines[i]);
+      if (onLine != null) return onLine;
+      if (i + 1 < lines.length) {
+        final next = dateOnLine(lines[i + 1]);
+        if (next != null) return next;
+      }
+    }
+  }
+  return null;
+}
+
+/// The name value near a [labels] line: the text after the label on the SAME
+/// line (tolerating ':' and "(s)" artifacts), else the following line, when it
+/// looks like a person's name. Null when not found.
+///
+/// Labels are tried in order across ALL lines — so a specific label ("elector's
+/// name") wins over a broad one ("name") that a heading might also contain.
+String? nameAfterLabel(List<String> lines, List<String> labels) {
+  for (final label in labels) {
+    for (var i = 0; i < lines.length; i++) {
+      final low = lines[i].toLowerCase();
+      final idx = low.indexOf(label);
+      if (idx == -1) continue;
+      // 1) Value on the same line, after the label + any ':' / '(s)' junk.
+      var after = lines[i].substring(idx + label.length);
+      after =
+          after.replaceFirst(RegExp(r'^[^A-Za-z]*(?:s\)[^A-Za-z]*)?'), '').trim();
+      if (looksLikeName(after)) return titleCase(after);
+      // 2) Value on the following line.
+      if (i + 1 < lines.length && looksLikeName(lines[i + 1])) {
+        return titleCase(lines[i + 1]);
+      }
+    }
+  }
+  return null;
+}
+
+/// The first plausible name line (headings are rejected by [looksLikeName]).
+String? firstNameLine(List<String> lines) {
+  for (final l in lines) {
+    if (looksLikeName(l)) return titleCase(l);
+  }
+  return null;
+}
+
+/// Detects gender ('Male' / 'Female') from free text, or null. Checks female
+/// first since "female" contains "male".
+String? detectGender(String text) {
+  final low = text.toLowerCase();
+  if (RegExp(r'\bfe\s*male\b').hasMatch(low)) return 'Female';
+  if (RegExp(r'\bmale\b').hasMatch(low)) return 'Male';
+  return null;
+}

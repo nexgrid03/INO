@@ -9,8 +9,11 @@ import '../data/scan_repository.dart' show OcrException;
 import '../models/ocr_result_model.dart';
 import 'aadhaar_parser.dart';
 import 'document_detector.dart';
+import 'driving_license_parser.dart';
 import 'image_enhancer.dart';
 import 'pan_parser.dart';
+import 'passport_parser.dart';
+import 'voter_id_parser.dart';
 
 /// The real, on-device OCR pipeline built on Google ML Kit Text Recognition.
 ///
@@ -237,6 +240,10 @@ class OcrService {
     final fields = switch (detection.type) {
       IdDocumentType.aadhaar => AadhaarParser.parse(text, lines),
       IdDocumentType.pan => PanParser.parse(text, lines),
+      IdDocumentType.passport => PassportParser.parse(text, lines),
+      IdDocumentType.drivingLicense =>
+        DrivingLicenseParser.parse(text, lines),
+      IdDocumentType.voterId => VoterIdParser.parse(text, lines),
       _ => <String, String?>{},
     };
 

@@ -137,6 +137,7 @@ class OcrResult {
     this.dob,
     this.gender,
     this.fatherName,
+    this.extractedFields = const {},
   });
 
   final String documentName;
@@ -164,6 +165,12 @@ class OcrResult {
   final List<String> tags;
   final String notes;
 
+  /// All OCR-extracted fields keyed by semantic key (name, number, dob, gender,
+  /// fatherName, and type-specific extras like expiryDate / nationality /
+  /// validity / vehicleClass). Persisted with the document so every extracted
+  /// field is visible again on reopen — not just the core four.
+  final Map<String, String> extractedFields;
+
   OcrResult copyWith({
     String? documentName,
     String? documentNumber,
@@ -179,6 +186,7 @@ class OcrResult {
     String? dob,
     String? gender,
     String? fatherName,
+    Map<String, String>? extractedFields,
   }) {
     return OcrResult(
       documentName: documentName ?? this.documentName,
@@ -195,6 +203,7 @@ class OcrResult {
       dob: dob ?? this.dob,
       gender: gender ?? this.gender,
       fatherName: fatherName ?? this.fatherName,
+      extractedFields: extractedFields ?? this.extractedFields,
     );
   }
 }

@@ -189,10 +189,18 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _recordNumber = prefill.documentNumber;
 
       // Capture the structured extraction so it persists with the document.
+      // Seed from the full extracted-field set (which includes type-specific
+      // extras like passport expiry / nationality, DL validity / vehicle class),
+      // then let the user's edited core fields override.
       _docTypeKey = DocumentExtraction.typeKeyFromLabel(prefill.detectedType);
-      final data = <String, String>{};
+      final data = <String, String>{...prefill.extractedFields};
       void put(String key, String? value) {
-        if (value != null && value.trim().isNotEmpty) data[key] = value.trim();
+        final v = value?.trim();
+        if (v != null && v.isNotEmpty) {
+          data[key] = v;
+        } else {
+          data.remove(key);
+        }
       }
 
       put('name', prefill.fullName);

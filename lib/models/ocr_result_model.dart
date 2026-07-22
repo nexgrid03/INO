@@ -94,7 +94,33 @@ class OcrExtraction {
       dob: dob,
       gender: gender,
       fatherName: fatherName,
+      extractedFields: _buildExtractedFields(),
     );
+  }
+
+  /// The full set of cleaned extracted fields (core four + any type-specific
+  /// extras such as passport expiry/nationality or DL validity/vehicle class),
+  /// keyed by semantic key so they persist and display on reopen.
+  Map<String, String> _buildExtractedFields() {
+    final out = <String, String>{};
+    void put(String key, String? value) {
+      final cleaned = _clean(value);
+      if (cleaned != null) out[key] = cleaned;
+    }
+
+    put('name', name);
+    put('number', number);
+    put('dob', dob);
+    put('gender', gender);
+    put('fatherName', fatherName);
+    // Any additional parsed keys beyond the core set (expiryDate, nationality,
+    // validity, vehicleClass, …).
+    const core = {'name', 'dob', 'gender', 'number', 'fatherName'};
+    for (final entry in fields.entries) {
+      if (core.contains(entry.key)) continue;
+      put(entry.key, entry.value);
+    }
+    return out;
   }
 
   static String? _clean(String? value) {
