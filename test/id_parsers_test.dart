@@ -85,4 +85,63 @@ Date of Birth 17/12/1990
       expect(f['name'], isNot(contains('Identity')));
     });
   });
+
+  // Proves the fields flow all the way through to the labeled display the viewer
+  // renders (the end of the persistence path audited in #4 / #5).
+  group('extraction → display end-to-end', () {
+    test('passport extras (expiry, nationality) reach labeled display fields',
+        () {
+      const ext = OcrExtraction(
+        type: IdDocumentType.passport,
+        typeConfidence: 0.9,
+        fields: {
+          'number': 'A1234567',
+          'name': 'Rahul Sharma',
+          'dob': '17/12/1990',
+          'expiryDate': '04/06/2028',
+          'nationality': 'Indian',
+        },
+        rawText: '',
+      );
+      final result = ext.toOcrResult();
+      expect(result.extractedFields['number'], 'A1234567');
+      expect(result.extractedFields['expiryDate'], '04/06/2028');
+      expect(result.extractedFields['nationality'], 'Indian');
+
+      final envelope = DocumentExtraction(
+        documentType: 'passport',
+        data: result.extractedFields,
+      );
+      final labels = {
+        for (final f in envelope.displayFields()) f.label: f.value
+      };
+      expect(labels['Passport Number'], 'A1234567');
+      expect(labels['Expiry Date'], '04/06/2028');
+      expect(labels['Nationality'], 'Indian');
+    });
+
+    test('driving licence extras (validity, vehicle class) reach display', () {
+      const ext = OcrExtraction(
+        type: IdDocumentType.drivingLicense,
+        typeConfidence: 0.9,
+        fields: {
+          'number': 'MH12 20110012345',
+          'name': 'Rahul Sharma',
+          'validity': '16/12/2040',
+          'vehicleClass': 'LMV, MCWG',
+        },
+        rawText: '',
+      );
+      final envelope = DocumentExtraction(
+        documentType: 'drivingLicense',
+        data: ext.toOcrResult().extractedFields,
+      );
+      final labels = {
+        for (final f in envelope.displayFields()) f.label: f.value
+      };
+      expect(labels['License Number'], 'MH12 20110012345');
+      expect(labels['Valid Till'], '16/12/2040');
+      expect(labels['Vehicle Class'], 'LMV, MCWG');
+    });
+  });
 }
