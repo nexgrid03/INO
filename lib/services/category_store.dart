@@ -38,7 +38,7 @@ const List<CategoryIconOption> kCategoryIcons = [
 /// build [Color] from them without touching the deprecated `Color.value`).
 const List<int> kCategoryColorValues = [
   0xFF16A34A, // green
-  0xFF0EA5A5, // teal
+  0xFF0A9186, // teal
   0xFF2563EB, // blue
   0xFF7C3AED, // violet
   0xFFDB2777, // pink
@@ -133,7 +133,7 @@ class CategoryStore extends ChangeNotifier {
     DocumentCategory(
         name: 'Personal',
         iconKey: 'person',
-        colorValue: 0xFF0EA5A5,
+        colorValue: 0xFF0A9186,
         builtIn: true),
     DocumentCategory(
         name: 'Other',

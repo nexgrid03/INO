@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -15,7 +16,7 @@ class InoCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(18),
     this.onTap,
-    this.radius = 24,
+    this.radius = AppRadius.card,
     this.gradient,
     this.borderColor,
   });

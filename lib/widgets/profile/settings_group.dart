@@ -55,12 +55,12 @@ class SettingsGroup extends StatelessWidget {
         DecoratedBox(
           decoration: BoxDecoration(
             color: palette.surface,
-            borderRadius: BorderRadius.circular(AppRadius.button),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: palette.border),
             boxShadow: palette.cardShadow,
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.button),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             child: Column(children: rows),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/illustration_badge.dart';
 import '../profile/settings_scaffold.dart';
 
 /// A meaningful empty state: a soft gradient illustration, a title, a short
@@ -35,23 +36,8 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: compact ? 72 : 96,
-              height: compact ? 72 : 96,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primaryGreen.withValues(alpha: 0.16),
-                    AppColors.lightBlue.withValues(alpha: 0.16),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon,
-                  size: compact ? 34 : 44, color: AppColors.primaryGreen),
-            ),
+            // Premium illustrated badge (layered gradient discs + accent dots).
+            IllustrationBadge(icon: icon, size: compact ? 84 : 120),
             const SizedBox(height: AppSpacing.md),
             Text(title,
                 textAlign: TextAlign.center,

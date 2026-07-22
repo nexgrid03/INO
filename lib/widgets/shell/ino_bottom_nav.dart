@@ -111,7 +111,7 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final color = selected ? AppColors.primaryGreen : palette.textFaint;
+    final labelColor = selected ? AppColors.primaryGreen : palette.textFaint;
     return PressableScale(
       pressedScale: 0.9,
       child: Material(
@@ -128,30 +128,17 @@ class _NavButton extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
-                  // Green active state with a soft light-blue glow.
-                  gradient: selected
-                      ? LinearGradient(
-                          colors: [
-                            AppColors.primaryGreen.withValues(alpha: 0.20),
-                            AppColors.lightBlue.withValues(alpha: 0.18),
-                          ],
-                        )
-                      : null,
+                  // Active tab: full brand-gradient pill with a soft glow.
+                  gradient: selected ? AppGradients.primary : null,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.lightBlue.withValues(alpha: 0.35),
-                            blurRadius: 12,
-                            spreadRadius: -2,
-                          ),
-                        ]
+                      ? AppShadows.glow(AppColors.lightBlue, opacity: 0.35)
                       : null,
                 ),
                 child: Icon(
                   selected ? item.active : item.inactive,
                   size: 23,
-                  color: color,
+                  color: selected ? Colors.white : palette.textFaint,
                 ),
               ),
               const SizedBox(height: 3),
@@ -161,7 +148,7 @@ class _NavButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: color,
+                  color: labelColor,
                 ),
               ),
             ],

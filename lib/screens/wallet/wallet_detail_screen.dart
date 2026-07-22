@@ -894,9 +894,9 @@ const List<QuickAction> _detailFabActions = [
   QuickAction(
       label: 'Import Image',
       icon: Icons.image_rounded,
-      color: Color(0xFF38BDF8)),
+      color: AppColors.lightBlue),
   QuickAction(
       label: 'Create Category',
       icon: Icons.new_label_rounded,
-      color: Color(0xFF0EA5A5)),
+      color: Color(0xFF14B8A6)),
 ];

@@ -25,14 +25,15 @@ class AppSpacing {
   static const double grid = 16; // grid spacing
 }
 
-/// Corner radii.
+/// Corner radii — generous, premium curves (20–28 range for surfaces).
 class AppRadius {
   AppRadius._();
 
-  static const double card = 20;
-  static const double large = 24; // hero / sheets
-  static const double button = 16;
-  static const double chip = 12;
+  static const double card = 24; // floating cards
+  static const double large = 28; // hero / sheets
+  static const double button = 18;
+  static const double chip = 14;
+  static const double search = 16; // floating search bars
   static const double pill = 999;
 }
 
@@ -42,7 +43,8 @@ class AppSizes {
 
   static const double iconContainer = 52;
   static const double iconContainerSm = 44;
-  static const double button = 48;
+  static const double button = 56; // primary CTA height
+  static const double search = 52; // floating search bar height
   static const double avatar = 48;
 }
 

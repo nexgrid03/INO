@@ -188,7 +188,7 @@ const List<QuickAction> _fabActions = [
   QuickAction(
       label: 'Add Investment',
       icon: Icons.savings_rounded,
-      color: Color(0xFF2BB6A3)),
+      color: AppColors.secondaryGreen),
   QuickAction(
       label: 'Add Property',
       icon: Icons.add_home_rounded,
@@ -212,7 +212,7 @@ const List<QuickAction> _walletFabActions = [
   QuickAction(
       label: 'Add Property',
       icon: Icons.add_home_rounded,
-      color: Color(0xFF38BDF8)),
+      color: AppColors.lightBlue),
   QuickAction(
       label: 'Add Insurance',
       icon: Icons.add_moderator_rounded,
@@ -220,11 +220,11 @@ const List<QuickAction> _walletFabActions = [
   QuickAction(
       label: 'Add Investment',
       icon: Icons.savings_rounded,
-      color: Color(0xFF34D399)),
+      color: AppColors.secondaryGreen),
   QuickAction(
       label: 'Add Password',
       icon: Icons.password_rounded,
-      color: Color(0xFF0EA5A5)),
+      color: Color(0xFF14B8A6)),
   QuickAction(
       label: 'Scan',
       icon: Icons.document_scanner_rounded,

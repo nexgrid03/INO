@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -72,13 +73,7 @@ class DetailHeader extends StatelessWidget {
                   colors: gradient,
                 ),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradient.first.withValues(alpha: 0.34),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                boxShadow: AppShadows.glow(gradient.first, opacity: 0.34),
               ),
               child: Icon(icon, color: Colors.white, size: 26),
             ),
@@ -165,7 +160,7 @@ class _IconButton extends StatelessWidget {
         child: Material(
           color: palette.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.button),
             side: BorderSide(color: palette.border),
           ),
           clipBehavior: Clip.antiAlias,

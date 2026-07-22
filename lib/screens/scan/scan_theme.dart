@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Scanner-only design tokens.
 ///
 /// The scanner uses light, professional chrome around a live camera viewport so
-/// it matches INO's primary light theme. Accents are a confident emerald green
+/// it matches INO's primary light theme. Accents are a confident teal
 /// — the "document detected / ready to scan" language users trust from Adobe
 /// Scan & Microsoft Lens — giving the scanner a positive, ready-to-go feel.
 /// Scoped to the scanner module — the global [AppColors] / app theme are left
@@ -11,12 +11,12 @@ import 'package:flutter/material.dart';
 class ScanColors {
   ScanColors._();
 
-  /// Primary accent — emerald green.
-  static const Color accent = Color(0xFF10B981); // emerald 500
-  static const Color accentDeep = Color(0xFF059669); // emerald 600
+  /// Primary accent — teal.
+  static const Color accent = Color(0xFF0CB7A3); // primary teal
+  static const Color accentDeep = Color(0xFF0A9186); // deep teal
 
   // Back-compat names kept so the overlay/controls stay readable at a glance.
-  // Both now resolve to the emerald accent.
+  // Both now resolve to the teal accent.
   static const Color green = accent;
   static const Color blue = accentDeep;
   static const Color white = Color(0xFFFFFFFF);

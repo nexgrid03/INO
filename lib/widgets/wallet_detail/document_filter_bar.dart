@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
@@ -58,7 +59,7 @@ class DocumentFilterBar extends StatelessWidget {
           child: Material(
             color: palette.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
               side: BorderSide(color: palette.border),
             ),
             clipBehavior: Clip.antiAlias,
@@ -112,25 +113,20 @@ class _Chip extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: selected ? AppColors.primaryGreen : palette.surface,
-              borderRadius: BorderRadius.circular(20),
+              color: selected ? null : palette.surface,
+              gradient: selected ? AppGradients.primary : null,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
-                color: selected ? AppColors.primaryGreen : palette.border,
+                color: selected ? Colors.transparent : palette.border,
               ),
               boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.28),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
+                  ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.28)
                   : null,
             ),
             child: Text(
