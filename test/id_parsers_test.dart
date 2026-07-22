@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/models/document_extraction.dart';
+import 'package:inoapp/models/ocr_result_model.dart';
 import 'package:inoapp/services/driving_license_parser.dart';
 import 'package:inoapp/services/passport_parser.dart';
 import 'package:inoapp/services/voter_id_parser.dart';
