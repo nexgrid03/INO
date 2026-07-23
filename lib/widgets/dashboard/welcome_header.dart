@@ -118,25 +118,37 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                     child: child,
                   );
                 },
+                // Ringed avatar: a soft brand ring with a small gap around the
+                // gradient disc (the premium profile treatment).
                 child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: AppColors.brandGradient,
+                    border: Border.all(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.30),
+                      width: 2,
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.antiAlias,
-                  child: (widget.photoUrl != null &&
-                          widget.photoUrl!.isNotEmpty)
-                      ? Image.network(
-                          widget.photoUrl!,
-                          fit: BoxFit.cover,
-                          width: 52,
-                          height: 52,
-                          errorBuilder: (_, _, _) => _initialsLabel(),
-                        )
-                      : _initialsLabel(),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppColors.brandGradient,
+                    ),
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.antiAlias,
+                    child: (widget.photoUrl != null &&
+                            widget.photoUrl!.isNotEmpty)
+                        ? Image.network(
+                            widget.photoUrl!,
+                            fit: BoxFit.cover,
+                            width: 48,
+                            height: 48,
+                            errorBuilder: (_, _, _) => _initialsLabel(),
+                          )
+                        : _initialsLabel(),
+                  ),
                 ),
               ),
             ),
@@ -160,12 +172,40 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                // Localized full date (weekday + month follow the app locale).
-                MaterialLocalizations.of(context).formatFullDate(DateTime.now()),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: palette.textSecondary),
+              // Status-line treatment: a small live brand dot ahead of the
+              // localized full date (weekday + month follow the app locale).
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primaryGreen,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryGreen
+                              .withValues(alpha: 0.35),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      MaterialLocalizations.of(context)
+                          .formatFullDate(DateTime.now()),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -208,11 +248,8 @@ class _HeaderIcon extends StatelessWidget {
       child: Tooltip(
         message: tooltip,
         child: Material(
-          color: palette.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: palette.border),
-          ),
+          color: palette.surfaceVariant,
+          shape: CircleBorder(side: BorderSide(color: palette.border)),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
@@ -223,7 +260,7 @@ class _HeaderIcon extends StatelessWidget {
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(icon, size: 21, color: palette.textPrimary),
+                  Icon(icon, size: 21, color: AppColors.primaryGreen),
                   if (badge > 0)
                     Positioned(
                       top: 5,
@@ -235,8 +272,8 @@ class _HeaderIcon extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.critical,
                           borderRadius: BorderRadius.circular(999),
-                          border:
-                              Border.all(color: palette.surface, width: 1.5),
+                          border: Border.all(
+                              color: palette.surfaceVariant, width: 1.5),
                         ),
                         alignment: Alignment.center,
                         child: Text(

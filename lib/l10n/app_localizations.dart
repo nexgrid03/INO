@@ -97,6 +97,8 @@ const Map<String, Map<String, String>> _strings = {
     'scan': 'Scan',
     'reminders': 'Reminders',
     'profile': 'Profile',
+    'vault': 'Vault',
+    'alerts': 'Alerts',
     // Buttons / common
     'upload': 'Upload',
     'create': 'Create',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
@@ -24,8 +25,14 @@ class _OnboardingPage {
 /// Intro carousel shown after the splash on first launch.
 ///
 /// Has 3 slides explaining the app, a Skip button, page indicator dots, and a
-/// Next / Get Started button. Both Skip and Get Started navigate to the
-/// [LoginScreen].
+/// full-width gradient "next" CTA. Both Skip and the CTA on the last page
+/// navigate to the [LoginScreen].
+///
+/// Visual language follows the Stitch onboarding set: a soft ambient gradient
+/// wash behind everything, a rounded hero panel holding the animated
+/// illustration, an uppercase step pill, a two-tone headline (first line in
+/// the ambient text colour, second line in brand teal), left-aligned copy,
+/// left-aligned progress dots and a full-bleed gradient pill CTA.
 ///
 /// Animation ownership (important — this is what avoids the "blank then load"
 /// flash): each [_OnboardingSlide] owns its OWN entrance controller and plays
@@ -46,8 +53,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Slow, perpetual loop for the floating background particles.
   late final AnimationController _particles;
 
-  /// One-time entrance for the floating arrow button (played once; never reset,
-  /// so it never blanks when changing pages).
+  /// One-time entrance for the gradient CTA (played once; never reset, so it
+  /// never blanks when changing pages).
   late final AnimationController _intro;
   late final Animation<Offset> _arrowSlide;
   late final Animation<double> _arrowFade;
@@ -159,34 +166,52 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.bg,
       body: Stack(
         children: [
+          // Full-bleed soft gradient wash (Stitch "gradient mesh"): one warm
+          // teal bloom top-right, one cyan bloom bottom-left.
+          const Positioned(
+            top: -120,
+            right: -90,
+            child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
+          ),
+          const Positioned(
+            bottom: -140,
+            left: -110,
+            child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
+          ),
+
           // Subtle floating shapes behind everything.
           Positioned.fill(child: FloatingParticles(animation: _particles)),
 
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Skip button (hidden on the last page).
                 Align(
                   alignment: Alignment.centerRight,
-                  child: AnimatedOpacity(
-                    opacity: _isLastPage ? 0 : 1,
-                    duration: const Duration(milliseconds: 250),
-                    child: TextButton(
-                      onPressed: _isLastPage
-                          ? null
-                          : () {
-                              HapticFeedback.selectionClick();
-                              _goToLogin();
-                            },
-                      child: const Text(
-                        'Skip',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4, right: 12),
+                    child: AnimatedOpacity(
+                      opacity: _isLastPage ? 0 : 1,
+                      duration: const Duration(milliseconds: 250),
+                      child: TextButton(
+                        onPressed: _isLastPage
+                            ? null
+                            : () {
+                                HapticFeedback.selectionClick();
+                                _goToLogin();
+                              },
+                        child: Text(
+                          'Skip',
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -203,57 +228,49 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       key: ValueKey(index),
                       page: _pages[index],
                       index: index,
+                      total: _pages.length,
                       controller: _pageController,
                     ),
                   ),
                 ),
 
-                // Extra breathing room between the description and the bottom
-                // indicator for a cleaner, more premium feel.
-                const SizedBox(height: 20),
-
-                // Bottom bar: centred page-indicator dots, with a small
-                // floating arrow button at the right.
+                // Bottom bar (Stitch arrangement): left-aligned progress dots
+                // above a full-width gradient pill CTA.
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-                  child: SizedBox(
-                    height: 58,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Page indicator dots (active dot pops on change).
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(_pages.length, (index) {
-                            final dot = _Dot(isActive: index == _currentPage);
-                            return index == _currentPage
-                                ? ScaleTransition(
-                                    scale: _dotPopScale, child: dot)
-                                : dot;
-                          }),
-                        ),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen, 12, AppSpacing.screen, 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Page indicator dots (active dot pops on change).
+                      Row(
+                        children: List.generate(_pages.length, (index) {
+                          final dot = _Dot(isActive: index == _currentPage);
+                          return index == _currentPage
+                              ? ScaleTransition(scale: _dotPopScale, child: dot)
+                              : dot;
+                        }),
+                      ),
+                      const SizedBox(height: 16),
 
-                        // Floating arrow — one-time fade + slide-up + scale,
-                        // with a press "squish" (ripple comes from its InkWell).
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: SlideTransition(
-                            position: _arrowSlide,
-                            child: FadeTransition(
-                              opacity: _arrowFade,
-                              child: ScaleTransition(
-                                scale: _arrowScale,
-                                child: PressableScale(
-                                  child: _FloatingArrowButton(
-                                    onTap: _onNextPressed,
-                                  ),
-                                ),
+                      // Gradient CTA — one-time fade + slide-up + scale, with
+                      // a press "squish" (ripple comes from its InkWell).
+                      SlideTransition(
+                        position: _arrowSlide,
+                        child: FadeTransition(
+                          opacity: _arrowFade,
+                          child: ScaleTransition(
+                            scale: _arrowScale,
+                            child: PressableScale(
+                              child: _GradientNextButton(
+                                onTap: _onNextPressed,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -265,23 +282,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 }
 
-/// The visual content of a single onboarding slide.
+/// The visual content of a single onboarding slide, in the Stitch onboarding
+/// language: a soft gradient-washed hero panel holding the animated
+/// illustration, then an uppercase step pill, a two-tone headline and the
+/// supporting copy — all left-aligned.
 ///
-/// Layout/typography/spacing are identical to the original. Each slide owns a
-/// short entrance controller that plays in [initState] — so the reveal happens
-/// *as the page slides in*, and a centred page is never reset to blank. On top
-/// of the entrance, a [PageController]-driven parallax shifts the icon more
-/// than the text and scales the content down slightly while swiping.
+/// Each slide owns a short entrance controller that plays in [initState] — so
+/// the reveal happens *as the page slides in*, and a centred page is never
+/// reset to blank. On top of the entrance, a [PageController]-driven parallax
+/// shifts the hero more than the text and scales the content down slightly
+/// while swiping.
 class _OnboardingSlide extends StatefulWidget {
   const _OnboardingSlide({
     super.key,
     required this.page,
     required this.index,
+    required this.total,
     required this.controller,
   });
 
   final _OnboardingPage page;
   final int index;
+  final int total;
   final PageController controller;
 
   @override
@@ -390,8 +412,121 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     super.dispose();
   }
 
+  /// The Stitch-style hero panel: a large rounded surface with a barely-there
+  /// teal→cyan wash, hairline border and the standard floating-card shadow.
+  /// The animated circle + floating satellite chips sit centred inside it —
+  /// the chips echo the Stitch mock's floating glass cards.
+  Widget _heroPanel(AppPalette palette) {
+    return Container(
+      width: double.infinity,
+      height: 320,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(
+              AppColors.primaryGreen.withValues(alpha: 0.10),
+              palette.surface,
+            ),
+            Color.alphaBlend(
+              AppColors.lightBlue.withValues(alpha: 0.07),
+              palette.surface,
+            ),
+          ],
+        ),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
+      ),
+      child: Center(
+        // The 160px SizedBox preserves the illustration's internal layout; the
+        // satellites overflow it via Clip.none inside the panel.
+        child: SizedBox(
+          width: 160,
+          height: 160,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Contextual chips floating around the circle.
+              FloatingSatellites(
+                index: widget.index,
+                pop: _c,
+                float: _float,
+              ),
+              // The main animated circle (unchanged).
+              FadeTransition(
+                opacity: _iconFade,
+                child: ScaleTransition(
+                  scale: _iconScale,
+                  child: AnimatedOnboardingIcon(
+                    index: widget.index,
+                    icon: widget.page.icon,
+                    glow: _glow,
+                    reveal: _reveal,
+                    folderPop: _folderPop,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Small uppercase step pill above the headline — purely decorative, copied
+  /// from the Stitch onboarding language ("STEP 3 OF 4").
+  Widget _stepPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: AppColors.primaryGreen.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Text(
+        'STEP ${widget.index + 1} OF ${widget.total}',
+        style: AppText.label.copyWith(
+          fontSize: 11,
+          letterSpacing: 1.4,
+          color: AppColors.primaryGreen,
+        ),
+      ),
+    );
+  }
+
+  /// Two-tone headline (Stitch treatment): first line in the primary text
+  /// colour, the rest in brand teal. The full original string is rendered.
+  Widget _titleText(AppPalette palette) {
+    final title = widget.page.title;
+    final int nl = title.indexOf('\n');
+    final style = AppText.display.copyWith(
+      fontSize: 28,
+      height: 1.18,
+      color: palette.textPrimary,
+    );
+    if (nl == -1) return Text(title, style: style);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: title.substring(0, nl)),
+          TextSpan(
+            text: title.substring(nl),
+            style: const TextStyle(color: AppColors.primaryGreen),
+          ),
+        ],
+      ),
+      style: style,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     // Rebuilds only while the PageView is scrolling (drives the parallax).
     return AnimatedBuilder(
       animation: widget.controller,
@@ -402,81 +537,54 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
           delta = (widget.controller.page ?? widget.index.toDouble()) -
               widget.index;
         }
-        // Icon moves more than text (parallax depth); content scales down a
+        // Hero moves more than text (parallax depth); content scales down a
         // touch as the page slides away from centre.
         final double iconShift = -delta * 36;
         final double textShift = -delta * 14;
         final double swipeScale = (1 - delta.abs() * 0.08).clamp(0.0, 1.0);
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding:
+              const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
           child: SlideTransition(
             position: _contentSlide,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon + floating satellites (with parallax + swipe scale on
-                // top). The 160px SizedBox preserves the original layout; the
-                // satellites overflow it via Clip.none so spacing is unchanged.
-                Transform.translate(
-                  offset: Offset(iconShift, 0),
-                  child: Transform.scale(
-                    scale: swipeScale,
-                    child: SizedBox(
-                      width: 160,
-                      height: 160,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          // Contextual chips floating around the circle.
-                          FloatingSatellites(
-                            index: widget.index,
-                            pop: _c,
-                            float: _float,
-                          ),
-                          // The main animated circle (unchanged).
-                          FadeTransition(
-                            opacity: _iconFade,
-                            child: ScaleTransition(
-                              scale: _iconScale,
-                              child: AnimatedOnboardingIcon(
-                                index: widget.index,
-                                icon: widget.page.icon,
-                                glow: _glow,
-                                reveal: _reveal,
-                                folderPop: _folderPop,
-                              ),
-                            ),
-                          ),
-                        ],
+                // Hero panel (with parallax + swipe scale on top). Flexible so
+                // it breathes on tall screens and shrinks on short ones.
+                Expanded(
+                  child: Center(
+                    child: Transform.translate(
+                      offset: Offset(iconShift, 0),
+                      child: Transform.scale(
+                        scale: swipeScale,
+                        child: _heroPanel(palette),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 64),
+                const SizedBox(height: 24),
 
-                // Title.
+                // Step pill + title.
                 Transform.translate(
                   offset: Offset(textShift, 0),
                   child: SlideTransition(
                     position: _titleSlide,
                     child: FadeTransition(
                       opacity: _titleFade,
-                      child: Text(
-                        widget.page.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textDark,
-                          height: 1.3,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _stepPill(),
+                          const SizedBox(height: 14),
+                          _titleText(palette),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
 
                 // Description.
                 Transform.translate(
@@ -487,16 +595,16 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                       opacity: _descFade,
                       child: Text(
                         widget.page.description,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
-                          color: AppColors.textMuted,
+                          color: palette.textSecondary,
                           height: 1.5,
                         ),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -506,25 +614,25 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   }
 }
 
-/// Small circular "next" button shown bottom-right.
+/// Full-width gradient pill CTA (Stitch "Next" treatment, icon-only).
 ///
-/// Premium brand-gradient circle, white arrow, soft shadow + a faint glass
-/// highlight border. Ripple comes from the [InkWell]; the press "squish" is
-/// applied by the [PressableScale] that wraps it in the parent.
-class _FloatingArrowButton extends StatelessWidget {
-  const _FloatingArrowButton({required this.onTap});
+/// Brand-gradient fill, white arrow, soft brand glow + a faint glass highlight
+/// border. Ripple comes from the [InkWell]; the press "squish" is applied by
+/// the [PressableScale] that wraps it in the parent.
+class _GradientNextButton extends StatelessWidget {
+  const _GradientNextButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    const double size = 58;
+    final radius = BorderRadius.circular(AppRadius.pill);
     return Container(
-      width: size,
-      height: size,
+      height: AppSizes.button,
+      width: double.infinity,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: AppColors.brandGradient,
+        gradient: AppGradients.primary,
+        borderRadius: radius,
         // Subtle glass highlight.
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
         boxShadow: [
@@ -538,17 +646,44 @@ class _FloatingArrowButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        shape: const CircleBorder(),
+        borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          customBorder: const CircleBorder(),
+          borderRadius: radius,
           child: const Center(
             child: Icon(
               Icons.arrow_forward_rounded,
               color: Colors.white,
               size: 26,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A large, soft radial colour bloom used for the full-bleed background wash.
+class _AmbientBlob extends StatelessWidget {
+  const _AmbientBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.12),
+              color.withValues(alpha: 0.0),
+            ],
           ),
         ),
       ),
@@ -565,14 +700,15 @@ class _Dot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.only(right: 8),
       height: 8,
-      width: isActive ? 24 : 8,
+      width: isActive ? 28 : 8,
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primaryGreen : AppColors.skyBlue,
+        color: isActive ? AppColors.primaryGreen : palette.border,
         borderRadius: BorderRadius.circular(4),
       ),
     );

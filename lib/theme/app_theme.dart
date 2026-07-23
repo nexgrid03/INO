@@ -45,7 +45,7 @@ class AppColors {
 
   // --- Light neutrals (splash / login / onboarding) --------------------------
 
-  static const Color background = Color(0xFFF8FAFC);
+  static const Color background = Color(0xFFF4FBF9);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF0F172A);
   static const Color textMuted = Color(0xFF64748B);
@@ -212,7 +212,7 @@ class AppPalette {
   // Light is the PRIMARY theme — bright, clean, spacious, slate-based neutrals.
   static const AppPalette light = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFF8FAFC), // spec background
+    bg: Color(0xFFF4FBF9), // spec background
     bgElevated: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF), // card background
     cardTop: Color(0xFFFFFFFF), // pure white cards

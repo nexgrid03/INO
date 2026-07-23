@@ -33,11 +33,11 @@ class InoBottomNav extends StatelessWidget {
   /// The five primary destinations — single source of truth for every surface.
   static const List<NavItem> tabs = [
     NavItem('Home', Icons.home_rounded, Icons.home_outlined),
-    NavItem('Wallet', Icons.account_balance_wallet_rounded,
+    NavItem('Vault', Icons.account_balance_wallet_rounded,
         Icons.account_balance_wallet_outlined),
-    NavItem('Scan', Icons.document_scanner_rounded,
-        Icons.document_scanner_outlined),
-    NavItem('Reminders', Icons.notifications_rounded,
+    NavItem('Add', Icons.add_circle_rounded,
+        Icons.add_circle_outline_rounded),
+    NavItem('Alerts', Icons.notifications_rounded,
         Icons.notifications_none_rounded),
     NavItem('Profile', Icons.person_rounded, Icons.person_outline_rounded),
   ];

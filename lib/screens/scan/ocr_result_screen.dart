@@ -6,6 +6,7 @@ import '../../services/category_store.dart';
 import '../../utils/date_normalizer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
@@ -205,16 +206,20 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                       AppSpacing.screen, AppSpacing.lg),
                   children: [
-                    DetectionBadge(
-                      detectedType: r.detectedType,
-                      suggestedWallet: _wallet,
-                      confidence: r.confidence,
+                    FadeSlideIn(
+                      child: DetectionBadge(
+                        detectedType: r.detectedType,
+                        suggestedWallet: _wallet,
+                        confidence: r.confidence,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     // Identity fields (ID documents) — extracted, editable.
                     if (_showIdentity) ...[
                       _CardSection(
                         title: l10n.t('extractedDetails'),
+                        icon: Icons.badge_rounded,
+                        delay: const Duration(milliseconds: 60),
                         children: [
                           OcrField(
                             label: l10n.t('fullName'),
@@ -260,6 +265,8 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                     // Document details card.
                     _CardSection(
                       title: l10n.t('document'),
+                      icon: Icons.description_rounded,
+                      delay: const Duration(milliseconds: 120),
                       children: [
                         OcrField(
                           label: l10n.t('documentName'),
@@ -311,6 +318,8 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                     // Filing card.
                     _CardSection(
                       title: l10n.t('filing'),
+                      icon: Icons.folder_rounded,
+                      delay: const Duration(milliseconds: 180),
                       children: [
                         OcrField(
                           label: l10n.t('category'),
@@ -508,29 +517,63 @@ class _Header extends StatelessWidget {
 }
 
 class _CardSection extends StatelessWidget {
-  const _CardSection({required this.title, required this.children});
+  const _CardSection({
+    required this.title,
+    required this.children,
+    this.icon,
+    this.delay = Duration.zero,
+  });
 
   final String title;
   final List<Widget> children;
 
+  /// Decorative section glyph shown in a small tinted chip (Stitch metadata
+  /// card header treatment).
+  final IconData? icon;
+
+  /// Staggered entrance offset for the section.
+  final Duration delay;
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.card,
-      padding: const EdgeInsets.all(AppSpacing.internal),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title.toUpperCase(),
-              style: AppText.label.copyWith(
-                  color: palette.textFaint, letterSpacing: 1.0)),
-          const SizedBox(height: AppSpacing.md),
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: AppSpacing.md),
-            children[i],
+    return FadeSlideIn(
+      delay: delay,
+      child: InoCard(
+        radius: AppRadius.card,
+        padding: const EdgeInsets.all(AppSpacing.internal),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(AppRadius.chip - 4),
+                    ),
+                    child: Icon(icon,
+                        size: 16, color: AppColors.primaryGreen),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Expanded(
+                  child: Text(title.toUpperCase(),
+                      style: AppText.label.copyWith(
+                          color: palette.textFaint, letterSpacing: 1.4)),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.md),
+              children[i],
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

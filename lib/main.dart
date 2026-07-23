@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'core/responsive/responsive.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/share/shared_documents_screen.dart';
@@ -142,8 +143,9 @@ class _InoAppState extends State<InoApp> {
               // Wrap every route in the biometric app-lock gate. It's inert
               // unless the user has enabled the lock, in which case it covers the
               // app on cold start and each return from the background.
-              builder: (context, child) =>
-                  AppLock(child: child ?? const SizedBox.shrink()),
+              builder: (context, child) => InoResponsiveInit(
+                child: AppLock(child: child ?? const SizedBox.shrink()),
+              ),
               home: _home,
             );
           },

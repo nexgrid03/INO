@@ -6,14 +6,23 @@ import '../../l10n/app_localizations.dart';
 import '../../services/image_enhancer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import 'document_crop_editor.dart';
 
+/// The review screen deliberately commits to the premium DARK camera chrome
+/// (matching the scanner viewport it follows) in both app themes, so the flow
+/// reads as one continuous capture experience. All colours come from the
+/// [AppPalette.dark] token set — never ad-hoc hex values.
+const AppPalette _chrome = AppPalette.dark;
+
 /// Screen 2 — review the capture.
 ///
-/// Shows the captured page large and offers the four standard adjustments
-/// (Crop · Rotate · Enhance · Retake) before committing to OCR. Deliberately
-/// minimal — a preview, a row of tools, and one clear Continue.
+/// Shows the captured page large inside a dark viewport with edge-detection
+/// corner anchors, and offers the four standard adjustments
+/// (Crop · Rotate · Enhance · Retake) in a floating control sheet before
+/// committing to OCR. Deliberately minimal — a preview, a row of tools, and
+/// one clear Continue.
 class ScanReviewScreen extends StatefulWidget {
   const ScanReviewScreen({
     super.key,
@@ -123,59 +132,70 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: palette.bg,
+      backgroundColor: _chrome.bg,
       body: SafeArea(
+        // The control sheet bleeds to the physical bottom edge (it carries its
+        // own bottom SafeArea), matching the Stitch capture chrome.
+        bottom: false,
         child: Column(
           children: [
-            _Header(onBack: widget.onClose),
+            FadeSlideIn(child: _Header(onBack: widget.onClose)),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screen),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
                 child: Center(
-                  child: _CapturePreview(
-                    imagePath: _effectivePath,
-                    enhanced: _enhanced,
-                    enhancing: _enhancing || _processing,
+                  child: FadeSlideIn(
+                    delay: const Duration(milliseconds: 60),
+                    child: _CapturePreview(
+                      imagePath: _effectivePath,
+                      enhanced: _enhanced,
+                      enhancing: _enhancing || _processing,
+                    ),
                   ),
                 ),
               ),
             ),
-            // Adjustment tools.
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screen, vertical: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            const SizedBox(height: AppSpacing.md),
+            // Floating control sheet: adjustment tools + the Continue action.
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 120),
+              child: _ControlSheet(
                 children: [
-                  _Tool(
-                    icon: Icons.crop_rounded,
-                    label: l10n.t('crop'),
-                    onTap: _openCrop,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _Tool(
+                        icon: Icons.crop_rounded,
+                        label: l10n.t('crop'),
+                        onTap: _openCrop,
+                      ),
+                      _Tool(
+                        icon: Icons.rotate_90_degrees_cw_rounded,
+                        label: l10n.t('rotate'),
+                        onTap: _rotate,
+                      ),
+                      _Tool(
+                        icon: Icons.auto_fix_high_rounded,
+                        label: l10n.t('enhance'),
+                        active: _enhanced,
+                        onTap: _toggleEnhance,
+                      ),
+                      _Tool(
+                        icon: Icons.refresh_rounded,
+                        label: l10n.t('retake'),
+                        onTap: widget.onRetake,
+                      ),
+                    ],
                   ),
-                  _Tool(
-                    icon: Icons.rotate_90_degrees_cw_rounded,
-                    label: l10n.t('rotate'),
-                    onTap: _rotate,
-                  ),
-                  _Tool(
-                    icon: Icons.auto_fix_high_rounded,
-                    label: l10n.t('enhance'),
-                    active: _enhanced,
-                    onTap: _toggleEnhance,
-                  ),
-                  _Tool(
-                    icon: Icons.refresh_rounded,
-                    label: l10n.t('retake'),
-                    onTap: widget.onRetake,
-                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _ContinueButton(
+                      onContinue: () => widget.onContinue(_effectivePath)),
                 ],
               ),
             ),
-            _ContinueBar(onContinue: () => widget.onContinue(_effectivePath)),
           ],
         ),
       ),
@@ -190,20 +210,17 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
       child: Row(
         children: [
+          // Glass circular back control (Stitch scanner chrome).
           PressableScale(
             pressedScale: 0.9,
             child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
+              color: _chrome.surface,
+              shape: CircleBorder(side: BorderSide(color: _chrome.border)),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: onBack,
@@ -211,7 +228,7 @@ class _Header extends StatelessWidget {
                   width: AppSizes.iconContainerSm,
                   height: AppSizes.iconContainerSm,
                   child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
+                      size: 21, color: _chrome.textPrimary),
                 ),
               ),
             ),
@@ -223,11 +240,11 @@ class _Header extends StatelessWidget {
               children: [
                 Text(AppLocalizations.of(context).t('reviewCapture'),
                     style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
+                        .copyWith(color: _chrome.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
                 Text(AppLocalizations.of(context).t('reviewCaptureSubtitle'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
+                    style: AppText.caption
+                        .copyWith(color: _chrome.textSecondary)),
               ],
             ),
           ),
@@ -237,8 +254,10 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The captured page preview. Renders the real captured/imported image when a
-/// path is available, otherwise a styled placeholder (no-path / test contexts).
+/// The captured page preview inside the dark viewport. Renders the real
+/// captured/imported image when a path is available, otherwise a styled
+/// placeholder (no-path / test contexts). Four glowing corner anchors echo the
+/// scanner's edge-detection language.
 class _CapturePreview extends StatelessWidget {
   const _CapturePreview({
     required this.imagePath,
@@ -254,48 +273,89 @@ class _CapturePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 0.7,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F2F0),
-          borderRadius: BorderRadius.circular(AppRadius.large),
-          border: Border.all(
-            color: AppColors.primaryGreen.withValues(alpha: enhanced ? 0.5 : 0.2),
-            width: enhanced ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (imagePath != null)
-              Image.file(
-                File(imagePath!),
-                key: ValueKey(imagePath),
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const _PlaceholderPage(),
-              )
-            else
-              const _PlaceholderPage(),
-            if (enhancing)
-              ColoredBox(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-                  ),
-                ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F2F0),
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(
+                color: AppColors.primaryGreen
+                    .withValues(alpha: enhanced ? 0.7 : 0.35),
+                width: enhanced ? 2 : 1.4,
               ),
-          ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+                // Teal ambient halo lifting the page off the dark viewport.
+                BoxShadow(
+                  color: _chrome.ambient.withValues(alpha: 0.10),
+                  blurRadius: 34,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (imagePath != null)
+                  Image.file(
+                    File(imagePath!),
+                    key: ValueKey(imagePath),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const _PlaceholderPage(),
+                  )
+                else
+                  const _PlaceholderPage(),
+                if (enhancing)
+                  ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryGreen),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Edge-detection corner anchors (Stitch scanner pins).
+          const Positioned(top: -5, left: -5, child: _CornerPin()),
+          const Positioned(top: -5, right: -5, child: _CornerPin()),
+          const Positioned(bottom: -5, left: -5, child: _CornerPin()),
+          const Positioned(bottom: -5, right: -5, child: _CornerPin()),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small glowing anchor dot marking a detected page corner.
+class _CornerPin extends StatelessWidget {
+  const _CornerPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.5,
         ),
+        boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.5),
       ),
     );
   }
@@ -331,6 +391,51 @@ class _PlaceholderPage extends StatelessWidget {
   }
 }
 
+/// The dark rounded-top control sheet hosting the tools and the CTA — the
+/// Stitch "preview & filter" panel, translated to the teal system.
+class _ControlSheet extends StatelessWidget {
+  const _ControlSheet({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _chrome.bgElevated,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        border: Border.all(color: _chrome.border),
+        boxShadow: _chrome.cardShadow,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+              AppSpacing.screen, AppSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Sheet grabber accent.
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: _chrome.border,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ...children,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Tool extends StatelessWidget {
   const _Tool({
     required this.icon,
@@ -346,8 +451,7 @@ class _Tool extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final color = active ? AppColors.primaryGreen : palette.textPrimary;
+    final color = active ? AppColors.primaryGreen : _chrome.textPrimary;
     return PressableScale(
       pressedScale: 0.9,
       child: GestureDetector(
@@ -356,24 +460,29 @@ class _Tool extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Circular glass control (Stitch capture chrome).
             Container(
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
                 color: active
-                    ? AppColors.primaryGreen.withValues(alpha: 0.12)
-                    : palette.surface,
-                borderRadius: BorderRadius.circular(AppRadius.chip),
+                    ? AppColors.primaryGreen.withValues(alpha: 0.16)
+                    : _chrome.surfaceVariant,
+                shape: BoxShape.circle,
                 border: Border.all(
-                  color: active ? AppColors.primaryGreen : palette.border,
+                  color: active ? AppColors.primaryGreen : _chrome.border,
                 ),
+                boxShadow: active
+                    ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.25)
+                    : null,
               ),
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 7),
             Text(label,
                 style: AppText.caption.copyWith(
-                    color: palette.textSecondary, fontWeight: FontWeight.w600)),
+                    color: _chrome.textSecondary,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -381,58 +490,38 @@ class _Tool extends StatelessWidget {
   }
 }
 
-class _ContinueBar extends StatelessWidget {
-  const _ContinueBar({required this.onContinue});
+class _ContinueButton extends StatelessWidget {
+  const _ContinueButton({required this.onContinue});
 
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.bg,
-        border: Border(top: BorderSide(color: palette.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-              AppSpacing.screen, AppSpacing.sm),
-          child: PressableScale(
-            child: Container(
-              height: AppSizes.button,
-              decoration: BoxDecoration(
-                gradient: AppColors.brandGradient,
-                borderRadius: BorderRadius.circular(AppRadius.button),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.32),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
+    return PressableScale(
+      child: Container(
+        height: AppSizes.button,
+        decoration: BoxDecoration(
+          gradient: AppGradients.primary,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          boxShadow:
+              AppShadows.glow(AppColors.primaryGreen, opacity: 0.32),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onContinue,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(AppLocalizations.of(context).t('extractText'),
+                      style: AppText.subtitle.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded,
+                      color: Colors.white, size: 20),
                 ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onContinue,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(AppLocalizations.of(context).t('extractText'),
-                            style: AppText.subtitle.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward_rounded,
-                            color: Colors.white, size: 20),
-                      ],
-                    ),
-                  ),
-                ),
               ),
             ),
           ),

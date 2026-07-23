@@ -21,6 +21,8 @@ import '../../services/document_protection_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_buttons.dart';
+import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 
 /// What changed while viewing a document, returned to the wallet list on pop.
@@ -676,45 +678,119 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
       ),
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
-              AppSpacing.lg, AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
+                AppSpacing.lg, AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.border,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(l10n.t('documentInformation'),
-                  style: AppText.title.copyWith(color: palette.textPrimary)),
-              const SizedBox(height: AppSpacing.md),
-              _InfoRow(label: l10n.t('fileName'), value: _record.name),
-              _InfoRow(label: l10n.t('category'), value: _record.category),
-              _InfoRow(
-                  label: l10n.t('uploadDate'),
-                  value: inoFormatDate(_record.uploadedAt)),
-              _InfoRow(
-                  label: l10n.t('fileSize'),
-                  value: _fileSize > 0 ? _formatBytes(_fileSize) : '—'),
-              _InfoRow(
-                  label: l10n.t('protection'),
-                  value: _protected
-                      ? l10n.t('biometricProtected')
-                      : l10n.t('notProtected')),
-              _InfoRow(
-                  label: l10n.t('favorite'),
-                  value: _record.isFavorite ? l10n.t('yes') : l10n.t('no')),
-              ..._extractedInfoRows(palette),
-            ],
+                const SizedBox(height: AppSpacing.md),
+                // Hero icon container + sheet title (Stitch identity header).
+                Row(
+                  children: [
+                    Container(
+                      width: AppSizes.iconContainer,
+                      height: AppSizes.iconContainer,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: widget.accent,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow:
+                            AppShadows.glow(widget.accent.first, opacity: 0.25),
+                      ),
+                      child:
+                          Icon(_record.icon, color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(l10n.t('documentInformation'),
+                          style: AppText.title
+                              .copyWith(color: palette.textPrimary)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // Stitch identity panel: 2-column label/value grid.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cell = (constraints.maxWidth - AppSpacing.md) / 2;
+                      return Wrap(
+                        spacing: AppSpacing.md,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          SizedBox(
+                            width: constraints.maxWidth,
+                            child: _InfoRow(
+                                label: l10n.t('fileName'),
+                                value: _record.name),
+                          ),
+                          SizedBox(
+                            width: cell,
+                            child: _InfoRow(
+                                label: l10n.t('category'),
+                                value: _record.category),
+                          ),
+                          SizedBox(
+                            width: cell,
+                            child: _InfoRow(
+                                label: l10n.t('uploadDate'),
+                                value: inoFormatDate(_record.uploadedAt)),
+                          ),
+                          SizedBox(
+                            width: cell,
+                            child: _InfoRow(
+                                label: l10n.t('fileSize'),
+                                value: _fileSize > 0
+                                    ? _formatBytes(_fileSize)
+                                    : '—'),
+                          ),
+                          SizedBox(
+                            width: cell,
+                            child: _InfoRow(
+                                label: l10n.t('protection'),
+                                value: _protected
+                                    ? l10n.t('biometricProtected')
+                                    : l10n.t('notProtected')),
+                          ),
+                          SizedBox(
+                            width: cell,
+                            child: _InfoRow(
+                                label: l10n.t('favorite'),
+                                value: _record.isFavorite
+                                    ? l10n.t('yes')
+                                    : l10n.t('no')),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                ..._extractedInfoRows(palette),
+              ],
+            ),
           ),
         ),
       ),
@@ -723,26 +799,46 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   /// The "Extracted Information" section for the info sheet — the OCR fields
   /// captured when the document was scanned, surfaced again on every reopen.
+  /// Styled as the Stitch insights panel: tinted wash card, accent hairline,
+  /// label-over-value rows with the copy affordance.
   List<Widget> _extractedInfoRows(AppPalette palette) {
     final extraction = _record.extraction;
     final fields = extraction.displayFields();
+    final List<Widget> rows;
     if (fields.isEmpty) {
       // No structured data, but a bare record number may still exist.
       final number = _record.recordNumber;
       if (number == null || number.trim().isEmpty) return const [];
-      return [
-        const SizedBox(height: AppSpacing.md),
-        const _ExtractedHeader(),
+      rows = [
         _InfoRow(label: 'Document Number', value: number, copyable: true),
+      ];
+    } else {
+      rows = [
+        for (final f in fields)
+          _InfoRow(label: f.label, value: f.value, copyable: true),
+        if (extraction.userNotes.trim().isNotEmpty)
+          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
       ];
     }
     return [
       const SizedBox(height: AppSpacing.md),
-      const _ExtractedHeader(),
-      for (final f in fields)
-        _InfoRow(label: f.label, value: f.value, copyable: true),
-      if (extraction.userNotes.trim().isNotEmpty)
-        _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          gradient: AppGradients.wash(),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: AppBorders.accent(opacity: 0.25),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _ExtractedHeader(),
+            const SizedBox(height: 6),
+            ...rows,
+          ],
+        ),
+      ),
     ];
   }
 
@@ -758,9 +854,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: palette.surface,
+        gradient: AppGradients.wash(),
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: palette.border),
+        border: AppBorders.accent(opacity: 0.25),
+        boxShadow: palette.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1144,16 +1241,32 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (card != null) ...[card, const SizedBox(height: AppSpacing.lg)],
-          SelectableText(
-            _textContent ?? '',
-            style: TextStyle(
-              color: palette.textPrimary,
-              fontSize: 14,
-              height: 1.55,
-              fontFamily: 'monospace',
+          if (card != null) ...[
+            FadeSlideIn(child: card),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 70),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: palette.border),
+                boxShadow: palette.cardShadow,
+              ),
+              child: SelectableText(
+                _textContent ?? '',
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontSize: 14,
+                  height: 1.55,
+                  fontFamily: 'monospace',
+                ),
+              ),
             ),
           ),
         ],
@@ -1164,61 +1277,117 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Widget _launchBody(AppPalette palette) {
     final isPdf = _kind == _FileKind.pdf;
     final card = _extractedCard(palette);
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (card != null) ...[card, const SizedBox(height: AppSpacing.lg)],
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            Container(
-              width: 96,
-              height: 96,
+          // Stitch hero preview: large rounded surface with a centred gradient
+          // icon container and a glassmorphic overlay pill.
+          FadeSlideIn(
+            child: Container(
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: widget.accent),
+                color: palette.surfaceVariant,
                 borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(color: palette.border),
+                boxShadow: palette.cardShadow,
               ),
-              child: Icon(
-                isPdf
-                    ? Icons.picture_as_pdf_rounded
-                    : Icons.insert_drive_file_rounded,
-                color: Colors.white,
-                size: 46,
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.wash(opacity: 0.10),
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: widget.accent,
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                          boxShadow: AppShadows.glow(widget.accent.first,
+                              opacity: 0.35),
+                        ),
+                        child: Icon(
+                          isPdf
+                              ? Icons.picture_as_pdf_rounded
+                              : Icons.insert_drive_file_rounded,
+                          color: Colors.white,
+                          size: 44,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 14,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: palette.surface.withValues(alpha: 0.92),
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.pill),
+                            border: Border.all(color: palette.border),
+                            boxShadow: AppShadows.card,
+                          ),
+                          child: Text(
+                            _fileSize > 0
+                                ? '${_record.category} · ${_formatBytes(_fileSize)}'
+                                : _record.category,
+                            style: AppText.caption.copyWith(
+                                color: palette.textSecondary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(_record.name,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 70),
+            child: Text(_record.name,
                 textAlign: TextAlign.center,
                 style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: 6),
-            Text(
-              _fileSize > 0
-                  ? '${_record.category} · ${_formatBytes(_fileSize)}'
-                  : _record.category,
-              style: AppText.caption.copyWith(color: palette.textSecondary),
-            ),
+          ),
+          if (card != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+            FadeSlideIn(
+                delay: const Duration(milliseconds: 140), child: card),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 210),
+            child: Column(
+              children: [
+                PrimaryButton(
+                  label: l10n.t(isPdf ? 'openPdf' : 'openFile'),
+                  icon: Icons.open_in_new_rounded,
+                  onPressed: _openExternally,
                 ),
-                onPressed: _openExternally,
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: Text(AppLocalizations.of(context)
-                    .t(isPdf ? 'openPdf' : 'openFile')),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  l10n.t(isPdf ? 'opensWithPdfApp' : 'opensWithDefaultApp'),
+                  textAlign: TextAlign.center,
+                  style: AppText.caption.copyWith(color: palette.textFaint),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              AppLocalizations.of(context)
-                  .t(isPdf ? 'opensWithPdfApp' : 'opensWithDefaultApp'),
-              style: AppText.caption.copyWith(color: palette.textFaint),
-            ),
-            ],
           ),
         ],
       ),

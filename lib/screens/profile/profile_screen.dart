@@ -21,9 +21,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
-import '../../widgets/profile/profile_header_card.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
 import '../auth/login_screen.dart';
@@ -509,11 +509,21 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     final blocks = <Widget>[
       _Title(),
-      ProfileHeaderCard(
+      // Stitch-style identity hero: centered avatar in a gradient ring with an
+      // edit badge, name + email, and the single trust pill. The whole card is
+      // still tappable → Edit Profile (unchanged behaviour).
+      _ProfileHero(
         fullName: p.fullName,
         email: p.email,
         photoUrl: p.profilePhoto,
         onEdit: _editProfile,
+      ),
+      // Prominent storage-usage card (real Storage data, live meter).
+      _StorageCard(
+        usedLabel: _storageLoading ? '…' : _storage.usedLabel,
+        totalLabel: _storage.quotaLabel,
+        percentLabel: _storageLoading ? '…' : '${_storage.percent}%',
+        fraction: _storage.fraction,
       ),
       SettingsGroup(
         caption: l10n.t('security'),
@@ -544,11 +554,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       SettingsGroup(
         caption: l10n.t('dataStorage'),
         children: [
-          _StorageRow(
-            usedLabel: _storageLoading ? '…' : _storage.usedLabel,
-            totalLabel: _storage.quotaLabel,
-            fraction: _storage.fraction,
-          ),
           SettingsRow(
             icon: Icons.cloud_sync_rounded,
             title: l10n.t('autoBackup'),
@@ -629,7 +634,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       ),
       // Destructive actions, lowest visual weight, at the very bottom.
+      // Decorative caption from the Stitch design's "SYSTEM" group.
       SettingsGroup(
+        caption: 'System',
         children: [
           SettingsRow(
             icon: Icons.delete_outline_rounded,
@@ -702,86 +709,273 @@ class _Title extends StatelessWidget {
   }
 }
 
-/// The Storage summary — a normal settings row (icon · title · usage) with a
-/// slim gradient bar, fed by real Storage usage.
-class _StorageRow extends StatelessWidget {
-  const _StorageRow({
+/// The centered identity hero (Stitch "profile_settings" pattern): a large
+/// avatar wrapped in a brand-gradient ring with a floating edit badge, the
+/// name + email underneath, and the single "Vault protected" trust pill.
+///
+/// The ENTIRE card stays tappable → [onEdit], exactly like the previous
+/// compact header, so no behaviour changes.
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.fullName,
+    required this.email,
+    required this.onEdit,
+    this.photoUrl,
+  });
+
+  final String fullName;
+  final String email;
+  final String? photoUrl;
+  final VoidCallback onEdit;
+
+  String get _initials {
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return 'IN';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InoCard(
+      radius: AppRadius.large,
+      onTap: onEdit,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.internal, AppSpacing.lg, AppSpacing.internal, AppSpacing.lg),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 112,
+            height: 112,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Gradient progress-ring treatment around the avatar.
+                Container(
+                  width: 112,
+                  height: 112,
+                  padding: const EdgeInsets.all(3.5),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppGradients.primary,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(3.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: palette.surface,
+                    ),
+                    child: ClipOval(
+                      child: (photoUrl != null && photoUrl!.isNotEmpty)
+                          ? Image.network(
+                              photoUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  _HeroInitials(initials: _initials),
+                            )
+                          : _HeroInitials(initials: _initials),
+                    ),
+                  ),
+                ),
+                // Floating edit badge (bottom-right, Stitch pencil chip).
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppGradients.primary,
+                      border: Border.all(color: palette.surface, width: 3),
+                      boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                    ),
+                    child: const Icon(Icons.edit_rounded,
+                        size: 15, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            fullName.trim().isEmpty ? 'Your Name' : fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            email,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: AppText.body.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const _HeroBadge(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Gradient initials fallback when no profile photo is set (or it fails).
+class _HeroInitials extends StatelessWidget {
+  const _HeroInitials({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: AppGradients.primary),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 30,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The single trust pill under the identity hero (Stitch badge chip).
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shield_rounded,
+              size: 13, color: AppColors.primaryGreen),
+          const SizedBox(width: 5),
+          Text(
+            'Vault protected',
+            style: AppText.label.copyWith(
+              color: AppColors.primaryGreen,
+              fontSize: 11.5,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The prominent Storage-usage card (Stitch "Storage Usage" tile): an icon in
+/// a gradient-wash container, a percent pill, and a thick gradient meter —
+/// all fed by the same real Storage usage as before.
+class _StorageCard extends StatelessWidget {
+  const _StorageCard({
     required this.usedLabel,
     required this.totalLabel,
+    required this.percentLabel,
     required this.fraction,
   });
 
   final String usedLabel;
   final String totalLabel;
+  final String percentLabel;
   final double fraction;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return InoCard(
+      padding: const EdgeInsets.all(AppSpacing.internal),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: palette.surfaceVariant,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.storage_rounded,
-                size: 19, color: palette.textSecondary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              Container(
+                width: AppSizes.iconContainerSm,
+                height: AppSizes.iconContainerSm,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.wash(opacity: 0.14),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: const Icon(Icons.storage_rounded,
+                    size: 22, color: AppColors.primaryGreen),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        AppLocalizations.of(context).t('storage'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.1,
-                          color: palette.textPrimary,
-                        ),
-                      ),
+                    Text(
+                      AppLocalizations.of(context).t('storage'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 2),
                     Text(
                       '$usedLabel of $totalLabel',
-                      style:
-                          AppText.caption.copyWith(color: palette.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary),
                     ),
                   ],
                 ),
-                const SizedBox(height: 9),
-                ClipRRect(
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: palette.surfaceVariant,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: SizedBox(
-                    height: 5,
-                    child: Stack(
-                      children: [
-                        Container(color: palette.surfaceVariant),
-                        FractionallySizedBox(
-                          widthFactor: fraction.clamp(0.0, 1.0),
-                          child: const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: AppColors.brandGradient,
-                            ),
-                          ),
-                        ),
-                      ],
+                ),
+                child: Text(
+                  percentLabel,
+                  style:
+                      AppText.label.copyWith(color: palette.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: SizedBox(
+              height: 8,
+              child: Stack(
+                children: [
+                  Container(color: palette.surfaceVariant),
+                  FractionallySizedBox(
+                    widthFactor: fraction.clamp(0.0, 1.0),
+                    child: const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.brandGradient,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

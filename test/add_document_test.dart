@@ -16,7 +16,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: AddDocumentScreen()),
     );
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(tester.takeException(), isNull);
 
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: AddDocumentScreen(prefill: prefill)),
     );
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(tester.takeException(), isNull);
 

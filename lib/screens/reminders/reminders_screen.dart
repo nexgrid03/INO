@@ -156,6 +156,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   Widget _content() {
     final priorities = _store.priorities(_filter, limit: 4);
     final sections = <Widget>[
+      _weekStrip(),
       _summaryGrid(),
       _filterChips(),
       _prioritiesSection(priorities),
@@ -174,6 +175,28 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   // ---- Sections ------------------------------------------------------------
+
+  /// Calendar-hub date scroller: the days around today as floating pills, with
+  /// category-coloured activity dots pulled from the real reminder store.
+  /// Tapping a day opens the existing calendar screen.
+  Widget _weekStrip() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: _WeekStrip(
+        today: _store.today,
+        dotsFor: (day) {
+          final colors = <Color>[];
+          for (final r in _store.onDay(day, ReminderFilterKind.all)) {
+            final c = r.category.color;
+            if (!colors.contains(c)) colors.add(c);
+            if (colors.length == 3) break;
+          }
+          return colors;
+        },
+        onDayTap: _openCalendar,
+      ),
+    );
+  }
 
   Widget _summaryGrid() {
     final s = _store.summary;
@@ -255,16 +278,29 @@ class _RemindersScreenState extends State<RemindersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 4, AppSpacing.sm),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Icon(Icons.priority_high_rounded,
-                    size: 18, color: AppColors.critical),
-                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    l10n.t('todaysPriorities'),
-                    style: AppText.title.copyWith(
-                      color: AppPalette.of(context).textPrimary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Decorative agenda overline with the real date.
+                      Text(
+                        'AGENDA · ${reminderShortDate(_store.today).toUpperCase()}',
+                        style: AppText.label.copyWith(
+                          color: AppColors.primaryGreen,
+                          fontSize: 11,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.t('todaysPriorities'),
+                        style: AppText.title.copyWith(
+                          color: AppPalette.of(context).textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (priorities.isNotEmpty)
@@ -272,7 +308,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     onTap: () => _openScope(RemindersScope.all),
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       child: Text(
                         l10n.t('viewAll'),
                         style: AppText.label.copyWith(
@@ -336,16 +373,25 @@ class _CaughtUpNote extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
       decoration: BoxDecoration(
         color: palette.surfaceVariant,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         children: [
-          const Icon(Icons.check_circle_rounded,
-              size: 30, color: AppColors.primaryGreen),
-          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check_circle_rounded,
+                size: 26, color: AppColors.primaryGreen),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.t('allCaughtUp'),
             style: AppText.subtitle.copyWith(
@@ -360,6 +406,142 @@ class _CaughtUpNote extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Horizontal date scroller from the calendar-hub design: the days around
+/// today rendered as floating pills — day-of-week over the day number, with
+/// up to three category-coloured activity dots per day. Today wears the brand
+/// gradient + glow; days fade with distance. Tapping any pill opens the
+/// calendar screen.
+class _WeekStrip extends StatelessWidget {
+  const _WeekStrip({
+    required this.today,
+    required this.dotsFor,
+    required this.onDayTap,
+  });
+
+  final DateTime today;
+  final List<Color> Function(DateTime day) dotsFor;
+  final VoidCallback onDayTap;
+
+  static const List<String> _dow = [
+    'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', //
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final days = [
+      for (var i = -2; i <= 6; i++) today.add(Duration(days: i)),
+    ];
+    return SizedBox(
+      height: 84,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+        itemCount: days.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+        itemBuilder: (context, index) => _DayPill(
+          day: days[index],
+          isToday: index == 2,
+          distance: (index - 2).abs(),
+          dowLabel: _dow[days[index].weekday - 1],
+          dots: dotsFor(days[index]),
+          onTap: onDayTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _DayPill extends StatelessWidget {
+  const _DayPill({
+    required this.day,
+    required this.isToday,
+    required this.distance,
+    required this.dowLabel,
+    required this.dots,
+    required this.onTap,
+  });
+
+  final DateTime day;
+  final bool isToday;
+  final int distance;
+  final String dowLabel;
+  final List<Color> dots;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final pill = Container(
+      width: 58,
+      decoration: BoxDecoration(
+        gradient: isToday ? AppGradients.primary : null,
+        color: isToday ? null : palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.search),
+        border: isToday ? null : Border.all(color: palette.border),
+        boxShadow: isToday
+            ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.35)
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            dowLabel,
+            style: AppText.label.copyWith(
+              fontSize: 10,
+              letterSpacing: 0.8,
+              color: isToday
+                  ? Colors.white.withValues(alpha: 0.9)
+                  : palette.textFaint,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: isToday ? Colors.white : palette.textPrimary,
+            ),
+          ),
+          SizedBox(
+            height: 8,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < dots.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 3),
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isToday ? Colors.white : dots[i],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return PressableScale(
+      pressedScale: 0.93,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: isToday ? pill : Opacity(opacity: _fade, child: pill),
+      ),
+    );
+  }
+
+  double get _fade => (1.0 - 0.12 * distance).clamp(0.5, 1.0).toDouble();
 }
 
 class _ViewAllButton extends StatelessWidget {
