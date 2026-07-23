@@ -1,30 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/wallet_repository.dart';
-import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
 import '../../services/voice_greeting_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/dashboard/expandable_fab.dart';
-import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
-import '../documents/add_document_screen.dart';
 import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
-import '../wallet/wallet_detail_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
 import 'shell_controller.dart';
 
 /// The app shell: an [IndexedStack] of the five primary destinations behind a
-/// custom bottom navigation bar, with the expandable "Add" FAB floating above.
+/// custom bottom navigation bar, with the voice mic floating above.
 ///
-/// Bottom nav: Home · Wallet · Scan · Reminders · Profile. The tabs are kept
-/// deliberately flat and predictable; emphasis comes from the gradient FAB,
-/// not a competing raised centre button.
+/// Bottom nav: Home · Wallet · Scan · Reminders · Profile. The nav bar is
+/// always fixed to the bottom and stays visible while content scrolls
+/// beneath it (`extendBody` lets the blur show the page through). The single
+/// floating affordance is the hands-free voice mic at the bottom-right —
+/// tapping it opens the voice sheet and the matched destination navigates
+/// itself.
 class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
@@ -86,48 +82,6 @@ class _MainShellState extends State<MainShell> {
     ShellController.tab.value = i;
   }
 
-  void _onFabAction(QuickAction action) {
-    switch (action.label) {
-      // Scan actions open the dedicated Scan flow.
-      case 'Scan':
-      case 'Scan Document':
-        launchScanFlow(context);
-      // Reminder goes to the Reminders tab.
-      case 'Add Reminder':
-        ShellController.tab.value = 3;
-      case 'Add Document':
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
-        );
-      // Category adds open their respective wallet pages.
-      case 'Add Property':
-        _openWallet('Property Wallet');
-      case 'Add Insurance':
-        _openWallet('Insurance Wallet');
-      case 'Add Investment':
-        _openWallet('Investment Wallet');
-      case 'Add Health Record':
-        _openWallet('Health Wallet');
-      default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${action.label} — coming soon'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.primaryGreen,
-          ),
-        );
-    }
-  }
-
-  /// Opens a specific wallet's page (e.g. Insurance, Investment) by name.
-  void _openWallet(String walletName) {
-    final category = SupabaseWalletRepository.categoryFor(walletName);
-    if (category == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => WalletDetailScreen(category: category)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -151,97 +105,18 @@ class _MainShellState extends State<MainShell> {
       ),
     ];
 
-    // FAB only on Home & Wallet, where "add" actions make sense.
-    final showFab = _index == 0 || _index == 1;
-
     return Scaffold(
       // Let content (and the nav's blur) sit behind the floating nav bar.
       extendBody: true,
-      body: Stack(
-        children: [
-          IndexedStack(index: _index, children: pages),
-          if (showFab)
-            Positioned.fill(
-              child: Padding(
-                // Clear the floating nav bar at the bottom.
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                child: ExpandableFab(
-                  // Wallet tab gets vault-centric add actions.
-                  actions: _index == 1 ? _walletFabActions : _fabActions,
-                  onAction: _onFabAction,
-                ),
-              ),
-            ),
-          // Global hands-free voice mic — available on every tab. Tapping it
-          // opens the voice sheet; the matched destination navigates itself.
-          Positioned(
-            left: 16,
-            bottom: MediaQuery.of(context).padding.bottom + 90,
-            child: const VoiceMicButton(),
-          ),
-        ],
-      ),
-      bottomNavigationBar: InoBottomNav(
-        index: _index,
-        onSelect: _select,
-      ),
+      // Keep the bottom nav planted at all times: it lives in
+      // `bottomNavigationBar` (so it never scrolls with the page), and this
+      // stops the keyboard inset from ever pushing it upward. The nav stays
+      // pinned to the bottom edge no matter what the body does.
+      resizeToAvoidBottomInset: false,
+      // The voice assistant now lives as a small icon in each page's top bar
+      // (beside the notification bell), so there's no floating mic here anymore.
+      body: IndexedStack(index: _index, children: pages),
+      bottomNavigationBar: InoBottomNav(index: _index, onSelect: _select),
     );
   }
 }
-
-// FAB actions mirror the repository's fabActions; duplicated here as a const so
-// the shell needn't await a load just to show the menu.
-const List<QuickAction> _fabActions = [
-  QuickAction(
-      label: 'Add Document',
-      icon: Icons.note_add_rounded,
-      color: AppColors.lightBlue),
-  QuickAction(
-      label: 'Add Reminder',
-      icon: Icons.alarm_add_rounded,
-      color: Color(0xFFF5704A)),
-  QuickAction(
-      label: 'Add Investment',
-      icon: Icons.savings_rounded,
-      color: AppColors.secondaryGreen),
-  QuickAction(
-      label: 'Add Property',
-      icon: Icons.add_home_rounded,
-      color: Color(0xFF8B6CEF)),
-  QuickAction(
-      label: 'Add Insurance',
-      icon: Icons.add_moderator_rounded,
-      color: AppColors.warning),
-  QuickAction(
-      label: 'Add Health Record',
-      icon: Icons.medical_services_rounded,
-      color: Color(0xFFEC6A8C)),
-];
-
-// Wallet Hub FAB actions (vault-centric).
-const List<QuickAction> _walletFabActions = [
-  QuickAction(
-      label: 'Add Document',
-      icon: Icons.note_add_rounded,
-      color: AppColors.lightBlue),
-  QuickAction(
-      label: 'Add Property',
-      icon: Icons.add_home_rounded,
-      color: AppColors.lightBlue),
-  QuickAction(
-      label: 'Add Insurance',
-      icon: Icons.add_moderator_rounded,
-      color: AppColors.secondaryGreen),
-  QuickAction(
-      label: 'Add Investment',
-      icon: Icons.savings_rounded,
-      color: AppColors.secondaryGreen),
-  QuickAction(
-      label: 'Add Password',
-      icon: Icons.password_rounded,
-      color: Color(0xFF14B8A6)),
-  QuickAction(
-      label: 'Scan',
-      icon: Icons.document_scanner_rounded,
-      color: AppColors.primaryGreen),
-];

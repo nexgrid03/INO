@@ -11,9 +11,10 @@ import 'package:flutter/material.dart';
 class ScanColors {
   ScanColors._();
 
-  /// Primary accent — teal.
-  static const Color accent = Color(0xFF0CB7A3); // primary teal
-  static const Color accentDeep = Color(0xFF0A9186); // deep teal
+  /// Primary accent — the brand teal #30ACB3 (never darkened; the companion
+  /// is the lighter tint #55C2C8 per the brand rule).
+  static const Color accent = Color(0xFF30ACB3);
+  static const Color accentDeep = Color(0xFF55C2C8); // light tint partner
 
   // Back-compat names kept so the overlay/controls stay readable at a glance.
   // Both now resolve to the teal accent.
@@ -22,10 +23,10 @@ class ScanColors {
   static const Color white = Color(0xFFFFFFFF);
 
   /// Light chrome around the camera viewport (matches the app background).
-  static const Color bg = Color(0xFFF8FAFC); // slate-50
+  static const Color bg = Color(0xFFF3FAFB); // teal-washed white
   static const Color surface = Color(0xFFFFFFFF); // cards / glass surfaces
-  static const Color surfaceVariant = Color(0xFFF1F5F9); // slate-100
-  static const Color border = Color(0xFFE2E8F0); // slate-200
+  static const Color surfaceVariant = Color(0xFFEFF9FA); // teal foam
+  static const Color border = Color(0x2630ACB3); // rgba(48,172,179,0.15)
 
   /// Text on the light chrome.
   static const Color textPrimary = Color(0xFF0F172A); // slate-900

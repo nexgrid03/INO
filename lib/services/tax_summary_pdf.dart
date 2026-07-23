@@ -19,7 +19,7 @@ class TaxSummaryPdf {
     final now = generatedAt ?? DateTime.now();
     final doc = pw.Document();
 
-    const green = PdfColor.fromInt(0xFF0CB7A3);
+    const green = PdfColor.fromInt(0xFF30ACB3);
     const dark = PdfColor.fromInt(0xFF0F172A);
     const muted = PdfColor.fromInt(0xFF64748B);
 

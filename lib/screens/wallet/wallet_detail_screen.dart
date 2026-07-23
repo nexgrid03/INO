@@ -10,6 +10,7 @@ import '../../services/document_protection_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
@@ -80,7 +81,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _future = WalletDetailRepository.instance.load(widget.category).then((data) {
+    _future = WalletDetailRepository.instance.load(widget.category).then((
+      data,
+    ) {
       _records = data.records;
       return data;
     });
@@ -176,7 +179,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         break;
       case WalletSort.az:
-        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        list.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
         break;
       case WalletSort.uploadDate:
         list.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
@@ -198,19 +203,22 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// The single record (if any) that should drive the smart banner: the
   /// soonest-expiring document in the wallet.
   DocumentRecord? get _attentionRecord {
-    final expiring = _records
-        .where((r) =>
-            r.status == DocumentStatus.expiringSoon ||
-            r.status == DocumentStatus.expired)
-        .toList()
-      ..sort((a, b) {
-        final ae = a.expiresAt;
-        final be = b.expiresAt;
-        if (ae == null && be == null) return 0;
-        if (ae == null) return 1;
-        if (be == null) return -1;
-        return ae.compareTo(be);
-      });
+    final expiring =
+        _records
+            .where(
+              (r) =>
+                  r.status == DocumentStatus.expiringSoon ||
+                  r.status == DocumentStatus.expired,
+            )
+            .toList()
+          ..sort((a, b) {
+            final ae = a.expiresAt;
+            final be = b.expiresAt;
+            if (ae == null && be == null) return 0;
+            if (ae == null) return 1;
+            if (be == null) return -1;
+            return ae.compareTo(be);
+          });
     return expiring.isEmpty ? null : expiring.first;
   }
 
@@ -294,9 +302,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// Opens the Property Area Converter tool (a pure calculator — touches no
   /// documents, so it can't affect existing property data).
   void _openAreaConverter() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AreaConverterScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AreaConverterScreen()));
   }
 
   void _shareSelected() =>
@@ -314,19 +322,22 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       return;
     }
     if (skipped > 0) {
-      _toast('$skipped document${skipped == 1 ? '' : 's'} without a file skipped');
+      _toast(
+        '$skipped document${skipped == 1 ? '' : 's'} without a file skipped',
+      );
     }
     _exitSelection();
     Navigator.of(context).push(
       MaterialPageRoute(
-          builder: (_) => ShareSettingsScreen(documents: shareable)),
+        builder: (_) => ShareSettingsScreen(documents: shareable),
+      ),
     );
   }
 
   void _openManageShares() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ManageSharesScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ManageSharesScreen()));
   }
 
   // ---- Biometric protection ------------------------------------------------
@@ -398,9 +409,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     await DocumentProtectionStore.instance.setProtected(r.id, !isProtected);
     if (!mounted) return;
     setState(() {}); // refresh the lock badge
-    _toast(isProtected
-        ? '${r.name} is no longer protected'
-        : '${r.name} is now protected');
+    _toast(
+      isProtected
+          ? '${r.name} is no longer protected'
+          : '${r.name} is now protected',
+    );
   }
 
   // ---- Action sheets -------------------------------------------------------
@@ -447,8 +460,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               ),
             ),
             _action(Icons.open_in_full_rounded, 'Open', () => _openDocument(r)),
-            _action(Icons.qr_code_2_rounded, 'Share via QR',
-                () => _shareSingle(r)),
+            _action(
+              Icons.qr_code_2_rounded,
+              'Share via QR',
+              () => _shareSingle(r),
+            ),
             _action(
               DocumentProtectionStore.instance.isProtected(r.id)
                   ? Icons.lock_open_rounded
@@ -464,8 +480,12 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               () => _toggleFavorite(r),
             ),
             _action(Icons.archive_rounded, 'Archive', () => _archive(r)),
-            _action(Icons.delete_outline_rounded, 'Delete',
-                () => _delete(r), danger: true),
+            _action(
+              Icons.delete_outline_rounded,
+              'Delete',
+              () => _delete(r),
+              danger: true,
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -473,15 +493,23 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
-  Widget _action(IconData icon, String label, VoidCallback onTap,
-      {bool danger = false}) {
+  Widget _action(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool danger = false,
+  }) {
     final palette = AppPalette.of(context);
     final color = danger ? AppColors.critical : palette.textPrimary;
     return ListTile(
-      leading: Icon(icon,
-          color: danger ? AppColors.critical : AppColors.primaryGreen),
-      title: Text(label,
-          style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+      leading: Icon(
+        icon,
+        color: danger ? AppColors.critical : AppColors.primaryGreen,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      ),
       onTap: () {
         Navigator.of(context).pop();
         onTap();
@@ -502,23 +530,29 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 14),
-            Text(AppLocalizations.of(context).t('sortBy'),
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: palette.textPrimary)),
+            Text(
+              AppLocalizations.of(context).t('sortBy'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: palette.textPrimary,
+              ),
+            ),
             const SizedBox(height: 6),
             for (final s in WalletSort.values)
               ListTile(
-                title: Text(s.localizedLabel(AppLocalizations.of(context)),
-                    style: TextStyle(
-                      color: palette.textPrimary,
-                      fontWeight:
-                          s == _sort ? FontWeight.w700 : FontWeight.w500,
-                    )),
+                title: Text(
+                  s.localizedLabel(AppLocalizations.of(context)),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontWeight: s == _sort ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
                 trailing: s == _sort
-                    ? const Icon(Icons.check_rounded,
-                        color: AppColors.primaryGreen)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: AppColors.primaryGreen,
+                      )
                     : null,
                 onTap: () {
                   setState(() => _sort = s);
@@ -551,68 +585,72 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       child: Scaffold(
         backgroundColor: palette.bg,
         extendBody: true,
-        body: SafeArea(
-          bottom: false,
-          child: Stack(
-            children: [
-              FutureBuilder<WalletDetailData>(
-                future: _future,
-                builder: (context, snapshot) {
-                  final data = snapshot.data;
-                  return CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      // 1. Compact header.
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          child: WalletHeader(
-                            title: localizedWalletName(
+        body: InoBackground(
+          showDots: false,
+          child: SafeArea(
+            bottom: false,
+            child: Stack(
+              children: [
+                FutureBuilder<WalletDetailData>(
+                  future: _future,
+                  builder: (context, snapshot) {
+                    final data = snapshot.data;
+                    return CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        // 1. Compact header.
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: WalletHeader(
+                              title: localizedWalletName(
                                 AppLocalizations.of(context),
-                                widget.category.name),
-                            onBack: () => Navigator.of(context).maybePop(),
-                            onSearch: () => _searchFocus.requestFocus(),
-                            onFilter: _openSort,
-                            onManageShares: _openManageShares,
-                            onAreaConverter:
-                                _isPropertyWallet ? _openAreaConverter : null,
+                                widget.category.name,
+                              ),
+                              icon: widget.category.icon,
+                              onBack: () => Navigator.of(context).maybePop(),
+                              onManageShares: _openManageShares,
+                              onAreaConverter: _isPropertyWallet
+                                  ? _openAreaConverter
+                                  : null,
+                            ),
                           ),
                         ),
+                        if (data == null)
+                          _loadingSliver()
+                        else
+                          ..._loadedSlivers(data),
+                      ],
+                    );
+                  },
+                ),
+                // The selection action bar takes over from the FAB while the user
+                // is multi-selecting documents to share.
+                if (_selecting)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _SelectionBar(
+                      count: _selectedIds.length,
+                      onCancel: _exitSelection,
+                      onShare: _shareSelected,
+                    ),
+                  )
+                else
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                      child: ExpandableFab(
+                        actions: _detailFabActions,
+                        onAction: _onFabAction,
                       ),
-                      if (data == null)
-                        _loadingSliver()
-                      else
-                        ..._loadedSlivers(data),
-                    ],
-                  );
-                },
-              ),
-              // The selection action bar takes over from the FAB while the user
-              // is multi-selecting documents to share.
-              if (_selecting)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _SelectionBar(
-                    count: _selectedIds.length,
-                    onCancel: _exitSelection,
-                    onShare: _shareSelected,
-                  ),
-                )
-              else
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                    child: ExpandableFab(
-                      actions: _detailFabActions,
-                      onAction: _onFabAction,
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         bottomNavigationBar: InoBottomNav(index: 1, onSelect: _onNavTab),
@@ -640,26 +678,31 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final attention = _attentionRecord;
     final showBanner = attention != null && !_bannerDismissed;
     final expiring = _records
-        .where((r) =>
-            r.status == DocumentStatus.expiringSoon ||
-            r.status == DocumentStatus.expired)
+        .where(
+          (r) =>
+              r.status == DocumentStatus.expiringSoon ||
+              r.status == DocumentStatus.expired,
+        )
         .length;
 
     return [
-      // 2. Sticky search.
-      SliverPersistentHeader(
-        pinned: true,
-        delegate: SearchHeaderDelegate(
-          controller: _searchController,
-          focusNode: _searchFocus,
-          background: palette.bg,
-          onChanged: (v) => setState(() => _query = v),
+      // 2. Search — scrolls with the page (nothing pinned).
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
+          child: FadeSlideIn(
+            child: DetailSearchBar(
+              controller: _searchController,
+              focusNode: _searchFocus,
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
         ),
       ),
       // 3. Compact summary card.
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: FadeSlideIn(
             child: WalletSummaryCard(
               totalDocuments: _records.length,
@@ -689,20 +732,19 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             ),
           ),
         ),
-      // 5. Status filter + sort (single row).
+      // 5. Status filter chips (scrolls; sort moved to "View recents").
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
           child: DocumentFilterBar(
             filters: _filters,
             selected: _filter,
-            sort: _sort,
             onFilter: (f) => setState(() => _filter = f),
-            onSortTap: _openSort,
           ),
         ),
       ),
-      // 7. Documents — the primary focus.
+      // 7. Documents — the primary focus. Count on the left, a "View recents"
+      // affordance (opens sort) aligned to the end.
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
@@ -721,6 +763,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 '${_visible.length} of ${_records.length}',
                 style: TextStyle(fontSize: 12, color: palette.textFaint),
               ),
+              const Spacer(),
+              _ViewRecentsButton(onTap: _openSort),
             ],
           ),
         ),
@@ -756,23 +800,57 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, i) {
-            if (i.isOdd) return const SizedBox(height: 10);
-            final record = visible[i ~/ 2];
-            return DocumentCard(
-              record: record,
-              accent: widget.category.gradient,
-              protected: DocumentProtectionStore.instance.isProtected(record.id),
-              selectionMode: _selecting,
-              selected: _selectedIds.contains(record.id),
-              onOpen: () => _onCardTap(record),
-              onLongPress: () => _onCardLongPress(record),
-              onFavorite: () => _toggleFavorite(record),
-              onMore: () => _openActions(record),
-            );
-          },
-          childCount: visible.length * 2 - 1,
+        delegate: SliverChildBuilderDelegate((context, i) {
+          if (i.isOdd) return const SizedBox(height: 10);
+          final record = visible[i ~/ 2];
+          return DocumentCard(
+            record: record,
+            protected: DocumentProtectionStore.instance.isProtected(record.id),
+            selectionMode: _selecting,
+            selected: _selectedIds.contains(record.id),
+            onOpen: () => _onCardTap(record),
+            onLongPress: () => _onCardLongPress(record),
+            onFavorite: () => _toggleFavorite(record),
+            onMore: () => _openActions(record),
+          );
+        }, childCount: visible.length * 2 - 1),
+      ),
+    );
+  }
+}
+
+/// A compact "View recents" affordance on the document-count row — a small
+/// label + arrow that opens the sort options (Recent / A–Z / …).
+class _ViewRecentsButton extends StatelessWidget {
+  const _ViewRecentsButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      pressedScale: 0.94,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text(
+              'View recents',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+            SizedBox(width: 3),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: 15,
+              color: AppColors.primaryGreen,
+            ),
+          ],
         ),
       ),
     );
@@ -833,8 +911,9 @@ class _SelectionBar extends StatelessWidget {
                     boxShadow: enabled
                         ? [
                             BoxShadow(
-                              color:
-                                  AppColors.primaryGreen.withValues(alpha: 0.32),
+                              color: AppColors.primaryGreen.withValues(
+                                alpha: 0.32,
+                              ),
                               blurRadius: 14,
                               offset: const Offset(0, 6),
                             ),
@@ -854,18 +933,26 @@ class _SelectionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.button),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 12),
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.qr_code_2_rounded,
-                                color: Colors.white, size: 20),
+                            const Icon(
+                              Icons.qr_code_2_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
-                            Text(l10n.t('shareViaQr'),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            Text(
+                              l10n.t('shareViaQr'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -884,19 +971,23 @@ class _SelectionBar extends StatelessWidget {
 // FAB actions for the document manager (per the brief).
 const List<QuickAction> _detailFabActions = [
   QuickAction(
-      label: 'Scan Document',
-      icon: Icons.document_scanner_rounded,
-      color: AppColors.primaryGreen),
+    label: 'Scan Document',
+    icon: Icons.document_scanner_rounded,
+    color: AppColors.primaryGreen,
+  ),
   QuickAction(
-      label: 'Upload PDF',
-      icon: Icons.picture_as_pdf_rounded,
-      color: AppColors.lightBlue),
+    label: 'Upload PDF',
+    icon: Icons.picture_as_pdf_rounded,
+    color: AppColors.lightBlue,
+  ),
   QuickAction(
-      label: 'Import Image',
-      icon: Icons.image_rounded,
-      color: AppColors.lightBlue),
+    label: 'Import Image',
+    icon: Icons.image_rounded,
+    color: AppColors.lightBlue,
+  ),
   QuickAction(
-      label: 'Create Category',
-      icon: Icons.new_label_rounded,
-      color: Color(0xFF14B8A6)),
+    label: 'Create Category',
+    icon: Icons.new_label_rounded,
+    color: Color(0xFF30ACB3),
+  ),
 ];

@@ -15,7 +15,6 @@ class DocumentCard extends StatelessWidget {
   const DocumentCard({
     super.key,
     required this.record,
-    required this.accent,
     required this.onOpen,
     required this.onFavorite,
     required this.onMore,
@@ -25,8 +24,10 @@ class DocumentCard extends StatelessWidget {
     this.onLongPress,
   });
 
+  /// The uniform document icon colour inside a wallet — the app theme teal.
+  static const Color _iconColor = AppColors.primaryGreen;
+
   final DocumentRecord record;
-  final List<Color> accent;
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
   final VoidCallback onMore;
@@ -59,34 +60,32 @@ class DocumentCard extends StatelessWidget {
     return GestureDetector(
       onLongPress: onLongPress,
       child: Dismissible(
-      key: ValueKey(record.id),
-      // Swipe right = favorite, swipe left = actions. Both are non-destructive:
-      // confirmDismiss performs the action then returns false so the row stays.
-      background: _swipeBg(
-        align: Alignment.centerLeft,
-        color: AppColors.primaryGreen,
-        icon: record.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-        label: record.isFavorite ? l10n.t('unfavorite') : l10n.t('favorite'),
-      ),
-      secondaryBackground: _swipeBg(
-        align: Alignment.centerRight,
-        color: AppColors.lightBlue,
-        icon: Icons.more_horiz_rounded,
-        label: l10n.t('actions'),
-      ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onFavorite();
-        } else {
-          onMore();
-        }
-        return false;
-      },
-      child: _card(
-        context,
-        onTap: onOpen,
-        trailing: _moreButton(context),
-      ),
+        key: ValueKey(record.id),
+        // Swipe right = favorite, swipe left = actions. Both are non-destructive:
+        // confirmDismiss performs the action then returns false so the row stays.
+        background: _swipeBg(
+          align: Alignment.centerLeft,
+          color: AppColors.primaryGreen,
+          icon: record.isFavorite
+              ? Icons.star_rounded
+              : Icons.star_outline_rounded,
+          label: record.isFavorite ? l10n.t('unfavorite') : l10n.t('favorite'),
+        ),
+        secondaryBackground: _swipeBg(
+          align: Alignment.centerRight,
+          color: AppColors.lightBlue,
+          icon: Icons.more_horiz_rounded,
+          label: l10n.t('actions'),
+        ),
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            onFavorite();
+          } else {
+            onMore();
+          }
+          return false;
+        },
+        child: _card(context, onTap: onOpen, trailing: _moreButton(context)),
       ),
     );
   }
@@ -113,21 +112,17 @@ class DocumentCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: accent,
-                  ),
+                  color: _iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(13),
                   boxShadow: [
                     BoxShadow(
-                      color: accent.first.withValues(alpha: 0.32),
+                      color: _iconColor.withValues(alpha: 0.16),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: Icon(record.icon, color: Colors.white, size: 23),
+                child: Icon(record.icon, color: _iconColor, size: 23),
               ),
               if (record.isFavorite)
                 Positioned(
@@ -145,8 +140,11 @@ class DocumentCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.star_rounded,
-                        size: 13, color: AppColors.warning),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      size: 13,
+                      color: AppColors.warning,
+                    ),
                   ),
                 ),
               if (protected)
@@ -160,8 +158,11 @@ class DocumentCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.5),
                     ),
-                    child: const Icon(Icons.lock_rounded,
-                        size: 10, color: Colors.white),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      size: 10,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
             ],
@@ -196,12 +197,14 @@ class DocumentCard extends StatelessWidget {
   }
 
   Widget _moreButton(BuildContext context) => IconButton(
-        onPressed: onMore,
-        visualDensity: VisualDensity.compact,
-        icon: Icon(Icons.more_vert_rounded,
-            color: AppPalette.of(context).textFaint),
-        tooltip: AppLocalizations.of(context).t('quickActionsTooltip'),
-      );
+    onPressed: onMore,
+    visualDensity: VisualDensity.compact,
+    icon: Icon(
+      Icons.more_vert_rounded,
+      color: AppPalette.of(context).textFaint,
+    ),
+    tooltip: AppLocalizations.of(context).t('quickActionsTooltip'),
+  );
 
   Widget _swipeBg({
     required Alignment align,

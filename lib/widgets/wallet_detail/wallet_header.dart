@@ -1,37 +1,36 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
 /// Section 1 — the compact Wallet header.
 ///
-/// Deliberately *not* a large app bar: a single 44dp row holding Back, the
-/// wallet title, and Search / Filter actions. All the chrome the user needs to
-/// orient and act, none of the vertical weight — the document list starts as
-/// high on the screen as possible.
+/// A single row: a circular Back button, a brand-gradient icon chip that
+/// identifies the wallet, the wallet title (auto-shrinks to fit — never
+/// ellipsised) and the wallet's contextual actions on the right. Search and
+/// sort/filter no longer live here — they scroll with the page — so the header
+/// stays light and the title always reads in full.
 class WalletHeader extends StatelessWidget {
   const WalletHeader({
     super.key,
     required this.title,
     required this.onBack,
-    required this.onSearch,
-    required this.onFilter,
+    this.icon,
     this.onManageShares,
     this.onAreaConverter,
   });
 
   final String title;
   final VoidCallback onBack;
-  final VoidCallback onSearch;
-  final VoidCallback onFilter;
 
-  /// Optional — opens the "Shared Links" manager. Shown as a QR action when set.
+  /// The wallet's glyph, shown in a small brand-gradient chip beside the title.
+  final IconData? icon;
+
+  /// Optional — opens the "Shared Links" manager (the QR / scan action).
   final VoidCallback? onManageShares;
 
-  /// Optional — opens the Property Area Converter. Shown as a calculator action
-  /// when set (only wired for the Property wallet).
+  /// Optional — opens the Property Area Converter (only the Property wallet).
   final VoidCallback? onAreaConverter;
 
   @override
@@ -40,67 +39,79 @@ class WalletHeader extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Row(
       children: [
-        _HeaderIcon(
+        _CircleIcon(
           icon: Icons.arrow_back_rounded,
           tooltip: l10n.t('back'),
           onTap: onBack,
         ),
         const SizedBox(width: 12),
+        if (icon != null) ...[
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: AppGradients.primary,
+              borderRadius: BorderRadius.circular(13),
+              boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
+            ),
+            child: Icon(icon, color: Colors.white, size: 21),
+          ),
+          const SizedBox(width: 12),
+        ],
         Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              color: palette.textPrimary,
+          // FittedBox → the title scales down a hair if a localised name is long,
+          // so it always fits on one line with no trailing dots.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+                color: palette.textPrimary,
+              ),
             ),
           ),
         ),
-        _HeaderIcon(
-          icon: Icons.search_rounded,
-          tooltip: l10n.t('search'),
-          onTap: onSearch,
-        ),
         const SizedBox(width: 8),
         if (onAreaConverter != null) ...[
-          _HeaderIcon(
+          _CircleIcon(
             icon: Icons.straighten_rounded,
             tooltip: l10n.t('areaConverter'),
             onTap: onAreaConverter!,
           ),
           const SizedBox(width: 8),
         ],
-        if (onManageShares != null) ...[
-          _HeaderIcon(
-            icon: Icons.qr_code_2_rounded,
+        if (onManageShares != null)
+          _CircleIcon(
+            icon: Icons.qr_code_scanner_rounded,
             tooltip: l10n.t('sharedLinks'),
             onTap: onManageShares!,
+            highlighted: true,
           ),
-          const SizedBox(width: 8),
-        ],
-        _HeaderIcon(
-          icon: Icons.tune_rounded,
-          tooltip: l10n.t('sortFilter'),
-          onTap: onFilter,
-        ),
       ],
     );
   }
 }
 
-class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({
+/// A circular header control. [highlighted] gives it the teal-tinted primary
+/// treatment (used for the scan/QR action so it stands out).
+class _CircleIcon extends StatelessWidget {
+  const _CircleIcon({
     required this.icon,
     required this.onTap,
     required this.tooltip,
+    this.highlighted = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final String tooltip;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -110,10 +121,15 @@ class _HeaderIcon extends StatelessWidget {
       child: Tooltip(
         message: tooltip,
         child: Material(
-          color: palette.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-            side: BorderSide(color: palette.border),
+          color: highlighted
+              ? AppColors.primaryGreen.withValues(alpha: 0.12)
+              : palette.surface,
+          shape: CircleBorder(
+            side: BorderSide(
+              color: highlighted
+                  ? AppColors.primaryGreen.withValues(alpha: 0.35)
+                  : palette.border,
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -121,7 +137,13 @@ class _HeaderIcon extends StatelessWidget {
             child: SizedBox(
               width: 42,
               height: 42,
-              child: Icon(icon, size: 21, color: palette.textPrimary),
+              child: Icon(
+                icon,
+                size: 21,
+                color: highlighted
+                    ? AppColors.primaryGreen
+                    : palette.textPrimary,
+              ),
             ),
           ),
         ),

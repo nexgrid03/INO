@@ -21,6 +21,7 @@ class FloatingSearchBar extends StatelessWidget {
     this.onChanged,
     this.autofocus = false,
     this.trailing,
+    this.height,
   });
 
   final String hint;
@@ -32,13 +33,16 @@ class FloatingSearchBar extends StatelessWidget {
   /// Optional trailing control (e.g. a filter or clear button).
   final Widget? trailing;
 
+  /// Optional height override (defaults to the design-system 52dp).
+  final double? height;
+
   bool get _isLauncher => onTap != null && controller == null;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final bar = Container(
-      height: AppSizes.search,
+      height: height ?? AppSizes.search,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: palette.surface,
@@ -65,8 +69,9 @@ class FloatingSearchBar extends StatelessWidget {
                     style: AppText.body.copyWith(color: palette.textPrimary),
                     decoration: InputDecoration(
                       hintText: hint,
-                      hintStyle:
-                          AppText.body.copyWith(color: palette.textFaint),
+                      hintStyle: AppText.body.copyWith(
+                        color: palette.textFaint,
+                      ),
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),

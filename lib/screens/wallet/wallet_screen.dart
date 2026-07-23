@@ -4,11 +4,11 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
-import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../notifications/notifications_screen.dart';
@@ -41,12 +41,6 @@ class _WalletScreenState extends State<WalletScreen> {
   void initState() {
     super.initState();
     _future = WalletRepository.instance.load();
-  }
-
-  Future<void> _refresh() async {
-    final data = WalletRepository.instance.load();
-    setState(() => _future = data);
-    await data;
   }
 
   /// Opens a real global search across every document in the vault.
@@ -87,104 +81,140 @@ class _WalletScreenState extends State<WalletScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: AppColors.primaryGreen,
-          onRefresh: _refresh,
+      body: _WalletBackdrop(
+        // A static, non-scrolling page: the header, search and full wallet grid
+        // are laid out in a plain Column so the content never scrolls and never
+        // stretches/zooms on an overscroll bounce. Everything fits on one screen.
+        child: SafeArea(
+          bottom: false,
           child: FutureBuilder<WalletHubData>(
             future: _future,
             builder: (context, snapshot) {
               final data = snapshot.data;
-              return CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   // Header — avatar · "My Wallets" · notification bell.
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: FadeSlideIn(
-                        offset: 14,
-                        child: _HubHeader(
-                          fullName: widget.profile.fullName,
-                          notificationCount: data?.insights.length ?? 0,
-                          onNotifications: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const NotificationsScreen()),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: FadeSlideIn(
+                      offset: 14,
+                      child: _HubHeader(
+                        fullName: widget.profile.fullName,
+                        notificationCount: data?.insights.length ?? 0,
+                        onNotifications: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // Hero search — the hub's primary affordance.
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: FadeSlideIn(
-                        delay: const Duration(milliseconds: 60),
-                        offset: 14,
-                        child: FloatingSearchBar(
-                          hint: l10n.t('searchWallets'),
-                          onTap: _searchDocuments,
-                          trailing: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              gradient: AppGradients.primary,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: AppShadows.glow(
-                                AppColors.primaryGreen,
-                                opacity: 0.28,
-                              ),
+                  // Compact hero search — the hub's primary affordance.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                    child: FadeSlideIn(
+                      delay: const Duration(milliseconds: 60),
+                      offset: 14,
+                      child: FloatingSearchBar(
+                        hint: l10n.t('searchWallets'),
+                        height: 46,
+                        onTap: _searchDocuments,
+                        trailing: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            gradient: AppGradients.primary,
+                            borderRadius: BorderRadius.circular(11),
+                            boxShadow: AppShadows.glow(
+                              AppColors.primaryGreen,
+                              opacity: 0.28,
                             ),
-                            child: const Icon(
-                              Icons.tune_rounded,
-                              color: Colors.white,
-                              size: 19,
-                            ),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: Colors.white,
+                            size: 18,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // Lightweight summary — a floating stat card with the brand
-                  // accent edge ("8 Wallets • 128 Records").
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-                      child: FadeSlideIn(
-                        delay: const Duration(milliseconds: 120),
-                        offset: 14,
-                        child: _WalletSummaryCard(
-                          walletCount: data?.categories.length ?? 0,
-                          recordCount: data?.overview.totalRecords ?? 0,
-                        ),
-                      ),
-                    ),
+                  // Launcher grid — fixed-height cards, all wallets visible.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: data == null
+                        ? const _LoadingState()
+                        : WalletGrid(
+                            categories: data.categories,
+                            onOpen: _openWallet,
+                          ),
                   ),
-                  if (data == null)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _LoadingState(),
-                    )
-                  else
-                    // Compact launcher grid — all wallets, no scrolling.
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      sliver: SliverToBoxAdapter(
-                        child: WalletGrid(
-                          categories: data.categories,
-                          onOpen: _openWallet,
-                        ),
-                      ),
-                    ),
                 ],
               );
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The Wallet tab's own backdrop — deliberately different from the Home aurora
+/// so the pale teal cards lift off the page instead of blending in.
+///
+/// Light mode: a cool, slightly deeper mist gradient (blue-leaning at the top,
+/// warming to a near-white seafoam at the bottom) with two soft accent blobs
+/// and a faint diagonal sheen. Still airy and on-theme — never dark. Dark mode
+/// falls back to the standard palette background.
+class _WalletBackdrop extends StatelessWidget {
+  const _WalletBackdrop({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    if (palette.isDark) {
+      return Container(color: palette.bg, child: child);
+    }
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFD6EBEF), // cool blue-mist crown
+            Color(0xFFE4F3F0), // seafoam middle
+            Color(0xFFF1FAF6), // near-white base
+          ],
+          stops: [0.0, 0.45, 1.0],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Soft accent blobs — quiet depth behind the grid.
+          const Positioned(
+            top: -70,
+            right: -60,
+            child: DecorBlob(
+              size: 260,
+              color: AppColors.skyBlue,
+              opacity: 0.30,
+            ),
+          ),
+          const Positioned(
+            bottom: 40,
+            left: -80,
+            child: DecorBlob(
+              size: 240,
+              color: Color(0xFF5FCBBF),
+              opacity: 0.22,
+            ),
+          ),
+          child,
+        ],
       ),
     );
   }
@@ -248,7 +278,10 @@ class _HubHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
+        // Voice assistant — highlighted icon beside the bell.
+        const VoiceMicIconButton(size: 44),
+        const SizedBox(width: 10),
         _BellButton(
           badge: notificationCount,
           tooltip: l10n.t('notifications'),
@@ -305,8 +338,10 @@ class _BellButton extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.critical,
                           shape: BoxShape.circle,
-                          border:
-                              Border.all(color: palette.surface, width: 1.5),
+                          border: Border.all(
+                            color: palette.surface,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -315,69 +350,6 @@ class _BellButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The lightweight vault summary as a floating stat card: a gradient accent
-/// edge, a gradient icon container and the "N Wallets • N Records" line.
-class _WalletSummaryCard extends StatelessWidget {
-  const _WalletSummaryCard({
-    required this.walletCount,
-    required this.recordCount,
-  });
-
-  final int walletCount;
-  final int recordCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    return InoCard(
-      padding: const EdgeInsets.fromLTRB(16, 14, 18, 14),
-      child: Row(
-        children: [
-          // Brand accent edge (the stat-card signature).
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: AppGradients.primary,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Container(
-            width: AppSizes.iconContainerSm,
-            height: AppSizes.iconContainerSm,
-            decoration: BoxDecoration(
-              gradient: AppGradients.primary,
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-              boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.3),
-            ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              '$walletCount ${l10n.t('wallets')}  •  $recordCount ${l10n.t('records')}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                color: palette.textPrimary,
-                letterSpacing: -0.1,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

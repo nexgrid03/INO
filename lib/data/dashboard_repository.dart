@@ -162,7 +162,7 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '4',
         status: '2 on track',
         lastUpdated: 'Updated today',
-        color: Color(0xFF14B8A6), // teal
+        color: Color(0xFF30ACB3), // teal
       ),
       LifeOverviewItem(
         label: 'Net Worth',
@@ -237,7 +237,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Investment',
           icon: Icons.savings_rounded,
-          color: Color(0xFF14B8A6)),
+          color: Color(0xFF30ACB3)),
       QuickAction(
           label: 'Insurance',
           icon: Icons.add_moderator_rounded,
@@ -275,7 +275,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Add Investment',
           icon: Icons.savings_rounded,
-          color: Color(0xFF14B8A6)),
+          color: Color(0xFF30ACB3)),
       QuickAction(
           label: 'Add Property',
           icon: Icons.add_home_rounded,
@@ -365,7 +365,7 @@ class SampleDashboardRepository implements DashboardRepository {
         AssetAllocation(label: 'Stocks', value: 1120000, color: Color(0xFF4FC3F7)),
         AssetAllocation(label: 'Gold', value: 760000, color: Color(0xFFE0A100)),
         AssetAllocation(label: 'Land', value: 820000, color: Color(0xFF8B6CEF)),
-        AssetAllocation(label: 'Savings', value: 310000, color: Color(0xFF14B8A6)),
+        AssetAllocation(label: 'Savings', value: 310000, color: Color(0xFF30ACB3)),
       ],
     ),
     property: const PropertySummary(
@@ -433,7 +433,7 @@ class SampleDashboardRepository implements DashboardRepository {
           title: 'Retirement goal updated',
           icon: Icons.flag_rounded,
           time: '3 days ago',
-          color: Color(0xFF14B8A6)),
+          color: Color(0xFF30ACB3)),
     ],
     insights: const [
       SmartInsight(

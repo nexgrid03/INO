@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
 /// Section 1 — the personalised welcome bar.
@@ -16,7 +17,6 @@ class WelcomeHeader extends StatefulWidget {
   const WelcomeHeader({
     super.key,
     required this.fullName,
-    required this.onSearch,
     required this.onNotifications,
     this.onProfile,
     this.photoUrl,
@@ -24,7 +24,6 @@ class WelcomeHeader extends StatefulWidget {
   });
 
   final String fullName;
-  final VoidCallback onSearch;
   final VoidCallback onNotifications;
 
   /// Opens the Profile page when the avatar is tapped.
@@ -46,8 +45,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
     duration: const Duration(milliseconds: 1400),
   )..forward();
 
-  String get _firstName =>
-      widget.fullName.trim().isEmpty ? 'there' : widget.fullName.split(' ').first;
+  String get _firstName => widget.fullName.trim().isEmpty
+      ? 'there'
+      : widget.fullName.split(' ').first;
 
   String get _initials {
     final parts = widget.fullName.trim().split(RegExp(r'\s+'));
@@ -57,15 +57,15 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
   }
 
   Widget _initialsLabel() => Center(
-        child: Text(
-          _initials,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
-        ),
-      );
+    child: Text(
+      _initials,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: 18,
+      ),
+    ),
+  );
 
   String _greeting(AppLocalizations l10n) {
     final h = DateTime.now().hour;
@@ -108,8 +108,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryGreen
-                              .withValues(alpha: 0.35 * ring),
+                          color: AppColors.primaryGreen.withValues(
+                            alpha: 0.35 * ring,
+                          ),
                           blurRadius: 18,
                           spreadRadius: 2 * ring,
                         ),
@@ -138,8 +139,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                     ),
                     alignment: Alignment.center,
                     clipBehavior: Clip.antiAlias,
-                    child: (widget.photoUrl != null &&
-                            widget.photoUrl!.isNotEmpty)
+                    child:
+                        (widget.photoUrl != null && widget.photoUrl!.isNotEmpty)
                         ? Image.network(
                             widget.photoUrl!,
                             fit: BoxFit.cover,
@@ -184,8 +185,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                       color: AppColors.primaryGreen,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryGreen
-                              .withValues(alpha: 0.35),
+                          color: AppColors.primaryGreen.withValues(alpha: 0.35),
                           blurRadius: 6,
                           spreadRadius: 1,
                         ),
@@ -195,14 +195,16 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      MaterialLocalizations.of(context)
-                          .formatFullDate(DateTime.now()),
+                      MaterialLocalizations.of(
+                        context,
+                      ).formatFullDate(DateTime.now()),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: palette.textSecondary),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -210,11 +212,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
             ],
           ),
         ),
-        _HeaderIcon(
-          icon: Icons.search_rounded,
-          onTap: widget.onSearch,
-          tooltip: AppLocalizations.of(context).t('search'),
-        ),
+        // Voice assistant — a small icon beside the bell (replaces search).
+        const VoiceMicIconButton(size: 42),
         const SizedBox(width: 8),
         _HeaderIcon(
           icon: Icons.notifications_none_rounded,
@@ -267,13 +266,17 @@ class _HeaderIcon extends StatelessWidget {
                       right: 4,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        constraints:
-                            const BoxConstraints(minWidth: 16, minHeight: 16),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.critical,
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                              color: palette.surfaceVariant, width: 1.5),
+                            color: palette.surfaceVariant,
+                            width: 1.5,
+                          ),
                         ),
                         alignment: Alignment.center,
                         child: Text(

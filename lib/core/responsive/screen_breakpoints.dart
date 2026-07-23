@@ -69,17 +69,19 @@ class ScreenBreakpoints {
   }
 
   /// Calculates child aspect ratio for finance tool grid tiles.
+  /// Wider-than-tall so the tiles stay compact — no airy internal whitespace
+  /// that would read as an extra gap below the section.
   static double getToolsAspectRatio(double width) {
     final type = getDeviceType(width);
     switch (type) {
       case InoDeviceType.mobileSmall:
-        return 1.35;
-      case InoDeviceType.mobileNormal:
-        return 1.45;
-      case InoDeviceType.mobileLarge:
         return 1.55;
-      case InoDeviceType.tablet:
+      case InoDeviceType.mobileNormal:
         return 1.70;
+      case InoDeviceType.mobileLarge:
+        return 1.80;
+      case InoDeviceType.tablet:
+        return 1.95;
     }
   }
 }

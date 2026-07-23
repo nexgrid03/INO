@@ -2,9 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../pressable_scale.dart';
 
 /// One bottom-navigation destination.
 class NavItem {
@@ -17,15 +15,16 @@ class NavItem {
 /// The INO floating, glassmorphic bottom navigation bar.
 ///
 /// Shared between [MainShell] and pushed routes (e.g. the Wallet Detail screen)
-/// so navigation looks and behaves identically everywhere. Detached from the
-/// edges, blurred translucent fill, hairline glass border + ambient glow; the
-/// active tab is a green pill with a soft light-blue glow.
+/// so navigation looks and behaves identically everywhere. A detached rounded
+/// pill container with a blurred translucent fill, hairline teal border and a
+/// soft ambient glow.
+///
+/// The bar is **icons only** — no labels. Every tab is an equal-width slot with
+/// a fixed 28px glyph that never resizes; only a soft rounded highlight and the
+/// icon colour animate (~300ms) to mark the active tab, so switching feels
+/// smooth while the icons stay perfectly steady.
 class InoBottomNav extends StatelessWidget {
-  const InoBottomNav({
-    super.key,
-    required this.index,
-    required this.onSelect,
-  });
+  const InoBottomNav({super.key, required this.index, required this.onSelect});
 
   final int index;
   final void Function(int) onSelect;
@@ -33,12 +32,17 @@ class InoBottomNav extends StatelessWidget {
   /// The five primary destinations — single source of truth for every surface.
   static const List<NavItem> tabs = [
     NavItem('Home', Icons.home_rounded, Icons.home_outlined),
-    NavItem('Vault', Icons.account_balance_wallet_rounded,
-        Icons.account_balance_wallet_outlined),
-    NavItem('Add', Icons.add_circle_rounded,
-        Icons.add_circle_outline_rounded),
-    NavItem('Alerts', Icons.notifications_rounded,
-        Icons.notifications_none_rounded),
+    NavItem(
+      'Vault',
+      Icons.account_balance_wallet_rounded,
+      Icons.account_balance_wallet_outlined,
+    ),
+    NavItem('Add', Icons.add_circle_rounded, Icons.add_circle_outline_rounded),
+    NavItem(
+      'Alerts',
+      Icons.notifications_rounded,
+      Icons.notifications_none_rounded,
+    ),
     NavItem('Profile', Icons.person_rounded, Icons.person_outline_rounded),
   ];
 
@@ -50,30 +54,53 @@ class InoBottomNav extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(30),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
-              height: 64,
+              height: 66,
+              // Wider inner padding pulls the five equal slots toward the
+              // centre, so the icons sit closer to each other.
+              padding: const EdgeInsets.symmetric(horizontal: 26),
               decoration: BoxDecoration(
-                color: palette.bgElevated
-                    .withValues(alpha: palette.isDark ? 0.72 : 0.88),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: palette.border),
+                // Frosted glass: a top-lit translucent gradient riding over the
+                // live backdrop blur, so the bar reads as a pane of glass rather
+                // than a flat fill.
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: palette.isDark
+                      ? [
+                          palette.bgElevated.withValues(alpha: 0.82),
+                          palette.bgElevated.withValues(alpha: 0.60),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.92),
+                          Colors.white.withValues(alpha: 0.68),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                // Brand-teal glass edge (#30ACB3), matching the active icons.
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.55),
+                  width: 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: palette.shadow.withValues(
-                        alpha: (palette.isDark ? 0.5 : 0.10) *
-                            palette.shadowStrength),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
+                    color: AppColors.primaryGreen.withValues(
+                      alpha: palette.isDark ? 0.18 : 0.16,
+                    ),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
                   ),
                   BoxShadow(
-                    color: palette.ambient
-                        .withValues(alpha: palette.isDark ? 0.08 : 0.06),
-                    blurRadius: 20,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 4),
+                    color: palette.shadow.withValues(
+                      alpha:
+                          (palette.isDark ? 0.5 : 0.04) *
+                          palette.shadowStrength,
+                    ),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -111,47 +138,30 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final labelColor = selected ? AppColors.primaryGreen : palette.textFaint;
-    return PressableScale(
-      pressedScale: 0.9,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  // Active tab: full brand-gradient pill with a soft glow.
-                  gradient: selected ? AppGradients.primary : null,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: selected
-                      ? AppShadows.glow(AppColors.lightBlue, opacity: 0.35)
-                      : null,
-                ),
-                child: Icon(
-                  selected ? item.active : item.inactive,
-                  size: 23,
-                  color: selected ? Colors.white : palette.textFaint,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                // The label doubles as the localization key (home/wallet/…).
-                AppLocalizations.of(context).t(item.label.toLowerCase()),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: labelColor,
-                ),
-              ),
-            ],
+
+    // Icons only — a constant 28px glyph in every state. The active tab gains a
+    // soft teal highlight pill behind the icon and switches to the primary
+    // colour; nothing scales, so the icon never grows or shrinks.
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          width: 54,
+          height: 46,
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryGreen.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            selected ? item.active : item.inactive,
+            size: 28,
+            color: selected ? AppColors.primaryGreen : palette.textFaint,
           ),
         ),
       ),

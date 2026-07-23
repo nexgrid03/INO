@@ -28,8 +28,9 @@ class WalletSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final protectedColor =
-        protected ? AppColors.primaryGreen : palette.textFaint;
+    final protectedColor = protected
+        ? AppColors.primaryGreen
+        : palette.textFaint;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -60,15 +61,11 @@ class WalletSummaryCard extends StatelessWidget {
         Expanded(
           child: _StatCard(
             accent: protectedColor,
-            label: protected
-                ? l10n.t('protected')
-                : l10n.t('atRisk'),
+            label: protected ? l10n.t('protected') : l10n.t('atRisk'),
             labelColor: protectedColor,
             icon: Icons.lock_rounded,
             child: Icon(
-              protected
-                  ? Icons.verified_user_rounded
-                  : Icons.gpp_maybe_rounded,
+              protected ? Icons.verified_user_rounded : Icons.gpp_maybe_rounded,
               size: 26,
               color: protectedColor,
             ),
@@ -125,14 +122,19 @@ class _StatCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: labelColor ?? palette.textSecondary,
+                        // Scale-down keeps the label on one line — never dots.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: labelColor ?? palette.textSecondary,
+                            ),
                           ),
                         ),
                       ),

@@ -6,6 +6,7 @@ import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/reminders/add_reminder_sheet.dart';
@@ -62,18 +63,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
   void _openCalendar() => _push(const ReminderCalendarScreen());
 
   void _search() => showSearch<void>(
-        context: context,
-        delegate: ReminderSearchDelegate(AppLocalizations.of(context)),
-      );
+    context: context,
+    delegate: ReminderSearchDelegate(AppLocalizations.of(context)),
+  );
 
   Future<void> _add() async {
     final created = await showAddReminderSheet(context);
     if (created != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)
-              .t('reminderAddedToast')
-              .replaceAll('{title}', created.title)),
+          content: Text(
+            AppLocalizations.of(
+              context,
+            ).t('reminderAddedToast').replaceAll('{title}', created.title),
+          ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.primaryGreen,
         ),
@@ -89,65 +92,67 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       extendBody: true,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              color: AppColors.primaryGreen,
-              onRefresh: _refresh,
-              child: ListenableBuilder(
-                listenable: _store,
-                builder: (context, _) {
-                  return CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                              AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
-                          child: RemindersHeader(
-                            fullName: widget.profile.fullName,
-                            notificationCount:
-                                _store.isLoaded ? _store.summary.dueToday : 0,
-                            onSearch: _search,
-                            onNotifications: () =>
-                                _openScope(RemindersScope.today),
-                          ),
-                        ),
+      body: InoBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              RefreshIndicator(
+                color: AppColors.primaryGreen,
+                onRefresh: _refresh,
+                child: ListenableBuilder(
+                  listenable: _store,
+                  builder: (context, _) {
+                    return CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
                       ),
-                      if (!_store.isLoaded)
-                        const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.only(top: 60),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.6,
-                                color: AppColors.primaryGreen,
-                              ),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.screen,
+                              AppSpacing.sm,
+                              AppSpacing.screen,
+                              AppSpacing.md,
+                            ),
+                            child: RemindersHeader(
+                              fullName: widget.profile.fullName,
+                              notificationCount: _store.isLoaded
+                                  ? _store.summary.dueToday
+                                  : 0,
+                              onSearch: _search,
+                              onNotifications: () =>
+                                  _openScope(RemindersScope.today),
                             ),
                           ),
-                        )
-                      else if (_store.isEmpty)
-                        SliverToBoxAdapter(
-                          child: RemindersEmptyState(onCreate: _add),
-                        )
-                      else
-                        SliverToBoxAdapter(child: _content()),
-                    ],
-                  );
-                },
+                        ),
+                        if (!_store.isLoaded)
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 60),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.6,
+                                  color: AppColors.primaryGreen,
+                                ),
+                              ),
+                            ),
+                          )
+                        else if (_store.isEmpty)
+                          SliverToBoxAdapter(
+                            child: RemindersEmptyState(onCreate: _add),
+                          )
+                        else
+                          SliverToBoxAdapter(child: _content()),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            Positioned(
-              right: AppSpacing.lg,
-              bottom: 96,
-              child: _AddFab(onTap: _add),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -203,7 +208,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.md),
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
       child: Column(
         children: [
           Row(
@@ -278,38 +287,24 @@ class _RemindersScreenState extends State<RemindersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 4, AppSpacing.sm),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Decorative agenda overline with the real date.
-                      Text(
-                        'AGENDA · ${reminderShortDate(_store.today).toUpperCase()}',
-                        style: AppText.label.copyWith(
-                          color: AppColors.primaryGreen,
-                          fontSize: 11,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.t('todaysPriorities'),
-                        style: AppText.title.copyWith(
-                          color: AppPalette.of(context).textPrimary,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    l10n.t('todaysPriorities'),
+                    style: AppText.title.copyWith(
+                      color: AppPalette.of(context).textPrimary,
+                    ),
                   ),
                 ),
-                if (priorities.isNotEmpty)
+                if (priorities.isNotEmpty) ...[
                   GestureDetector(
                     onTap: () => _openScope(RemindersScope.all),
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
                       child: Text(
                         l10n.t('viewAll'),
                         style: AppText.label.copyWith(
@@ -319,6 +314,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                _AddIconButton(
+                  tooltip: l10n.t('addReminder'),
+                  onTap: _add,
+                ),
               ],
             ),
           ),
@@ -328,7 +329,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
             for (var i = 0; i < priorities.length; i++)
               Padding(
                 padding: EdgeInsets.only(
-                    bottom: i == priorities.length - 1 ? 0 : AppSpacing.xs),
+                  bottom: i == priorities.length - 1 ? 0 : AppSpacing.xs,
+                ),
                 child: ReminderCard(
                   reminder: priorities[i],
                   today: _store.today,
@@ -344,17 +346,21 @@ class _RemindersScreenState extends State<RemindersScreen> {
   Widget _viewAllRow() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, AppSpacing.md, AppSpacing.screen, 0),
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        0,
+      ),
       child: Row(
         children: [
-          Expanded(
-            child: _ViewAllButton(onTap: () => _openScope(RemindersScope.all)),
-          ),
-          const SizedBox(width: AppSpacing.xs),
           _SquareIconButton(
             icon: Icons.calendar_month_rounded,
             tooltip: AppLocalizations.of(context).t('calendar'),
             onTap: _openCalendar,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _ViewAllButton(onTap: () => _openScope(RemindersScope.all)),
           ),
         ],
       ),
@@ -388,14 +394,19 @@ class _CaughtUpNote extends StatelessWidget {
               color: AppColors.primaryGreen.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_rounded,
-                size: 26, color: AppColors.primaryGreen),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              size: 26,
+              color: AppColors.primaryGreen,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.t('allCaughtUp'),
             style: AppText.subtitle.copyWith(
-                color: palette.textPrimary, fontWeight: FontWeight.w700),
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -430,11 +441,9 @@ class _WeekStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = [
-      for (var i = -2; i <= 6; i++) today.add(Duration(days: i)),
-    ];
+    final days = [for (var i = -2; i <= 6; i++) today.add(Duration(days: i))];
     return SizedBox(
-      height: 84,
+      height: 66,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -577,8 +586,11 @@ class _ViewAllButton extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded,
-                    size: 18, color: palette.textPrimary),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: palette.textPrimary,
+                ),
               ],
             ),
           ),
@@ -628,36 +640,44 @@ class _SquareIconButton extends StatelessWidget {
   }
 }
 
-class _AddFab extends StatelessWidget {
-  const _AddFab({required this.onTap});
+/// The compact "add reminder" action that lives in the Today's Priorities
+/// header, beside the "View all" link. A small gradient tile with a soft brand
+/// glow so it reads as the primary action without the bulk of a floating FAB.
+class _AddIconButton extends StatelessWidget {
+  const _AddIconButton({required this.tooltip, required this.onTap});
 
+  final String tooltip;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PressableScale(
-      pressedScale: 0.9,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.36),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
+      pressedScale: 0.88,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                gradient: AppColors.brandGradient,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                boxShadow: AppShadows.glow(
+                  AppColors.primaryGreen,
+                  opacity: 0.28,
                 ),
-              ],
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
           ),
         ),
       ),

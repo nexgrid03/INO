@@ -8,87 +8,41 @@ import '../pressable_scale.dart';
 
 /// Section 6 — the document Filter row.
 ///
-/// A focused second row of status chips (All / Favorites / Expiring / Archived)
-/// with the Sort control pinned on the right. "Recent" intentionally lives
-/// inside Sort, not here. Renders only the [filters] passed in, so the screen
-/// decides which subset of [WalletFilter] is relevant.
+/// A single horizontally-scrolling row of status chips (All / Favorites /
+/// Expiring / Archived). Sorting now lives as a "View recents" affordance on
+/// the document-count row, so this row is purely the filters. Renders only the
+/// [filters] passed in, so the screen decides which subset is relevant.
 class DocumentFilterBar extends StatelessWidget {
   const DocumentFilterBar({
     super.key,
     required this.filters,
     required this.selected,
-    required this.sort,
     required this.onFilter,
-    required this.onSortTap,
   });
 
   final List<WalletFilter> filters;
   final WalletFilter selected;
-  final WalletSort sort;
   final ValueChanged<WalletFilter> onFilter;
-  final VoidCallback onSortTap;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                for (final f in filters)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _Chip(
-                      label: f.localizedLabel(l10n),
-                      selected: f == selected,
-                      onTap: () => onFilter(f),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        PressableScale(
-          pressedScale: 0.92,
-          child: Material(
-            color: palette.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-              side: BorderSide(color: palette.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onSortTap,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.swap_vert_rounded,
-                        size: 18, color: AppColors.primaryGreen),
-                    const SizedBox(width: 5),
-                    Text(
-                      sort.localizedLabel(l10n),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (final f in filters)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _Chip(
+                label: f.localizedLabel(l10n),
+                selected: f == selected,
+                onTap: () => onFilter(f),
               ),
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

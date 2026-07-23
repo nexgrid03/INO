@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_background.dart';
 import '../pressable_scale.dart';
 
 /// A consistent page chrome for every Profile sub-screen (Change Password,
@@ -24,20 +25,37 @@ class SettingsScaffold extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
+      // Let the aurora backdrop flow up behind the transparent app bar.
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: palette.bg,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text(title,
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+        title: Text(
+          title,
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
         centerTitle: true,
         actions: actions,
       ),
-      body: SafeArea(top: false, child: child),
+      body: InoBackground(
+        showDots: false,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            // Re-apply the inset the extended body no longer receives.
+            padding: EdgeInsets.only(
+              top: kToolbarHeight + MediaQuery.paddingOf(context).top,
+            ),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -116,7 +134,9 @@ class SettingsPrimaryButton extends StatelessWidget {
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.4, color: Colors.white),
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -125,11 +145,14 @@ class SettingsPrimaryButton extends StatelessWidget {
                         Icon(icon, color: Colors.white, size: 20),
                         const SizedBox(width: 10),
                       ],
-                      Text(label,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
           ),

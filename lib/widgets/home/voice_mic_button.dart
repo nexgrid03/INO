@@ -7,46 +7,48 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// A floating, gradient microphone button available app-wide. Tapping it opens
-/// the voice-command sheet; when a command is recognized, the matched
-/// destination navigates itself (via [VoiceCommand.navigate]) — no host wiring
-/// required, so the same button works from anywhere.
-class VoiceMicButton extends StatefulWidget {
-  const VoiceMicButton({super.key});
+/// A small, **highlighted** voice-assistant button — a filled brand-gradient
+/// circle with a white mic and a soft teal glow, meant to sit beside the
+/// notification bell so the voice action clearly stands out. It looks identical
+/// everywhere it's used (Home, Wallet, …). Tapping it opens the voice-command
+/// sheet; when a command is recognized, the matched destination navigates itself
+/// (via [VoiceCommand.navigate]) — no host wiring required.
+class VoiceMicIconButton extends StatelessWidget {
+  const VoiceMicIconButton({super.key, this.size = 42});
 
-  @override
-  State<VoiceMicButton> createState() => _VoiceMicButtonState();
-}
-
-class _VoiceMicButtonState extends State<VoiceMicButton> {
-  Future<void> _open() async {
-    HapticFeedback.mediumImpact();
-    await showVoiceCommandSheet(context);
-  }
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
-        message: 'Voice command',
+        message: 'Voice assistant',
         child: GestureDetector(
-          onTap: _open,
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            showVoiceCommandSheet(context);
+          },
+          behavior: HitTestBehavior.opaque,
           child: Container(
-            width: 56,
-            height: 56,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
+              gradient: AppGradients.primary,
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.2,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.40),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  color: AppColors.primaryGreen.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: const Icon(Icons.mic_rounded, color: Colors.white, size: 26),
+            child: const Icon(Icons.mic_rounded, color: Colors.white, size: 21),
           ),
         ),
       ),
@@ -62,7 +64,9 @@ Future<void> showVoiceCommandSheet(BuildContext context) {
     isScrollControlled: true,
     backgroundColor: AppPalette.of(context).surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppRadius.large),
+      ),
     ),
     builder: (_) => const _VoiceCommandSheet(),
   );
@@ -130,7 +134,11 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -237,17 +245,24 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
           child: Icon(icon, color: Colors.white, size: 44),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text('Opening $label',
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+        Text(
+          'Opening $label',
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
         const SizedBox(height: AppSpacing.xs),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle_rounded,
-                color: AppColors.primaryGreen, size: 18),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.primaryGreen,
+              size: 18,
+            ),
             const SizedBox(width: 6),
-            Text('Matched ${_service.match?.route ?? ''}',
-                style: AppText.caption.copyWith(color: palette.textSecondary)),
+            Text(
+              'Matched ${_service.match?.route ?? ''}',
+              style: AppText.caption.copyWith(color: palette.textSecondary),
+            ),
           ],
         ),
       ],
@@ -266,12 +281,17 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
             color: AppColors.warning.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.hearing_disabled_rounded,
-              color: AppColors.warning, size: 36),
+          child: const Icon(
+            Icons.hearing_disabled_rounded,
+            color: AppColors.warning,
+            size: 36,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
-        Text("Didn't catch a command",
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+        Text(
+          "Didn't catch a command",
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           heard.isEmpty
@@ -295,8 +315,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
           ? 'Enable microphone access in Settings to use voice commands.'
           : 'INO needs the microphone to hear your voice commands.',
       primaryLabel: _service.permanentlyDenied ? 'Open Settings' : 'Try again',
-      onPrimary:
-          _service.permanentlyDenied ? _service.openSettings : _retry,
+      onPrimary: _service.permanentlyDenied ? _service.openSettings : _retry,
     );
   }
 
@@ -324,9 +343,11 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         const SizedBox(height: AppSpacing.md),
         Text(title, style: AppText.title.copyWith(color: palette.textPrimary)),
         const SizedBox(height: AppSpacing.xs),
-        Text(message,
-            textAlign: TextAlign.center,
-            style: AppText.body.copyWith(color: palette.textSecondary)),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppText.body.copyWith(color: palette.textSecondary),
+        ),
         const SizedBox(height: AppSpacing.lg),
         _actions(
           palette,
@@ -358,9 +379,12 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
                 child: SizedBox(
                   height: AppSizes.button,
                   child: Center(
-                    child: Text('Close',
-                        style: AppText.subtitle
-                            .copyWith(color: palette.textSecondary)),
+                    child: Text(
+                      'Close',
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -380,10 +404,13 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
                     borderRadius: BorderRadius.circular(AppRadius.button),
                   ),
                   child: Center(
-                    child: Text(primaryLabel,
-                        style: AppText.subtitle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      primaryLabel,
+                      style: AppText.subtitle.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -413,10 +440,7 @@ class _PulsingMic extends StatelessWidget {
           return Stack(
             alignment: Alignment.center,
             children: [
-              if (active) ...[
-                _ring(0.0),
-                _ring(0.5),
-              ],
+              if (active) ...[_ring(0.0), _ring(0.5)],
               child!,
             ],
           );
@@ -476,9 +500,13 @@ class _LiveField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label,
-            style: AppText.label
-                .copyWith(color: palette.textFaint, letterSpacing: 1.2)),
+        Text(
+          label,
+          style: AppText.label.copyWith(
+            color: palette.textFaint,
+            letterSpacing: 1.2,
+          ),
+        ),
         const SizedBox(height: 3),
         Text(
           value,
@@ -493,4 +521,3 @@ class _LiveField extends StatelessWidget {
     );
   }
 }
-

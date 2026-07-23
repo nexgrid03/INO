@@ -20,6 +20,7 @@ import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -164,9 +165,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         : BiometricUx.successSnack(context, message);
   }
 
-  Future<T?> _push<T>(Widget screen) => Navigator.of(context).push<T>(
-        MaterialPageRoute(builder: (_) => screen),
-      );
+  Future<T?> _push<T>(Widget screen) =>
+      Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => screen));
 
   // ---- Preferences ---------------------------------------------------------
 
@@ -177,8 +177,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -187,20 +188,27 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(height: AppSpacing.sm),
             _SheetGrip(),
             const SizedBox(height: AppSpacing.sm),
-            Text(AppLocalizations.of(context).t('language'),
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              AppLocalizations.of(context).t('language'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const SizedBox(height: AppSpacing.xs),
             for (final o in options)
               ListTile(
-                title: Text(o,
-                    style: TextStyle(
-                      color: palette.textPrimary,
-                      fontWeight:
-                          o == _language ? FontWeight.w700 : FontWeight.w500,
-                    )),
+                title: Text(
+                  o,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontWeight: o == _language
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                ),
                 trailing: o == _language
-                    ? const Icon(Icons.check_rounded,
-                        color: AppColors.primaryGreen)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: AppColors.primaryGreen,
+                      )
                     : null,
                 onTap: () => Navigator.of(context).pop(o),
               ),
@@ -278,7 +286,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     switch (support) {
       case BiometricSupport.unsupported:
         BiometricUx.errorSnack(
-            context, 'This device does not support biometric authentication.');
+          context,
+          'This device does not support biometric authentication.',
+        );
       case BiometricSupport.notEnrolled:
         final openSettings = await BiometricUx.noBiometricsDialog(context);
         if (!mounted) return;
@@ -310,7 +320,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       setState(() => _biometric = true);
       _persistBiometric(true);
       BiometricUx.successSnack(
-          context, AppLocalizations.of(context).t('biometricEnabledMsg'));
+        context,
+        AppLocalizations.of(context).t('biometricEnabledMsg'),
+      );
     } else {
       final error = outcome.error;
       if (error != null && !error.isSilent) {
@@ -340,7 +352,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() => _biometric = false);
     _persistBiometric(false);
     BiometricUx.successSnack(
-        context, AppLocalizations.of(context).t('biometricDisabledMsg'));
+      context,
+      AppLocalizations.of(context).t('biometricDisabledMsg'),
+    );
   }
 
   void _persistBiometric(bool value) {
@@ -391,8 +405,11 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
       if (!mounted) return;
       Navigator.of(context).pop(); // dismiss progress
-      await Share.shareXFiles([XFile(archive.file.path)],
-          subject: subject, sharePositionOrigin: shareOrigin(context));
+      await Share.shareXFiles(
+        [XFile(archive.file.path)],
+        subject: subject,
+        sharePositionOrigin: shareOrigin(context),
+      );
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -413,13 +430,18 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-              AppSpacing.screen, AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            AppSpacing.sm,
+            AppSpacing.screen,
+            AppSpacing.md,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -432,18 +454,25 @@ class _ProfileScreenState extends State<ProfileScreen>
                   color: AppColors.critical.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.logout_rounded,
-                    color: AppColors.critical, size: 28),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.critical,
+                  size: 28,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text(l10n.t('logoutConfirmTitle'),
-                  style: AppText.title.copyWith(color: palette.textPrimary)),
+              Text(
+                l10n.t('logoutConfirmTitle'),
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 l10n.t('logoutConfirmBody'),
                 textAlign: TextAlign.center,
-                style: AppText.body
-                    .copyWith(color: palette.textSecondary, height: 1.5),
+                style: AppText.body.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
@@ -483,9 +512,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _editProfile() async {
     final updated = await Navigator.of(context).push<UserProfile>(
-      MaterialPageRoute(
-        builder: (_) => EditProfileScreen(profile: _profile),
-      ),
+      MaterialPageRoute(builder: (_) => EditProfileScreen(profile: _profile)),
     );
     if (updated == null || !mounted) return;
     setState(() {
@@ -656,21 +683,26 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
-        bottom: false,
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
-              AppSpacing.screen, bottomInset + 100),
-          itemCount: blocks.length,
-          separatorBuilder: (_, i) => SizedBox(
-            height: i < 1 ? AppSpacing.lg : AppSpacing.section,
-          ),
-          itemBuilder: (context, i) => FadeSlideIn(
-            delay: Duration(milliseconds: (i * 50).clamp(0, 320)),
-            child: blocks[i],
+      body: InoBackground(
+        child: SafeArea(
+          bottom: false,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.md,
+              AppSpacing.screen,
+              bottomInset + 100,
+            ),
+            itemCount: blocks.length,
+            separatorBuilder: (_, i) =>
+                SizedBox(height: i < 1 ? AppSpacing.lg : AppSpacing.section),
+            itemBuilder: (context, i) => FadeSlideIn(
+              delay: Duration(milliseconds: (i * 50).clamp(0, 320)),
+              child: blocks[i],
+            ),
           ),
         ),
       ),
@@ -742,7 +774,11 @@ class _ProfileHero extends StatelessWidget {
       radius: AppRadius.large,
       onTap: onEdit,
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.internal, AppSpacing.lg, AppSpacing.internal, AppSpacing.lg),
+        AppSpacing.internal,
+        AppSpacing.lg,
+        AppSpacing.internal,
+        AppSpacing.lg,
+      ),
       child: Column(
         children: [
           SizedBox(
@@ -791,8 +827,11 @@ class _ProfileHero extends StatelessWidget {
                       border: Border.all(color: palette.surface, width: 3),
                       boxShadow: AppShadows.glow(AppColors.primaryGreen),
                     ),
-                    child: const Icon(Icons.edit_rounded,
-                        size: 15, color: Colors.white),
+                    child: const Icon(
+                      Icons.edit_rounded,
+                      size: 15,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -866,8 +905,11 @@ class _HeroBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.shield_rounded,
-              size: 13, color: AppColors.primaryGreen),
+          const Icon(
+            Icons.shield_rounded,
+            size: 13,
+            color: AppColors.primaryGreen,
+          ),
           const SizedBox(width: 5),
           Text(
             'Vault protected',
@@ -916,8 +958,11 @@ class _StorageCard extends StatelessWidget {
                   gradient: AppGradients.wash(opacity: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: const Icon(Icons.storage_rounded,
-                    size: 22, color: AppColors.primaryGreen),
+                child: const Icon(
+                  Icons.storage_rounded,
+                  size: 22,
+                  color: AppColors.primaryGreen,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -928,32 +973,33 @@ class _StorageCard extends StatelessWidget {
                       AppLocalizations.of(context).t('storage'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          AppText.title.copyWith(color: palette.textPrimary),
+                      style: AppText.title.copyWith(color: palette.textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$usedLabel of $totalLabel',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: palette.surfaceVariant,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
                 child: Text(
                   percentLabel,
-                  style:
-                      AppText.label.copyWith(color: palette.textSecondary),
+                  style: AppText.label.copyWith(color: palette.textSecondary),
                 ),
               ),
             ],
@@ -1004,8 +1050,10 @@ class _ProgressDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              title,
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const SizedBox(height: AppSpacing.md),
             ValueListenableBuilder<double>(
               valueListenable: progress,
@@ -1015,8 +1063,9 @@ class _ProgressDialog extends StatelessWidget {
                   value: value == 0 ? null : value,
                   minHeight: 6,
                   backgroundColor: palette.surfaceVariant,
-                  valueColor:
-                      const AlwaysStoppedAnimation(AppColors.primaryGreen),
+                  valueColor: const AlwaysStoppedAnimation(
+                    AppColors.primaryGreen,
+                  ),
                 ),
               ),
             ),

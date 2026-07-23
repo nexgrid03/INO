@@ -97,7 +97,7 @@ class ReminderCard extends StatelessWidget {
                             const SizedBox(height: 5),
                             Text(
                               reminder.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: AppText.subtitle.copyWith(
                                 color: palette.textPrimary,
