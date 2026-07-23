@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
 
 /// Typed data models that back the Home dashboard.
 ///
@@ -56,7 +57,7 @@ class MarketQuote {
     required this.changePercent,
     required this.spark,
     required this.gradient,
-    this.accent = const Color(0xFF00A86B),
+    this.accent = AppColors.primaryGreen,
     this.filled = false,
     this.location,
   });

@@ -5,11 +5,11 @@ import '../../theme/app_theme.dart';
 
 /// One row in a [SettingsGroup].
 ///
-/// Deliberately quiet and uniform: a monochrome icon in a subtle neutral
-/// square, a single-line title, and a trailing control — a [Switch], a muted
-/// [value] label, or a chevron. Colour is reserved for toggles and the [danger]
-/// variant (small red text rows for Log Out / Delete Account), so hierarchy
-/// comes from typography and grouping, not from competing accent colours.
+/// Follows the Stitch settings-row language: a brand-tinted rounded square
+/// holding a teal icon, a single-line title, and a trailing control — a
+/// [Switch], a muted [value] label, or a chevron. The [danger] variant flips
+/// the tint to red (Log Out / Delete Account), so hierarchy still comes from
+/// typography and grouping.
 class SettingsRow extends StatelessWidget {
   const SettingsRow({
     super.key,
@@ -43,10 +43,10 @@ class SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final Color fg = danger ? AppColors.critical : palette.textPrimary;
-    final Color iconFg = danger ? AppColors.critical : palette.textSecondary;
+    final Color iconFg = danger ? AppColors.critical : AppColors.primaryGreen;
     final Color iconBg = danger
         ? AppColors.critical.withValues(alpha: 0.10)
-        : palette.surfaceVariant;
+        : AppColors.primaryGreen.withValues(alpha: palette.isDark ? 0.16 : 0.10);
 
     Widget? tail = trailing;
     tail ??= (value != null)
@@ -72,13 +72,13 @@ class SettingsRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 19, color: iconFg),
+            child: Icon(icon, size: 20, color: iconFg),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -88,7 +88,7 @@ class SettingsRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 color: fg,
                 letterSpacing: -0.1,
               ),

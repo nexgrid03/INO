@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_models.dart';
+import '../theme/app_theme.dart';
 
 /// The selectable ranges on the net-worth chart.
 enum NetWorthRange { week, month, quarter, halfYear, year }
@@ -68,7 +69,7 @@ class NetWorthService {
     AssetAllocation(label: 'Property', value: 5200000, color: Color(0xFF8B6CEF)),
     AssetAllocation(label: 'Bank & Cash', value: 1450000, color: Color(0xFF4FC3F7)),
     AssetAllocation(label: 'Gold', value: 760000, color: Color(0xFFE0A100)),
-    AssetAllocation(label: 'Digital Assets', value: 130000, color: Color(0xFF34D399)),
+    AssetAllocation(label: 'Digital Assets', value: 130000, color: AppColors.secondaryGreen),
   ];
 
   double get total =>

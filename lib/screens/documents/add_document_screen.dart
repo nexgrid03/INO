@@ -18,6 +18,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
@@ -517,37 +518,48 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _UploadOptions(
-                      selected: _source,
-                      busy: _capturing,
-                      onPick: _pickSource,
+                    FadeSlideIn(
+                      child: _UploadOptions(
+                        selected: _source,
+                        busy: _capturing,
+                        onPick: _pickSource,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     if (!_hasFile)
-                      _EmptyState(busy: _capturing)
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 90),
+                        child: _EmptyState(busy: _capturing),
+                      )
                     else ...[
-                      _DetailsForm(
-                        formKey: _formKey,
-                        source: _source!,
-                        fileName: _tempFileName ?? 'Document',
-                        nameController: _nameController,
-                        tagsController: _tagsController,
-                        notesController: _notesController,
-                        wallet: _wallet,
-                        category: _category,
-                        expiry: _expiry,
-                        onRemoveFile: _removeFile,
-                        onPickWallet: _chooseWallet,
-                        onPickCategory: _chooseCategory,
-                        onPickExpiry: _pickExpiry,
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 60),
+                        child: _DetailsForm(
+                          formKey: _formKey,
+                          source: _source!,
+                          fileName: _tempFileName ?? 'Document',
+                          nameController: _nameController,
+                          tagsController: _tagsController,
+                          notesController: _notesController,
+                          wallet: _wallet,
+                          category: _category,
+                          expiry: _expiry,
+                          onRemoveFile: _removeFile,
+                          onPickWallet: _chooseWallet,
+                          onPickCategory: _chooseCategory,
+                          onPickExpiry: _pickExpiry,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      _ProtectToggle(
-                        value: _protect,
-                        onChanged: (v) {
-                          HapticFeedback.selectionClick();
-                          setState(() => _protect = v);
-                        },
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 120),
+                        child: _ProtectToggle(
+                          value: _protect,
+                          onChanged: (v) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _protect = v);
+                          },
+                        ),
                       ),
                     ],
                   ],
@@ -770,19 +782,40 @@ class _UploadOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _SectionLabel('CHOOSE METHOD'),
+        const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < _DocSource.values.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _OptionCard(
-              source: _DocSource.values[i],
-              selected: _DocSource.values[i] == selected,
-              onTap: busy ? null : () => onPick(_DocSource.values[i]),
-            ),
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          _OptionCard(
+            source: _DocSource.values[i],
+            selected: _DocSource.values[i] == selected,
+            onTap: busy ? null : () => onPick(_DocSource.values[i]),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Small uppercase section label (purely decorative, from the Stitch mock).
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Text(
+      text,
+      style: AppText.label.copyWith(
+        color: palette.textFaint,
+        fontSize: 11,
+        letterSpacing: 1.4,
+      ),
     );
   }
 }
@@ -802,65 +835,88 @@ class _OptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final color = source.color;
-    return InoCard(
-      radius: AppRadius.card,
-      padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.md, horizontal: AppSpacing.xs),
-      onTap: onTap,
-      borderColor: selected ? color : null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
+
+    final row = Row(
+      children: [
+        Container(
+          width: AppSizes.iconContainer,
+          height: AppSizes.iconContainer,
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.22)
+                : color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.search),
+          ),
+          child: Icon(source.icon,
+              color: selected ? Colors.white : color, size: 26),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Icon(source.icon, color: color, size: 24),
+              Text(
+                source.localizedTitle(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.title.copyWith(
+                    color: selected ? Colors.white : palette.textPrimary,
+                    fontSize: 15.5),
               ),
-              if (selected)
-                Positioned(
-                  right: -4,
-                  top: -4,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: palette.surface, width: 2),
-                    ),
-                    padding: const EdgeInsets.all(1),
-                    child: const Icon(Icons.check_rounded,
-                        size: 11, color: Colors.white),
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                source.localizedDescription(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.85)
+                      : palette.textSecondary,
                 ),
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            source.localizedTitle(context),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.subtitle.copyWith(
-                color: palette.textPrimary, fontSize: 12.5),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Icon(
+          selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded,
+          color: selected ? Colors.white : palette.textFaint,
+          size: selected ? 22 : 24,
+        ),
+      ],
+    );
+
+    if (!selected) {
+      return InoCard(
+        radius: AppRadius.card,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        onTap: onTap,
+        child: row,
+      );
+    }
+
+    // Selected: filled brand-gradient tile — the "primary method" treatment
+    // from the Stitch mock doubles as an unmistakable selected state.
+    final card = Container(
+      decoration: BoxDecoration(
+        gradient: AppGradients.primary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadows.glow(AppColors.primaryGreen),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: row,
           ),
-          const SizedBox(height: 1),
-          Text(
-            source.localizedDescription(context),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.label.copyWith(
-                color: palette.textFaint, fontSize: 10.5, fontWeight: FontWeight.w500),
-          ),
-        ],
+        ),
       ),
     );
+    if (onTap == null) return card;
+    return PressableScale(child: card);
   }
 }
 
@@ -876,60 +932,123 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xl),
-      child: Column(
-        children: [
-          Container(
-            width: 110,
-            height: 110,
-            decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
-              borderRadius: BorderRadius.circular(AppRadius.large + 8),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.30),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
+    // "Secure Drop"-style zone from the Stitch mock: dashed brand border over a
+    // soft gradient wash, hero icon with a lock badge.
+    return CustomPaint(
+      painter: _DashedBorderPainter(
+        color: AppColors.primaryGreen
+            .withValues(alpha: palette.isDark ? 0.45 : 0.35),
+        radius: AppRadius.large,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.xl, horizontal: AppSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: AppGradients.wash(opacity: palette.isDark ? 0.10 : 0.06),
+          borderRadius: BorderRadius.circular(AppRadius.large),
+        ),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                    boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                  ),
+                  child: busy
+                      ? const Center(
+                          child: SizedBox(
+                            width: 34,
+                            height: 34,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.cloud_upload_rounded,
+                          color: Colors.white, size: 44),
+                ),
+                Positioned(
+                  right: -8,
+                  bottom: -8,
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryGreen,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: palette.bg, width: 2),
+                    ),
+                    child: const Icon(Icons.lock_rounded,
+                        size: 16, color: Colors.white),
+                  ),
                 ),
               ],
             ),
-            child: busy
-                ? const Center(
-                    child: SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  )
-                : const Icon(Icons.cloud_upload_rounded,
-                    color: Colors.white, size: 50),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-              busy
-                  ? AppLocalizations.of(context).t('opening')
-                  : AppLocalizations.of(context).t('noDocumentSelected'),
-              style:
-                  AppText.title.copyWith(color: palette.textPrimary)),
-          const SizedBox(height: AppSpacing.xs),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Text(
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+                busy
+                    ? AppLocalizations.of(context).t('opening')
+                    : AppLocalizations.of(context).t('noDocumentSelected'),
+                style:
+                    AppText.title.copyWith(color: palette.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
               AppLocalizations.of(context).t('chooseSourceHint'),
               textAlign: TextAlign.center,
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.5),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Draws a rounded dashed border — the Stitch "Secure Drop" zone edge.
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+              Offset.zero & size, Radius.circular(radius))
+          .deflate(0.8));
+    const dash = 7.0;
+    const gap = 6.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = distance + dash < metric.length
+            ? distance + dash
+            : metric.length;
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }
 
 // ---------------------------------------------------------------------------
@@ -984,69 +1103,82 @@ class _DetailsForm extends StatelessWidget {
         children: [
           _SelectedFile(source: source, fileName: fileName, onRemove: onRemoveFile),
           const SizedBox(height: AppSpacing.lg),
-          _Field(
-            label: l10n.t('documentName'),
-            child: TextFormField(
-              controller: nameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? l10n.t('enterDocumentName')
-                  : null,
-              decoration: _decoration(context, l10n.t('hintAddDocName')),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Field(
-            label: l10n.t('wallet'),
-            child: _Selector(
-              value: wallet == null ? null : localizedWalletName(l10n, wallet!),
-              placeholder: l10n.t('chooseWallet'),
-              leading: Icons.account_balance_wallet_rounded,
-              onTap: onPickWallet,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Field(
-            label: l10n.t('category'),
-            child: _Selector(
-              value: category,
-              placeholder: l10n.t('chooseCategory'),
-              leading: Icons.label_rounded,
-              onTap: onPickCategory,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Field(
-            label: l10n.t('tags'),
-            optional: true,
-            child: TextFormField(
-              controller: tagsController,
-              textInputAction: TextInputAction.next,
-              decoration: _decoration(context, l10n.t('hintAddTags')),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Field(
-            label: l10n.t('expiryDate'),
-            optional: true,
-            child: _Selector(
-              value: expiry == null ? null : _fmt(expiry!),
-              placeholder: l10n.t('noExpiry'),
-              leading: Icons.event_rounded,
-              trailing: Icons.calendar_today_rounded,
-              onTap: onPickExpiry,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _Field(
-            label: l10n.t('notes'),
-            optional: true,
-            child: TextFormField(
-              controller: notesController,
-              maxLines: 3,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: _decoration(context, l10n.t('hintNotes')),
+          const _SectionLabel('DOCUMENT DETAILS'),
+          const SizedBox(height: AppSpacing.sm),
+          InoCard(
+            radius: AppRadius.large,
+            padding: const EdgeInsets.all(AppSpacing.internal),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Field(
+                  label: l10n.t('documentName'),
+                  child: TextFormField(
+                    controller: nameController,
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.t('enterDocumentName')
+                        : null,
+                    decoration: _decoration(context, l10n.t('hintAddDocName')),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('wallet'),
+                  child: _Selector(
+                    value: wallet == null
+                        ? null
+                        : localizedWalletName(l10n, wallet!),
+                    placeholder: l10n.t('chooseWallet'),
+                    leading: Icons.account_balance_wallet_rounded,
+                    onTap: onPickWallet,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('category'),
+                  child: _Selector(
+                    value: category,
+                    placeholder: l10n.t('chooseCategory'),
+                    leading: Icons.label_rounded,
+                    onTap: onPickCategory,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('tags'),
+                  optional: true,
+                  child: TextFormField(
+                    controller: tagsController,
+                    textInputAction: TextInputAction.next,
+                    decoration: _decoration(context, l10n.t('hintAddTags')),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('expiryDate'),
+                  optional: true,
+                  child: _Selector(
+                    value: expiry == null ? null : _fmt(expiry!),
+                    placeholder: l10n.t('noExpiry'),
+                    leading: Icons.event_rounded,
+                    trailing: Icons.calendar_today_rounded,
+                    onTap: onPickExpiry,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('notes'),
+                  optional: true,
+                  child: TextFormField(
+                    controller: notesController,
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: _decoration(context, l10n.t('hintNotes')),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1057,7 +1189,7 @@ class _DetailsForm extends StatelessWidget {
   InputDecoration _decoration(BuildContext context, String hint) {
     final palette = AppPalette.of(context);
     OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
+          borderRadius: BorderRadius.circular(AppRadius.search),
           borderSide: BorderSide(color: c, width: w),
         );
     return InputDecoration(
@@ -1066,7 +1198,7 @@ class _DetailsForm extends StatelessWidget {
       filled: true,
       fillColor: palette.surfaceVariant,
       contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 14),
+          horizontal: 16, vertical: 15),
       border: border(palette.border),
       enabledBorder: border(palette.border),
       focusedBorder: border(AppColors.primaryGreen, 1.6),
@@ -1136,15 +1268,15 @@ class _Selector extends StatelessWidget {
       pressedScale: 0.98,
       child: Material(
         color: palette.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
+        borderRadius: BorderRadius.circular(AppRadius.search),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: AppSizes.search,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
+              borderRadius: BorderRadius.circular(AppRadius.search),
               border: Border.all(color: palette.border),
             ),
             child: Row(

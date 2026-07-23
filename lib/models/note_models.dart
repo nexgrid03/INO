@@ -71,7 +71,7 @@ extension NoteCategoryX on NoteCategory {
   Color get color {
     switch (this) {
       case NoteCategory.personal:
-        return const Color(0xFF0EA5A5);
+        return AppColors.darkGreen;
       case NoteCategory.financial:
         return AppColors.primaryGreen;
       case NoteCategory.tax:

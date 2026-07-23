@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
 /// A quiet, outlined "Continue with …" button for federated sign-in
-/// (Google / Apple).
+/// (Google / Phone / Apple).
 ///
-/// Deliberately understated — a white surface with a hairline border — so the
-/// gradient primary CTA stays the clear focus. Pass [brand] as the leading
-/// glyph (see [GoogleGlyph] / [Icon(Icons.apple)]).
+/// Deliberately understated — a theme-aware surface with a soft brand-tinted
+/// border and the glyph seated in a small tinted well — so the gradient
+/// primary CTA stays the clear focus. Pass [brand] as the leading glyph (see
+/// [GoogleGlyph] / [Icon(Icons.apple)]).
 class SocialAuthButton extends StatelessWidget {
   const SocialAuthButton({
     super.key,
@@ -25,19 +27,26 @@ class SocialAuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return PressableScale(
       child: GestureDetector(
         onTap: busy ? null : onPressed,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          height: 52,
+          height: AppSizes.button,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.button),
+            border: Border.all(
+              color: AppColors.primaryGreen
+                  .withValues(alpha: palette.isDark ? 0.30 : 0.14),
+              width: 1.4,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: palette.shadow
+                    .withValues(alpha: 0.04 * palette.shadowStrength),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -45,25 +54,37 @@ class SocialAuthButton extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: busy
-              ? const SizedBox(
+              ? SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.2,
-                    color: AppColors.textMuted,
+                    color: palette.textSecondary,
                   ),
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(width: 20, height: 20, child: Center(child: brand)),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen
+                            .withValues(alpha: palette.isDark ? 0.16 : 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(child: brand),
+                    ),
                     const SizedBox(width: 12),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppColors.textDark,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],

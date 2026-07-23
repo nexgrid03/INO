@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
+import '../../core/responsive/responsive_extensions.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../dashboard/sparkline.dart';
 import '../pressable_scale.dart';
 
-/// Section 2 — the Dashboard hero card (light, CRED-style).
+/// Today's Overview — Main Hero Section of the INO Home Screen.
 ///
-/// Net worth as the single focal point on a clean white surface with a faint
-/// mint wash: monthly growth (% + amount), a green trend graph, a "View
-/// details" CTA, then a metric strip (Assets · Pending · Protected) with
-/// soft-tinted icon chips. Those are the ONLY counts on Home — every other
-/// module's numbers live on its own page.
+/// Features a prominent brand-gradient container (#0CB7A3 → #3EC7FF) housing:
+/// 1. Header: "Today's Overview" & "Your important summary for today" + Security Shield badge.
+/// 2. 4 Summary Cards in a 2x2 grid (Documents Expiring, EMI Due Tomorrow, Reminders Today, Insurance Renewals).
+/// 3. Bottom Information Bar: "Last Backup: Today, 08:30 AM" & "View Backup →" button.
 class DashboardCard extends StatelessWidget {
   const DashboardCard({
     super.key,
     required this.hero,
+    this.onDocumentsExpiring,
+    this.onEmiDues,
+    this.onRemindersToday,
+    this.onInsuranceRenewals,
+    this.onBackup,
     this.onCta,
     this.onAssets,
     this.onPending,
@@ -25,291 +28,329 @@ class DashboardCard extends StatelessWidget {
   });
 
   final HomeHero hero;
+  final VoidCallback? onDocumentsExpiring;
+  final VoidCallback? onEmiDues;
+  final VoidCallback? onRemindersToday;
+  final VoidCallback? onInsuranceRenewals;
+  final VoidCallback? onBackup;
   final VoidCallback? onCta;
   final VoidCallback? onAssets;
   final VoidCallback? onPending;
   final VoidCallback? onProtected;
 
-  static const _assets = AppColors.primaryGreen;
-  static const _pending = AppColors.warning;
-  static const _protected = Color(0xFF8B6CEF);
-
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    // White surface with a faint mint wash at the top-left (theme-aware).
-    final tint = Color.alphaBlend(
-        AppColors.primaryGreen.withValues(alpha: 0.06), palette.surface);
+    final expiringCount = hero.pendingTasks > 0 ? hero.pendingTasks : 2;
 
-    return PressableScale(
-      pressedScale: 0.99,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [tint, palette.surface],
-            stops: const [0.0, 0.6],
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: AppGradients.primary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          borderRadius: BorderRadius.circular(AppRadius.large),
-          border: Border.all(color: palette.border),
-          boxShadow: palette.cardShadow,
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.internal),
-              child: _NetWorth(hero: hero, onCta: onCta),
-            ),
-            Divider(height: 1, thickness: 1, color: palette.border),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: 14),
-              child: Row(
-                children: [
-                  _Stat(
-                      icon: Icons.account_balance_wallet_rounded,
-                      color: _assets,
-                      value: '${hero.assets}',
-                      label: l10n.t('assets'),
-                      onTap: onAssets),
-                  _Stat(
-                      icon: Icons.assignment_rounded,
-                      color: _pending,
-                      value: '${hero.pendingTasks}',
-                      label: l10n.t('pending'),
-                      onTap: onPending),
-                  _Stat(
-                      icon: Icons.verified_user_rounded,
-                      color: _protected,
-                      value: '${hero.protectedItems}',
-                      label: l10n.t('protected'),
-                      onTap: onProtected),
-                ],
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
-    );
-  }
-
-}
-
-class _NetWorth extends StatelessWidget {
-  const _NetWorth({required this.hero, this.onCta});
-
-  final HomeHero hero;
-  final VoidCallback? onCta;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final up = hero.isUp;
-    final growthColor = up ? AppColors.positive : AppColors.negative;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(AppLocalizations.of(context).t('totalNetWorth'),
-                  style: AppText.caption.copyWith(color: palette.textSecondary)),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(hero.netWorth,
-                  style: AppText.bigNumber.copyWith(color: palette.textPrimary)),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                children: [
-                  Icon(
-                      up
-                          ? Icons.arrow_upward_rounded
-                          : Icons.arrow_downward_rounded,
-                      size: 14,
-                      color: growthColor),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(children: [
-                        TextSpan(
-                          text:
-                              '${up ? '+' : ''}${hero.growthPercent.toStringAsFixed(1)}% (${hero.growthAmount}) ',
-                          style: AppText.caption.copyWith(
-                              color: growthColor, fontWeight: FontWeight.w700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header with title, subtitle & protection badge.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Today's Overview",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
                         ),
-                        TextSpan(
-                          text: AppLocalizations.of(context).t('thisMonth'),
-                          style: AppText.caption
-                              .copyWith(color: palette.textFaint),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        "Your important summary for today",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Security Illustration / Protection Badge
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 1.5,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _CtaButton(onTap: onCta),
-            ],
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        // Right: growth pill above a green trend graph.
-        SizedBox(
-          width: 116,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _GrowthPill(percent: hero.growthPercent),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: 64,
-                child: Sparkline(
-                  values: hero.trend,
-                  color: AppColors.primaryGreen,
-                  strokeWidth: 2.8,
+
+          // 2. Grid of 4 Summary Cards
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCardTile(
+                        title: 'Documents Expiring',
+                        value: '$expiringCount',
+                        icon: Icons.warning_amber_rounded,
+                        accentColor: AppColors.warning,
+                        onTap: onDocumentsExpiring ?? onPending,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCardTile(
+                        title: 'EMI Due Tomorrow',
+                        value: '1',
+                        icon: Icons.account_balance_wallet_rounded,
+                        accentColor: const Color(0xFF3EC7FF),
+                        onTap: onEmiDues ?? onCta,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12, height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCardTile(
+                        title: 'Reminders Today',
+                        value: '3',
+                        icon: Icons.alarm_rounded,
+                        accentColor: AppColors.primaryGreen,
+                        onTap: onRemindersToday ?? onCta,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCardTile(
+                        title: 'Insurance Renewals',
+                        value: '1',
+                        icon: Icons.security_rounded,
+                        accentColor: const Color(0xFF8B6CEF),
+                        onTap: onInsuranceRenewals ?? onProtected,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 3. Bottom Information Bar: Last Backup & View Backup CTA
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.12),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  width: 1,
                 ),
               ),
-            ],
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.cloud_done_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Last Backup: ',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: 'Today, 08:30 AM',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                PressableScale(
+                  pressedScale: 0.95,
+                  child: GestureDetector(
+                    onTap: onBackup ?? onProtected ?? onCta,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Backup',
+                            style: TextStyle(
+                              color: AppColors.darkGreen,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: AppColors.darkGreen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GrowthPill extends StatelessWidget {
-  const _GrowthPill({required this.percent});
-
-  final double percent;
-
-  @override
-  Widget build(BuildContext context) {
-    final up = percent >= 0;
-    final color = up ? AppColors.positive : AppColors.negative;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-              size: 13, color: color),
-          const SizedBox(width: 2),
-          Text('${percent.abs().toStringAsFixed(1)}%',
-              style: AppText.label.copyWith(color: color)),
         ],
       ),
     );
   }
 }
 
-class _CtaButton extends StatelessWidget {
-  const _CtaButton({this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Material(
-        color: AppColors.primaryGreen.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(AppLocalizations.of(context).t('viewDetails'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                          color: AppColors.primaryGreen, fontSize: 13)),
-                ),
-                const SizedBox(width: 5),
-                const Icon(Icons.arrow_forward_rounded,
-                    size: 16, color: AppColors.primaryGreen),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One metric in the hero strip: soft-tinted icon chip + label/value. Tappable
-/// when [onTap] is provided (deep-links to the matching page).
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.icon,
-    required this.color,
+class _SummaryCardTile extends StatelessWidget {
+  const _SummaryCardTile({
+    required this.title,
     required this.value,
-    required this.label,
+    required this.icon,
+    required this.accentColor,
     this.onTap,
   });
 
-  final IconData icon;
-  final Color color;
+  final String title;
   final String value;
-  final String label;
+  final IconData icon;
+  final Color accentColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadius.chip),
+    final isSmall = context.isMobileSmall;
+    final tile = Container(
+      padding: EdgeInsets.all(isSmall ? 10 : 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: Icon(icon, size: 19, color: color),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style:
-              AppText.title.copyWith(color: palette.textPrimary, fontSize: 16),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: AppText.label
-              .copyWith(color: palette.textSecondary, fontSize: 11),
-        ),
-      ],
-    );
-    return Expanded(
-      child: onTap == null
-          ? content
-          : InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: content,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      color: AppColors.textDark,
+                      fontSize: isSmall ? 18.rsp : 22.rsp,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: EdgeInsets.all(isSmall ? 4 : 6),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: isSmall ? 14 : 16,
+                  color: accentColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: isSmall ? 10.5.rsp : 11.5.rsp,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return tile;
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: tile,
+      ),
     );
   }
 }

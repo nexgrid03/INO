@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 // Models backing the ITR-ready Transaction Vault — a record + receipt store
 // organised by financial year, with a tax-document vault and a tax summary.
 //
@@ -142,11 +144,11 @@ extension TxnCategoryX on TxnCategory {
   Color get color {
     switch (this) {
       case TxnCategory.salary:
-        return const Color(0xFF00A86B);
+        return AppColors.primaryGreen;
       case TxnCategory.business:
-        return const Color(0xFF34D399);
+        return AppColors.secondaryGreen;
       case TxnCategory.investment:
-        return const Color(0xFF2BB6A3);
+        return const Color(0xFF14B8A6);
       case TxnCategory.rent:
         return const Color(0xFF8B6CEF);
       case TxnCategory.insurance:
@@ -162,11 +164,11 @@ extension TxnCategoryX on TxnCategory {
       case TxnCategory.shopping:
         return const Color(0xFFEC4899);
       case TxnCategory.utilities:
-        return const Color(0xFF38BDF8);
+        return AppColors.lightBlue;
       case TxnCategory.loanEmi:
         return const Color(0xFF6366F1);
       case TxnCategory.taxPayment:
-        return const Color(0xFFEF5350);
+        return AppColors.critical;
       case TxnCategory.other:
         return const Color(0xFF64748B);
     }

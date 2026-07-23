@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../dashboard/ino_card.dart';
@@ -95,7 +96,7 @@ class _WalletCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return InoCard(
-      radius: 20,
+      radius: AppRadius.card,
       padding: const EdgeInsets.all(14),
       onTap: onTap,
       child: Column(
@@ -111,13 +112,8 @@ class _WalletCard extends StatelessWidget {
                 colors: category.gradient,
               ),
               borderRadius: BorderRadius.circular(13),
-              boxShadow: [
-                BoxShadow(
-                  color: category.gradient.first.withValues(alpha: 0.32),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow:
+                  AppShadows.glow(category.gradient.first, opacity: 0.32),
             ),
             child: Icon(category.icon, color: Colors.white, size: 22),
           ),

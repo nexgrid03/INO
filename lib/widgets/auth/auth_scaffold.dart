@@ -6,10 +6,10 @@ import '../floating_particles.dart';
 /// Shared premium backdrop + layout for every authentication screen.
 ///
 /// One place owns the auth "chrome" so Splash → Onboarding → Login → Signup →
-/// OTP → Forgot → Biometric all share the exact same soft green-blue gradient,
-/// the subtle drifting particles, safe-area handling and an optional back
-/// button. Screens only supply their [child] content — keeping each screen file
-/// focused on its single purpose.
+/// OTP → Forgot → Biometric all share the exact same ambient teal-cyan
+/// backdrop, the subtle drifting particles, safe-area handling and an optional
+/// back button. Screens only supply their [child] content — keeping each
+/// screen file focused on its single purpose.
 class AuthScaffold extends StatefulWidget {
   const AuthScaffold({
     super.key,
@@ -59,6 +59,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     final showTopRow = widget.showBack || widget.trailing != null;
 
     Widget body = widget.scrollable
@@ -70,25 +71,23 @@ class _AuthScaffoldState extends State<AuthScaffold>
         : Padding(padding: widget.padding, child: widget.child);
 
     return Scaffold(
-      // Let the gradient sit behind the keyboard rather than resizing abruptly.
+      // Let the backdrop sit behind the keyboard rather than resizing abruptly.
       resizeToAvoidBottomInset: true,
+      backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // Soft brand gradient wash.
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFE9F5FB), // faint blue tint
-                    Color(0xFFEAF7F2), // faint green tint
-                    AppColors.background,
-                  ],
-                ),
-              ),
-            ),
+          // Ambient corner glows — a cyan wash bleeding in from the top-left
+          // and a teal wash from the bottom-right, both fading into the
+          // scaffold background. Works over the light AND dark palettes.
+          const Positioned(
+            top: -170,
+            left: -130,
+            child: _AmbientBlob(color: AppColors.lightBlue, size: 400),
+          ),
+          const Positioned(
+            bottom: -190,
+            right: -150,
+            child: _AmbientBlob(color: AppColors.primaryGreen, size: 460),
           ),
           Positioned.fill(child: FloatingParticles(animation: _particles)),
 
@@ -123,6 +122,33 @@ class _AuthScaffoldState extends State<AuthScaffold>
   }
 }
 
+/// A soft radial brand glow anchored just off-screen — the ambient "blob"
+/// backdrop element that gives the auth flow its premium depth.
+class _AmbientBlob extends StatelessWidget {
+  const _AmbientBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: palette.isDark ? 0.14 : 0.12),
+            color.withValues(alpha: 0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A soft, glassy circular icon button used for the back affordance.
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({required this.icon, required this.onTap});
@@ -132,16 +158,17 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.7),
-      shape: const CircleBorder(),
+      color: palette.surface.withValues(alpha: 0.75),
+      shape: CircleBorder(side: BorderSide(color: palette.border)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
           width: 44,
           height: 44,
-          child: Icon(icon, color: AppColors.textDark, size: 22),
+          child: Icon(icon, color: palette.textPrimary, size: 22),
         ),
       ),
     );

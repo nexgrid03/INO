@@ -8,12 +8,13 @@ import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
 /// A compact reminder row — the workhorse card used across every Reminders
-/// surface. One tight line for the title, one meta line for the due badge +
-/// category. A priority accent bar on the left, and an optional tap-to-complete
+/// surface, styled as a floating agenda card: a priority accent running down
+/// the card's left edge, a tinted category icon container, a small meta line
+/// (due chip + category) above the bold title, and an optional tap-to-complete
 /// circle on the right. Tapping the body opens details.
 ///
-/// Deliberately short (~64dp) so a stack of them reads as a clean list rather
-/// than a wall of boxes.
+/// Deliberately short so a stack of them reads as a clean list rather than a
+/// wall of boxes.
 class ReminderCard extends StatelessWidget {
   const ReminderCard({
     super.key,
@@ -39,73 +40,85 @@ class ReminderCard extends StatelessWidget {
 
     return InoCard(
       radius: AppRadius.card,
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: EdgeInsets.zero,
       onTap: onTap,
-      child: Row(
-        children: [
-          // Priority accent bar.
-          Container(
-            width: 4,
-            height: 42,
-            decoration: BoxDecoration(
-              color: reminder.priority.color,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          // Category icon chip.
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: categoryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-            ),
-            child: Icon(reminder.category.icon, color: categoryColor, size: 21),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  reminder.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.subtitle.copyWith(
-                    color: palette.textPrimary,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Priority accent running down the card's left edge.
+              Container(width: 4, color: reminder.priority.color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      // Tinted category icon container.
+                      Container(
+                        width: AppSizes.iconContainerSm,
+                        height: AppSizes.iconContainerSm,
+                        decoration: BoxDecoration(
+                          color: categoryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.chip),
+                        ),
+                        child: Icon(reminder.category.icon,
+                            color: categoryColor, size: 22),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Meta line: due chip + category, above the title.
+                            Row(
+                              children: [
+                                _DueBadge(
+                                    label: reminder.localizedDueLabel(
+                                        today, l10n),
+                                    color: urgency),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    reminder.category.localizedLabel(l10n),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.label.copyWith(
+                                        color: palette.textFaint,
+                                        fontSize: 11,
+                                        letterSpacing: 0.3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              reminder.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.subtitle.copyWith(
+                                color: palette.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (onComplete != null) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        _CompleteButton(color: urgency, onTap: onComplete!),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    _DueBadge(
-                        label: reminder.localizedDueLabel(today, l10n),
-                        color: urgency),
-                    const SizedBox(width: 7),
-                    Flexible(
-                      child: Text(
-                        reminder.category.localizedLabel(l10n),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.label
-                            .copyWith(color: palette.textFaint, fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (onComplete != null) ...[
-            const SizedBox(width: AppSpacing.xs),
-            _CompleteButton(color: urgency, onTap: onComplete!),
-          ],
-        ],
+        ),
       ),
     );
   }

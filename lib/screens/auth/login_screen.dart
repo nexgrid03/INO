@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../main.dart';
 import '../../services/auth_service.dart';
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
@@ -210,154 +211,155 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     final busy = _busy || _googleBusy;
     return AuthScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 24),
+          // --- Brand identity header (Stitch hero treatment) ---------------
+          const SizedBox(height: 36),
           FadeSlideIn(child: Center(child: InoLogo(size: 72))),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
-            child: const Text(
-              'Welcome Back',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
+            child: ShaderMask(
+              shaderCallback: (bounds) =>
+                  AppGradients.primary.createShader(bounds),
+              blendMode: BlendMode.srcIn,
+              child: Text(
+                'Welcome Back',
+                textAlign: TextAlign.center,
+                style: AppText.display.copyWith(color: Colors.white),
               ),
             ),
           ),
           const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
-            child: const Text(
+            child: Text(
               'Sign in to continue using INO',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14.5, color: AppColors.textMuted),
+              style: TextStyle(fontSize: 14.5, color: palette.textSecondary),
             ),
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 30),
 
-          Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              children: [
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 160),
-                  child: AuthTextField(
-                    controller: _identifierController,
-                    label: 'Email or mobile number',
-                    hint: 'you@example.com',
-                    icon: Icons.alternate_email_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autofillHints: const [AutofillHints.username],
-                    validator: AuthValidators.emailOrPhone,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 210),
-                  child: AuthTextField(
-                    controller: _passwordController,
-                    label: 'Password',
-                    hint: '••••••••',
-                    icon: Icons.lock_outline_rounded,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.password],
-                    validator: AuthValidators.password,
-                    onSubmitted: (_) => _signIn(),
-                    suffix: _VisibilityToggle(
-                      obscured: _obscurePassword,
-                      onTap: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
+          // --- Glass form card: fields, remember/forgot, CTA and the
+          // federated options all live on one floating surface. -------------
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 160),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+              decoration: BoxDecoration(
+                color: palette.surface
+                    .withValues(alpha: palette.isDark ? 0.55 : 0.75),
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(color: palette.border),
+                boxShadow: palette.cardShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Form(
+                    key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: Column(
+                      children: [
+                        AuthTextField(
+                          controller: _identifierController,
+                          label: 'Email or mobile number',
+                          hint: 'you@example.com',
+                          icon: Icons.alternate_email_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.username],
+                          validator: AuthValidators.emailOrPhone,
+                        ),
+                        const SizedBox(height: 16),
+                        AuthTextField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          hint: '••••••••',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          validator: AuthValidators.password,
+                          onSubmitted: (_) => _signIn(),
+                          suffix: _VisibilityToggle(
+                            obscured: _obscurePassword,
+                            onTap: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
+                  const SizedBox(height: 6),
 
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 250),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _RememberMe(
-                  value: _rememberMe,
-                  onChanged: (v) => setState(() => _rememberMe = v),
-                ),
-                TextButton(
-                  onPressed: busy ? null : _goToForgotPassword,
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      color: AppColors.primaryGreen,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _RememberMe(
+                        value: _rememberMe,
+                        onChanged: (v) => setState(() => _rememberMe = v),
+                      ),
+                      TextButton(
+                        onPressed: busy ? null : _goToForgotPassword,
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
+                  const SizedBox(height: 14),
 
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 300),
-            child: AuthPrimaryButton(
-              label: 'Sign In',
-              busy: _busy,
-              onPressed: busy ? null : _signIn,
+                  AuthPrimaryButton(
+                    label: 'Sign In',
+                    busy: _busy,
+                    onPressed: busy ? null : _signIn,
+                  ),
+                  const SizedBox(height: 22),
+
+                  const _OrDivider(),
+                  const SizedBox(height: 18),
+
+                  SocialAuthButton(
+                    label: 'Continue with Google',
+                    brand: const GoogleGlyph(),
+                    busy: _googleBusy,
+                    onPressed: busy ? null : _continueWithGoogle,
+                  ),
+                  const SizedBox(height: 12),
+                  SocialAuthButton(
+                    label: 'Continue with Phone Number',
+                    brand: const Icon(Icons.smartphone_rounded,
+                        color: AppColors.primaryGreen, size: 20),
+                    onPressed: busy ? null : _continueWithPhone,
+                  ),
+                  if (_showApple) ...[
+                    const SizedBox(height: 12),
+                    SocialAuthButton(
+                      label: 'Continue with Apple',
+                      brand: Icon(Icons.apple,
+                          color: palette.textPrimary, size: 20),
+                      onPressed: busy ? null : _continueWithApple,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 26),
 
+          // --- Footer switch to Signup -------------------------------------
           FadeSlideIn(
-            delay: const Duration(milliseconds: 340),
-            child: const _OrDivider(),
-          ),
-          const SizedBox(height: 22),
-
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 380),
-            child: SocialAuthButton(
-              label: 'Continue with Google',
-              brand: const GoogleGlyph(),
-              busy: _googleBusy,
-              onPressed: busy ? null : _continueWithGoogle,
-            ),
-          ),
-          const SizedBox(height: 12),
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 410),
-            child: SocialAuthButton(
-              label: 'Continue with Phone Number',
-              brand: const Icon(Icons.smartphone_rounded,
-                  color: AppColors.primaryGreen, size: 20),
-              onPressed: busy ? null : _continueWithPhone,
-            ),
-          ),
-          if (_showApple) ...[
-            const SizedBox(height: 12),
-            FadeSlideIn(
-              delay: const Duration(milliseconds: 420),
-              child: SocialAuthButton(
-                label: 'Continue with Apple',
-                brand: const Icon(Icons.apple, color: Colors.black, size: 20),
-                onPressed: busy ? null : _continueWithApple,
-              ),
-            ),
-          ],
-          const SizedBox(height: 30),
-
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 460),
+            delay: const Duration(milliseconds: 320),
             child: _AuthSwitchRow(
               prompt: "Don't have an account?",
               action: 'Create Account',

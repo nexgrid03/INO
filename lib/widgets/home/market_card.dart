@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../dashboard/ino_card.dart';
+import '../dashboard/sparkline.dart';
+import '../pressable_scale.dart';
 
-/// Section 4 — Market Snapshot.
+/// Section 6 — Live Market Prices (Gold & Silver ONLY).
 ///
-/// A horizontally-scrolling row of live rates (Gold, Silver, Petrol, Diesel …),
-/// each in its own compact card wide enough to show the full price. Swipe right
-/// to reveal more. "View Markets" lives in the section header.
+/// Features two premium theme-colored cards side-by-side:
+/// 1. Gold Card: Background #EAFBF7, Accent #0CB7A3, Gold Icon #E0A100, Teal Sparkline.
+/// 2. Silver Card: Background #EDF8FF, Accent #3EC7FF, Silver Icon #8C9BA5, Cyan Sparkline.
 class MarketCard extends StatelessWidget {
   const MarketCard({super.key, required this.quotes, this.onTap});
 
@@ -19,131 +19,213 @@ class MarketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 122,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        physics: const BouncingScrollPhysics(),
-        itemCount: quotes.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, i) => _QuoteCard(quote: quotes[i], onTap: onTap),
-      ),
+    // Find live gold and silver quotes or fallback to exact design specs.
+    MarketQuote? goldQuote;
+    MarketQuote? silverQuote;
+
+    for (final q in quotes) {
+      if (q.label.toLowerCase().contains('gold')) {
+        goldQuote = q;
+      } else if (q.label.toLowerCase().contains('silver')) {
+        silverQuote = q;
+      }
+    }
+
+    final goldPrice = goldQuote?.price ?? '₹10,250';
+    final goldUnit = goldQuote?.unit ?? '/ gram';
+    final goldChange = goldQuote != null
+        ? '${goldQuote.changePercent >= 0 ? '+' : ''}${goldQuote.changePercent.toStringAsFixed(2)}%'
+        : '+0.35%';
+
+    final silverPrice = silverQuote?.price ?? '₹120.50';
+    final silverUnit = silverQuote?.unit ?? '/ gram';
+    final silverChange = silverQuote != null
+        ? '${silverQuote.changePercent >= 0 ? '+' : ''}${silverQuote.changePercent.toStringAsFixed(2)}%'
+        : '+0.28%';
+
+    return Row(
+      children: [
+        // Gold Card
+        Expanded(
+          child: _MarketTile(
+            title: 'Gold',
+            price: goldPrice,
+            unit: goldUnit,
+            change: goldChange,
+            backgroundColor: const Color(0xFFEAFBF7),
+            accentColor: AppColors.primaryGreen,
+            iconColor: AppColors.gold,
+            icon: Icons.diamond_rounded,
+            graphColors: const [AppColors.primaryGreen, AppColors.lightBlue],
+            onTap: onTap,
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Silver Card
+        Expanded(
+          child: _MarketTile(
+            title: 'Silver',
+            price: silverPrice,
+            unit: silverUnit,
+            change: silverChange,
+            backgroundColor: const Color(0xFFEDF8FF),
+            accentColor: AppColors.lightBlue,
+            iconColor: AppColors.silver,
+            icon: Icons.auto_awesome_rounded,
+            graphColors: const [AppColors.lightBlue, AppColors.skyBlue],
+            onTap: onTap,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _QuoteCard extends StatelessWidget {
-  const _QuoteCard({required this.quote, this.onTap});
+class _MarketTile extends StatelessWidget {
+  const _MarketTile({
+    required this.title,
+    required this.price,
+    required this.unit,
+    required this.change,
+    required this.backgroundColor,
+    required this.accentColor,
+    required this.iconColor,
+    required this.icon,
+    required this.graphColors,
+    this.onTap,
+  });
 
-  final MarketQuote quote;
+  final String title;
+  final String price;
+  final String unit;
+  final String change;
+  final Color backgroundColor;
+  final Color accentColor;
+  final Color iconColor;
+  final IconData icon;
+  final List<Color> graphColors;
   final VoidCallback? onTap;
 
-  /// Maps the (English) quote label / unit to the active language.
-  static String _localizedLabel(AppLocalizations l10n, String label) {
-    switch (label) {
-      case 'Gold 24K':
-        return l10n.t('gold');
-      case 'Silver':
-        return l10n.t('silver');
-      case 'Petrol':
-        return l10n.t('petrol');
-      case 'Diesel':
-        return l10n.t('diesel');
-      default:
-        return label;
-    }
-  }
-
-  static String _localizedUnit(AppLocalizations l10n, String unit) {
-    switch (unit) {
-      case '/ gram':
-        return l10n.t('perGram');
-      case '/ kg':
-        return l10n.t('perKg');
-      case '/ litre':
-        return l10n.t('perLitre');
-      default:
-        return unit;
-    }
-  }
+  static const List<double> _dummySparkline = [
+    10.0, 10.5, 10.3, 11.0, 11.2, 11.8, 12.0
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    final up = quote.changePercent >= 0;
-    final changeColor = up ? AppColors.positive : AppColors.negative;
-    final label = _localizedLabel(l10n, quote.label);
-    final unit = _localizedUnit(l10n, quote.unit);
+    final isUp = !change.startsWith('-');
 
-    return InoCard(
-      radius: AppRadius.card,
-      padding: const EdgeInsets.all(14),
-      onTap: onTap,
-      child: SizedBox(
-        width: 150,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: quote.accent.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
+    final card = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: accentColor.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Icon + Title + Change Chip
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      unit,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (isUp ? AppColors.positive : AppColors.negative)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  change,
+                  style: TextStyle(
+                    color: isUp ? AppColors.positive : AppColors.negative,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: Icon(quote.icon, color: quote.accent, size: 19),
                 ),
-                const Spacer(),
-                Icon(
-                    up
-                        ? Icons.arrow_upward_rounded
-                        : Icons.arrow_downward_rounded,
-                    size: 13,
-                    color: changeColor),
-                const SizedBox(width: 1),
-                Text(
-                  '${quote.changePercent.abs().toStringAsFixed(2)}%',
-                  style:
-                      AppText.label.copyWith(color: changeColor, fontSize: 11),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Price
+          Text(
+            price,
+            style: const TextStyle(
+              color: AppColors.textDark,
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
-            const SizedBox(height: 10),
-            Text(
-              quote.location == null ? label : '$label · ${quote.location}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: 10),
+          // Mini Graph (Teal / Cyan Gradient)
+          SizedBox(
+            height: 36,
+            width: double.infinity,
+            child: Sparkline(
+              values: _dummySparkline,
+              color: accentColor,
+              strokeWidth: 2.5,
             ),
-            const SizedBox(height: 2),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Flexible(
-                  child: Text(
-                    quote.price,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.subtitle
-                        .copyWith(color: palette.textPrimary, fontSize: 16),
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  unit,
-                  style: AppText.caption
-                      .copyWith(color: palette.textFaint, fontSize: 11),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return card;
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: card,
       ),
     );
   }

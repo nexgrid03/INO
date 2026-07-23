@@ -151,7 +151,7 @@ extension ReminderCategoryX on ReminderCategory {
       case ReminderCategory.property:
         return const Color(0xFF8B6CEF);
       case ReminderCategory.investments:
-        return const Color(0xFF2BB6A3);
+        return const Color(0xFF14B8A6);
       case ReminderCategory.birthdays:
         return const Color(0xFFF5704A);
       case ReminderCategory.anniversaries:

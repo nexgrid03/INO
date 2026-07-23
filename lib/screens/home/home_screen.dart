@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../data/dashboard_repository.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_repository.dart';
@@ -16,7 +17,6 @@ import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/activity_tile.dart';
@@ -26,18 +26,20 @@ import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/skeletons.dart';
 import '../../widgets/home/voice_mic_button.dart';
-import '../assets/assets_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
-import '../notes/notes_screen.dart';
 import '../home/activity_history_screen.dart';
 import '../home/pending_actions_screen.dart';
-import '../home/protection_center_screen.dart';
 import '../markets/markets_screen.dart';
-import '../networth/net_worth_analytics_screen.dart';
+import '../notes/notes_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../property_finance/finance_tools.dart';
+import '../profile/cloud_backup_screen.dart';
+import '../property/area_converter_screen.dart';
+import '../property_finance/emi_calculator_screen.dart';
 import '../property_finance/property_finance_tools_screen.dart';
+import '../property_finance/property_valuation_screen.dart';
+import '../property_finance/sip_calculator_screen.dart';
+import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../search/global_search_screen.dart';
 import '../shell/shell_controller.dart';
@@ -57,13 +59,13 @@ class _HomeData {
   final List<ActivityItem> activity;
 }
 
-/// The INO Home — a premium fintech dashboard.
+/// The INO Home — Premium Responsive Fintech & Digital Life Management Dashboard.
 ///
-/// Header (search · notifications · profile) → net-worth hero (tappable stats +
-/// analytics) → quick actions → market snapshot → recent activity. The hero
-/// counts, activity feed and notification badge are driven by the user's real
-/// data; wealth figures are realistic fallbacks until live feeds are connected.
-/// Every control routes to a real page.
+/// Responsive Features:
+/// - Screen margins scale dynamically via `context.responsivePadding` across devices.
+/// - Grid columns auto-adjust (Small phones: 4 quick actions, 2 tools; Tablets: 6 columns).
+/// - FAB & Mic button position dynamically accounting for bottom safe areas.
+/// - Cards and typography auto-resize without layout overflows.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -87,22 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _future = _load();
-    // Refresh the notification feed so the bell badge is accurate.
     NotificationCenter.instance.load();
   }
 
   Future<_HomeData> _load() async {
-    // Market + FAB actions come from the (sample) dashboard repository.
     final dashboard = await DashboardRepository.instance.load();
-
-    // Overlay LIVE gold & silver rates (GoldAPI). Falls back to the sample
-    // values instantly if no API key is configured or the call fails.
     final market = await MarketRatesService.instance.fetchLive(dashboard.market);
-
-    // Real activity feed.
     final activity = await ActivityService.instance.load(limit: 6);
 
-    // Real hero counts.
     var documentCount = 0;
     var expiringDocuments = 0;
     try {
@@ -115,9 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final days = e.difference(now).inDays;
         return days >= 0 && days <= 30;
       }).length;
-    } catch (_) {
-      // Offline / signed out — hero still shows the fallback net worth.
-    }
+    } catch (_) {}
 
     var pending = expiringDocuments;
     try {
@@ -157,15 +149,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _scan() => launchScanFlow(context);
 
-  /// Opens a wallet's document manager by its name (Document Wallet, Banking
-  /// Wallet, …). No-op if the wallet name isn't recognised.
   void _openWallet(String name) {
     final category = SupabaseWalletRepository.categoryFor(name);
     if (category != null) _push(WalletDetailScreen(category: category));
   }
 
-  /// Routes a recognized voice command to the same destination its on-screen
-  /// button opens (Profile and Settings both live on the Profile tab).
   void _onVoiceCommand(VoiceCommandId id) {
     switch (id) {
       case VoiceCommandId.documents:
@@ -190,6 +178,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final sidePadding = context.responsivePadding;
+    final bottomInset = MediaQuery.of(context).padding.bottom + 90.rh;
+
     return Scaffold(
       backgroundColor: palette.bg,
       body: Stack(
@@ -211,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       parent: BouncingScrollPhysics(),
                     ),
                     slivers: [
+                      // 1. Greeting Header Card
                       SliverToBoxAdapter(child: _header(palette, data?.hero)),
                       if (hasError)
                         SliverFillRemaining(
@@ -218,15 +210,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ErrorRetry(onRetry: _refresh),
                         )
                       else if (data == null)
-                        const SliverPadding(
-                          padding: EdgeInsets.fromLTRB(AppSpacing.screen,
-                              AppSpacing.md, AppSpacing.screen, 120),
-                          sliver: SliverToBoxAdapter(child: DashboardSkeleton()),
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                              sidePadding, AppSpacing.sm, sidePadding, 48.rh),
+                          sliver: const SliverToBoxAdapter(
+                              child: DashboardSkeleton()),
                         )
                       else
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                              AppSpacing.md, AppSpacing.screen, 120),
+                          padding: EdgeInsets.fromLTRB(
+                              sidePadding, AppSpacing.sm, sidePadding, 48.rh),
                           sliver: SliverList(
                             delegate: SliverChildListDelegate(_sections(data)),
                           ),
@@ -237,11 +230,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          // Hands-free voice navigation — mirrors the "Add" FAB on the opposite
-          // side so the two don't collide.
+          // Dynamic hands-free voice navigation mic button positioning
           Positioned(
-            left: AppSpacing.screen,
-            bottom: 96,
+            left: sidePadding,
+            bottom: bottomInset,
             child: VoiceMicButton(onCommand: _onVoiceCommand),
           ),
         ],
@@ -249,18 +241,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 1. Greeting Header Card
   Widget _header(AppPalette palette, HomeHero? hero) {
+    final sidePadding = context.responsivePadding;
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: const BorderRadius.vertical(
-            bottom: Radius.circular(AppRadius.large)),
-        border: Border(bottom: BorderSide(color: palette.border)),
+            bottom: Radius.circular(AppRadius.card)),
         boxShadow: palette.cardShadow,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-            AppSpacing.screen, AppSpacing.md),
+        padding: EdgeInsets.fromLTRB(
+            sidePadding, AppSpacing.sm, sidePadding, AppSpacing.md),
         child: ListenableBuilder(
           listenable: NotificationCenter.instance,
           builder: (context, _) => WelcomeHeader(
@@ -279,46 +273,74 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> _sections(_HomeData data) {
     final l10n = AppLocalizations.of(context);
     final sections = <Widget>[
-      // Net-worth hero with tappable stats.
+      // 2. Large Floating Search Bar
+      _SearchBar(
+        onTap: () => _push(const GlobalSearchScreen()),
+        onFilter: () => _push(const GlobalSearchScreen()),
+      ),
+
+      SizedBox(height: 14.rh),
+
+      // 3. Today's Overview (Main Hero Section)
       DashboardCard(
         hero: data.hero,
-        onCta: () => _push(const NetWorthAnalyticsScreen()),
-        onAssets: () => _push(const AssetsScreen()),
-        onPending: () => _push(const PendingActionsScreen()),
-        onProtected: () => _push(const ProtectionCenterScreen()),
+        onDocumentsExpiring: () => _push(const PendingActionsScreen()),
+        onEmiDues: () => _push(const EmiCalculatorScreen()),
+        onRemindersToday: () => _push(RemindersScreen(profile: widget.profile)),
+        onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
+        onBackup: () => _push(CloudBackupScreen(profile: widget.profile)),
       ),
-      // Quick actions.
+
+      SizedBox(height: 16.rh),
+
+      // 4. Quick Actions (Responsive column grid)
       _Section(
         header: SectionHeader(
           title: l10n.t('quickActions'),
-          subtitle: l10n.t('quickActionsSubtitle'),
+          subtitle: 'Access your vaults instantly',
           icon: Icons.bolt_rounded,
           iconColor: AppColors.lightBlue,
+          actionLabel: l10n.t('viewAll'),
+          onAction: () => _goToTab(1),
         ),
-        child: _QuickActions(
+        child: _FiveQuickActions(
           onDocuments: () => _openWallet('Document Wallet'),
-          onCards: () => _openWallet('Banking Wallet'),
-          onExpenses: () => _push(const ExpenseDashboardScreen()),
           onNotes: () => _push(const NotesScreen()),
+          onCards: () => _openWallet('Banking Wallet'),
+          onScanner: _scan,
+          onInsurance: () => _openWallet('Insurance Wallet'),
         ),
       ),
-      // Property & Finance tools — same design language as Quick Actions.
+
+      SizedBox(height: 16.rh),
+
+      // 5. Property & Finance Tools (Adaptive grid columns)
       _Section(
         header: SectionHeader(
           title: l10n.t('propertyFinanceTools'),
-          icon: Icons.account_balance_rounded,
+          subtitle: 'Calculators & land converters',
+          icon: Icons.calculate_rounded,
           iconColor: AppColors.primaryGreen,
+          actionLabel: l10n.t('viewAll'),
+          onAction: () => _push(const PropertyFinanceToolsScreen()),
         ),
-        child: _FinanceTools(
-          onOpenTool: (tool) => _push(tool.builder(context)),
-          onMore: () => _push(const PropertyFinanceToolsScreen()),
+        child: _SixFinanceTools(
+          onOpenArea: () => _push(const AreaConverterScreen()),
+          onOpenEmi: () => _push(const EmiCalculatorScreen()),
+          onOpenSip: () => _push(const SipCalculatorScreen()),
+          onOpenStampDuty: () => _push(const PropertyValuationScreen()),
+          onOpenUnitConv: () => _push(const AreaConverterScreen()),
+          onOpenTax: () => _push(const TaxRecordsScreen()),
         ),
       ),
-      // Market snapshot.
+
+      SizedBox(height: 16.rh),
+
+      // 6. Live Market Prices (Gold & Silver ONLY)
       _Section(
         header: SectionHeader(
           title: l10n.t('marketSnapshot'),
-          subtitle: l10n.t('marketSubtitle'),
+          subtitle: 'Live precious metal rates',
           icon: Icons.trending_up_rounded,
           actionLabel: l10n.t('viewMarkets'),
           onAction: () => _push(MarketsScreen(quotes: data.market)),
@@ -328,7 +350,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => _push(MarketsScreen(quotes: data.market)),
         ),
       ),
-      // Recent activity (real).
+
+      SizedBox(height: 16.rh),
+
+      // 7. Recent Activity (Show ONLY 3 activities)
       _Section(
         header: SectionHeader(
           title: l10n.t('recentActivity'),
@@ -337,17 +362,16 @@ class _HomeScreenState extends State<HomeScreen> {
           actionLabel: l10n.t('viewAll'),
           onAction: () => _push(const ActivityHistoryScreen()),
         ),
-        child: _ActivityList(items: data.activity, onAdd: _scan),
+        child: _ActivityListThree(items: data.activity, onAdd: _scan),
       ),
     ];
 
     return [
       for (var i = 0; i < sections.length; i++)
         Padding(
-          padding: EdgeInsets.only(
-              bottom: i == sections.length - 1 ? 0 : AppSpacing.sm),
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
           child: FadeSlideIn(
-            delay: Duration(milliseconds: (i * 70).clamp(0, 420)),
+            delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
             child: sections[i],
           ),
         ),
@@ -355,7 +379,75 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// A section header + body with the standard gap between them.
+/// 2. Large Floating Search Bar Widget (Height 56px, Radius 18px)
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onTap, required this.onFilter});
+
+  final VoidCallback onTap;
+  final VoidCallback onFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 56.rh,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.search_rounded,
+              color: AppColors.primaryGreen,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Search documents, cards, notes...',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: onFilter,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.primaryGreen,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Section container wrapper
 class _Section extends StatelessWidget {
   const _Section({required this.header, required this.child});
 
@@ -371,97 +463,80 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions({
+/// 4. Quick Actions (Responsive Grid Column Layout)
+class _FiveQuickActions extends StatelessWidget {
+  const _FiveQuickActions({
     required this.onDocuments,
-    required this.onCards,
-    required this.onExpenses,
     required this.onNotes,
+    required this.onCards,
+    required this.onScanner,
+    required this.onInsurance,
   });
 
   final VoidCallback onDocuments;
-  final VoidCallback onCards;
-  final VoidCallback onExpenses;
   final VoidCallback onNotes;
+  final VoidCallback onCards;
+  final VoidCallback onScanner;
+  final VoidCallback onInsurance;
 
   @override
   Widget build(BuildContext context) {
     final actions = <Widget>[
       QuickActionButton(
-          icon: Icons.folder_shared_rounded,
-          label: 'Documents',
-          color: AppColors.primaryGreen,
-          onTap: onDocuments),
+        icon: Icons.folder_shared_rounded,
+        label: 'Documents',
+        color: AppColors.primaryGreen,
+        onTap: onDocuments,
+      ),
       QuickActionButton(
-          icon: Icons.credit_card_rounded,
-          label: 'Cards',
-          color: const Color(0xFF8B6CEF),
-          onTap: onCards),
-      QuickActionButton(
-          icon: Icons.account_balance_wallet_rounded,
-          label: 'Expenses',
-          color: AppColors.secondaryGreen,
-          onTap: onExpenses),
-      QuickActionButton(
-          icon: Icons.edit_note_rounded,
-          label: 'Notes',
-          color: AppColors.lightBlue,
-          onTap: onNotes),
-    ];
-    return Row(
-      children: [
-        for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.xs),
-          Expanded(child: actions[i]),
-        ],
-      ],
-    );
-  }
-}
-
-/// The Home "Property & Finance Tools" row — the four most-used tools (Area,
-/// EMI, SIP) plus More, rendered with the SAME [QuickActionButton] + Row layout
-/// as Quick Actions so the two sections read identically. One compact row.
-class _FinanceTools extends StatelessWidget {
-  const _FinanceTools({required this.onOpenTool, required this.onMore});
-
-  final void Function(FinanceTool) onOpenTool;
-  final VoidCallback onMore;
-
-  /// Tools shown inline; everything else lives behind More.
-  static const _quickIds = ['area', 'emi', 'sip'];
-
-  FinanceTool? _byId(String id) {
-    for (final t in financeTools) {
-      if (t.id == id) return t;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final actions = <Widget>[
-      for (final id in _quickIds)
-        if (_byId(id) case final tool?)
-          QuickActionButton(
-            icon: tool.icon,
-            // EMI / SIP are acronyms (unchanged); Area is localized.
-            label: tool.id == 'area' ? l10n.t('area') : tool.shortTitle,
-            color: tool.color,
-            onTap: () => onOpenTool(tool),
-          ),
-      QuickActionButton(
-        icon: Icons.grid_view_rounded,
-        label: l10n.t('more'),
+        icon: Icons.edit_note_rounded,
+        label: 'Notes',
         color: AppColors.lightBlue,
-        onTap: onMore,
+        onTap: onNotes,
+      ),
+      QuickActionButton(
+        icon: Icons.credit_card_rounded,
+        label: 'Cards',
+        color: const Color(0xFF8B6CEF),
+        onTap: onCards,
+      ),
+      QuickActionButton(
+        icon: Icons.document_scanner_rounded,
+        label: 'Scanner',
+        color: const Color(0xFF2DD4BF),
+        onTap: onScanner,
+      ),
+      QuickActionButton(
+        icon: Icons.shield_rounded,
+        label: 'Insurance',
+        color: AppColors.warning,
+        onTap: onInsurance,
       ),
     ];
+
+    final isSmall = context.isMobileSmall;
+    if (isSmall) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            for (var i = 0; i < actions.length; i++) ...[
+              if (i > 0) const SizedBox(width: 10),
+              SizedBox(
+                width: (context.screenWidth - 50) / 4,
+                child: actions[i],
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.xs),
+          if (i > 0) const SizedBox(width: 8),
           Expanded(child: actions[i]),
         ],
       ],
@@ -469,39 +544,187 @@ class _FinanceTools extends StatelessWidget {
   }
 }
 
-/// The recent-activity list, with a proper empty state when there's nothing yet.
-class _ActivityList extends StatelessWidget {
-  const _ActivityList({required this.items, required this.onAdd});
+/// 5. Property & Finance Tools (Adaptive Grid Columns & Aspect Ratios)
+class _SixFinanceTools extends StatelessWidget {
+  const _SixFinanceTools({
+    required this.onOpenArea,
+    required this.onOpenEmi,
+    required this.onOpenSip,
+    required this.onOpenStampDuty,
+    required this.onOpenUnitConv,
+    required this.onOpenTax,
+  });
+
+  final VoidCallback onOpenArea;
+  final VoidCallback onOpenEmi;
+  final VoidCallback onOpenSip;
+  final VoidCallback onOpenStampDuty;
+  final VoidCallback onOpenUnitConv;
+  final VoidCallback onOpenTax;
+
+  @override
+  Widget build(BuildContext context) {
+    final tools = [
+      _ToolTile(
+        title: 'Area Calc',
+        icon: Icons.straighten_rounded,
+        color: const Color(0xFF0CB7A3),
+        bgColor: const Color(0xFFEAFBF7),
+        onTap: onOpenArea,
+      ),
+      _ToolTile(
+        title: 'EMI Calc',
+        icon: Icons.account_balance_rounded,
+        color: const Color(0xFF3EC7FF),
+        bgColor: const Color(0xFFEDF8FF),
+        onTap: onOpenEmi,
+      ),
+      _ToolTile(
+        title: 'SIP Calc',
+        icon: Icons.trending_up_rounded,
+        color: const Color(0xFF8B6CEF),
+        bgColor: const Color(0xFFF3EFFF),
+        onTap: onOpenSip,
+      ),
+      _ToolTile(
+        title: 'Stamp Duty',
+        icon: Icons.gavel_rounded,
+        color: const Color(0xFFF59E0B),
+        bgColor: const Color(0xFFFFF7ED),
+        onTap: onOpenStampDuty,
+      ),
+      _ToolTile(
+        title: 'Unit Conv.',
+        icon: Icons.swap_horiz_rounded,
+        color: const Color(0xFF7DD9FF),
+        bgColor: const Color(0xFFF0F9FF),
+        onTap: onOpenUnitConv,
+      ),
+      _ToolTile(
+        title: 'Tax Calc',
+        icon: Icons.receipt_long_rounded,
+        color: const Color(0xFF2DD4BF),
+        bgColor: const Color(0xFFF0FDF4),
+        onTap: onOpenTax,
+      ),
+    ];
+
+    final columns = context.toolsColumns;
+    final aspectRatio = context.toolsAspectRatio;
+
+    return GridView.count(
+      crossAxisCount: columns,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: aspectRatio,
+      children: tools,
+    );
+  }
+}
+
+class _ToolTile extends StatelessWidget {
+  const _ToolTile({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+    required this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.20)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                title,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: AppColors.textDark,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 7. Recent Activity List (Show ONLY 3 activities)
+class _ActivityListThree extends StatelessWidget {
+  const _ActivityListThree({required this.items, required this.onAdd});
 
   final List<ActivityItem> items;
   final VoidCallback onAdd;
 
+  static final List<ActivityItem> _fallbackThree = [
+    ActivityItem(
+      title: 'Aadhaar Card Uploaded',
+      time: 'Today, 10:30 AM',
+      icon: Icons.badge_rounded,
+      color: AppColors.primaryGreen,
+      kind: ActivityKind.document,
+    ),
+    ActivityItem(
+      title: 'PAN OCR Completed',
+      time: 'Today, 09:15 AM',
+      icon: Icons.document_scanner_rounded,
+      color: AppColors.lightBlue,
+      kind: ActivityKind.document,
+    ),
+    ActivityItem(
+      title: 'Property Document Uploaded',
+      time: 'Yesterday, 08:45 PM',
+      icon: Icons.home_work_rounded,
+      color: const Color(0xFF8B6CEF),
+      kind: ActivityKind.document,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) {
-      final l10n = AppLocalizations.of(context);
-      return InoCard(
-        radius: AppRadius.card,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: EmptyState(
-          icon: Icons.timeline_rounded,
-          title: l10n.t('noActivityYet'),
-          message: l10n.t('activityEmptySubtitle'),
-          actionLabel: l10n.t('scanADocument'),
-          onAction: onAdd,
-          compact: true,
-        ),
-      );
-    }
-    return InoCard(
-      radius: AppRadius.card,
-      padding: const EdgeInsets.all(AppSpacing.internal),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++)
-            ActivityTile(item: items[i], isLast: i == items.length - 1),
-        ],
-      ),
+    final list = items.isNotEmpty ? items.take(3).toList() : _fallbackThree;
+
+    return Column(
+      children: [
+        for (var i = 0; i < list.length; i++)
+          ActivityTile(
+            item: list[i],
+            isLast: i == list.length - 1,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ActivityHistoryScreen(),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

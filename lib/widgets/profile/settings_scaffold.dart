@@ -58,7 +58,7 @@ class SettingsCard extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.button),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: palette.border),
         boxShadow: palette.cardShadow,
       ),

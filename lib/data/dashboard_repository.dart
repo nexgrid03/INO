@@ -83,7 +83,7 @@ class SampleDashboardRepository implements DashboardRepository {
         changePercent: 0.82,
         spark: [70, 71, 70.5, 72, 71.6, 73, 73.4, 74.1],
         // Gold → hero gradient card (green → light blue).
-        gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
+        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
         accent: Color(0xFFE0A100), // amber
         filled: true,
       ),
@@ -95,7 +95,7 @@ class SampleDashboardRepository implements DashboardRepository {
         changePercent: -0.41,
         spark: [94, 93.6, 93.8, 93.1, 92.7, 92.9, 92.4, 92.3],
         // Silver → sky-blue glass.
-        gradient: [Color(0xFF7DD3FC), Color(0xFF38BDF8)],
+        gradient: [AppColors.skyBlue, AppColors.lightBlue],
         accent: Color(0xFF8C9BA5), // grey
       ),
       MarketQuote(
@@ -107,8 +107,8 @@ class SampleDashboardRepository implements DashboardRepository {
         location: 'Mumbai',
         spark: [105.9, 106.0, 106.1, 106.0, 106.2, 106.2, 106.3, 106.31],
         // Petrol → green accent.
-        gradient: [Color(0xFF00A86B), Color(0xFF34D399)],
-        accent: Color(0xFF00A86B),
+        gradient: [AppColors.primaryGreen, AppColors.secondaryGreen],
+        accent: AppColors.primaryGreen,
       ),
       MarketQuote(
         label: 'Diesel',
@@ -119,8 +119,8 @@ class SampleDashboardRepository implements DashboardRepository {
         location: 'Mumbai',
         spark: [94.5, 94.4, 94.4, 94.3, 94.35, 94.3, 94.28, 94.27],
         // Diesel → blue accent.
-        gradient: [Color(0xFF38BDF8), Color(0xFF7DD3FC)],
-        accent: Color(0xFF38BDF8),
+        gradient: [AppColors.lightBlue, AppColors.skyBlue],
+        accent: AppColors.lightBlue,
       ),
     ],
     lifeOverview: const [
@@ -172,7 +172,7 @@ class SampleDashboardRepository implements DashboardRepository {
         lastUpdated: 'Updated today',
         color: AppColors.primaryGreen,
         // Premium green gradient tile.
-        gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
+        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
       ),
       LifeOverviewItem(
         label: 'Investments',
@@ -237,7 +237,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Investment',
           icon: Icons.savings_rounded,
-          color: Color(0xFF2BB6A3)),
+          color: Color(0xFF14B8A6)),
       QuickAction(
           label: 'Insurance',
           icon: Icons.add_moderator_rounded,
@@ -275,7 +275,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Add Investment',
           icon: Icons.savings_rounded,
-          color: Color(0xFF2BB6A3)),
+          color: Color(0xFF14B8A6)),
       QuickAction(
           label: 'Add Property',
           icon: Icons.add_home_rounded,
@@ -296,7 +296,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 6,
         lastActivity: 'PAN added · 2h ago',
         status: 'Secured',
-        gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
+        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
       ),
       WalletSummary(
         name: 'Documents',
@@ -312,7 +312,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 5,
         lastActivity: 'Premium paid · 3d',
         status: '1 expiring',
-        gradient: [Color(0xFFF5A524), Color(0xFFF5C24A)],
+        gradient: [AppColors.warning, Color(0xFFF5C24A)],
       ),
       WalletSummary(
         name: 'Health',
@@ -336,7 +336,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 9,
         lastActivity: 'SIP · today',
         status: '+12.3%',
-        gradient: [Color(0xFF34D399), Color(0xFF7DD3FC)],
+        gradient: [AppColors.secondaryGreen, AppColors.skyBlue],
       ),
       WalletSummary(
         name: 'Banking',
@@ -344,7 +344,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 4,
         lastActivity: 'Statement · 2d',
         status: 'Synced',
-        gradient: [Color(0xFF00875A), Color(0xFF00A86B)],
+        gradient: [AppColors.darkGreen, AppColors.primaryGreen],
       ),
       WalletSummary(
         name: 'Passwords',
@@ -365,7 +365,7 @@ class SampleDashboardRepository implements DashboardRepository {
         AssetAllocation(label: 'Stocks', value: 1120000, color: Color(0xFF4FC3F7)),
         AssetAllocation(label: 'Gold', value: 760000, color: Color(0xFFE0A100)),
         AssetAllocation(label: 'Land', value: 820000, color: Color(0xFF8B6CEF)),
-        AssetAllocation(label: 'Savings', value: 310000, color: Color(0xFF2BB6A3)),
+        AssetAllocation(label: 'Savings', value: 310000, color: Color(0xFF14B8A6)),
       ],
     ),
     property: const PropertySummary(
@@ -433,7 +433,7 @@ class SampleDashboardRepository implements DashboardRepository {
           title: 'Retirement goal updated',
           icon: Icons.flag_rounded,
           time: '3 days ago',
-          color: Color(0xFF2BB6A3)),
+          color: Color(0xFF14B8A6)),
     ],
     insights: const [
       SmartInsight(
