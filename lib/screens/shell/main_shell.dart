@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import '../../data/wallet_repository.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
+import '../../services/voice_greeting_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
+import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../documents/add_document_screen.dart';
 import '../home/home_screen.dart';
@@ -50,6 +52,12 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     ShellController.tab.addListener(_onTabChanged);
+    // Smart voice greeting — spoken once per launch when the authenticated shell
+    // first appears (covers both a fresh login and opening while signed in).
+    // Deferred a beat so it doesn't compete with the first-frame work.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      VoiceGreetingService.instance.greetOnce(userName: _profile.fullName);
+    });
   }
 
   @override
@@ -164,6 +172,13 @@ class _MainShellState extends State<MainShell> {
                 ),
               ),
             ),
+          // Global hands-free voice mic — available on every tab. Tapping it
+          // opens the voice sheet; the matched destination navigates itself.
+          Positioned(
+            left: 16,
+            bottom: MediaQuery.of(context).padding.bottom + 90,
+            child: const VoiceMicButton(),
+          ),
         ],
       ),
       bottomNavigationBar: InoBottomNav(

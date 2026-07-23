@@ -7,13 +7,12 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// A floating, gradient microphone button (Home screen). Tapping it opens the
-/// voice-command sheet; when a command is recognized, [onCommand] fires with the
-/// matched destination so the host can navigate.
+/// A floating, gradient microphone button available app-wide. Tapping it opens
+/// the voice-command sheet; when a command is recognized, the matched
+/// destination navigates itself (via [VoiceCommand.navigate]) — no host wiring
+/// required, so the same button works from anywhere.
 class VoiceMicButton extends StatefulWidget {
-  const VoiceMicButton({super.key, required this.onCommand});
-
-  final void Function(VoiceCommandId id) onCommand;
+  const VoiceMicButton({super.key});
 
   @override
   State<VoiceMicButton> createState() => _VoiceMicButtonState();
@@ -22,9 +21,7 @@ class VoiceMicButton extends StatefulWidget {
 class _VoiceMicButtonState extends State<VoiceMicButton> {
   Future<void> _open() async {
     HapticFeedback.mediumImpact();
-    final id = await showVoiceCommandSheet(context);
-    if (!mounted || id == null) return;
-    widget.onCommand(id);
+    await showVoiceCommandSheet(context);
   }
 
   @override
@@ -57,10 +54,10 @@ class _VoiceMicButtonState extends State<VoiceMicButton> {
   }
 }
 
-/// Opens the voice-command bottom sheet and resolves to the matched
-/// [VoiceCommandId] (or null if the user dismissed it without a match).
-Future<VoiceCommandId?> showVoiceCommandSheet(BuildContext context) {
-  return showModalBottomSheet<VoiceCommandId>(
+/// Opens the voice-command bottom sheet. On a successful match the destination
+/// navigates itself, so callers don't need the result.
+Future<void> showVoiceCommandSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppPalette.of(context).surface,
@@ -112,9 +109,12 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
     setState(() {});
     if (_service.status == VoiceStatus.matched && !_popScheduled) {
       _popScheduled = true;
-      // Let the user see the "Opening …" confirmation briefly before we leave.
+      final matched = _service.match;
+      // Let the user see the "Opening …" confirmation briefly, then close the
+      // sheet and let the destination navigate itself (works from anywhere).
       Future.delayed(const Duration(milliseconds: 750), () {
-        if (mounted) Navigator.of(context).pop(_service.match?.id);
+        if (mounted) Navigator.of(context).pop();
+        matched?.navigate();
       });
     }
   }
@@ -217,8 +217,6 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
             accent: preview != null,
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        _ExamplesWrap(palette: palette),
       ],
     );
   }
@@ -277,13 +275,11 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         const SizedBox(height: AppSpacing.xs),
         Text(
           heard.isEmpty
-              ? 'Try one of these:'
-              : 'Heard “$heard”. Try one of these:',
+              ? 'Please try again.'
+              : 'Heard “$heard”. Please try again.',
           textAlign: TextAlign.center,
           style: AppText.body.copyWith(color: palette.textSecondary),
         ),
-        const SizedBox(height: AppSpacing.md),
-        _ExamplesWrap(palette: palette),
         const SizedBox(height: AppSpacing.lg),
         _actions(palette, primaryLabel: 'Try again', onPrimary: _retry),
       ],
@@ -498,34 +494,3 @@ class _LiveField extends StatelessWidget {
   }
 }
 
-class _ExamplesWrap extends StatelessWidget {
-  const _ExamplesWrap({required this.palette});
-
-  final AppPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final example in kVoiceCommandExamples)
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: palette.surfaceVariant,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: palette.border),
-            ),
-            child: Text(
-              example,
-              style: AppText.caption.copyWith(
-                  color: palette.textSecondary, fontWeight: FontWeight.w600),
-            ),
-          ),
-      ],
-    );
-  }
-}

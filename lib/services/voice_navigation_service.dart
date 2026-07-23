@@ -223,7 +223,7 @@ class VoiceNavigationService extends ChangeNotifier {
     final m = matchVoiceCommand(_recognized);
     _match = m;
     if (m != null) {
-      _log('Matched Route: ${m.route}  (command=${m.id.name}, '
+      _log('Matched Route: ${m.route}  (command=${m.id}, '
           'from "$_recognized")');
       _set(VoiceStatus.matched);
       _stopSpeech();

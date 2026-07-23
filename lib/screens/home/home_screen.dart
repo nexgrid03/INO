@@ -7,7 +7,6 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../models/user_profile.dart';
-import '../../models/voice_command.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/activity_service.dart';
 import '../../services/document_protection_store.dart';
@@ -25,8 +24,6 @@ import '../../widgets/home/empty_state.dart';
 import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/skeletons.dart';
-import '../../widgets/home/voice_mic_button.dart';
-import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
 import '../home/activity_history_screen.dart';
 import '../home/pending_actions_screen.dart';
@@ -154,32 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (category != null) _push(WalletDetailScreen(category: category));
   }
 
-  void _onVoiceCommand(VoiceCommandId id) {
-    switch (id) {
-      case VoiceCommandId.documents:
-        _openWallet('Document Wallet');
-      case VoiceCommandId.cards:
-        _openWallet('Banking Wallet');
-      case VoiceCommandId.expenses:
-        _push(const ExpenseDashboardScreen());
-      case VoiceCommandId.notes:
-        _push(const NotesScreen());
-      case VoiceCommandId.scanner:
-        _scan();
-      case VoiceCommandId.taxRecords:
-        _push(const TaxRecordsScreen());
-      case VoiceCommandId.profile:
-        _goToTab(4);
-      case VoiceCommandId.settings:
-        _goToTab(4);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final sidePadding = context.responsivePadding;
-    final bottomInset = MediaQuery.of(context).padding.bottom + 90.rh;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -229,12 +204,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-          ),
-          // Dynamic hands-free voice navigation mic button positioning
-          Positioned(
-            left: sidePadding,
-            bottom: bottomInset,
-            child: VoiceMicButton(onCommand: _onVoiceCommand),
           ),
         ],
       ),
