@@ -68,23 +68,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingPage(
       icon: Icons.folder_shared_rounded,
       title: 'All Your Documents,\nOne Secure Vault',
-      description:
-          'Store Aadhaar, PAN, Passport, Licence, certificates and more — '
-          'safely encrypted and always within reach.',
+      description: 'Aadhaar, PAN, Passport and more — encrypted and '
+          'always within reach.',
     ),
     _OnboardingPage(
       icon: Icons.insights_rounded,
       title: 'Track Wealth\n& Health',
-      description:
-          'Keep property, insurance, investments and medical records '
-          'organised, with your net worth at a glance.',
+      description: 'Property, investments and health records, '
+          'organised at a glance.',
     ),
     _OnboardingPage(
       icon: Icons.qr_code_2_rounded,
       title: 'Share Instantly\n& Safely',
-      description:
-          'Share documents in seconds with secure QR codes, protected by '
-          'biometric authentication.',
+      description: 'Send documents in seconds with secure QR codes, '
+          'protected by biometrics.',
     ),
   ];
 
@@ -241,10 +238,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       AppSpacing.screen, 12, AppSpacing.screen, 28),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Page indicator dots (active dot pops on change).
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(_pages.length, (index) {
                           final dot = _Dot(isActive: index == _currentPage);
                           return index == _currentPage
@@ -252,7 +249,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               : dot;
                         }),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       // Gradient CTA — one-time fade + slide-up + scale, with
                       // a press "squish" (ripple comes from its InkWell).
@@ -412,87 +409,56 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     super.dispose();
   }
 
-  /// The Stitch-style hero panel: a large rounded surface with a barely-there
-  /// teal→cyan wash, hairline border and the standard floating-card shadow.
-  /// The animated circle + floating satellite chips sit centred inside it —
-  /// the chips echo the Stitch mock's floating glass cards.
-  Widget _heroPanel(AppPalette palette) {
-    return Container(
-      width: double.infinity,
-      height: 320,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.alphaBlend(
-              AppColors.primaryGreen.withValues(alpha: 0.10),
-              palette.surface,
-            ),
-            Color.alphaBlend(
-              AppColors.lightBlue.withValues(alpha: 0.07),
-              palette.surface,
-            ),
-          ],
-        ),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
-      child: Center(
-        // The 160px SizedBox preserves the illustration's internal layout; the
-        // satellites overflow it via Clip.none inside the panel.
-        child: SizedBox(
-          width: 160,
-          height: 160,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              // Contextual chips floating around the circle.
-              FloatingSatellites(
-                index: widget.index,
-                pop: _c,
-                float: _float,
-              ),
-              // The main animated circle (unchanged).
-              FadeTransition(
-                opacity: _iconFade,
-                child: ScaleTransition(
-                  scale: _iconScale,
-                  child: AnimatedOnboardingIcon(
-                    index: widget.index,
-                    icon: widget.page.icon,
-                    glow: _glow,
-                    reveal: _reveal,
-                    folderPop: _folderPop,
-                  ),
-                ),
-              ),
-            ],
+  /// The illustration itself — the animated circle + floating satellite chips,
+  /// floating directly on the page background (no panel behind it). The 160px
+  /// box preserves the internal layout; satellites overflow via Clip.none.
+  Widget _illustration() {
+    return SizedBox(
+      width: 160,
+      height: 160,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Contextual chips floating around the circle.
+          FloatingSatellites(
+            index: widget.index,
+            pop: _c,
+            float: _float,
           ),
-        ),
+          // The main animated circle (unchanged).
+          FadeTransition(
+            opacity: _iconFade,
+            child: ScaleTransition(
+              scale: _iconScale,
+              child: AnimatedOnboardingIcon(
+                index: widget.index,
+                icon: widget.page.icon,
+                glow: _glow,
+                reveal: _reveal,
+                folderPop: _folderPop,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Small uppercase step pill above the headline — purely decorative, copied
-  /// from the Stitch onboarding language ("STEP 3 OF 4").
-  Widget _stepPill() {
+  /// A tiny step indicator that replaces the old "STEP 1 OF 3" pill — same
+  /// info, a fraction of the footprint (the progress dots carry the rest).
+  Widget _stepIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        color: AppColors.primaryGreen.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: AppColors.primaryGreen.withValues(alpha: 0.18),
-        ),
       ),
       child: Text(
-        'STEP ${widget.index + 1} OF ${widget.total}',
+        '${widget.index + 1} / ${widget.total}',
         style: AppText.label.copyWith(
           fontSize: 11,
-          letterSpacing: 1.4,
+          letterSpacing: 1.0,
           color: AppColors.primaryGreen,
         ),
       ),
@@ -505,11 +471,13 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     final title = widget.page.title;
     final int nl = title.indexOf('\n');
     final style = AppText.display.copyWith(
-      fontSize: 28,
-      height: 1.18,
+      fontSize: 27,
+      height: 1.2,
       color: palette.textPrimary,
     );
-    if (nl == -1) return Text(title, style: style);
+    if (nl == -1) {
+      return Text(title, textAlign: TextAlign.center, style: style);
+    }
     return Text.rich(
       TextSpan(
         children: [
@@ -520,6 +488,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
           ),
         ],
       ),
+      textAlign: TextAlign.center,
       style: style,
     );
   }
@@ -549,24 +518,24 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
           child: SlideTransition(
             position: _contentSlide,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Hero panel (with parallax + swipe scale on top). Flexible so
-                // it breathes on tall screens and shrinks on short ones.
+                // Illustration (with parallax + swipe scale on top), now
+                // floating on the background — no panel behind it.
                 Expanded(
                   child: Center(
                     child: Transform.translate(
                       offset: Offset(iconShift, 0),
                       child: Transform.scale(
                         scale: swipeScale,
-                        child: _heroPanel(palette),
+                        child: _illustration(),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Step pill + title.
+                // Small step indicator + centred title.
                 Transform.translate(
                   offset: Offset(textShift, 0),
                   child: SlideTransition(
@@ -574,10 +543,10 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                     child: FadeTransition(
                       opacity: _titleFade,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _stepPill(),
-                          const SizedBox(height: 14),
+                          _stepIndicator(),
+                          const SizedBox(height: 12),
                           _titleText(palette),
                         ],
                       ),
@@ -595,8 +564,9 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                       opacity: _descFade,
                       child: Text(
                         widget.page.description,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14.5,
                           color: palette.textSecondary,
                           height: 1.5,
                         ),
@@ -626,13 +596,12 @@ class _GradientNextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.pill);
     return Container(
-      height: AppSizes.button,
-      width: double.infinity,
+      height: 62,
+      width: 62,
       decoration: BoxDecoration(
         gradient: AppGradients.primary,
-        borderRadius: radius,
+        shape: BoxShape.circle,
         // Subtle glass highlight.
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
         boxShadow: [
@@ -646,16 +615,16 @@ class _GradientNextButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: radius,
+        shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: radius,
+          customBorder: const CircleBorder(),
           child: const Center(
             child: Icon(
               Icons.arrow_forward_rounded,
               color: Colors.white,
-              size: 26,
+              size: 25,
             ),
           ),
         ),

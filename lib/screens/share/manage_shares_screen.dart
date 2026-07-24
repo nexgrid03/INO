@@ -67,7 +67,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                           color: AppColors.primaryGreen,
                         ),
                       );
-                      
+                
                     }
                     final shares = snapshot.data ?? const <DocumentShare>[];
                     if (shares.isEmpty) return _EmptyState(palette: palette);
