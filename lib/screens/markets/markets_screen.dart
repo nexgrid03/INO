@@ -5,6 +5,7 @@ import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/sparkline.dart';
+import '../../widgets/markets/live_metal_rates_card.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 
 /// Markets — the full list behind the Home "Market Snapshot": gold, silver and
@@ -26,6 +27,8 @@ class MarketsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [
+          const LiveMetalRatesCard(),
+          const SizedBox(height: AppSpacing.md),
           for (final q in quotes) ...[
             _MarketRow(quote: q),
             const SizedBox(height: AppSpacing.sm),

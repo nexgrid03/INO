@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/demo_account.dart';
 import '../../main.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_dimens.dart';
@@ -43,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
   bool _busy = false;
   bool _googleBusy = false;
+  bool _guestBusy = false;
 
   @override
   void dispose() {
@@ -185,6 +187,37 @@ class _LoginScreenState extends State<LoginScreen> {
     _showMessage('Apple sign-in is coming soon.', isError: false);
   }
 
+  /// Demo-only: fill the email + password fields with the shared demo account
+  /// (typed in with a light animation) and then trigger the normal [_signIn]
+  /// flow — no auth is bypassed, this just automates the same tap a tester
+  /// would make. Guarded by [isDemoBuild] at the call site.
+  Future<void> _loginAsGuest() async {
+    if (_busy || _googleBusy || _guestBusy) return;
+    setState(() => _guestBusy = true);
+    try {
+      await _typeInto(_identifierController, demoEmail);
+      await _typeInto(_passwordController, demoPassword);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      await _signIn();
+    } finally {
+      if (mounted) setState(() => _guestBusy = false);
+    }
+  }
+
+  /// Types [text] into [controller] one character at a time for a smooth
+  /// auto-fill effect. Keeps the caret at the end so the field scrolls with it.
+  Future<void> _typeInto(TextEditingController controller, String text) async {
+    controller.clear();
+    for (var i = 0; i < text.length; i++) {
+      if (!mounted) return;
+      controller
+        ..text = text.substring(0, i + 1)
+        ..selection = TextSelection.collapsed(offset: i + 1);
+      await Future<void>.delayed(const Duration(milliseconds: 24));
+    }
+  }
+
   void _continueWithPhone() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
@@ -212,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final busy = _busy || _googleBusy;
+    final busy = _busy || _googleBusy || _guestBusy;
     return AuthScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -351,6 +384,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: busy ? null : _continueWithApple,
                     ),
                   ],
+
+                  // --- Demo-only guest login (hidden when isDemoBuild=false) --
+                  if (isDemoBuild) ...[
+                    const SizedBox(height: 12),
+                    _GuestLoginButton(
+                      busy: _guestBusy,
+                      onPressed: busy ? null : _loginAsGuest,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -368,6 +410,58 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+/// Demo-only "Login as Guest" button — an outlined, full-width control with a
+/// light Rama-blue (brand teal) border and a white surface, matching the width
+/// of the primary Sign In button above it.
+class _GuestLoginButton extends StatelessWidget {
+  const _GuestLoginButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.primaryGreen,
+          side: const BorderSide(color: AppColors.secondaryGreen, width: 1.4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
+        ),
+        child: busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: AppColors.primaryGreen,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_outline_rounded, size: 20),
+                  SizedBox(width: 10),
+                  Text(
+                    'Login as Guest',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

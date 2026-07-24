@@ -20,7 +20,7 @@ class NavItem {
 /// soft ambient glow.
 ///
 /// The bar is **icons only** — no labels. Every tab is an equal-width slot with
-/// a fixed 28px glyph that never resizes; only a soft rounded highlight and the
+/// a fixed 26px glyph that never resizes; only a soft rounded highlight and the
 /// icon colour animate (~300ms) to mark the active tab, so switching feels
 /// smooth while the icons stay perfectly steady.
 class InoBottomNav extends StatelessWidget {
@@ -54,14 +54,15 @@ class InoBottomNav extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
-              height: 66,
-              // Wider inner padding pulls the five equal slots toward the
-              // centre, so the icons sit closer to each other.
-              padding: const EdgeInsets.symmetric(horizontal: 26),
+              height: 60,
+              // A slim inner margin lets the five equal slots spread evenly
+              // across the bar rather than bunching in the centre with big
+              // empty ends.
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 // Frosted glass: a top-lit translucent gradient riding over the
                 // live backdrop blur, so the bar reads as a pane of glass rather
@@ -79,11 +80,12 @@ class InoBottomNav extends StatelessWidget {
                           Colors.white.withValues(alpha: 0.68),
                         ],
                 ),
-                borderRadius: BorderRadius.circular(30),
-                // Brand-teal glass edge (#30ACB3), matching the active icons.
+                borderRadius: BorderRadius.circular(24),
+                // Brand-teal glass edge (#30ACB3), matching the active icons —
+                // kept fine and soft so it reads as a hairline, not a frame.
                 border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.55),
-                  width: 1.5,
+                  color: AppColors.primaryGreen.withValues(alpha: 0.4),
+                  width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -139,7 +141,7 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    // Icons only — a constant 28px glyph in every state. The active tab gains a
+    // Icons only — a constant 26px glyph in every state. The active tab gains a
     // soft teal highlight pill behind the icon and switches to the primary
     // colour; nothing scales, so the icon never grows or shrinks.
     return GestureDetector(
@@ -149,18 +151,18 @@ class _NavButton extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
-          width: 54,
-          height: 46,
+          width: 46,
+          height: 40,
           decoration: BoxDecoration(
             color: selected
                 ? AppColors.primaryGreen.withValues(alpha: 0.12)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           alignment: Alignment.center,
           child: Icon(
             selected ? item.active : item.inactive,
-            size: 28,
+            size: 26,
             color: selected ? AppColors.primaryGreen : palette.textFaint,
           ),
         ),

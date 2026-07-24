@@ -59,13 +59,28 @@ class WalletGrid extends StatefulWidget {
   static const double _gap = 12;
   static const double _cardHeight = 122;
 
-  /// One uniform light accent for every card (the Property Wallet's colour) —
-  /// so all cards share a single, cohesive light teal wash.
+  /// Fallback accent for any wallet not in [_accents].
   static const Color uniformAccent = Color(0xFF5FCBBF);
 
-  /// The component icon colour — a bright blue that reads crisply on the white
-  /// chip and complements the light-teal cards.
-  static const Color iconColor = Color(0xFF4383EA);
+  /// Each wallet wears its own light pastel accent. The accent drives the whole
+  /// card — the soft fill wash, the border, the drifting blob and the icon —
+  /// so a single colour per wallet keeps everything cohesive.
+  ///
+  /// Investment Wallet deliberately uses the Home page's "Reminders Today"
+  /// coral (0xFFF5704A) — no pink.
+  static const Map<String, Color> _accents = {
+    'Identity Wallet': Color(0xFF2FB6A6), // teal
+    'Document Wallet': Color(0xFF4383EA), // blue
+    'Property Wallet': Color(0xFF9B6DE0), // purple (swapped with Health)
+    'Insurance Wallet': Color(0xFFF5704A), // coral (swapped with Investment)
+    'Health Wallet': Color(0xFF3CB59E), // teal-green (swapped with Property)
+    'Investment Wallet': Color(0xFF37C08A), // green (swapped with Insurance)
+    'Banking Wallet': Color(0xFF4E7FE0), // blue
+    'Password Vault': Color(0xFFF2B33D), // amber
+  };
+
+  /// The pastel accent for a given wallet name (falls back to [uniformAccent]).
+  static Color accentFor(String name) => _accents[name] ?? uniformAccent;
 
   @override
   State<WalletGrid> createState() => _WalletGridState();
@@ -106,7 +121,7 @@ class _WalletGridState extends State<WalletGrid>
                   offset: 14,
                   child: _WalletCard(
                     category: widget.categories[i],
-                    accent: WalletGrid.uniformAccent,
+                    accent: WalletGrid.accentFor(widget.categories[i].name),
                     drift: _drift,
                     phase: i * 0.8,
                     onTap: () => widget.onOpen?.call(widget.categories[i]),
@@ -234,14 +249,14 @@ class _WalletCard extends StatelessWidget {
                             ),
                             child: Icon(
                               category.icon,
-                              color: WalletGrid.iconColor,
+                              color: accent,
                               size: 20,
                             ),
                           ),
                           const Spacer(),
                           Icon(
                             Icons.arrow_outward_rounded,
-                            color: WalletGrid.iconColor.withValues(alpha: 0.6),
+                            color: accent.withValues(alpha: 0.6),
                             size: 18,
                           ),
                         ],
