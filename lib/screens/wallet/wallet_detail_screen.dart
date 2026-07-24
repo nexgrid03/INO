@@ -27,6 +27,8 @@ import '../../widgets/wallet_detail/smart_banner.dart';
 import '../../widgets/wallet_detail/wallet_header.dart';
 import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
+import '../expenses/add_expense_screen.dart';
+import '../notes/notes_screen.dart';
 import '../property/area_converter_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../share/manage_shares_screen.dart';
@@ -571,6 +573,23 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
+  /// The centre "+" quick-action menu — Expenses / Scan / Notes. Scanning stays
+  /// scoped to this wallet; the other two open their own screens.
+  void _onScanAction(ScanAction action) {
+    switch (action) {
+      case ScanAction.expenses:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+        );
+      case ScanAction.scan:
+        launchScanFlow(context, initialWallet: widget.category.name);
+      case ScanAction.notes:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const NotesScreen()),
+        );
+    }
+  }
+
   // ---- Build ---------------------------------------------------------------
 
   @override
@@ -653,7 +672,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             ),
           ),
         ),
-        bottomNavigationBar: InoBottomNav(index: 1, onSelect: _onNavTab),
+        bottomNavigationBar: InoBottomNav(
+          index: 1,
+          onSelect: _onNavTab,
+          onScanAction: _onScanAction,
+        ),
       ),
     );
   }
