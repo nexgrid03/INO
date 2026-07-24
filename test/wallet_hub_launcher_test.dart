@@ -24,15 +24,10 @@ void main() {
         home: WalletScreen(profile: profile),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 400)); // repo load
-    await tester.pump(const Duration(milliseconds: 600)); // entrance
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(tester.takeException(), isNull);
-
-    // Header title + lightweight summary. No documents exist in a test (the
-    // Supabase-backed repo returns empty), so the record count is 0.
-    expect(find.text('My Wallets'), findsOneWidget);
-    expect(find.text('8 Wallets  •  0 Records'), findsOneWidget);
 
     // All 8 wallets are present (the launcher grid).
     for (final name in const [

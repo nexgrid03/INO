@@ -45,9 +45,9 @@ void main() {
 
     // The focused sections on redesigned Home.
     expect(find.text("Today's Overview"), findsOneWidget);
-    expect(find.text('Market Snapshot'), findsOneWidget);
     expect(find.text('Quick Actions'), findsOneWidget);
-    expect(find.text('Recent Activity'), findsOneWidget);
+    expect(find.text('Property & Finance Tools'), findsOneWidget);
+    expect(find.text('Market Snapshot'), findsOneWidget);
 
     // Today's Overview summary cards.
     for (final m in const [
@@ -59,8 +59,8 @@ void main() {
       expect(find.text(m), findsOneWidget);
     }
 
-    // The 5 Quick Actions.
-    for (final a in const ['Documents', 'Notes', 'Cards', 'Scanner', 'Insurance']) {
+    // The 4 Quick Actions.
+    for (final a in const ['Documents', 'Notes', 'Expenses', 'Scanner']) {
       expect(find.text(a), findsWidgets);
     }
   });
