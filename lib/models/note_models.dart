@@ -186,4 +186,40 @@ class Note {
         isArchived: (json['isArchived'] as bool?) ?? false,
         isFavorite: (json['isFavorite'] as bool?) ?? false,
       );
+
+  // ---- Supabase row mapping (public.notes) ---------------------------------
+  // The DB column `content` holds this model's `description`.
+
+  /// Builds a [Note] from a `public.notes` row.
+  factory Note.fromRow(Map<String, dynamic> row) => Note(
+        id: row['id'].toString(),
+        title: (row['title'] as String?) ?? '',
+        description: (row['content'] as String?) ?? '',
+        category: NoteCategoryX.fromName(row['category'] as String?),
+        createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+        updatedAt: DateTime.tryParse(row['updated_at']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+        tags: (row['tags'] as List?)?.map((t) => t.toString()).toList() ??
+            const [],
+        isPinned: (row['is_pinned'] as bool?) ?? false,
+        isArchived: (row['is_archived'] as bool?) ?? false,
+        isFavorite: (row['is_favorite'] as bool?) ?? false,
+      );
+
+  /// The column values for an INSERT/UPDATE (no `id` — the DB generates it on
+  /// insert; updates target the row by id in the filter).
+  Map<String, dynamic> toInsert() => {
+        'title': title,
+        'content': description,
+        'category': category.name,
+        'tags': tags,
+        'is_pinned': isPinned,
+        'is_archived': isArchived,
+        'is_favorite': isFavorite,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
 }

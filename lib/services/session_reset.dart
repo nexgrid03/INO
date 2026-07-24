@@ -9,6 +9,7 @@ import 'expense_store.dart';
 import 'global_search_service.dart';
 import 'notes_store.dart';
 import 'notification_center.dart';
+import 'voice_greeting_service.dart';
 
 /// Clears every piece of **user-scoped in-memory / local state** so that when
 /// one account signs out and another signs in on the same device, the new
@@ -52,12 +53,18 @@ class SessionReset {
     // In-memory document cache + persisted recent-search history.
     await _guard('search', () => GlobalSearchService.instance.clear());
 
-    // In-memory expenditure tracker (transactions, budgets, recurring).
+    // Transaction Vault cache (rows live in Supabase, RLS-scoped; the next
+    // account's ensureLoaded() re-hydrates its OWN records).
     await _guard('expenses', () async => ExpenseStore.instance.clear());
 
-    // Notes Vault — drop the in-memory cache + re-arm the per-user loader so the
-    // next account loads its own notes (persisted data is kept per-uid).
+    // Notes Vault cache — same: drop in-memory state + re-arm the loader; the
+    // next account's ensureLoaded() fetches its own RLS-scoped rows.
     await _guard('notes', () async => NotesStore.instance.clear());
+
+    // Re-arm the spoken welcome so the next sign-in is greeted at the start of
+    // ITS session — still exactly once per session.
+    await _guard('greeting',
+        () async => VoiceGreetingService.instance.resetForNextSession());
 
     // Account-scoped preferences (2FA flag, last-backup, toggles). Language is a
     // device preference and is intentionally preserved.

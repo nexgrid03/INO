@@ -131,7 +131,15 @@ class _NotesScreenState extends State<NotesScreen> {
               danger: true,
               onTap: () {
                 Navigator.of(context).pop();
-                _store.remove(note.id);
+                _store.remove(note.id).then((_) {
+                  if (mounted) _toast('Note deleted');
+                }).catchError((Object e) {
+                  // The store already rolled the note back — just tell the user.
+                  if (mounted) {
+                    _toast('Couldn\'t delete the note. Check your connection.',
+                        error: true);
+                  }
+                });
               },
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -139,6 +147,14 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
       ),
     );
+  }
+
+  void _toast(String m, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(m),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
+    ));
   }
 
   Widget _sheetAction({
@@ -170,25 +186,38 @@ class _NotesScreenState extends State<NotesScreen> {
         child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
+            final loading = _store.isLoading && !_store.isLoaded;
+            final failed = _store.loadError != null && _store.isEmpty;
             final empty = _store.isEmpty;
             final notes = _visible();
             return Column(
               children: [
                 _header(palette),
-                if (!empty) ...[
+                if (!loading && !failed && !empty) ...[
                   _searchBar(palette),
                   const SizedBox(height: AppSpacing.sm),
                   _filterRow(palette),
                   const SizedBox(height: AppSpacing.sm),
                 ],
                 Expanded(
-                  child: empty
-                      ? _EmptyState(onAdd: _openEditor)
-                      : notes.isEmpty
-                          ? _noMatches(palette)
-                          : _grid
-                              ? _gridView(notes)
-                              : _listView(notes),
+                  child: loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          color: AppColors.primaryGreen,
+                          onRefresh: _store.reload,
+                          child: failed
+                              ? _ErrorState(
+                                  message: _store.loadError!,
+                                  onRetry: _store.reload,
+                                )
+                              : empty
+                                  ? _EmptyState(onAdd: _openEditor)
+                                  : notes.isEmpty
+                                      ? _noMatches(palette)
+                                      : _grid
+                                          ? _gridView(notes)
+                                          : _listView(notes),
+                        ),
                 ),
               ],
             );
@@ -311,15 +340,24 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _noMatches(AppPalette palette) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Text(
-          _filter == _NotesFilter.archived
-              ? 'No archived notes.'
-              : 'No notes match your search or filter.',
-          textAlign: TextAlign.center,
-          style: AppText.body.copyWith(color: palette.textSecondary),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        // Always scrollable so pull-to-refresh works on the no-results state.
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: constraints.maxHeight,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Text(
+                _filter == _NotesFilter.archived
+                    ? 'No archived notes.'
+                    : 'No notes match your search or filter.',
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(color: palette.textSecondary),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -327,7 +365,8 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _listView(List<Note> notes) {
     return ListView.separated(
-      physics: const BouncingScrollPhysics(),
+      physics:
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen,
           AppSpacing.xl * 2),
       itemCount: notes.length,
@@ -346,7 +385,8 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _gridView(List<Note> notes) {
     return GridView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics:
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen,
           AppSpacing.xl * 2),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -518,6 +558,77 @@ class _NoteCard extends StatelessWidget {
   }
 }
 
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: constraints.maxHeight,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cloud_off_rounded,
+                      size: 56, color: palette.textFaint),
+                  const SizedBox(height: AppSpacing.md),
+                  Text('Couldn\'t load notes',
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: AppText.body
+                        .copyWith(color: palette.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  PressableScale(
+                    child: GestureDetector(
+                      onTap: onRetry,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text('Try Again',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
 
@@ -528,6 +639,7 @@ class _EmptyState extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Center(
       child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,

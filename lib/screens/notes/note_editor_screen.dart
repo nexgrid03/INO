@@ -92,7 +92,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           updatedAt: DateTime.now(),
         ));
       }
-      if (mounted) Navigator.of(context).maybePop();
+      if (mounted) {
+        _toast(existing == null ? 'Note saved' : 'Changes saved');
+        Navigator.of(context).maybePop();
+      }
+    } catch (e) {
+      // Insert/update failed (offline, session expired, …) — keep the editor
+      // open with the user's text intact so nothing is lost.
+      if (mounted) {
+        _toast('Couldn\'t save the note. Check your connection.', error: true);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -119,8 +128,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _store.remove(widget.existing!.id);
-    if (mounted) Navigator.of(context).maybePop();
+    try {
+      await _store.remove(widget.existing!.id);
+      if (mounted) {
+        _toast('Note deleted');
+        Navigator.of(context).maybePop();
+      }
+    } catch (e) {
+      if (mounted) {
+        _toast('Couldn\'t delete the note. Check your connection.',
+            error: true);
+      }
+    }
   }
 
   Future<void> _pickCategory() async {

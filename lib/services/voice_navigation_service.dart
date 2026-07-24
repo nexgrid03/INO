@@ -1,13 +1,13 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../models/voice_command.dart';
+import 'tts_engine.dart';
 
 void _log(String message) => developer.log(message, name: 'voice');
 
@@ -35,7 +35,6 @@ class VoiceNavigationService extends ChangeNotifier {
   static final VoiceNavigationService instance = VoiceNavigationService._();
 
   final SpeechToText _speech = SpeechToText();
-  final FlutterTts _tts = FlutterTts();
 
   VoiceStatus _status = VoiceStatus.idle;
   VoiceStatus get status => _status;
@@ -235,15 +234,12 @@ class VoiceNavigationService extends ChangeNotifier {
     }
   }
 
-  /// Speaks the "Opening …" confirmation for [command].
+  /// Speaks the "Opening …" confirmation for [command] via the app's single
+  /// shared [TtsEngine] (one native engine for greeting + navigation — see
+  /// tts_engine.dart for why two instances caused double speech).
   Future<void> speakConfirmation(VoiceCommand command) async {
     try {
-      await _tts.stop();
-      await _tts.setLanguage('en-US');
-      await _tts.setSpeechRate(0.5);
-      await _tts.setVolume(1.0);
-      await _tts.setPitch(1.0);
-      await _tts.speak('Opening ${command.spokenLabel}');
+      await TtsEngine.instance.speak('Opening ${command.spokenLabel}');
     } catch (e) {
       _log('TTS failed (non-fatal): $e');
     }
@@ -266,7 +262,7 @@ class VoiceNavigationService extends ChangeNotifier {
       await _speech.cancel();
     } catch (_) {}
     try {
-      await _tts.stop();
+      await TtsEngine.instance.stop();
     } catch (_) {}
     _recognized = '';
     _match = null;

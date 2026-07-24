@@ -23,6 +23,13 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
   final _store = ExpenseStore.instance;
   bool _exporting = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Hydrate the vault from Supabase (no-op when already loaded / signed out).
+    _store.ensureLoaded();
+  }
+
   Future<void> _export(TaxSummary summary) async {
     if (_exporting) return;
     setState(() => _exporting = true);

@@ -54,6 +54,10 @@ enum TransactionType { expense, income }
 extension TransactionTypeX on TransactionType {
   String get label => this == TransactionType.income ? 'Income' : 'Expense';
   bool get isIncome => this == TransactionType.income;
+
+  static TransactionType fromName(String? name) => name == 'income'
+      ? TransactionType.income
+      : TransactionType.expense;
 }
 
 /// ITR-oriented transaction categories.
@@ -75,6 +79,11 @@ enum TxnCategory {
 }
 
 extension TxnCategoryX on TxnCategory {
+  static TxnCategory fromName(String? name) => TxnCategory.values.firstWhere(
+        (c) => c.name == name,
+        orElse: () => TxnCategory.other,
+      );
+
   String get label {
     switch (this) {
       case TxnCategory.salary:
@@ -313,6 +322,49 @@ class TransactionRecord {
         receiptIsPdf: receiptIsPdf ?? this.receiptIsPdf,
       );
 
+  // ---- Supabase row mapping (public.expenses) ------------------------------
+  // The DB column `title` holds this model's `description`; `notes` holds
+  // `note`; `expense_date` holds `dateTime`.
+
+  /// Builds a [TransactionRecord] from a `public.expenses` row.
+  factory TransactionRecord.fromRow(Map<String, dynamic> row) =>
+      TransactionRecord(
+        id: row['id'].toString(),
+        description: (row['title'] as String?) ?? '',
+        amount: (row['amount'] as num?)?.toDouble() ?? 0,
+        dateTime: DateTime.tryParse(row['expense_date']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+        type: TransactionTypeX.fromName(row['type'] as String?),
+        category: TxnCategoryX.fromName(row['category'] as String?),
+        reference: row['reference'] as String?,
+        gstAmount: (row['gst_amount'] as num?)?.toDouble(),
+        vendorName: row['vendor_name'] as String?,
+        paymentMethod:
+            PaymentMethodX.fromName(row['payment_method'] as String?),
+        note: row['notes'] as String?,
+        receiptPath: row['receipt_path'] as String?,
+        receiptIsPdf: (row['receipt_is_pdf'] as bool?) ?? false,
+      );
+
+  /// The column values for an INSERT/UPDATE (no `id` — the DB generates it on
+  /// insert; updates target the row by id in the filter).
+  Map<String, dynamic> toInsert() => {
+        'title': description,
+        'amount': amount,
+        'type': type.name,
+        'category': category.name,
+        'payment_method': paymentMethod?.name,
+        'expense_date': dateTime.toUtc().toIso8601String(),
+        'reference': reference,
+        'gst_amount': gstAmount,
+        'vendor_name': vendorName,
+        'notes': note,
+        'receipt_path': receiptPath,
+        'receipt_is_pdf': receiptIsPdf,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
   /// Full rebuild used when a field must be set back to null (copyWith can't).
   TransactionRecord replace({
     required String description,
@@ -364,6 +416,11 @@ enum TaxDocType {
 }
 
 extension TaxDocTypeX on TaxDocType {
+  static TaxDocType fromName(String? name) => TaxDocType.values.firstWhere(
+        (t) => t.name == name,
+        orElse: () => TaxDocType.investmentProof,
+      );
+
   String get label {
     switch (this) {
       case TaxDocType.form16:
@@ -436,6 +493,32 @@ class TaxDocument {
 
   /// The [FinancialYear.startYear] this document is filed under.
   final int financialYearStart;
+
+  // ---- Supabase row mapping (public.tax_documents) -------------------------
+
+  /// Builds a [TaxDocument] from a `public.tax_documents` row.
+  factory TaxDocument.fromRow(Map<String, dynamic> row) => TaxDocument(
+        id: row['id'].toString(),
+        type: TaxDocTypeX.fromName(row['doc_type'] as String?),
+        fileName: (row['file_name'] as String?) ?? '',
+        filePath: (row['file_path'] as String?) ?? '',
+        isPdf: (row['is_pdf'] as bool?) ?? false,
+        addedAt: DateTime.tryParse(row['added_at']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+        financialYearStart: (row['financial_year_start'] as num?)?.toInt() ??
+            FinancialYear.current().startYear,
+      );
+
+  /// The column values for an INSERT (no `id` — the DB generates it).
+  Map<String, dynamic> toInsert() => {
+        'doc_type': type.name,
+        'file_name': fileName,
+        'file_path': filePath,
+        'is_pdf': isPdf,
+        'financial_year_start': financialYearStart,
+        'added_at': addedAt.toUtc().toIso8601String(),
+      };
 }
 
 // ---------------------------------------------------------------------------

@@ -27,6 +27,13 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
   String _query = '';
 
   @override
+  void initState() {
+    super.initState();
+    // Hydrate the vault from Supabase (no-op when already loaded / signed out).
+    _store.ensureLoaded();
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -111,6 +118,8 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
             final all = _store.transactionsForYear(fy);
             final results = _store.searchTransactions(_query, fy);
             final empty = all.isEmpty;
+            final loading = _store.isLoading && !_store.isLoaded;
+            final failed = _store.loadError != null && _store.isEmpty;
             return Column(
               children: [
                 _Header(
@@ -150,7 +159,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     ],
                   ),
                 ),
-                if (!empty)
+                if (!loading && !failed && !empty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                         AppSpacing.screen, AppSpacing.sm),
@@ -160,13 +169,25 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     ),
                   ),
                 Expanded(
-                  child: empty
-                      ? _EmptyState(
-                          onAdd: () => _push(const AddExpenseScreen()))
-                      : _List(
-                          results: results,
-                          onOpen: (t) =>
-                              _push(TransactionDetailsScreen(id: t.id)),
+                  child: loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          color: AppColors.primaryGreen,
+                          onRefresh: _store.reload,
+                          child: failed
+                              ? _ErrorState(
+                                  message: _store.loadError!,
+                                  onRetry: _store.reload,
+                                )
+                              : empty
+                                  ? _EmptyState(
+                                      onAdd: () =>
+                                          _push(const AddExpenseScreen()))
+                                  : _List(
+                                      results: results,
+                                      onOpen: (t) => _push(
+                                          TransactionDetailsScreen(id: t.id)),
+                                    ),
                         ),
                 ),
               ],
@@ -203,7 +224,8 @@ class _List extends StatelessWidget {
         ),
         Expanded(
           child: ListView.separated(
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen, 2, AppSpacing.screen, 100),
             itemCount: results.length,
@@ -217,6 +239,77 @@ class _List extends StatelessWidget {
   }
 }
 
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: constraints.maxHeight,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cloud_off_rounded,
+                      size: 56, color: palette.textFaint),
+                  const SizedBox(height: AppSpacing.md),
+                  Text('Couldn\'t load transactions',
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: AppText.body
+                        .copyWith(color: palette.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  PressableScale(
+                    child: GestureDetector(
+                      onTap: onRetry,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text('Try Again',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
 
@@ -225,74 +318,87 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                gradient: AppColors.brandGradient,
-                borderRadius: BorderRadius.circular(AppRadius.large + 6),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.30),
-                    blurRadius: 26,
-                    offset: const Offset(0, 12),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        // Always scrollable so pull-to-refresh works on the empty state too.
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: constraints.maxHeight,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.large + 6),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              AppColors.primaryGreen.withValues(alpha: 0.30),
+                          blurRadius: 26,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.receipt_long_rounded,
+                        color: Colors.white, size: 44),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text('No Transactions Yet',
+                      style: AppText.headline
+                          .copyWith(color: palette.textPrimary, fontSize: 20)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Store your transaction receipts and payment records securely.',
+                    textAlign: TextAlign.center,
+                    style: AppText.body
+                        .copyWith(color: palette.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  PressableScale(
+                    child: GestureDetector(
+                      onTap: onAdd,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.sm + 2),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryGreen
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded,
+                                color: Colors.white, size: 20),
+                            SizedBox(width: 6),
+                            Text('Add First Transaction',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.5)),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: const Icon(Icons.receipt_long_rounded,
-                  color: Colors.white, size: 44),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('No Transactions Yet',
-                style: AppText.headline
-                    .copyWith(color: palette.textPrimary, fontSize: 20)),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Store your transaction receipts and payment records securely.',
-              textAlign: TextAlign.center,
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            PressableScale(
-              child: GestureDetector(
-                onTap: onAdd,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 2),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 6),
-                      Text('Add First Transaction',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

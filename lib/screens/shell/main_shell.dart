@@ -60,9 +60,11 @@ class _MainShellState extends State<MainShell>
   void initState() {
     super.initState();
     ShellController.tab.addListener(_onTabChanged);
-    // Smart voice greeting — spoken once per launch when the authenticated shell
-    // first appears (covers both a fresh login and opening while signed in).
-    // Deferred a beat so it doesn't compete with the first-frame work.
+    // Smart voice greeting — spoken once per session when the authenticated
+    // shell first appears (covers both a fresh login and opening while signed
+    // in). Deferred a beat so it doesn't compete with the first-frame work.
+    // greetOnce() is self-guarding: rebuilds, navigation back, or a second
+    // shell mount can never replay it (see VoiceGreetingService).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       VoiceGreetingService.instance.greetOnce(userName: _profile.fullName);
     });

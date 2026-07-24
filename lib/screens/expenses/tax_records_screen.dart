@@ -27,6 +27,13 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
   final _store = ExpenseStore.instance;
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Hydrate the vault from Supabase (no-op when already loaded / signed out).
+    _store.ensureLoaded();
+  }
+
   Future<void> _upload(TaxDocType type) async {
     final palette = AppPalette.of(context);
     final choice = await showModalBottomSheet<String>(

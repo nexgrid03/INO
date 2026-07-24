@@ -1,13 +1,23 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../data/expense_repository.dart';
 import '../models/expense_models.dart';
 
 /// The single source of truth for the ITR-ready Transaction Vault.
 ///
-/// A notify-on-change **repository** (in-memory today, Supabase-ready tomorrow —
-/// the models already carry stable ids + receipt paths). It records
-/// transactions and tax documents organised by financial year, and derives a
-/// tax summary. **No sample data** — a new account starts completely empty.
+/// A notify-on-change **store** backed by Supabase (`public.expenses` +
+/// `public.tax_documents` via [ExpenseRepository] — see
+/// supabase/migrations/20260724000000_notes_expenses.sql). Mutations are
+/// optimistic: the UI updates instantly and the write is persisted in the
+/// background (the ReminderStore pattern), with the DB-generated id swapped in
+/// once the insert lands. When nobody is signed in (tests / signed-out
+/// browsing) it works purely in memory, exactly as before.
+///
+/// It records transactions and tax documents organised by financial year, and
+/// derives a tax summary. **No sample data** — a new account starts empty.
 class ExpenseStore extends ChangeNotifier {
   ExpenseStore._();
   static final ExpenseStore instance = ExpenseStore._();
@@ -16,6 +26,72 @@ class ExpenseStore extends ChangeNotifier {
   final List<TaxDocument> _taxDocs = [];
   FinancialYear _selectedYear = FinancialYear.current();
   int _seq = 0;
+
+  bool _loaded = false;
+  bool _loading = false;
+  String? _loadError;
+
+  /// True while the first load (or a [reload]) is in flight.
+  bool get isLoading => _loading;
+
+  /// True once a load has completed (even an empty or failed one).
+  bool get isLoaded => _loaded;
+
+  /// Human-readable message when the last load failed (offline, …), else null.
+  String? get loadError => _loadError;
+
+  /// The signed-in user's id, or null (tests / signed out). Defensive: reading
+  /// Supabase before init throws, so we treat any failure as "no user".
+  String? _uid() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get _remote => _uid() != null;
+
+  // ---- Hydration -------------------------------------------------------------
+
+  /// Hydrates the vault from Supabase once. Safe to call from every screen's
+  /// `initState`. Signed out → stays empty (in-memory only).
+  Future<void> ensureLoaded() async {
+    if (_loaded || _loading) return;
+    await _load();
+  }
+
+  /// Pull-to-refresh: re-hydrates from the backend.
+  Future<void> reload() async {
+    if (_loading) return;
+    await _load();
+  }
+
+  Future<void> _load() async {
+    if (!_remote) {
+      // Tests / signed out: nothing to fetch; the in-memory list is the truth.
+      _loaded = true;
+      return;
+    }
+    _loading = true;
+    _loadError = null;
+    notifyListeners();
+    try {
+      final data = await ExpenseRepository.instance.load();
+      _txns
+        ..clear()
+        ..addAll(data.transactions);
+      _taxDocs
+        ..clear()
+        ..addAll(data.taxDocuments);
+    } catch (e) {
+      debugPrint('Expenses load failed: $e');
+      _loadError = 'Couldn\'t load your transactions. Check your connection.';
+    }
+    _loaded = true;
+    _loading = false;
+    notifyListeners();
+  }
 
   // ---- Financial year ------------------------------------------------------
 
@@ -49,6 +125,20 @@ class ExpenseStore extends ChangeNotifier {
     return List.unmodifiable(list);
   }
 
+  /// All transactions in calendar month [month] of [year], newest first.
+  List<TransactionRecord> transactionsForMonth(int year, int month) {
+    final list = _txns
+        .where((t) => t.dateTime.year == year && t.dateTime.month == month)
+        .toList()
+      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    return List.unmodifiable(list);
+  }
+
+  /// Transactions in [fy] filed under [category], newest first.
+  List<TransactionRecord> transactionsForCategory(TxnCategory category,
+          [FinancialYear? fy]) =>
+      transactionsForYear(fy).where((t) => t.category == category).toList();
+
   /// Search within [fy] by description, Transaction ID, vendor, amount or date.
   List<TransactionRecord> searchTransactions(String query, [FinancialYear? fy]) {
     final base = transactionsForYear(fy);
@@ -68,6 +158,37 @@ class ExpenseStore extends ChangeNotifier {
   int countForYear([FinancialYear? fy]) => transactionsForYear(fy).length;
   double totalForYear([FinancialYear? fy]) =>
       transactionsForYear(fy).fold(0.0, (s, t) => s + t.amount);
+
+  // ---- Analytics -----------------------------------------------------------
+
+  /// Total spent (or received, with [type]) in calendar month [month]/[year].
+  double monthlyTotal(int year, int month,
+          {TransactionType type = TransactionType.expense}) =>
+      transactionsForMonth(year, month)
+          .where((t) => t.type == type)
+          .fold(0.0, (s, t) => s + t.amount);
+
+  /// Total spent (or received, with [type]) in calendar year [year].
+  double yearlyTotal(int year,
+          {TransactionType type = TransactionType.expense}) =>
+      _txns
+          .where((t) => t.dateTime.year == year && t.type == type)
+          .fold(0.0, (s, t) => s + t.amount);
+
+  /// Per-category totals for [fy] (defaults to the selected year), restricted
+  /// to [type], sorted by amount descending. Categories with no spend are
+  /// omitted.
+  Map<TxnCategory, double> categoryBreakdown(
+      {FinancialYear? fy, TransactionType type = TransactionType.expense}) {
+    final totals = <TxnCategory, double>{};
+    for (final t in transactionsForYear(fy)) {
+      if (t.type != type) continue;
+      totals[t.category] = (totals[t.category] ?? 0) + t.amount;
+    }
+    final sorted = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final e in sorted) e.key: e.value};
+  }
 
   TransactionRecord? byId(String id) {
     for (final t in _txns) {
@@ -105,8 +226,21 @@ class ExpenseStore extends ChangeNotifier {
       receiptPath: receiptPath,
       receiptIsPdf: receiptIsPdf,
     );
+    // Optimistically show it, then insert to Supabase and swap in the real id.
     _txns.add(t);
     notifyListeners();
+    if (_remote) {
+      unawaited(ExpenseRepository.instance.addTransaction(t).then((saved) {
+        final i = _txns.indexWhere((e) => e.id == t.id);
+        if (i != -1) {
+          _txns[i] = saved;
+          notifyListeners();
+        }
+        debugPrint('Expense saved: ${saved.id}');
+      }).catchError((Object e) {
+        debugPrint('Expense save failed: $e');
+      }));
+    }
     return t;
   }
 
@@ -115,11 +249,26 @@ class ExpenseStore extends ChangeNotifier {
     if (i == -1) return;
     _txns[i] = updated;
     notifyListeners();
+    if (_remote) {
+      unawaited(
+          ExpenseRepository.instance.updateTransaction(updated).catchError(
+        (Object e) {
+          debugPrint('Expense update failed: $e');
+        },
+      ));
+    }
   }
 
   void remove(String id) {
     _txns.removeWhere((t) => t.id == id);
     notifyListeners();
+    if (_remote) {
+      unawaited(ExpenseRepository.instance.removeTransaction(id).catchError(
+        (Object e) {
+          debugPrint('Expense delete failed: $e');
+        },
+      ));
+    }
   }
 
   // ---- Tax document vault --------------------------------------------------
@@ -156,12 +305,30 @@ class ExpenseStore extends ChangeNotifier {
     );
     _taxDocs.add(d);
     notifyListeners();
+    if (_remote) {
+      unawaited(ExpenseRepository.instance.addTaxDocument(d).then((saved) {
+        final i = _taxDocs.indexWhere((e) => e.id == d.id);
+        if (i != -1) {
+          _taxDocs[i] = saved;
+          notifyListeners();
+        }
+      }).catchError((Object e) {
+        debugPrint('Tax document save failed: $e');
+      }));
+    }
     return d;
   }
 
   void removeTaxDocument(String id) {
     _taxDocs.removeWhere((d) => d.id == id);
     notifyListeners();
+    if (_remote) {
+      unawaited(ExpenseRepository.instance.removeTaxDocument(id).catchError(
+        (Object e) {
+          debugPrint('Tax document delete failed: $e');
+        },
+      ));
+    }
   }
 
   // ---- Tax summary (ITR export) --------------------------------------------
@@ -187,11 +354,15 @@ class ExpenseStore extends ChangeNotifier {
   // ---- Lifecycle -----------------------------------------------------------
 
   /// Clears all vault state — called on sign-out (SessionReset) so a new
-  /// account never sees the previous user's records.
+  /// account never sees the previous user's records. The next [ensureLoaded]
+  /// re-hydrates from Supabase for whoever signs in next (RLS-scoped).
   void clear() {
     _txns.clear();
     _taxDocs.clear();
     _selectedYear = FinancialYear.current();
+    _loaded = false;
+    _loading = false;
+    _loadError = null;
     notifyListeners();
   }
 
