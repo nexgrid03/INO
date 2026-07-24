@@ -481,14 +481,20 @@ class _ChoiceChip extends StatelessWidget {
                 size: 18, color: on ? Colors.white : palette.textSecondary),
             const SizedBox(width: 8),
             Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.subtitle.copyWith(
-                  color: on ? Colors.white : palette.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
+              // Shrink the label to fit one line instead of ellipsizing it —
+              // long copy-style / expiry labels must never show trailing dots.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: AppText.subtitle.copyWith(
+                    color: on ? Colors.white : palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
                 ),
               ),
             ),

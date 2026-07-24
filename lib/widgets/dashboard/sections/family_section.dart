@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
@@ -18,13 +19,14 @@ class FamilySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Family & Events',
-          subtitle: 'Never miss a moment',
-          actionLabel: 'All events',
+        SectionHeader(
+          title: l10n.t('familyEvents'),
+          subtitle: l10n.t('familySubtitle'),
+          actionLabel: l10n.t('allEvents'),
           icon: Icons.celebration_rounded,
         ),
         SizedBox(

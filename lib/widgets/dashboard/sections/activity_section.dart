@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
@@ -17,13 +18,14 @@ class ActivitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Recent Activity',
-          subtitle: 'Your latest updates',
-          actionLabel: 'History',
+        SectionHeader(
+          title: l10n.t('recentActivity'),
+          subtitle: l10n.t('recentActivitySubtitle'),
+          actionLabel: l10n.t('history'),
           icon: Icons.history_rounded,
         ),
         InoCard(

@@ -173,7 +173,7 @@ class _InoBottomNavState extends State<InoBottomNav>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // The sliding active-indicator dot, aligned under the live tab.
+              // The sliding active-indicator line, aligned under the live tab.
               Positioned.fill(
                 child: IgnorePointer(
                   child: AnimatedAlign(
@@ -183,11 +183,11 @@ class _InoBottomNavState extends State<InoBottomNav>
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 7),
                       child: Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
+                        width: 22,
+                        height: 3,
+                        decoration: BoxDecoration(
                           color: AppColors.primaryGreen,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
@@ -474,24 +474,30 @@ class _ScanMenu extends StatelessWidget {
       animation: animation,
       builder: (context, _) {
         final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
-        return Stack(
-          children: [
-            // Dimmed + blurred backdrop (both fade in with the menu).
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onDismiss,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
-                  child: ColoredBox(
-                    color: Colors.black.withValues(alpha: 0.15 * v),
+        // Wrap in a transparent Material so the action labels inherit a proper
+        // text style — without a Material ancestor an overlay's Text renders
+        // with Flutter's debug yellow underline.
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              // Dimmed + blurred backdrop (both fade in with the menu).
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onDismiss,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.15 * v),
+                    ),
                   ),
                 ),
               ),
-            ),
-            for (var i = 0; i < _kMenu.length; i++)
-              _positioned(context, _kMenu[i], i),
-          ],
+              for (var i = 0; i < _kMenu.length; i++)
+                _positioned(context, _kMenu[i], i),
+            ],
+          ),
         );
       },
     );

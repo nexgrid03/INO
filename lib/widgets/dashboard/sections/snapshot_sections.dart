@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
@@ -26,14 +27,15 @@ class PropertySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Property',
-          subtitle: 'Your real-estate portfolio',
-          actionLabel: 'Manage',
+        SectionHeader(
+          title: l10n.t('property'),
+          subtitle: l10n.t('propertyPortfolioSubtitle'),
+          actionLabel: l10n.t('manage'),
           icon: Icons.home_work_rounded,
         ),
         InoCard(
@@ -46,14 +48,14 @@ class PropertySection extends StatelessWidget {
                     icon: Icons.home_work_rounded,
                     color: AppColors.lightBlue,
                     value: '${summary.totalProperties}',
-                    label: 'Properties',
+                    label: l10n.t('propertiesLabel'),
                   ),
                   _divider(palette),
                   _StatCell(
                     icon: Icons.account_balance_wallet_rounded,
                     color: AppColors.primaryGreen,
                     value: _fmtCurrency(summary.portfolioValue),
-                    label: 'Portfolio value',
+                    label: l10n.t('portfolioValue'),
                   ),
                 ],
               ),
@@ -83,14 +85,15 @@ class HealthSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Health',
-          subtitle: 'Records & reminders',
-          actionLabel: 'View',
+        SectionHeader(
+          title: l10n.t('health'),
+          subtitle: l10n.t('healthSubtitle'),
+          actionLabel: l10n.t('view'),
           icon: Icons.favorite_rounded,
         ),
         InoCard(
@@ -103,28 +106,28 @@ class HealthSection extends StatelessWidget {
                     icon: Icons.bloodtype_rounded,
                     color: const Color(0xFF3B82F6),
                     value: summary.bloodGroup,
-                    label: 'Blood group',
+                    label: l10n.t('bloodGroup'),
                   ),
                   _divider(palette),
                   _StatCell(
                     icon: Icons.folder_rounded,
                     color: AppColors.lightBlue,
                     value: '${summary.recordsCount}',
-                    label: 'Records',
+                    label: l10n.t('records'),
                   ),
                   _divider(palette),
                   _StatCell(
                     icon: Icons.contacts_rounded,
                     color: AppColors.primaryGreen,
                     value: '${summary.emergencyContacts}',
-                    label: 'Emergency',
+                    label: l10n.t('emergency'),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               _FootNote(
                 icon: Icons.event_available_rounded,
-                text: 'Next checkup · ${summary.nextCheckup}',
+                text: '${l10n.t('nextCheckup')} · ${summary.nextCheckup}',
               ),
             ],
           ),
@@ -143,14 +146,15 @@ class InsuranceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Insurance',
-          subtitle: 'Coverage & premiums',
-          actionLabel: 'View',
+        SectionHeader(
+          title: l10n.t('insurance'),
+          subtitle: l10n.t('insuranceSubtitle'),
+          actionLabel: l10n.t('view'),
           icon: Icons.shield_rounded,
         ),
         InoCard(
@@ -163,28 +167,28 @@ class InsuranceSection extends StatelessWidget {
                     icon: Icons.shield_rounded,
                     color: AppColors.primaryGreen,
                     value: '${summary.activePolicies}',
-                    label: 'Active',
+                    label: l10n.t('active'),
                   ),
                   _divider(palette),
                   _StatCell(
                     icon: Icons.timelapse_rounded,
                     color: AppColors.warning,
                     value: '${summary.expiringSoon}',
-                    label: 'Expiring',
+                    label: l10n.t('expiring'),
                   ),
                   _divider(palette),
                   _StatCell(
                     icon: Icons.savings_rounded,
                     color: AppColors.lightBlue,
                     value: summary.totalCover,
-                    label: 'Total cover',
+                    label: l10n.t('totalCover'),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               _FootNote(
                 icon: Icons.payments_rounded,
-                text: 'Next premium · ${summary.nextPremium}',
+                text: '${l10n.t('nextPremium')} · ${summary.nextPremium}',
               ),
             ],
           ),

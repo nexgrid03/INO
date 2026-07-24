@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../../pressable_scale.dart';
@@ -16,6 +17,7 @@ class InsightsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -27,7 +29,7 @@ class InsightsSection extends StatelessWidget {
                   size: 18, color: AppColors.primaryGreen),
               const SizedBox(width: 8),
               Text(
-                'Smart Insights',
+                l10n.t('smartInsights'),
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,

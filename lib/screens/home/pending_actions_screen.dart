@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_repository.dart';
 import '../../models/document.dart';
@@ -119,19 +120,19 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final items = _items;
     return SettingsScaffold(
-      title: 'Pending Actions',
+      title: l10n.t('pendingActions'),
       child: _error
           ? ErrorRetry(onRetry: _load)
           : items == null
               ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
               : items.isEmpty
-                  ? const EmptyState(
+                  ? EmptyState(
                       icon: Icons.task_alt_rounded,
-                      title: 'Nothing pending',
-                      message: 'You’re all caught up — no due reminders or '
-                          'expiring documents right now.',
+                      title: l10n.t('nothingPending'),
+                      message: l10n.t('nothingPendingSubtitle'),
                     )
                   : RefreshIndicator(
                       color: AppColors.primaryGreen,

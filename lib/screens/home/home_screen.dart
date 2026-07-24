@@ -407,28 +407,29 @@ class _QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final actions = <Widget>[
       QuickActionButton(
         icon: Icons.folder_shared_rounded,
-        label: 'Documents',
+        label: l10n.t('documents'),
         color: AppColors.primaryGreen,
         onTap: onDocuments,
       ),
       QuickActionButton(
         icon: Icons.edit_note_rounded,
-        label: 'Notes',
+        label: l10n.t('notes'),
         color: AppColors.lightBlue,
         onTap: onNotes,
       ),
       QuickActionButton(
         icon: Icons.account_balance_wallet_rounded,
-        label: 'Expenses',
+        label: l10n.t('expenses'),
         color: const Color(0xFF8B6CEF),
         onTap: onExpenses,
       ),
       QuickActionButton(
         icon: Icons.document_scanner_rounded,
-        label: 'Scanner',
+        label: l10n.t('scanner'),
         color: const Color(0xFF55C2C8),
         onTap: onScanner,
       ),
@@ -465,44 +466,45 @@ class _SixFinanceTools extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final tools = [
       _ToolTile(
-        title: 'Area Calc',
+        title: l10n.t('areaCalc'),
         icon: Icons.straighten_rounded,
         color: const Color(0xFF30ACB3),
         bgColor: const Color(0xFFEAFBF7),
         onTap: onOpenArea,
       ),
       _ToolTile(
-        title: 'EMI Calc',
+        title: l10n.t('emiCalc'),
         icon: Icons.account_balance_rounded,
         color: const Color(0xFF55C2C8),
         bgColor: const Color(0xFFEDF8FF),
         onTap: onOpenEmi,
       ),
       _ToolTile(
-        title: 'SIP Calc',
+        title: l10n.t('sipCalc'),
         icon: Icons.trending_up_rounded,
         color: const Color(0xFF8B6CEF),
         bgColor: const Color(0xFFF3EFFF),
         onTap: onOpenSip,
       ),
       _ToolTile(
-        title: 'Stamp Duty',
+        title: l10n.t('stampDuty'),
         icon: Icons.gavel_rounded,
         color: const Color(0xFFF59E0B),
         bgColor: const Color(0xFFFFF7ED),
         onTap: onOpenStampDuty,
       ),
       _ToolTile(
-        title: 'Unit Conv.',
+        title: l10n.t('unitConv'),
         icon: Icons.swap_horiz_rounded,
         color: const Color(0xFF7FD3D8),
         bgColor: const Color(0xFFF0F9FF),
         onTap: onOpenUnitConv,
       ),
       _ToolTile(
-        title: 'Tax Calc',
+        title: l10n.t('taxCalc'),
         icon: Icons.receipt_long_rounded,
         color: const Color(0xFF55C2C8),
         bgColor: const Color(0xFFF0FDF4),

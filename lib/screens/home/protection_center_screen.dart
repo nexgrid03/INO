@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/app_settings.dart';
 import '../../services/biometric_service.dart';
 import '../../services/document_protection_store.dart';
@@ -22,8 +23,9 @@ class ProtectionCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Protection Center',
+      title: l10n.t('protectionCenter'),
       child: ListenableBuilder(
         listenable: Listenable.merge([
           BiometricService.instance.lockEnabled,
@@ -48,40 +50,42 @@ class ProtectionCenterScreen extends StatelessWidget {
             children: [
               _ScoreCard(score: score),
               const SizedBox(height: AppSpacing.lg),
-              Text('SECURITY',
+              Text(l10n.t('security').toUpperCase(),
                   style: AppText.label.copyWith(color: palette.textFaint)),
               const SizedBox(height: AppSpacing.sm),
               _StatusTile(
                 icon: Icons.fingerprint_rounded,
-                title: 'Biometric lock',
+                title: l10n.t('biometricLock'),
                 on: biometric,
-                onText: 'Protecting your vault',
-                offText: 'Turn on to lock the app',
+                onText: l10n.t('protectingVault'),
+                offText: l10n.t('turnOnToLock'),
                 onManage: () => _openSecurity(context),
               ),
               const SizedBox(height: AppSpacing.xs),
               _StatusTile(
                 icon: Icons.verified_user_rounded,
-                title: 'Two-factor authentication',
+                title: l10n.t('twoFactor'),
                 on: twoFactor,
-                onText: 'A second factor is required at sign-in',
-                offText: 'Add a second layer of security',
+                onText: l10n.t('twoFactorOnText'),
+                offText: l10n.t('twoFactorOffText'),
                 onManage: () => _openSecurity(context),
               ),
               const SizedBox(height: AppSpacing.xs),
               _StatusTile(
                 icon: Icons.lock_rounded,
-                title: 'Protected documents',
+                title: l10n.t('protectedDocuments'),
                 on: protectedDocs > 0,
-                onText: '$protectedDocs document${protectedDocs == 1 ? '' : 's'} require unlock',
-                offText: 'No documents are biometric-protected yet',
+                onText: l10n
+                    .t('protectedDocsRequireUnlock')
+                    .replaceFirst('{n}', '$protectedDocs'),
+                offText: l10n.t('noProtectedDocs'),
                 onManage: () {
                   Navigator.of(context).popUntil((r) => r.isFirst);
                   ShellController.tab.value = 1; // Wallet, to protect documents
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('COVERAGE',
+              Text(l10n.t('coverage').toUpperCase(),
                   style: AppText.label.copyWith(color: palette.textFaint)),
               const SizedBox(height: AppSpacing.sm),
               _CoverageCard(),
@@ -103,15 +107,16 @@ class _ScoreCard extends StatelessWidget {
           ? AppColors.warning
           : AppColors.critical;
 
-  String get _label => score >= 80
-      ? 'Strong'
+  String _label(AppLocalizations l10n) => score >= 80
+      ? l10n.t('scoreStrong')
       : score >= 55
-          ? 'Good'
-          : 'Needs attention';
+          ? l10n.t('scoreGood')
+          : l10n.t('scoreNeedsAttention');
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
@@ -142,15 +147,15 @@ class _ScoreCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Security score',
+                Text(l10n.t('securityScore'),
                     style: AppText.caption
                         .copyWith(color: palette.textSecondary)),
                 const SizedBox(height: 2),
-                Text(_label,
+                Text(_label(l10n),
                     style: AppText.headline
                         .copyWith(color: _color, fontSize: 22)),
                 const SizedBox(height: 4),
-                Text('Based on your device and account protections.',
+                Text(l10n.t('securityScoreSubtitle'),
                     style:
                         AppText.caption.copyWith(color: palette.textFaint)),
               ],
@@ -236,6 +241,7 @@ class _CoverageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     // Realistic fallback coverage summary until policies are added.
     return SettingsCard(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -258,11 +264,11 @@ class _CoverageCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Insurance coverage',
+                    Text(l10n.t('insuranceCoverage'),
                         style: AppText.subtitle
                             .copyWith(color: palette.textPrimary)),
                     const SizedBox(height: 2),
-                    Text('Total cover ₹1.2 Cr · 5 active policies',
+                    Text(l10n.t('coverageFallback'),
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary)),
                   ],

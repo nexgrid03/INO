@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
@@ -17,17 +18,18 @@ class PrioritySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final critical =
         items.where((e) => e.level == PriorityLevel.critical).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Priority Center',
+          title: l10n.t('priorityCenter'),
           subtitle: critical > 0
-              ? '$critical urgent item${critical > 1 ? 's' : ''} need attention'
-              : 'What needs your attention',
-          actionLabel: 'See all',
+              ? l10n.t('priorityUrgentItems').replaceFirst('{n}', '$critical')
+              : l10n.t('priorityCenterSubtitle'),
+          actionLabel: l10n.t('seeAll'),
           icon: Icons.priority_high_rounded,
         ),
         for (var i = 0; i < items.length; i++)

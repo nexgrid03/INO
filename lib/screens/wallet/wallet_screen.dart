@@ -4,6 +4,7 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
@@ -46,6 +47,25 @@ class _WalletScreenState extends State<WalletScreen> {
   /// Opens a real global search across every document in the vault.
   void _searchDocuments() {
     showSearch<void>(context: context, delegate: DocumentSearchDelegate());
+  }
+
+  /// Opens the filter panel (from the search bar's filter icon). Picking one or
+  /// more wallets opens the document search constrained to those wallets — the
+  /// filter icon never opens the plain search itself.
+  Future<void> _openFilters(List<WalletCategory> categories) async {
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WalletFilterSheet(categories: categories),
+    );
+    if (selected == null || !mounted) return;
+    showSearch<void>(
+      context: context,
+      delegate: DocumentSearchDelegate(
+        walletFilter: selected.isEmpty ? null : selected,
+      ),
+    );
   }
 
   /// Opens the reusable Wallet Detail screen with a premium slide + fade.
@@ -120,22 +140,13 @@ class _WalletScreenState extends State<WalletScreen> {
                         hint: l10n.t('searchWallets'),
                         height: 46,
                         onTap: _searchDocuments,
-                        trailing: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            gradient: AppGradients.primary,
-                            borderRadius: BorderRadius.circular(11),
-                            boxShadow: AppShadows.glow(
-                              AppColors.primaryGreen,
-                              opacity: 0.28,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.tune_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                        // Its own tap target: taps on the filter icon open the
+                        // filter panel, not the search (the inner GestureDetector
+                        // wins the tap over the bar's outer one).
+                        trailing: _FilterButton(
+                          onTap: data == null
+                              ? null
+                              : () => _openFilters(data.categories),
                         ),
                       ),
                     ),
@@ -348,6 +359,218 @@ class _BellButton extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The gradient filter (tune) tile that lives at the end of the search bar. It
+/// owns its own tap so pressing it opens the filter panel rather than falling
+/// through to the search bar's tap.
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: PressableScale(
+        pressedScale: 0.9,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            gradient: AppGradients.primary,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
+          ),
+          child: const Icon(Icons.tune_rounded, color: Colors.white, size: 18),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet filter panel: pick one or more wallets to constrain the
+/// document search to. Returns the selected wallet names on "Show results"
+/// (an empty set means "all wallets"); returns null when dismissed.
+class _WalletFilterSheet extends StatefulWidget {
+  const _WalletFilterSheet({required this.categories});
+
+  final List<WalletCategory> categories;
+
+  @override
+  State<_WalletFilterSheet> createState() => _WalletFilterSheetState();
+}
+
+class _WalletFilterSheetState extends State<_WalletFilterSheet> {
+  final Set<String> _selected = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          border: Border.all(color: palette.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Filter documents',
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Search within the wallets you choose.',
+              style: AppText.caption.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final c in widget.categories)
+                  _FilterChip(
+                    label: c.name,
+                    selected: _selected.contains(c.name),
+                    onTap: () => setState(() {
+                      _selected.contains(c.name)
+                          ? _selected.remove(c.name)
+                          : _selected.add(c.name);
+                    }),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                if (_selected.isNotEmpty)
+                  Expanded(
+                    child: PressableScale(
+                      child: Material(
+                        color: palette.surfaceVariant,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          side: BorderSide(color: palette.border),
+                        ),
+                        child: InkWell(
+                          onTap: () => setState(_selected.clear),
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            child: Center(
+                              child: Text(
+                                'Clear',
+                                style: AppText.subtitle
+                                    .copyWith(color: palette.textSecondary),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_selected.isNotEmpty) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  flex: 2,
+                  child: PressableScale(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(_selected),
+                      child: Container(
+                        height: AppSizes.button,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          boxShadow: AppShadows.glow(
+                            AppColors.primaryGreen,
+                            opacity: 0.28,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _selected.isEmpty
+                                ? 'Search all documents'
+                                : 'Show results (${_selected.length})',
+                            style: AppText.subtitle.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: selected ? AppColors.brandGradient : null,
+          color: selected ? null : palette.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: selected ? Colors.transparent : palette.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppText.caption.copyWith(
+            color: selected ? Colors.white : palette.textPrimary,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

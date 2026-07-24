@@ -43,6 +43,11 @@ class _MainShellState extends State<MainShell>
     with SingleTickerProviderStateMixin {
   int _index = ShellController.tab.value;
 
+  /// Breadcrumb of visited tabs so the system back button returns to the
+  /// previous tab instead of closing the app. Only the app root (an empty
+  /// history) lets a back press actually exit.
+  final List<int> _tabHistory = [];
+
   /// Held in state so a profile edit (from the Profile tab) propagates to every
   /// destination that shows the user's details.
   late UserProfile _profile = widget.profile;
@@ -79,10 +84,29 @@ class _MainShellState extends State<MainShell>
 
   // Driven by the shared controller so pushed routes can switch tabs too.
   void _onTabChanged() {
-    if (mounted && _index != ShellController.tab.value) {
-      setState(() => _index = ShellController.tab.value);
+    final next = ShellController.tab.value;
+    if (mounted && _index != next) {
+      setState(() {
+        _tabHistory.add(_index); // remember where we came from
+        _index = next;
+      });
       _pageAnim.forward(from: 0);
     }
+  }
+
+  /// System back at the shell root: step back through the visited tabs; only
+  /// exit the app once there's no tab history left.
+  void _handleBack() {
+    if (_tabHistory.isEmpty) {
+      SystemNavigator.pop();
+      return;
+    }
+    final previous = _tabHistory.removeLast();
+    // Set `_index` first so `_onTabChanged` sees no change and doesn't push
+    // this hop back onto the history.
+    setState(() => _index = previous);
+    ShellController.tab.value = previous;
+    _pageAnim.forward(from: 0);
   }
 
   void _select(int i) {
@@ -132,9 +156,17 @@ class _MainShellState extends State<MainShell>
       ),
     ];
 
-    return Scaffold(
-      // Let content (and the nav's blur) sit behind the floating nav bar.
-      extendBody: true,
+    return PopScope(
+      // We handle the back gesture ourselves so it retraces tabs instead of
+      // closing the app; only _handleBack() exits (once tab history is empty).
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        // Let content (and the nav's blur) sit behind the floating nav bar.
+        extendBody: true,
       // Keep the bottom nav planted at all times: it lives in
       // `bottomNavigationBar` (so it never scrolls with the page), and this
       // stops the keyboard inset from ever pushing it upward. The nav stays
@@ -157,10 +189,11 @@ class _MainShellState extends State<MainShell>
         },
         child: IndexedStack(index: _index, children: pages),
       ),
-      bottomNavigationBar: InoBottomNav(
-        index: _index,
-        onSelect: _select,
-        onScanAction: _onScanAction,
+        bottomNavigationBar: InoBottomNav(
+          index: _index,
+          onSelect: _select,
+          onScanAction: _onScanAction,
+        ),
       ),
     );
   }

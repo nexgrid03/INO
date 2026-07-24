@@ -50,7 +50,13 @@ class _QrShareScreenState extends State<QrShareScreen> {
   Timer? _ticker;
   bool _busy = false;
 
+  // Crisp near-black for the EXPORTED PNG — printed / re-shared QRs need the
+  // highest contrast to scan on any surface.
   static const _qrDark = Color(0xFF04121A);
+
+  // Softer dark slate for the ON-SCREEN QR — lower contrast is easier on the
+  // eye while still scanning reliably off a phone display.
+  static const _qrDisplayDark = Color(0xFF37474F);
 
   @override
   void initState() {
@@ -245,7 +251,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
     return Column(
       children: [
         const SizedBox(height: AppSpacing.xs),
-        _QrCard(url: _share.url, dark: _qrDark),
+        _QrCard(url: _share.url, dark: _qrDisplayDark),
         const SizedBox(height: AppSpacing.md),
         _ExpiryPill(share: _share),
         const SizedBox(height: AppSpacing.sm),

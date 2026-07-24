@@ -20,11 +20,11 @@ class ActivityHistoryScreen extends StatefulWidget {
 enum _Filter { all, documents, reminders, backups }
 
 extension on _Filter {
-  String get label => switch (this) {
-        _Filter.all => 'All',
-        _Filter.documents => 'Documents',
-        _Filter.reminders => 'Reminders',
-        _Filter.backups => 'Backups',
+  String label(AppLocalizations l10n) => switch (this) {
+        _Filter.all => l10n.t('all'),
+        _Filter.documents => l10n.t('documents'),
+        _Filter.reminders => l10n.t('reminders'),
+        _Filter.backups => l10n.t('backups'),
       };
 
   bool matches(ActivityItem a) => switch (this) {
@@ -64,7 +64,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget build(BuildContext context) {
     final items = _items;
     return SettingsScaffold(
-      title: 'Activity',
+      title: AppLocalizations.of(context).t('activity'),
       child: _error
           ? ErrorRetry(onRetry: _load)
           : items == null
@@ -75,6 +75,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Widget _content(List<ActivityItem> all) {
+    final l10n = AppLocalizations.of(context);
     final filtered = all.where(_filter.matches).toList();
     return Column(
       children: [
@@ -87,7 +88,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             children: [
               for (final f in _Filter.values) ...[
                 _FilterChip(
-                  label: f.label,
+                  label: f.label(l10n),
                   selected: f == _filter,
                   onTap: () => setState(() => _filter = f),
                 ),
@@ -109,10 +110,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                       const SizedBox(height: 60),
                       EmptyState(
                         icon: Icons.history_rounded,
-                        title: 'No activity yet',
+                        title: l10n.t('noActivityYet'),
                         message: _filter == _Filter.all
-                            ? 'Add or scan a document to see it here.'
-                            : 'Nothing under ${_filter.label.toLowerCase()} yet.',
+                            ? l10n.t('activityEmptySubtitle')
+                            : l10n.t('nothingUnderYet').replaceFirst(
+                                '{f}', _filter.label(l10n).toLowerCase()),
                         compact: true,
                       ),
                     ],

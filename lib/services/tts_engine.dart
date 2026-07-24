@@ -43,6 +43,15 @@ class TtsEngine with WidgetsBindingObserver {
   /// duplicate speak requests for the same text.
   String? _speakingText;
 
+  /// The last utterance dispatched and when. A repeat of the SAME text inside
+  /// [_dedupeWindow] is dropped even if the first has already finished — this
+  /// is what stops a voice-navigation confirmation ("Opening …") from being
+  /// heard twice when a duplicate speak slips past the in-flight guard above
+  /// (e.g. a second dispatch arriving just after the first utterance completed).
+  String? _lastText;
+  DateTime? _lastAt;
+  static const Duration _dedupeWindow = Duration(milliseconds: 1500);
+
   /// Kicks off engine initialization without waiting for it. Called from
   /// `main()` so the native TTS service is already bound (and past its
   /// cold-start races) by the time the greeting fires.
@@ -59,6 +68,11 @@ class TtsEngine with WidgetsBindingObserver {
       // Make speak() resolve when the utterance COMPLETES, so the in-flight
       // guard below reliably brackets the whole utterance.
       await tts.awaitSpeakCompletion(true);
+      // Flush queue mode: a new utterance replaces the current one instead of
+      // being appended. This is also what lets us drop the explicit stop()
+      // before speak() (see speak()) — the stop()+speak() pair is a known
+      // trigger for the Android engine playing a single utterance twice.
+      await tts.setQueueMode(0);
       await tts.setLanguage('en-US');
       await tts.setSpeechRate(0.5); // comfortable, natural pace
       await tts.setVolume(1.0);
@@ -84,6 +98,20 @@ class TtsEngine with WidgetsBindingObserver {
   /// belt-and-suspenders guarantee that no phrase can ever double-play.
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
+
+    // Drop a repeat of the same phrase within the dedupe window — before the
+    // init await, so a duplicate that arrives while initializing is caught too.
+    final now = DateTime.now();
+    if (_lastText == text &&
+        _lastAt != null &&
+        now.difference(_lastAt!) < _dedupeWindow) {
+      _log('Duplicate speech request within window skipped: "$text"');
+      debugPrint('Duplicate speech request within window skipped: "$text"');
+      return;
+    }
+    _lastText = text;
+    _lastAt = now;
+
     if (!await _ensureInitialized()) return;
     final tts = _tts;
     if (tts == null) return;
@@ -96,7 +124,9 @@ class TtsEngine with WidgetsBindingObserver {
 
     _speakingText = text;
     try {
-      await tts.stop(); // flush anything different that was still playing
+      // No stop() here on purpose: with flush queue mode, speak() already
+      // replaces any current utterance, and a stop()+speak() pair can make the
+      // Android engine speak the same text twice.
       _log('Speaking: "$text"');
       await tts.speak(text); // resolves on completion (awaitSpeakCompletion)
     } catch (e) {
@@ -146,6 +176,8 @@ class TtsEngine with WidgetsBindingObserver {
     _tts = null;
     _initFuture = null;
     _speakingText = null;
+    _lastText = null;
+    _lastAt = null;
     _disposed = false;
     if (_observing) {
       _observing = false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
@@ -17,13 +18,14 @@ class WalletSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Wallet Ecosystem',
-          subtitle: 'All your vaults in one place',
-          actionLabel: 'Open Wallet',
+        SectionHeader(
+          title: l10n.t('walletEcosystem'),
+          subtitle: l10n.t('walletEcosystemSubtitle'),
+          actionLabel: l10n.t('openWallet'),
           icon: Icons.account_balance_wallet_rounded,
         ),
         SizedBox(
@@ -49,6 +51,7 @@ class _WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PressableScale(
       child: Container(
         width: 168,
@@ -118,7 +121,7 @@ class _WalletCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    'items',
+                    l10n.t('itemsLabel'),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 11,

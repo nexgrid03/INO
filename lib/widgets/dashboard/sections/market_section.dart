@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
@@ -18,13 +19,14 @@ class MarketSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Live Market',
-          subtitle: 'Today’s rates near you',
-          actionLabel: 'Markets',
+        SectionHeader(
+          title: l10n.t('liveMarket'),
+          subtitle: l10n.t('liveMarketSubtitle'),
+          actionLabel: l10n.t('markets'),
           icon: Icons.show_chart_rounded,
         ),
         SizedBox(

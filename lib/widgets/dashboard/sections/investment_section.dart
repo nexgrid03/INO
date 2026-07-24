@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
 import '../donut_chart.dart';
@@ -53,6 +54,7 @@ class _InvestmentSectionState extends State<InvestmentSection>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     final s = widget.summary;
     final gainColor = s.isGain ? AppColors.positive : AppColors.negative;
@@ -60,10 +62,10 @@ class _InvestmentSectionState extends State<InvestmentSection>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Investments',
-          subtitle: 'Portfolio performance',
-          actionLabel: 'Details',
+        SectionHeader(
+          title: l10n.t('investments'),
+          subtitle: l10n.t('portfolioPerformance'),
+          actionLabel: l10n.t('details'),
           icon: Icons.trending_up_rounded,
         ),
         InoCard(
@@ -79,7 +81,7 @@ class _InvestmentSectionState extends State<InvestmentSection>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Current value',
+                        Text(l10n.t('currentValue'),
                             style: TextStyle(
                                 fontSize: 12, color: palette.textSecondary)),
                         const SizedBox(height: 2),
@@ -115,7 +117,8 @@ class _InvestmentSectionState extends State<InvestmentSection>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Invested ${_fmt(s.invested)}',
+                          l10n.t('invested').replaceFirst(
+                              '{v}', _fmt(s.invested)),
                           style:
                               TextStyle(fontSize: 12, color: palette.textFaint),
                         ),
@@ -130,7 +133,7 @@ class _InvestmentSectionState extends State<InvestmentSection>
                       progress: _sweep.value,
                       size: 116,
                       centerColor: gainColor,
-                      centerTop: 'Return',
+                      centerTop: l10n.t('returnLabel'),
                       centerBottom: '+${s.returnPercent.toStringAsFixed(1)}%',
                     ),
                   ),
@@ -146,7 +149,7 @@ class _InvestmentSectionState extends State<InvestmentSection>
                 ),
                 child: Row(
                   children: [
-                    Text('Growth',
+                    Text(l10n.t('growth'),
                         style: TextStyle(
                             fontSize: 12,
                             color: palette.textSecondary,
