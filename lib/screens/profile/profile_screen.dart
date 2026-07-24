@@ -698,7 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             itemCount: blocks.length,
             separatorBuilder: (_, i) =>
-                SizedBox(height: i < 1 ? AppSpacing.lg : AppSpacing.section),
+                SizedBox(height: i < 1 ? AppSpacing.md : AppSpacing.lg),
             itemBuilder: (context, i) => FadeSlideIn(
               delay: Duration(milliseconds: (i * 50).clamp(0, 320)),
               child: blocks[i],
@@ -773,31 +773,26 @@ class _ProfileHero extends StatelessWidget {
     return InoCard(
       radius: AppRadius.large,
       onTap: onEdit,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.internal,
-        AppSpacing.lg,
-        AppSpacing.internal,
-        AppSpacing.lg,
-      ),
-      child: Column(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
         children: [
           SizedBox(
-            width: 112,
-            height: 112,
+            width: 72,
+            height: 72,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 // Gradient progress-ring treatment around the avatar.
                 Container(
-                  width: 112,
-                  height: 112,
-                  padding: const EdgeInsets.all(3.5),
+                  width: 72,
+                  height: 72,
+                  padding: const EdgeInsets.all(2.5),
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: AppGradients.primary,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.all(3.5),
+                    padding: const EdgeInsets.all(2.5),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: palette.surface,
@@ -816,20 +811,20 @@ class _ProfileHero extends StatelessWidget {
                 ),
                 // Floating edit badge (bottom-right, Stitch pencil chip).
                 Positioned(
-                  bottom: 0,
-                  right: 0,
+                  bottom: -2,
+                  right: -2,
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: AppGradients.primary,
-                      border: Border.all(color: palette.surface, width: 3),
+                      border: Border.all(color: palette.surface, width: 2.5),
                       boxShadow: AppShadows.glow(AppColors.primaryGreen),
                     ),
                     child: const Icon(
                       Icons.edit_rounded,
-                      size: 15,
+                      size: 12,
                       color: Colors.white,
                     ),
                   ),
@@ -837,29 +832,35 @@ class _ProfileHero extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            fullName.trim().isEmpty ? 'Your Name' : fullName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              color: palette.textPrimary,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  fullName.trim().isEmpty ? 'Your Name' : fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(color: palette.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                const _HeroBadge(),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            email,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: AppText.body.copyWith(color: palette.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const _HeroBadge(),
         ],
       ),
     );

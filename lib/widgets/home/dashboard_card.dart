@@ -21,6 +21,10 @@ class DashboardCard extends StatefulWidget {
   const DashboardCard({
     super.key,
     required this.hero,
+    this.documentsExpiring = 0,
+    this.remindersToday = 0,
+    this.insuranceRenewals = 0,
+    this.emiDue = 0,
     this.onDocumentsExpiring,
     this.onEmiDues,
     this.onRemindersToday,
@@ -32,6 +36,12 @@ class DashboardCard extends StatefulWidget {
   });
 
   final HomeHero hero;
+
+  // Real counts for the four summary tiles — 0 when there's nothing to show.
+  final int documentsExpiring;
+  final int remindersToday;
+  final int insuranceRenewals;
+  final int emiDue;
   final VoidCallback? onDocumentsExpiring;
   final VoidCallback? onEmiDues;
   final VoidCallback? onRemindersToday;
@@ -63,10 +73,6 @@ class _DashboardCardState extends State<DashboardCard>
 
   @override
   Widget build(BuildContext context) {
-    final expiringCount = widget.hero.pendingTasks > 0
-        ? widget.hero.pendingTasks
-        : 2;
-
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -121,7 +127,10 @@ class _DashboardCardState extends State<DashboardCard>
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                 child: _SummaryGrid(
-                  expiringCount: expiringCount,
+                  documentsExpiring: widget.documentsExpiring,
+                  remindersToday: widget.remindersToday,
+                  insuranceRenewals: widget.insuranceRenewals,
+                  emiDue: widget.emiDue,
                   onDocumentsExpiring:
                       widget.onDocumentsExpiring ?? widget.onPending,
                   onEmiDues: widget.onEmiDues ?? widget.onCta,
@@ -373,14 +382,20 @@ class _Sparkle extends StatelessWidget {
 /// The 2×2 block of pastel summary tiles, each entering on a small stagger.
 class _SummaryGrid extends StatelessWidget {
   const _SummaryGrid({
-    required this.expiringCount,
+    required this.documentsExpiring,
+    required this.remindersToday,
+    required this.insuranceRenewals,
+    required this.emiDue,
     this.onDocumentsExpiring,
     this.onEmiDues,
     this.onRemindersToday,
     this.onInsuranceRenewals,
   });
 
-  final int expiringCount;
+  final int documentsExpiring;
+  final int remindersToday;
+  final int insuranceRenewals;
+  final int emiDue;
   final VoidCallback? onDocumentsExpiring;
   final VoidCallback? onEmiDues;
   final VoidCallback? onRemindersToday;
@@ -391,16 +406,17 @@ class _SummaryGrid extends StatelessWidget {
     final tiles = <Widget>[
       _OverviewTile(
         title: 'Documents Expiring',
-        value: '$expiringCount',
+        value: '$documentsExpiring',
         icon: Icons.warning_amber_rounded,
         accent: const Color(0xFFF59E0B),
         fill: const Color(0xFFFFF6E9),
-        pulse: true,
+        // Only draw attention when something actually needs it.
+        pulse: documentsExpiring > 0,
         onTap: onDocumentsExpiring,
       ),
       _OverviewTile(
         title: 'EMI Due Tomorrow',
-        value: '1',
+        value: '$emiDue',
         icon: Icons.account_balance_wallet_rounded,
         accent: AppColors.primaryGreen,
         fill: const Color(0xFFE4F5F6),
@@ -408,7 +424,7 @@ class _SummaryGrid extends StatelessWidget {
       ),
       _OverviewTile(
         title: 'Reminders Today',
-        value: '3',
+        value: '$remindersToday',
         icon: Icons.alarm_rounded,
         accent: const Color(0xFFF5704A),
         fill: const Color(0xFFFFF1EC),
@@ -416,7 +432,7 @@ class _SummaryGrid extends StatelessWidget {
       ),
       _OverviewTile(
         title: 'Insurance Renewals',
-        value: '1',
+        value: '$insuranceRenewals',
         icon: Icons.shield_rounded,
         accent: const Color(0xFF8B6CEF),
         fill: const Color(0xFFF1ECFF),

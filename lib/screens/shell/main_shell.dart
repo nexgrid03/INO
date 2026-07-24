@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../../models/user_profile.dart';
 import '../../services/voice_greeting_service.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
+import '../expenses/add_expense_screen.dart';
 import '../home/home_screen.dart';
+import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
@@ -37,12 +39,22 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int _index = ShellController.tab.value;
 
   /// Held in state so a profile edit (from the Profile tab) propagates to every
   /// destination that shows the user's details.
   late UserProfile _profile = widget.profile;
+
+  /// Plays a brief fade + slide-in each time the destination changes. The
+  /// [IndexedStack] keeps every page alive (no rebuilds, scroll preserved); we
+  /// only animate the freshly-revealed page in from the right.
+  late final AnimationController _pageAnim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+  );
 
   @override
   void initState() {
@@ -59,6 +71,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     ShellController.tab.removeListener(_onTabChanged);
+    _pageAnim.dispose();
     super.dispose();
   }
 
@@ -66,20 +79,32 @@ class _MainShellState extends State<MainShell> {
   void _onTabChanged() {
     if (mounted && _index != ShellController.tab.value) {
       setState(() => _index = ShellController.tab.value);
+      _pageAnim.forward(from: 0);
     }
   }
 
   void _select(int i) {
-    // The centre "Scan" destination opens the focused Scan & OCR flow rather
-    // than switching the IndexedStack to a static page.
-    if (i == 2) {
-      HapticFeedback.selectionClick();
-      launchScanFlow(context);
-      return;
-    }
     if (i == _index) return;
     HapticFeedback.selectionClick();
     ShellController.tab.value = i;
+  }
+
+  /// The centre "+" button's quick-action menu resolves to one of three
+  /// destinations. Scanning still lives here; OCR / camera are save options
+  /// inside the Scan flow, not top-level menu items.
+  void _onScanAction(ScanAction action) {
+    switch (action) {
+      case ScanAction.expenses:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+        );
+      case ScanAction.scan:
+        launchScanFlow(context);
+      case ScanAction.notes:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const NotesScreen()),
+        );
+    }
   }
 
   @override
@@ -115,8 +140,26 @@ class _MainShellState extends State<MainShell> {
       resizeToAvoidBottomInset: false,
       // The voice assistant now lives as a small icon in each page's top bar
       // (beside the notification bell), so there's no floating mic here anymore.
-      body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: InoBottomNav(index: _index, onSelect: _select),
+      body: AnimatedBuilder(
+        animation: _pageAnim,
+        builder: (context, child) {
+          final v = Curves.easeOutCubic.transform(_pageAnim.value);
+          return Opacity(
+            // Ramp from a soft 0.35 (never a harsh blank) up to fully opaque.
+            opacity: 0.35 + 0.65 * v,
+            child: FractionalTranslation(
+              translation: Offset(0.06 * (1 - v), 0), // enters from the right
+              child: child,
+            ),
+          );
+        },
+        child: IndexedStack(index: _index, children: pages),
+      ),
+      bottomNavigationBar: InoBottomNav(
+        index: _index,
+        onSelect: _select,
+        onScanAction: _onScanAction,
+      ),
     );
   }
 }

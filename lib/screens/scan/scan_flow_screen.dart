@@ -139,7 +139,27 @@ Future<void> launchScanFlow(
   String? initialWallet,
 }) async {
   final result = await Navigator.of(context).push<ScanFlowResult>(
-    MaterialPageRoute(builder: (_) => const ScanFlowScreen()),
+    // Rises from the bottom like a camera opening — a full-screen sheet that
+    // slides up on an easeOutCubic curve rather than the default push.
+    PageRouteBuilder<ScanFlowResult>(
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, _, _) => const ScanFlowScreen(),
+      transitionsBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+    ),
   );
   if (result == null || !context.mounted) return;
 

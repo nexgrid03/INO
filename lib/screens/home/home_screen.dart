@@ -6,6 +6,7 @@ import '../../data/reminder_store.dart';
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
+import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
@@ -42,10 +43,24 @@ import '../wallet/wallet_detail_screen.dart';
 /// The read model the Home screen renders: a real-data hero and the market
 /// snapshot (realistic fallback) — assembled in one load.
 class _HomeData {
-  const _HomeData({required this.hero, required this.market});
+  const _HomeData({
+    required this.hero,
+    required this.market,
+    required this.documentsExpiring,
+    required this.remindersToday,
+    required this.insuranceRenewals,
+    required this.emiDue,
+  });
 
   final HomeHero hero;
   final List<MarketQuote> market;
+
+  // Real "Today's Overview" tile counts — sourced from the user's documents
+  // and reminders, never fabricated. Any with no data source read as 0.
+  final int documentsExpiring;
+  final int remindersToday;
+  final int insuranceRenewals;
+  final int emiDue;
 }
 
 /// The INO Home — Premium Responsive Fintech & Digital Life Management Dashboard.
@@ -102,11 +117,19 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
 
     var pending = expiringDocuments;
+    var remindersToday = 0;
+    var insuranceRenewals = 0;
     try {
       await ReminderStore.instance.ensureLoaded();
       final today = ReminderStore.instance.today;
-      pending += ReminderStore.instance.active
-          .where((r) => r.daysFrom(today) <= 7)
+      final active = ReminderStore.instance.active;
+      pending += active.where((r) => r.daysFrom(today) <= 7).length;
+      remindersToday = active.where((r) => r.daysFrom(today) == 0).length;
+      insuranceRenewals = active
+          .where((r) =>
+              r.category == ReminderCategory.insurance &&
+              r.daysFrom(today) >= 0 &&
+              r.daysFrom(today) <= 30)
           .length;
     } catch (_) {}
 
@@ -117,7 +140,16 @@ class _HomeScreenState extends State<HomeScreen> {
       protectedItems: DocumentProtectionStore.instance.protectedCount,
     );
 
-    return _HomeData(hero: hero, market: market);
+    return _HomeData(
+      hero: hero,
+      market: market,
+      documentsExpiring: expiringDocuments,
+      remindersToday: remindersToday,
+      insuranceRenewals: insuranceRenewals,
+      // No EMI/loan data source exists in the app yet, so this reads 0 rather
+      // than a fabricated figure. Wire a loan store here when one lands.
+      emiDue: 0,
+    );
   }
 
   Future<void> _refresh() async {
@@ -259,6 +291,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // 1. Today's Overview (Main Hero Section)
       DashboardCard(
         hero: data.hero,
+        documentsExpiring: data.documentsExpiring,
+        remindersToday: data.remindersToday,
+        insuranceRenewals: data.insuranceRenewals,
+        emiDue: data.emiDue,
         onDocumentsExpiring: () => _push(const PendingActionsScreen()),
         onEmiDues: () => _push(const EmiCalculatorScreen()),
         onRemindersToday: () => _push(RemindersScreen(profile: widget.profile)),
