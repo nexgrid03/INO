@@ -15,10 +15,10 @@ void main() {
     expect(find.byType(SplashScreen), findsOneWidget);
     expect(find.text('YOUR ASSISTANT. SIMPLE LIFE.'), findsOneWidget);
 
-    // Complete the 3.8s splash animation, 0.8s hold, and 0.5s transition.
-    await tester.pump(const Duration(milliseconds: 2500));
+    // Complete the 5.2s splash animation, 0.8s hold, and 0.6s transition.
+    await tester.pump(const Duration(milliseconds: 4000));
     await tester.pump(const Duration(milliseconds: 1000));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 800));
 
     // Onboarding is now visible: Skip + floating arrow button.
     expect(find.text('Skip'), findsOneWidget);
