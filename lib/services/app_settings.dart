@@ -21,9 +21,16 @@ class AppSettings {
   static const _kTwoFactor = 'pref_two_factor_enabled';
   static const _kLanguage = 'pref_language';
   static const _kLastBackup = 'pref_last_backup_at';
+  static const _kWelcomeSound = 'pref_welcome_sound_enabled';
 
   /// Push / reminder notifications. Default on.
   final ValueNotifier<bool> notifications = ValueNotifier<bool>(true);
+
+  /// The spoken welcome greeting on app open. Default on. The single source of
+  /// truth read by [VoiceGreetingService] BEFORE any audio work happens, and
+  /// written by both the Settings toggle and the in-the-moment "Mute greeting"
+  /// pill.
+  final ValueNotifier<bool> welcomeSound = ValueNotifier<bool>(true);
 
   /// Automatically back new documents up to the cloud after upload. Default off.
   final ValueNotifier<bool> autoBackup = ValueNotifier<bool>(false);
@@ -43,6 +50,7 @@ class AppSettings {
     try {
       final p = await SharedPreferences.getInstance();
       notifications.value = p.getBool(_kNotifications) ?? true;
+      welcomeSound.value = p.getBool(_kWelcomeSound) ?? true;
       autoBackup.value = p.getBool(_kAutoBackup) ?? false;
       twoFactor.value = p.getBool(_kTwoFactor) ?? false;
       language.value = p.getString(_kLanguage) ?? 'en';
@@ -62,6 +70,9 @@ class AppSettings {
 
   Future<void> setNotifications(bool value) =>
       _setBool(_kNotifications, notifications, value);
+
+  Future<void> setWelcomeSound(bool value) =>
+      _setBool(_kWelcomeSound, welcomeSound, value);
 
   Future<void> setAutoBackup(bool value) =>
       _setBool(_kAutoBackup, autoBackup, value);
@@ -105,8 +116,9 @@ class AppSettings {
 
   /// Resets the ACCOUNT-scoped preferences to their defaults on sign-out so the
   /// next user doesn't inherit this account's notification / auto-backup / 2FA
-  /// state or last-backup time. [language] is a DEVICE preference and is
-  /// deliberately kept. Called from [SessionReset].
+  /// state or last-backup time. [language] and [welcomeSound] are DEVICE
+  /// preferences and are deliberately kept (muting the greeting should stick
+  /// across sign-ins on this phone). Called from [SessionReset].
   Future<void> resetAccountScoped() async {
     notifications.value = true;
     autoBackup.value = false;

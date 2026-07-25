@@ -76,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   // survives restarts. Reading a store's `.value` never touches disk.
   late bool _biometric = BiometricService.instance.lockEnabled.value;
   late bool _notifications = AppSettings.instance.notifications.value;
+  late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
   late bool _autoBackup = AppSettings.instance.autoBackup.value;
   bool _twoFactor = AppSettings.instance.twoFactor.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
@@ -246,6 +247,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() => _notifications = value);
     await AppSettings.instance.setNotifications(value);
     _toast(value ? 'Notifications enabled' : 'Notifications turned off');
+  }
+
+  Future<void> _toggleWelcomeSound(bool value) async {
+    setState(() => _welcomeSound = value);
+    // Persisting false also stops a greeting that's currently playing —
+    // VoiceGreetingService listens to this setting.
+    await AppSettings.instance.setWelcomeSound(value);
+    _toast(value ? 'Startup greeting on' : 'Startup greeting off');
   }
 
   Future<void> _toggleAutoBackup(bool value) async {
@@ -610,6 +619,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.notifications_rounded,
             title: l10n.t('notifications'),
             trailing: _switch(_notifications, _toggleNotifications),
+          ),
+          SettingsRow(
+            icon: Icons.campaign_rounded,
+            title: l10n.t('welcomeSound'),
+            subtitle: l10n.t('welcomeSoundSubtitle'),
+            trailing: Semantics(
+              label: l10n.t('welcomeSound'),
+              toggled: _welcomeSound,
+              child: _switch(_welcomeSound, _toggleWelcomeSound),
+            ),
           ),
           SettingsRow(
             icon: Icons.dark_mode_rounded,

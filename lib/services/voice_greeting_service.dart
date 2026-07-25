@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 
+import 'app_settings.dart';
 import 'voice_manager.dart';
 
 void _log(String message) => developer.log(message, name: 'greeting');
@@ -23,13 +25,37 @@ void _log(String message) => developer.log(message, name: 'greeting');
 /// Deliberately fire-and-forget and self-guarding: any TTS failure is
 /// swallowed so the greeting can never interfere with the app.
 class VoiceGreetingService {
-  VoiceGreetingService._();
+  VoiceGreetingService._() {
+    // Flipping the startup-greeting setting OFF must silence an in-flight
+    // greeting IMMEDIATELY, no matter which surface flipped it (the Settings
+    // switch, the mute pill, or any future control). Listening to the setting
+    // itself keeps that guarantee in one place.
+    AppSettings.instance.welcomeSound.addListener(_onSettingChanged);
+  }
   static final VoiceGreetingService instance = VoiceGreetingService._();
+
+  void _onSettingChanged() {
+    if (!AppSettings.instance.welcomeSound.value && speaking.value) {
+      _log('Greeting setting turned off mid-utterance — stopping playback');
+      speaking.value = false;
+      unawaited(VoiceManager.instance.stop());
+    }
+  }
 
   /// True once we've greeted this session, so the greeting plays only once.
   bool _greeted = false;
 
+  /// True while the greeting is actually being spoken. The "Mute greeting"
+  /// pill ([WelcomeSoundPill]) shows exactly while this is true and hides the
+  /// moment the utterance finishes or is muted.
+  final ValueNotifier<bool> speaking = ValueNotifier<bool>(false);
+
   /// Speaks the greeting once. Subsequent calls in the same session are no-ops.
+  ///
+  /// Respects the persisted "Welcome sound" preference
+  /// ([AppSettings.welcomeSound]) — read BEFORE any audio work, so when the
+  /// user has muted the greeting nothing is loaded or spoken at all (never
+  /// load-then-stop).
   ///
   /// [userName] is the signed-in user's name; when blank the greeting omits it
   /// ("Good Morning.").
@@ -43,10 +69,38 @@ class VoiceGreetingService {
     // already see the guard closed.
     _greeted = true;
 
+    if (!AppSettings.instance.welcomeSound.value) {
+      _log('Greeting skipped — welcome sound is turned off');
+      debugPrint('Greeting skipped — welcome sound is turned off');
+      return;
+    }
+
     final text = _greetingFor(DateTime.now().hour, userName);
     _log('Greeting triggered: "$text"');
     debugPrint('Greeting triggered: "$text"');
-    await VoiceManager.instance.speak(text);
+    speaking.value = true;
+    try {
+      // Resolves when the utterance COMPLETES (VoiceManager awaits speech
+      // completion), so `speaking` brackets the audible window exactly.
+      await VoiceManager.instance.speak(text);
+    } finally {
+      speaking.value = false;
+    }
+  }
+
+  /// The in-the-moment mute: immediately stops the greeting mid-utterance AND
+  /// persists `welcomeSound = false` so it won't play on the next launch
+  /// either. No confirmation — the silence intent is honoured instantly.
+  Future<void> muteNow() async {
+    _log('Greeting muted by the user — disabling the welcome sound');
+    debugPrint('Greeting muted by the user — disabling the welcome sound');
+    speaking.value = false;
+    await AppSettings.instance.setWelcomeSound(false);
+    try {
+      await VoiceManager.instance.stop();
+    } catch (_) {
+      // Stopping is best-effort; the preference is already persisted.
+    }
   }
 
   /// Builds the phrase for [hour] (0–23):

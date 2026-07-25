@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -92,6 +94,15 @@ class VoiceManager with WidgetsBindingObserver {
       await tts.setSpeechRate(0.5); // comfortable, natural pace
       await tts.setVolume(1.0);
       await tts.setPitch(1.0);
+      if (!kIsWeb && Platform.isIOS) {
+        // Ambient category = app speech obeys the physical Ring/Silent switch
+        // (the playsInSilentModeIOS:false behaviour) and mixes politely with
+        // other audio instead of interrupting it.
+        await tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.ambient,
+          [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+        );
+      }
       _tts = tts;
       if (!_observing) {
         _observing = true;

@@ -15,6 +15,7 @@ class SettingsRow extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailing,
     this.value,
     this.onTap,
@@ -24,6 +25,9 @@ class SettingsRow extends StatelessWidget {
 
   final IconData icon;
   final String title;
+
+  /// An optional one-line explainer under the title (muted caption).
+  final String? subtitle;
 
   /// A trailing widget (e.g. a [Switch]) that overrides the default chevron.
   final Widget? trailing;
@@ -82,16 +86,34 @@ class SettingsRow extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: fg,
-                letterSpacing: -0.1,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.25,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (tail != null) ...[const SizedBox(width: 8), tail],
