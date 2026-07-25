@@ -11,10 +11,10 @@ import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../auth/auth_validators.dart';
 
-/// Edit Profile — the primary action of the Profile settings page.
+/// Edit Profile - the primary action of the Profile settings page.
 ///
 /// A focused sub-screen (opened from the identity header) for the fields the
-/// app actually owns: full name and phone number. Email is shown read-only —
+/// app actually owns: full name and phone number. Email is shown read-only -
 /// changing a sign-in email is a separate, security-sensitive flow. Saves
 /// through [UserRepository.updateProfile] and returns the fresh [UserProfile]
 /// so the caller can update its view.
@@ -122,7 +122,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _AvatarEditor(
                 initials: _initials,
                 photoUrl: widget.profile.profilePhoto,
-                onTap: () => _snack('Change photo — coming soon',
+                onTap: () => _snack('Change photo - coming soon',
                     isError: false),
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -179,7 +179,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 }
 
 /// The circular gradient avatar with a small camera badge (photo upload is a
-/// future flow — the badge signals it without promising it yet).
+/// future flow - the badge signals it without promising it yet).
 class _AvatarEditor extends StatelessWidget {
   const _AvatarEditor({
     required this.initials,

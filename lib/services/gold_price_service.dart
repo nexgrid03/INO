@@ -29,7 +29,7 @@ class GoldPriceService extends ChangeNotifier {
   GoldPriceService._();
   static final GoldPriceService instance = GoldPriceService._();
 
-  // A realistic recent placeholder (₹/g, 24K). Not a live rate — the Gold
+  // A realistic recent placeholder (₹/g, 24K). Not a live rate - the Gold
   // calculator lets the user type today's price over it.
   double _pricePerGram24k = 7350;
 

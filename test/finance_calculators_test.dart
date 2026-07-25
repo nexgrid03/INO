@@ -129,7 +129,7 @@ void main() {
     });
   });
 
-  group('Area units — grounds & bigha', () {
+  group('Area units - grounds & bigha', () {
     const svc = AreaConversionService.instance;
     test('1 ground = 2400 sq.ft; 1 acre = 18.15 grounds', () {
       expect(svc.convert(1, AreaUnit.grounds, AreaUnit.squareFeet),

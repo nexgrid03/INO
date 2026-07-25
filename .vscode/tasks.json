@@ -4,7 +4,7 @@
     {
       // Runs automatically before every launch (see launch.json preLaunchTask).
       // Kills any leftover dart/java/adb process and deletes build\ so Gradle's
-      // cleanMergeDebugAssets can never hit a locked file — the root cause of the
+      // cleanMergeDebugAssets can never hit a locked file - the root cause of the
       // recurring "Unable to delete directory ... mergeDebugAssets" error.
       "label": "clean-build-lock",
       "type": "process",

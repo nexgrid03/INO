@@ -1,10 +1,13 @@
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/app_theme.dart';
+import 'quick_actions.dart';
+import 'quick_menu_editor.dart';
 
 /// One bottom-navigation destination.
 class NavItem {
@@ -14,16 +17,18 @@ class NavItem {
   final IconData inactive;
 }
 
-/// The quick-action surfaced by the centre button's expanding menu.
-enum ScanAction { expenses, scan, notes }
-
-/// The INO floating bottom navigation bar — a premium, minimal white pill.
+/// The INO floating bottom navigation bar - a premium, minimal white pill.
 ///
-/// Five slots: Home · Vault · **Scan** · Alerts · Profile. The four side tabs
+/// Five slots: Home · Vault · **+** · Alerts · Profile. The four side tabs
 /// each carry a bespoke micro-interaction (a bounce, a lift, a bell wiggle, a
-/// fade+scale) plus a smoothly sliding active-indicator dot; the centre is a
-/// filled circular Scan button that morphs into a close (X) and fans out an
-/// arc of quick actions over a dimmed, blurred backdrop.
+/// fade+scale) plus a smoothly sliding active-indicator dot.
+///
+/// The centre "+" carries the quick menu:
+///  • **Tap** - fans out the user's picked features (up to 5, customisable via
+///    the small Edit chip) over a dimmed, blurred backdrop.
+///  • **Press & hold** - the same features appear as a radial wheel; keep
+///    holding, slide onto an option and let go to open it. Sliding back to
+///    the centre and releasing cancels.
 ///
 /// Shared verbatim between [MainShell] and pushed routes so navigation looks
 /// and behaves identically everywhere.
@@ -32,20 +37,21 @@ class InoBottomNav extends StatefulWidget {
     super.key,
     required this.index,
     required this.onSelect,
-    this.onScanAction,
+    this.onQuickMenuAction,
   });
 
   /// The active tab (0 Home · 1 Vault · 3 Alerts · 4 Profile). Index 2 is the
-  /// centre Scan button and is never a resting page.
+  /// centre "+" button and is never a resting page.
   final int index;
 
   /// Fired for the four real destinations only (never for the centre button).
   final void Function(int) onSelect;
 
-  /// Fired after the quick-action menu closes, with the chosen scan action.
-  final void Function(ScanAction)? onScanAction;
+  /// Fired after the quick menu (tap fan-out or hold-wheel) resolves to a
+  /// feature.
+  final void Function(QuickMenuAction)? onQuickMenuAction;
 
-  /// The five primary destinations — single source of truth for every surface.
+  /// The five primary destinations - single source of truth for every surface.
   static const List<NavItem> tabs = [
     NavItem('Home', Icons.home_rounded, Icons.home_outlined),
     NavItem(
@@ -68,7 +74,9 @@ class InoBottomNav extends StatefulWidget {
 
 class _InoBottomNavState extends State<InoBottomNav>
     with SingleTickerProviderStateMixin {
-  /// Drives both the Scan-button morph (Scan ⇄ X) and the arc-menu open/close.
+  /// Drives the "+" morph (+ ⇄ ×) and the open/close of BOTH overlays (the
+  /// tap fan-out and the hold-wheel) - they never coexist, so one controller
+  /// keeps every piece of motion on the same clock.
   late final AnimationController _menu = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 380),
@@ -76,49 +84,88 @@ class _InoBottomNavState extends State<InoBottomNav>
   );
 
   final GlobalKey _scanKey = GlobalKey();
-  OverlayEntry? _entry;
+  OverlayEntry? _entry; // tap fan-out
+  OverlayEntry? _wheelEntry; // press-and-hold wheel
+
+  /// Live wheel state: overlay-local pointer + the currently highlighted slot.
+  final ValueNotifier<int?> _highlight = ValueNotifier<int?>(null);
+  List<QuickMenuAction> _wheelActions = const [];
+  Offset _wheelCenter = Offset.zero;
+  RenderBox? _overlayBox;
 
   bool get _open => _entry != null;
+  bool get _wheelOpen => _wheelEntry != null;
 
   @override
   void dispose() {
     _entry?.remove();
+    _wheelEntry?.remove();
+    _highlight.dispose();
     _menu.dispose();
     super.dispose();
   }
 
-  // ---- Quick-action menu ---------------------------------------------------
+  // ---- Shared geometry -------------------------------------------------------
 
-  void _toggleMenu() => _open ? _closeMenu() : _openMenu();
+  /// Centre of the "+" button in overlay space (fallback: bottom-centre).
+  Offset _buttonCenter() {
+    final box = _scanKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    _overlayBox = overlayBox;
+    if (box != null && overlayBox != null) {
+      return box.localToGlobal(box.size.center(Offset.zero),
+          ancestor: overlayBox);
+    }
+    final size = MediaQuery.of(context).size;
+    return Offset(size.width / 2, size.height - 60);
+  }
+
+  /// Item angles (degrees, screen coords: -90 is straight up) for [n] slots -
+  /// a symmetric arc centred over the button that widens with the count.
+  static List<double> arcAngles(int n) {
+    if (n <= 1) return const [-90];
+    final spread = switch (n) {
+      2 => 56.0,
+      3 => 100.0,
+      4 => 126.0,
+      _ => 144.0,
+    };
+    final start = -90 - spread / 2;
+    final step = spread / (n - 1);
+    return [for (var i = 0; i < n; i++) start + step * i];
+  }
+
+  static Offset _onArc(double angleDeg, double radius) {
+    final rad = angleDeg * math.pi / 180;
+    return Offset(math.cos(rad) * radius, math.sin(rad) * radius);
+  }
+
+  // ---- Tap fan-out menu ------------------------------------------------------
+
+  void _toggleMenu() {
+    if (_wheelOpen) return; // a hold is in flight
+    _open ? _closeMenu() : _openMenu();
+  }
 
   void _openMenu() {
     if (_open) return;
     HapticFeedback.lightImpact();
-    final box = _scanKey.currentContext?.findRenderObject() as RenderBox?;
-    final overlayBox =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    // Centre of the Scan button in overlay-space (fallback: bottom-centre).
-    Offset center;
-    if (box != null && overlayBox != null) {
-      center = box.localToGlobal(
-        box.size.center(Offset.zero),
-        ancestor: overlayBox,
-      );
-    } else {
-      final size = MediaQuery.of(context).size;
-      center = Offset(size.width / 2, size.height - 60);
-    }
+    final center = _buttonCenter();
+    final actions = selectedQuickMenuActions();
 
     _entry = OverlayEntry(
       builder: (_) => _ScanMenu(
         animation: _menu,
         center: center,
+        actions: actions,
         onDismiss: _closeMenu,
         onSelect: _selectAction,
+        onEdit: _openEditor,
       ),
     );
     Overlay.of(context).insert(_entry!);
-    setState(() {}); // repaint the morphing Scan button
+    setState(() {}); // repaint the morphing "+"
     _menu.forward(from: 0);
   }
 
@@ -131,11 +178,106 @@ class _InoBottomNavState extends State<InoBottomNav>
     if (mounted) setState(() {});
   }
 
-  Future<void> _selectAction(ScanAction action) async {
+  Future<void> _selectAction(QuickMenuAction action) async {
     HapticFeedback.selectionClick();
     await _closeMenu();
     if (!mounted) return;
-    widget.onScanAction?.call(action);
+    widget.onQuickMenuAction?.call(action);
+  }
+
+  Future<void> _openEditor() async {
+    await _closeMenu();
+    if (!mounted) return;
+    await showQuickMenuEditor(context);
+  }
+
+  // ---- Press-and-hold wheel --------------------------------------------------
+
+  static const double _wheelRadius = 118;
+
+  void _onHoldStart(LongPressStartDetails details) {
+    if (_open || _wheelOpen) return;
+    HapticFeedback.mediumImpact();
+    _wheelCenter = _buttonCenter();
+    _wheelActions = selectedQuickMenuActions();
+    _highlight.value = null;
+
+    _wheelEntry = OverlayEntry(
+      builder: (_) => _QuickWheel(
+        animation: _menu,
+        center: _wheelCenter,
+        actions: _wheelActions,
+        highlight: _highlight,
+      ),
+    );
+    Overlay.of(context).insert(_wheelEntry!);
+    setState(() {}); // morph + → ×
+    _menu.forward(from: 0);
+    _trackPointer(details.globalPosition);
+  }
+
+  void _onHoldMove(LongPressMoveUpdateDetails details) {
+    if (_wheelOpen) _trackPointer(details.globalPosition);
+  }
+
+  Future<void> _onHoldEnd(LongPressEndDetails details) async {
+    if (!_wheelOpen) return;
+    final picked = _highlight.value;
+    final action = (picked != null && picked < _wheelActions.length)
+        ? _wheelActions[picked]
+        : null;
+    if (action != null) HapticFeedback.mediumImpact();
+
+    await _menu.reverse();
+    _wheelEntry?.remove();
+    _wheelEntry = null;
+    _highlight.value = null;
+    if (!mounted) return;
+    setState(() {});
+    if (action != null) widget.onQuickMenuAction?.call(action);
+  }
+
+  void _onHoldCancel() {
+    if (!_wheelOpen) return;
+    _menu.reverse().whenComplete(() {
+      _wheelEntry?.remove();
+      _wheelEntry = null;
+      if (mounted) setState(() {});
+    });
+    _highlight.value = null;
+  }
+
+  /// Maps the finger's overlay position to the wheel slot under it (or null in
+  /// the centre dead-zone), buzzing softly whenever the highlight moves.
+  void _trackPointer(Offset globalPosition) {
+    final local = _overlayBox?.globalToLocal(globalPosition) ?? globalPosition;
+    final d = local - _wheelCenter;
+    final r = d.distance;
+
+    int? next;
+    if (r >= 42 && _wheelActions.isNotEmpty) {
+      final angles = arcAngles(_wheelActions.length);
+      final deg = math.atan2(d.dy, d.dx) * 180 / math.pi;
+      var best = 0;
+      var bestDiff = double.infinity;
+      for (var i = 0; i < angles.length; i++) {
+        final diff = (deg - angles[i]).abs();
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = i;
+        }
+      }
+      // Generous capture band: half the slot spacing plus a margin, so the
+      // wheel feels forgiving rather than fiddly. A lone item accepts a wide
+      // upward cone.
+      final step = angles.length > 1 ? (angles[1] - angles[0]) : 120.0;
+      if (bestDiff <= step / 2 + 14) next = best;
+    }
+
+    if (next != _highlight.value) {
+      if (next != null) HapticFeedback.selectionClick();
+      _highlight.value = next;
+    }
   }
 
   // ---- Build ---------------------------------------------------------------
@@ -153,11 +295,11 @@ class _InoBottomNavState extends State<InoBottomNav>
           height: 66,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            // Pure white (elevated surface in dark) — no glass, no gradient.
+            // Pure white (elevated surface in dark) - no glass, no gradient.
             color: isDark ? palette.bgElevated : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
-              // Soft ambient lift — deliberately gentle, never harsh.
+              // Soft ambient lift - deliberately gentle, never harsh.
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.07),
                 blurRadius: 26,
@@ -173,24 +315,39 @@ class _InoBottomNavState extends State<InoBottomNav>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // The sliding active-indicator line, aligned under the live tab.
+              // The sliding active-indicator line, centred under the live tab.
+              //
+              // Positioned by explicit slot maths rather than an Alignment:
+              // Alignment distributes a child across the *free* space
+              // (parent − child), so feeding it a slot fraction lands the line
+              // short of the slot centre - it drifted ~9px inward on the outer
+              // tabs and was only ever exact on the middle one.
               Positioned.fill(
                 child: IgnorePointer(
-                  child: AnimatedAlign(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOutCubic,
-                    alignment: Alignment(_dotX(widget.index), 1),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 7),
-                      child: Container(
-                        width: 22,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGreen,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Same geometry the Row below uses: five equal Expanded
+                      // slots across the bar's content box.
+                      final slot = constraints.maxWidth / InoBottomNav.tabs.length;
+                      return Stack(
+                        children: [
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                            left: slot * widget.index + (slot - _indicatorWidth) / 2,
+                            bottom: 7,
+                            child: Container(
+                              width: _indicatorWidth,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryGreen,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -204,6 +361,10 @@ class _InoBottomNavState extends State<InoBottomNav>
                                 key: _scanKey,
                                 progress: _menu,
                                 onTap: _toggleMenu,
+                                onHoldStart: _onHoldStart,
+                                onHoldMove: _onHoldMove,
+                                onHoldEnd: _onHoldEnd,
+                                onHoldCancel: _onHoldCancel,
                               ),
                             )
                           : _TabButton(
@@ -222,9 +383,8 @@ class _InoBottomNavState extends State<InoBottomNav>
     );
   }
 
-  /// Horizontal alignment (-1..1) of the indicator dot for a given tab, across
-  /// the five equal slots. Index 2 (Scan) has no dot.
-  static double _dotX(int index) => -1 + (2 * index + 1) / 5;
+  /// Width of the active-indicator line.
+  static const double _indicatorWidth = 22;
 
   static _TabKind _kindFor(int i) => switch (i) {
         0 => _TabKind.home,
@@ -259,7 +419,7 @@ class _TabButton extends StatefulWidget {
 class _TabButtonState extends State<_TabButton>
     with SingleTickerProviderStateMixin {
   // One-shot 250ms controller: fires each time the tab becomes active, then
-  // rests — every transform below returns to zero at t=1 so nothing sticks.
+  // rests - every transform below returns to zero at t=1 so nothing sticks.
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 250),
@@ -351,18 +511,27 @@ class _TabButtonState extends State<_TabButton>
   }
 }
 
-/// The centre Scan button: a filled primary circle with a soft shadow that
-/// compresses on press, rotates 45° and morphs its glyph from scan → close as
-/// the [progress] controller drives the quick-action menu open.
+/// The centre "+" button: a filled primary circle with a soft shadow that
+/// compresses on press and rotates 45° (+ → ×) as either quick-menu overlay
+/// opens. Tap toggles the fan-out; press-and-hold drives the wheel via the
+/// four long-press callbacks.
 class _ScanButton extends StatefulWidget {
   const _ScanButton({
     super.key,
     required this.progress,
     required this.onTap,
+    required this.onHoldStart,
+    required this.onHoldMove,
+    required this.onHoldEnd,
+    required this.onHoldCancel,
   });
 
   final Animation<double> progress;
   final VoidCallback onTap;
+  final void Function(LongPressStartDetails) onHoldStart;
+  final void Function(LongPressMoveUpdateDetails) onHoldMove;
+  final void Function(LongPressEndDetails) onHoldEnd;
+  final VoidCallback onHoldCancel;
 
   @override
   State<_ScanButton> createState() => _ScanButtonState();
@@ -377,42 +546,50 @@ class _ScanButtonState extends State<_ScanButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _pressed ? 0.95 : 1, // Step 1 — slight compress
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-      child: Container(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          color: AppColors.primaryGreen,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.42),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          // Single tap source: the InkWell drives the ripple, the press-compress
-          // (via onHighlightChanged) and the tap — so the menu toggles once.
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            splashColor: Colors.white.withValues(alpha: 0.28), // Step 2 ripple
-            highlightColor: Colors.transparent,
-            onHighlightChanged: _setPressed,
-            onTap: widget.onTap,
-            child: AnimatedBuilder(
+    return GestureDetector(
+      // The hold-wheel gesture. The InkWell below owns plain taps; the arena
+      // hands the pointer here once the long-press deadline passes.
+      onLongPressStart: widget.onHoldStart,
+      onLongPressMoveUpdate: widget.onHoldMove,
+      onLongPressEnd: widget.onHoldEnd,
+      onLongPressCancel: widget.onHoldCancel,
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1, // Step 1 - slight compress
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.42),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            // Single tap source: the InkWell drives the ripple, the
+            // press-compress (via onHighlightChanged) and the tap - so the
+            // menu toggles once.
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              splashColor: Colors.white.withValues(alpha: 0.28), // ripple
+              highlightColor: Colors.transparent,
+              onHighlightChanged: _setPressed,
+              onTap: widget.onTap,
+              child: AnimatedBuilder(
                 animation: widget.progress,
                 builder: (context, _) {
                   final v = widget.progress.value;
                   // A single "+" that rotates 0° → 135° so it reads as an "×"
-                  // once the quick-action menu is open.
+                  // once a quick menu is open.
                   return Transform.rotate(
                     angle: v * (3 * math.pi / 4),
                     child: const Icon(
@@ -426,47 +603,34 @@ class _ScanButtonState extends State<_ScanButton> {
             ),
           ),
         ),
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Expanding quick-action menu (full-screen overlay)
+// Tap fan-out menu (full-screen overlay)
 // ---------------------------------------------------------------------------
 
-class _MenuSpec {
-  const _MenuSpec(this.action, this.icon, this.label, this.offset);
-  final ScanAction action;
-  final IconData icon;
-  final String label;
-
-  /// Position of the item's circle centre, relative to the Scan button centre
-  /// (y negative = upward). Together the four form a gentle upward arc.
-  final Offset offset;
-}
-
-// Exactly three actions, in this order, forming a shallow upward arc. Edit
-// this one list to add or remove an item.
-const List<_MenuSpec> _kMenu = [
-  _MenuSpec(ScanAction.expenses, Icons.account_balance_wallet_rounded,
-      'Expenses', Offset(-78, -64)),
-  _MenuSpec(
-      ScanAction.scan, Icons.document_scanner_rounded, 'Scan', Offset(0, -104)),
-  _MenuSpec(ScanAction.notes, Icons.edit_rounded, 'Notes', Offset(78, -64)),
-];
+/// Radius of the fan-out arc the tap menu lays its items on.
+const double _kMenuRadius = 104;
 
 class _ScanMenu extends StatelessWidget {
   const _ScanMenu({
     required this.animation,
     required this.center,
+    required this.actions,
     required this.onDismiss,
     required this.onSelect,
+    required this.onEdit,
   });
 
   final Animation<double> animation;
   final Offset center;
+  final List<QuickMenuAction> actions;
   final VoidCallback onDismiss;
-  final void Function(ScanAction) onSelect;
+  final void Function(QuickMenuAction) onSelect;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -474,8 +638,9 @@ class _ScanMenu extends StatelessWidget {
       animation: animation,
       builder: (context, _) {
         final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+        final angles = _InoBottomNavState.arcAngles(actions.length);
         // Wrap in a transparent Material so the action labels inherit a proper
-        // text style — without a Material ancestor an overlay's Text renders
+        // text style - without a Material ancestor an overlay's Text renders
         // with Flutter's debug yellow underline.
         return Material(
           type: MaterialType.transparency,
@@ -494,8 +659,15 @@ class _ScanMenu extends StatelessWidget {
                   ),
                 ),
               ),
-              for (var i = 0; i < _kMenu.length; i++)
-                _positioned(context, _kMenu[i], i),
+              for (var i = 0; i < actions.length; i++)
+                _positioned(
+                  context,
+                  actions[i],
+                  _InoBottomNavState._onArc(angles[i], _kMenuRadius),
+                  i,
+                ),
+              // The small Edit chip, floating above the arc's crown.
+              _editChip(context),
             ],
           ),
         );
@@ -503,16 +675,21 @@ class _ScanMenu extends StatelessWidget {
     );
   }
 
-  Widget _positioned(BuildContext context, _MenuSpec spec, int i) {
+  Widget _positioned(
+    BuildContext context,
+    QuickMenuAction action,
+    Offset offset,
+    int i,
+  ) {
     // Stagger each child by ~50ms (≈0.13 of the 380ms controller).
-    final start = (0.15 + i * 0.13).clamp(0.0, 0.85);
+    final start = (0.15 + i * 0.10).clamp(0.0, 0.85);
     final raw = ((animation.value - start) / (1 - start)).clamp(0.0, 1.0);
     final t = Curves.easeOutBack.transform(raw);
     final fade = Curves.easeOut.transform(raw);
 
     const box = 74.0;
-    final cx = center.dx + spec.offset.dx;
-    final cy = center.dy + spec.offset.dy;
+    final cx = center.dx + offset.dx;
+    final cy = center.dy + offset.dy;
     // 20px upward rise that eases to 0 as the item settles.
     final rise = 20 * (1 - fade);
 
@@ -525,7 +702,67 @@ class _ScanMenu extends StatelessWidget {
         child: Transform.scale(
           scale: 0.8 + 0.2 * t, // 0.8 → 1
           alignment: Alignment.topCenter,
-          child: _MenuButton(spec: spec, onTap: () => onSelect(spec.action)),
+          child: _MenuButton(action: action, onTap: () => onSelect(action)),
+        ),
+      ),
+    );
+  }
+
+  /// A compact tonal "Edit" pill above the arc - opens the quick-menu
+  /// customiser. Enters last, after the feature items.
+  Widget _editChip(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final raw = ((animation.value - 0.55) / 0.45).clamp(0.0, 1.0);
+    final t = Curves.easeOutBack.transform(raw);
+    final fade = Curves.easeOut.transform(raw);
+
+    const w = 86.0;
+    return Positioned(
+      left: center.dx - w / 2,
+      top: center.dy - _kMenuRadius - 64,
+      width: w,
+      child: Opacity(
+        opacity: fade,
+        child: Transform.scale(
+          scale: 0.7 + 0.3 * t,
+          child: GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: palette.isDark ? palette.bgElevated : Colors.white,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black
+                        .withValues(alpha: palette.isDark ? 0.4 : 0.10),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.tune_rounded,
+                      size: 15, color: AppColors.primaryGreen),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Edit',
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -533,9 +770,9 @@ class _ScanMenu extends StatelessWidget {
 }
 
 class _MenuButton extends StatefulWidget {
-  const _MenuButton({required this.spec, required this.onTap});
+  const _MenuButton({required this.action, required this.onTap});
 
-  final _MenuSpec spec;
+  final QuickMenuAction action;
   final VoidCallback onTap;
 
   @override
@@ -581,14 +818,14 @@ class _MenuButtonState extends State<_MenuButton> {
                 ],
               ),
               child: Icon(
-                widget.spec.icon,
+                widget.action.icon,
                 color: AppColors.primaryGreen,
                 size: 24,
               ),
             ),
             const SizedBox(height: 7),
             Text(
-              widget.spec.label,
+              widget.action.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -605,6 +842,179 @@ class _MenuButtonState extends State<_MenuButton> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Press-and-hold wheel (full-screen overlay)
+// ---------------------------------------------------------------------------
+
+/// The hold-wheel: the picked features arranged on a radial arc around the
+/// "+" button. Purely visual - the finger never leaves the button's gesture,
+/// so hit-testing happens in the nav state (`_trackPointer`) and this layer
+/// just renders the [highlight].
+class _QuickWheel extends StatelessWidget {
+  const _QuickWheel({
+    required this.animation,
+    required this.center,
+    required this.actions,
+    required this.highlight,
+  });
+
+  final Animation<double> animation;
+  final Offset center;
+  final List<QuickMenuAction> actions;
+  final ValueListenable<int?> highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+        final angles = _InoBottomNavState.arcAngles(actions.length);
+        return Material(
+          type: MaterialType.transparency,
+          child: IgnorePointer(
+            // The wheel never takes pointers - the long-press that opened it
+            // keeps them until release.
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.18 * v),
+                    ),
+                  ),
+                ),
+                // Hint, tucked under the wheel's crown item.
+                _hint(context, v),
+                for (var i = 0; i < actions.length; i++)
+                  _slot(
+                    context,
+                    actions[i],
+                    _InoBottomNavState._onArc(
+                        angles[i], _InoBottomNavState._wheelRadius),
+                    i,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _hint(BuildContext context, double v) {
+    const w = 220.0;
+    return Positioned(
+      left: center.dx - w / 2,
+      top: center.dy - _InoBottomNavState._wheelRadius - 96,
+      width: w,
+      child: Opacity(
+        opacity: (v * 1.2 - 0.2).clamp(0.0, 1.0) * 0.9,
+        child: Text(
+          'Slide to an option, release to open',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            shadows: const [Shadow(color: Colors.black38, blurRadius: 8)],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _slot(
+    BuildContext context,
+    QuickMenuAction action,
+    Offset offset,
+    int i,
+  ) {
+    final palette = AppPalette.of(context);
+    // Stagger the slots in like the tap menu, just a touch quicker.
+    final start = (0.10 + i * 0.08).clamp(0.0, 0.85);
+    final raw = ((animation.value - start) / (1 - start)).clamp(0.0, 1.0);
+    final t = Curves.easeOutBack.transform(raw);
+    final fade = Curves.easeOut.transform(raw);
+
+    const box = 78.0;
+    final cx = center.dx + offset.dx;
+    final cy = center.dy + offset.dy;
+    final rise = 16 * (1 - fade);
+
+    return Positioned(
+      left: cx - box / 2,
+      top: cy - 28 + rise,
+      width: box,
+      child: ValueListenableBuilder<int?>(
+        valueListenable: highlight,
+        builder: (context, hi, _) {
+          final hot = hi == i;
+          return Opacity(
+            opacity: fade,
+            child: Transform.scale(
+              scale: (0.8 + 0.2 * t) * (hot ? 1.18 : 1.0),
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: hot
+                          ? AppColors.primaryGreen
+                          : (palette.isDark
+                              ? palette.bgElevated
+                              : Colors.white),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: hot
+                              ? AppColors.primaryGreen.withValues(alpha: 0.45)
+                              : Colors.black.withValues(
+                                  alpha: palette.isDark ? 0.4 : 0.10),
+                          blurRadius: hot ? 20 : 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      action.icon,
+                      color: hot ? Colors.white : AppColors.primaryGreen,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    action.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: hot && !palette.isDark
+                          ? AppColors.primaryGreen
+                          : palette.textPrimary,
+                      fontSize: 11.5,
+                      fontWeight: hot ? FontWeight.w800 : FontWeight.w700,
+                      shadows: palette.isDark
+                          ? null
+                          : const [Shadow(color: Colors.white, blurRadius: 6)],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

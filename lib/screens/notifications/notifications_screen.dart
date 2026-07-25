@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
 import '../../widgets/home/empty_state.dart';
 
-/// Notifications — a real, categorised feed generated from app state (due
+/// Notifications - a real, categorised feed generated from app state (due
 /// reminders, expiring documents, security posture, backup health) with unread
 /// tracking, mark-as-read, mark-all-read and swipe-to-dismiss.
 class NotificationsScreen extends StatefulWidget {

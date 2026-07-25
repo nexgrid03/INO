@@ -13,7 +13,7 @@ import '../pressable_scale.dart';
 ///
 /// Tapping it silences the greeting IMMEDIATELY and persists
 /// `welcomeSound = false` (via [VoiceGreetingService.muteNow]) so it won't play
-/// on the next launch either — no confirmation dialog, the mute intent is
+/// on the next launch either - no confirmation dialog, the mute intent is
 /// honoured instantly. The pill auto-dismisses when the greeting finishes or
 /// after 3 seconds, whichever comes first.
 ///
@@ -55,7 +55,7 @@ class _WelcomeSoundPillState extends State<WelcomeSoundPill> {
   void _show() {
     setState(() => _visible = true);
     _autoDismiss?.cancel();
-    // Auto-dismiss after 3s even if the greeting is still finishing — the
+    // Auto-dismiss after 3s even if the greeting is still finishing - the
     // pill is a moment-of-playback affordance, not a persistent banner.
     _autoDismiss = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() => _visible = false);

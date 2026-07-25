@@ -4,7 +4,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 2 — Wallet Detail overview hero.
+/// Section 2 - Wallet Detail overview hero.
 ///
 /// Green→light-blue gradient glass card summarising the wallet: total / active
 /// / expiring records, last accessed and storage used. Shares the look of the

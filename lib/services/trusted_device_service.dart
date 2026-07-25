@@ -56,7 +56,7 @@ class TrustedDevice {
 ///
 /// On each launch [registerCurrent] records/refreshes *this* device (a stable
 /// generated id + a human name derived from the OS). Without a backend sessions
-/// table this is necessarily local — so it faithfully lists the devices this
+/// table this is necessarily local - so it faithfully lists the devices this
 /// install knows about, marks the current one, and lets the user forget the
 /// others. The current device can't be removed from here (that's what Logout is
 /// for).

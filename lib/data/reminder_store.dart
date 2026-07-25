@@ -9,7 +9,7 @@ import 'reminder_repository.dart';
 /// A single, notify-on-change source of truth shared across the Reminders
 /// screens (main list, All Reminders, Calendar, Completed).
 ///
-/// Holding the reminders here — rather than in each screen's [State] — means a
+/// Holding the reminders here - rather than in each screen's [State] - means a
 /// create/complete/delete on any surface is reflected everywhere immediately.
 /// It hydrates once from [ReminderRepository] (sample data today) and can be
 /// swapped for a Supabase-backed repository without touching a widget.
@@ -185,7 +185,7 @@ class ReminderStore extends ChangeNotifier {
   ///
   /// MUST be called on sign-out (see [SessionReset]). Without it this
   /// process-wide singleton keeps the previous user's reminders and the
-  /// `_loaded` guard makes the next user's [ensureLoaded] a no-op — i.e. the
+  /// `_loaded` guard makes the next user's [ensureLoaded] a no-op - i.e. the
   /// next account would see the previous account's reminders.
   void clear() {
     _active.clear();

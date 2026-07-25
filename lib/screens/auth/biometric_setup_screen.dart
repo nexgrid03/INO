@@ -11,7 +11,7 @@ import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import 'auth_flow.dart';
 
-/// Screen 7 — Biometric Setup.
+/// Screen 7 - Biometric Setup.
 ///
 /// The last step of onboarding a new account: offer fingerprint / Face ID for
 /// faster, safer unlock. Both actions (Enable / Skip) land in the app shell, so
@@ -72,7 +72,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
       if (!mounted) return;
       if (ok) {
         // Turn the app-lock on (persisted locally) and mirror the choice on the
-        // profile row (best-effort — the lock itself is already active).
+        // profile row (best-effort - the lock itself is already active).
         await BiometricService.instance.setLockEnabled(true);
         unawaited(
           UserRepository.instance
@@ -124,7 +124,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'Enable ${_kind == BiometricKind.faceId ? 'Face ID' : 'fingerprint or Face ID'} '
-                'for faster, safer access to your documents — no password '
+                'for faster, safer access to your documents - no password '
                 'needed each time.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
@@ -173,7 +173,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 }
 
 /// The large biometric illustration: a gradient ring cradling a fingerprint
-/// (or face) glyph, with a soft halo — premium but calm.
+/// (or face) glyph, with a soft halo - premium but calm.
 class _BiometricArt extends StatelessWidget {
   const _BiometricArt({required this.kind});
 

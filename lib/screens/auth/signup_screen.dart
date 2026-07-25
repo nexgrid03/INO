@@ -13,12 +13,12 @@ import 'auth_validators.dart';
 import 'biometric_setup_screen.dart';
 import 'otp_verification_screen.dart';
 
-/// Screen 4 — Signup.
+/// Screen 4 - Signup.
 ///
 /// Creates an account with the app's Supabase [AuthService]. If the project
 /// requires email confirmation the user is routed to the OTP screen to enter
 /// the emailed code; otherwise they continue straight to Biometric Setup. Kept
-/// deliberately simple — one column of fields and a single CTA.
+/// deliberately simple - one column of fields and a single CTA.
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -89,7 +89,7 @@ class _SignupScreenState extends State<SignupScreen> {
         if (!mounted) return;
         _goToBiometric(profile);
       } else {
-        // Email confirmation required — verify the 6-digit code next.
+        // Email confirmation required - verify the 6-digit code next.
         if (!mounted) return;
         _goToOtp(email: email, name: name, phone: phone);
       }

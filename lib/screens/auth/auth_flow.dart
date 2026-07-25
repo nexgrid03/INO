@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/guest_mode.dart';
 import '../../theme/theme_controller.dart';
 import '../shell/main_shell.dart';
 import 'complete_profile_screen.dart';
@@ -19,7 +20,7 @@ bool _routingAfterAuth = false;
 /// sign-in path (Google, email, …). It navigates on the app-root navigator
 /// ([InoApp.navigatorKey]) rather than a screen's own context, so it works even
 /// if the screen that started sign-in was disposed while an external picker
-/// (Android Credential Manager) was open — the root cause of the "nothing
+/// (Android Credential Manager) was open - the root cause of the "nothing
 /// happens after picking an account" bug.
 ///
 ///   • no profile row yet, or an incomplete one (no phone) → Complete Profile
@@ -30,7 +31,7 @@ Future<void> routeAfterAuth({
   required String email,
 }) async {
   if (_routingAfterAuth) {
-    developer.log('routeAfterAuth ignored — already routing', name: 'auth');
+    developer.log('routeAfterAuth ignored - already routing', name: 'auth');
     return;
   }
   _routingAfterAuth = true;
@@ -41,10 +42,13 @@ Future<void> routeAfterAuth({
       return;
     }
 
-    developer.log('routeAfterAuth: fetching profile for $authUserId',
-        name: 'auth');
-    final existing =
-        await UserRepository.instance.getProfileByAuthId(authUserId);
+    developer.log(
+      'routeAfterAuth: fetching profile for $authUserId',
+      name: 'auth',
+    );
+    final existing = await UserRepository.instance.getProfileByAuthId(
+      authUserId,
+    );
 
     if (!navContext.mounted) {
       developer.log('routeAfterAuth: navigator gone after fetch', name: 'auth');
@@ -77,7 +81,7 @@ Future<void> routeAfterAuth({
   }
 }
 
-/// A profile is "incomplete" (first-time) when it has no phone number yet —
+/// A profile is "incomplete" (first-time) when it has no phone number yet -
 /// the one detail Google can't provide. Simple and robust without a schema
 /// change; swap for a dedicated `onboarded` column if one is added later.
 bool _isIncomplete(UserProfile profile) =>
@@ -86,9 +90,11 @@ bool _isIncomplete(UserProfile profile) =>
 /// Completes the authentication flow by entering the app shell.
 ///
 /// Uses [Navigator.pushAndRemoveUntil] so the entire auth stack (Login → Signup
-/// → OTP → Biometric) is cleared — the back button from Home never returns to a
+/// → OTP → Biometric) is cleared - the back button from Home never returns to a
 /// sign-in screen. Mirrors how the shell was wired to theme control before.
 void goToShell(BuildContext context, UserProfile profile) {
+  // A real sign-in always ends guest explore mode.
+  GuestMode.active = false;
   Navigator.of(context).pushAndRemoveUntil(
     MaterialPageRoute(
       builder: (_) => MainShell(

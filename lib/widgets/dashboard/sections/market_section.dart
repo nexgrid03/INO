@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 import '../sparkline.dart';
 
-/// Section 2 — Live Market Intelligence.
+/// Section 2 - Live Market Intelligence.
 ///
 /// A horizontal carousel of premium financial cards (gold, silver, petrol,
 /// diesel) each showing price, daily change with a coloured trend pill, and a
@@ -88,34 +89,29 @@ class _MarketCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                // Icon chip — translucent white on the filled hero, gradient
-                // tile on the white cards. White glyph either way.
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: filled ? Colors.white.withValues(alpha: 0.22) : null,
-                    gradient: filled
-                        ? null
-                        : LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: quote.gradient,
-                          ),
-                    borderRadius: BorderRadius.circular(11),
-                    boxShadow: filled
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: quote.gradient.first
-                                  .withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                // Icon chip. On the white cards this is a bright glossy accent badge;
+                // on the filled gradient hero it stays a translucent white
+                // chip, since a lit badge needs a calm surface behind it to
+                // read against - over the hero's own gradient it would muddy.
+                if (filled)
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(quote.icon, size: 19, color: Colors.white),
+                  )
+                else
+                  ShinyIcon(
+                    icon: quote.icon,
+                    color: quote.gradient.first,
+                    size: 36,
+                    iconSize: 19,
+                    radius: 11,
+                    style: ShinyIconStyle.filled,
                   ),
-                  child: Icon(quote.icon, size: 19, color: Colors.white),
-                ),
                 const Spacer(),
                 _TrendPill(
                   color: trendColor,

@@ -12,7 +12,7 @@ import '../../theme/app_theme.dart';
 ///   • the focused box lifts with a brand glow.
 ///
 /// Reports the current value via [onChanged] and fires [onCompleted] once every
-/// box is filled — keeping the parent screen purely about verification logic.
+/// box is filled - keeping the parent screen purely about verification logic.
 class OtpInput extends StatefulWidget {
   const OtpInput({
     super.key,

@@ -8,12 +8,12 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 void _log(String message) => developer.log(message, name: 'voice');
 
-/// The app's centralized voice output manager — the ONE owner of the ONE
+/// The app's centralized voice output manager - the ONE owner of the ONE
 /// [FlutterTts] instance. Every spoken phrase (welcome greeting, "Opening …"
 /// navigation confirmations) goes through [speak]; no screen or service may
 /// construct its own FlutterTts.
 ///
-/// WHY THIS EXISTS — duplicate speech. Two bugs shared the same shape:
+/// WHY THIS EXISTS - duplicate speech. Two bugs shared the same shape:
 ///
 ///  1. The greeting double-play: two separate FlutterTts instances + speaking
 ///     on the shell's very first frame, while the native Android TextToSpeech
@@ -21,7 +21,7 @@ void _log(String message) => developer.log(message, name: 'voice');
 ///     Android plugin suspends the call and, if the engine connection isn't
 ///     usable, re-creates the engine and RE-QUEUES the whole `speak` to run
 ///     again after init (FlutterTtsPlugin.onMethodCall → `pendingMethodCalls`)
-///     — an utterance the engine had already accepted could replay.
+///     - an utterance the engine had already accepted could replay.
 ///
 ///  2. The "Opening …" double-play: a stale speech-recognizer callback
 ///     re-triggering the confirmation after the voice session was already
@@ -32,14 +32,14 @@ void _log(String message) => developer.log(message, name: 'voice');
 ///  • warmed up at app start ([warmUp] from `main()`), so the native engine is
 ///    initialized and stable before anything speaks;
 ///  • [speak] always waits for initialization before dispatching;
-///  • a repeat of the SAME text inside [_dedupeWindow] is dropped — even
+///  • a repeat of the SAME text inside [_dedupeWindow] is dropped - even
 ///    across separate speak() calls ("[VOICE] Duplicate Ignored");
 ///  • an in-flight guard ([isSpeaking] + [_speakingText]) drops a duplicate
 ///    request for the utterance currently being spoken;
 ///  • `awaitSpeakCompletion` is enabled so the engine knows exactly when an
 ///    utterance finishes (no overlapping speech requests);
 ///  • flush queue mode: a new utterance replaces the current one instead of
-///    being appended (also lets us avoid the stop()+speak() pair — a known
+///    being appended (also lets us avoid the stop()+speak() pair - a known
 ///    trigger for the Android engine playing a single utterance twice).
 ///
 /// Lifecycle: speech stops when the app goes to background and the native
@@ -61,7 +61,7 @@ class VoiceManager with WidgetsBindingObserver {
   bool get isSpeaking => _speakingText != null;
 
   /// The last utterance dispatched and when. A repeat of the SAME text inside
-  /// [_dedupeWindow] is dropped even if the first has already finished — this
+  /// [_dedupeWindow] is dropped even if the first has already finished - this
   /// is what stops a voice-navigation confirmation ("Opening …") from being
   /// heard twice when a duplicate speak slips past the in-flight guard above
   /// (e.g. a second dispatch arriving just after the first utterance completed).
@@ -87,7 +87,7 @@ class VoiceManager with WidgetsBindingObserver {
       await tts.awaitSpeakCompletion(true);
       // Flush queue mode: a new utterance replaces the current one instead of
       // being appended. This is also what lets us drop the explicit stop()
-      // before speak() (see speak()) — the stop()+speak() pair is a known
+      // before speak() (see speak()) - the stop()+speak() pair is a known
       // trigger for the Android engine playing a single utterance twice.
       await tts.setQueueMode(0);
       await tts.setLanguage('en-US');
@@ -112,7 +112,7 @@ class VoiceManager with WidgetsBindingObserver {
       debugPrint('[VOICE] TTS initialized');
       return true;
     } catch (e) {
-      // Non-fatal — a device without TTS should never break the app.
+      // Non-fatal - a device without TTS should never break the app.
       _log('[VOICE] TTS initialization failed (non-fatal): $e');
       _initFuture = null; // allow a later retry
       return false;
@@ -120,12 +120,12 @@ class VoiceManager with WidgetsBindingObserver {
   }
 
   /// Speaks [text], replacing any different utterance in progress. A request
-  /// for the SAME text that is currently being spoken — or dispatched within
-  /// the last [_dedupeWindow] — is ignored, so no phrase can ever double-play.
+  /// for the SAME text that is currently being spoken - or dispatched within
+  /// the last [_dedupeWindow] - is ignored, so no phrase can ever double-play.
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
 
-    // Drop a repeat of the same phrase within the dedupe window — before the
+    // Drop a repeat of the same phrase within the dedupe window - before the
     // init await, so a duplicate that arrives while initializing is caught too.
     final now = DateTime.now();
     if (_lastText == text &&

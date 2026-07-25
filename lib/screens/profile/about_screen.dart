@@ -8,7 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 
-/// About INO — real app version, build number and environment, read from the
+/// About INO - real app version, build number and environment, read from the
 /// bundle via package_info_plus (never hard-coded).
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -31,7 +31,7 @@ class _AboutScreenState extends State<AboutScreen> {
       final info = await PackageInfo.fromPlatform();
       if (mounted) setState(() => _info = info);
     } catch (_) {
-      // Leave as null → shown as '—'.
+      // Leave as null → shown as '-'.
     }
   }
 
@@ -45,9 +45,9 @@ class _AboutScreenState extends State<AboutScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final info = _info;
-    final version = info?.version ?? '—';
-    final build = info?.buildNumber ?? '—';
-    final pkg = info?.packageName ?? '—';
+    final version = info?.version ?? '-';
+    final build = info?.buildNumber ?? '-';
+    final pkg = info?.packageName ?? '-';
 
     return SettingsScaffold(
       title: 'About INO',

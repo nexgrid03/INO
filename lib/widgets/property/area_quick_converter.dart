@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../services/area_conversion_service.dart';
 import '../../theme/app_dimens.dart';
@@ -12,20 +13,22 @@ import 'area_unit_picker.dart';
 /// A reusable, self-contained "Quick Convert" card: enter a value, pick a
 /// From/To unit, and see the result instantly. Drop it anywhere.
 ///
-/// All maths is delegated to [AreaConversionService] — no factors live here.
+/// All maths is delegated to [AreaConversionService] - no factors live here.
 class AreaQuickConverter extends StatefulWidget {
   const AreaQuickConverter({
     super.key,
     this.initialFrom = AreaUnit.squareMetres,
     this.initialTo = AreaUnit.squareYards,
     this.initialValue = 1,
-    this.title = 'Quick Convert',
+    this.title,
   });
 
   final AreaUnit initialFrom;
   final AreaUnit initialTo;
   final double initialValue;
-  final String title;
+
+  /// Card title; defaults to the localized "Quick Convert".
+  final String? title;
 
   @override
   State<AreaQuickConverter> createState() => _AreaQuickConverterState();
@@ -77,6 +80,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final result = _service.convert(_value, _from, _to);
 
     return InoCard(
@@ -90,7 +94,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
               const Icon(Icons.swap_vert_rounded,
                   color: AppColors.lightBlue, size: 20),
               const SizedBox(width: AppSpacing.xs),
-              Text(widget.title,
+              Text(widget.title ?? l10n.t('quickConvert'),
                   style: AppText.title.copyWith(color: palette.textPrimary)),
             ],
           ),
@@ -107,7 +111,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
             onChanged: (_) => setState(() {}),
             style: AppText.title.copyWith(color: palette.textPrimary),
             decoration: InputDecoration(
-              hintText: 'Enter value',
+              hintText: l10n.t('enterValue'),
               hintStyle: AppText.body.copyWith(color: palette.textFaint),
               filled: true,
               fillColor: palette.surfaceVariant,
@@ -125,7 +129,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
             children: [
               Expanded(
                 child: _UnitSelector(
-                  label: 'From',
+                  label: l10n.t('from'),
                   unit: _from,
                   onTap: () => _pickUnit(isFrom: true),
                 ),
@@ -153,7 +157,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
               ),
               Expanded(
                 child: _UnitSelector(
-                  label: 'To',
+                  label: l10n.t('to'),
                   unit: _to,
                   onTap: () => _pickUnit(isFrom: false),
                 ),

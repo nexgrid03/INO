@@ -8,15 +8,15 @@ import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/otp_input.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 
-/// Screen 5 — OTP Verification.
+/// Screen 5 - OTP Verification.
 ///
 /// Backend-agnostic: it renders the 6-box code UI, a resend countdown and the
 /// Verify CTA, delegating the actual work to callbacks so it can front any
 /// provider (Supabase email OTP is wired by the signup flow today).
 ///
-///   • [onVerify]   — validates the code; return true on success.
-///   • [onResend]   — re-requests a code; restarts the countdown.
-///   • [onVerified] — called with a live [BuildContext] after a successful
+///   • [onVerify]   - validates the code; return true on success.
+///   • [onResend]   - re-requests a code; restarts the countdown.
+///   • [onVerified] - called with a live [BuildContext] after a successful
 ///                    verify, so the caller can continue the flow.
 class OtpVerificationScreen extends StatefulWidget {
   const OtpVerificationScreen({
@@ -30,7 +30,7 @@ class OtpVerificationScreen extends StatefulWidget {
     this.resendSeconds = 30,
   });
 
-  /// Where the code was sent (email/number) — shown in the subtitle.
+  /// Where the code was sent (email/number) - shown in the subtitle.
   final String destination;
 
   final Future<bool> Function(String code) onVerify;

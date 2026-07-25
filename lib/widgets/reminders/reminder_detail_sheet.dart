@@ -6,9 +6,10 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Opens a reminder's detail sheet — full title, note, category, priority and
+/// Opens a reminder's detail sheet - full title, note, category, priority and
 /// due date, with real actions (mark done / delete). Mutations go straight to
 /// the [ReminderStore] so every screen updates.
 Future<void> showReminderDetail(BuildContext context, Reminder reminder) {
@@ -61,15 +62,12 @@ class _ReminderDetailSheet extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.chip),
-                  ),
-                  child: Icon(reminder.category.icon,
-                      color: categoryColor, size: 22),
+                ShinyIcon(
+                  icon: reminder.category.icon,
+                  color: categoryColor,
+                  size: AppSizes.iconContainerSm,
+                  iconSize: 22,
+                  radius: AppRadius.chip,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(

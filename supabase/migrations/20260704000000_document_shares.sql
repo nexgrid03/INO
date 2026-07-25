@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO — Secure Document Sharing via QR Code
+-- INO - Secure Document Sharing via QR Code
 -- ----------------------------------------------------------------------------
 -- Adds the `document_shares` table (one row per generated QR share) plus the
 -- `share_views` / `share_downloads` analytics tables, tight RLS, indexes, and
@@ -15,7 +15,7 @@
 --     viewer is a Supabase Edge Function that runs with the service-role key
 --     (bypassing RLS) and only ever exposes the documents named in a share,
 --     and only while it is active + unexpired. So there is deliberately NO
---     anon SELECT policy here — that is the point.
+--     anon SELECT policy here - that is the point.
 --
 -- Run with: supabase db push   (or paste into the SQL editor).
 -- ============================================================================
@@ -33,7 +33,7 @@ create table if not exists public.document_shares (
                          substr(replace(gen_random_uuid()::text, '-', ''), 1, 18)),
   owner_id      uuid not null default auth.uid()
                 references auth.users (id) on delete cascade,
-  -- The exact set of documents this share grants access to — nothing else.
+  -- The exact set of documents this share grants access to - nothing else.
   document_ids  uuid[] not null,
   status        text not null default 'active'
                 check (status in ('active', 'expired', 'revoked')),
@@ -122,7 +122,7 @@ create policy "downloads: owner reads own" on public.share_downloads
 -- create_document_share(document_ids, ttl_seconds)
 -- ----------------------------------------------------------------------------
 -- Creates a share for the CURRENT user after verifying every requested
--- document actually belongs to them — so a client can never share a document
+-- document actually belongs to them - so a client can never share a document
 -- id it doesn't own. Returns the full new row (share_id, expires_at, …).
 create or replace function public.create_document_share(
   p_document_ids uuid[],
@@ -169,7 +169,7 @@ $$;
 grant execute on function public.create_document_share(uuid[], integer) to authenticated;
 
 -- ----------------------------------------------------------------------------
--- expire_due_shares()  — optional housekeeping (safe to call from a cron job).
+-- expire_due_shares()  - optional housekeeping (safe to call from a cron job).
 -- Flips any active-but-past-expiry rows to 'expired'. Not required for
 -- correctness (the Edge Function checks expiry live) but keeps status honest.
 -- ----------------------------------------------------------------------------

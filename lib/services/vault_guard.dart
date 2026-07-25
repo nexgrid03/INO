@@ -8,7 +8,7 @@ import 'biometric_service.dart';
 /// After a successful prompt the vault stays unlocked for [sessionWindow]
 /// (2 minutes). Within that window, gated actions don't re-prompt. The session
 /// is invalidated when the app is backgrounded, on a manual [lock], or once the
-/// window elapses — so reopening / returning from the background always
+/// window elapses - so reopening / returning from the background always
 /// re-authenticates.
 ///
 /// This is independent of the whole-app [AppLock]: it gates *specific* actions
@@ -45,7 +45,7 @@ class VaultGuard with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Leaving the foreground ends the session — returning requires re-auth.
+    // Leaving the foreground ends the session - returning requires re-auth.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       lock();

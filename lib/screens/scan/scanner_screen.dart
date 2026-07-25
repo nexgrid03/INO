@@ -14,13 +14,13 @@ import '../../widgets/scan/scan_detection_toast.dart';
 import '../../widgets/scan/scanner_overlay.dart';
 import 'scan_theme.dart';
 
-/// Screen 1 — the production document scanner.
+/// Screen 1 - the production document scanner.
 ///
 /// Initialises the device camera, manages runtime permissions and lifecycle,
 /// and frames a real live preview with the INO overlay + controls. A live
 /// image-stream detector ([LiveDocumentDetector]) drives the on-screen state
 /// machine ([ScannerState]) so the "Document Detected" / "Ready to Scan" badges
-/// only ever appear in response to a real document in frame — never by default.
+/// only ever appear in response to a real document in frame - never by default.
 /// Capture is a plain in-app still (edge detection / crop happen downstream on
 /// the captured image). Gallery import feeds the same pipeline. The widget hands
 /// the resulting image path back via [onCaptured].
@@ -47,7 +47,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   CameraController? _controller;
   _Phase _phase = _Phase.initializing;
 
-  /// Detection/capture state — starts at [ScannerState.idle] and only ever
+  /// Detection/capture state - starts at [ScannerState.idle] and only ever
   /// advances in response to real camera frames or a capture press. Never
   /// pre-loaded to a "detected"/"ready" value.
   ScannerState _state = ScannerState.idle;
@@ -57,7 +57,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   // ---- Transient detection feedback ---------------------------------------
   // A one-shot success toast + "hold steady" hint that appear only on a genuine
-  // idle → detected transition and fade themselves out — so the preview stays
+  // idle → detected transition and fade themselves out - so the preview stays
   // clean and the same document never re-spams a popup.
   bool _showToast = false;
   bool _showHoldHint = false;
@@ -76,7 +76,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// from idle → documentDetected so a single noisy frame can't flash a badge).
   int _presentFrames = 0;
 
-  /// When the document first became stable — the anchor for the "held steady
+  /// When the document first became stable - the anchor for the "held steady
   /// for 1–2s" requirement before promoting to readyToScan.
   DateTime? _stableStart;
 
@@ -179,7 +179,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       }
       setState(() {
         _flash = 0;
-        _state = ScannerState.idle; // always start fresh — no pre-loaded badge
+        _state = ScannerState.idle; // always start fresh - no pre-loaded badge
         _phase = _Phase.ready;
       });
       await _startDetection();
@@ -192,7 +192,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   /// Begins streaming camera frames into the [LiveDocumentDetector]. If the
   /// platform can't stream, detection simply stays idle and capture remains
-  /// fully usable — we never fake a detection.
+  /// fully usable - we never fake a detection.
   Future<void> _startDetection() async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized || _streaming) {
@@ -207,7 +207,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       await controller.startImageStream(_onFrame);
       _streaming = true;
     } catch (_) {
-      _streaming = false; // streaming unsupported — degrade gracefully
+      _streaming = false; // streaming unsupported - degrade gracefully
     }
   }
 
@@ -294,8 +294,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// Applies a new [ScannerState] (only when it actually changed).
   ///
   /// The transient success toast + "hold steady" hint fire ONLY on a genuine
-  /// `idle`/`detecting → documentDetected` transition — never when returning
-  /// from `readyToScan` — so a document that lingers in frame can't re-spam the
+  /// `idle`/`detecting → documentDetected` transition - never when returning
+  /// from `readyToScan` - so a document that lingers in frame can't re-spam the
   /// popup. Collapsing back to `idle` clears any lingering feedback.
   void _enter(ScannerState next) {
     if (_state == next || !mounted) return;
@@ -384,7 +384,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (!mounted) return;
     setState(() => _state = ScannerState.capturing);
     try {
-      // Capture the still image with the in-app camera preview — no external
+      // Capture the still image with the in-app camera preview - no external
       // scanner activity, so the user stays inside INO the whole time. Edge
       // detection / crop happen downstream on the captured image.
       final file = await controller.takePicture();
@@ -499,7 +499,7 @@ class _ScannerScreenState extends State<ScannerScreen>
               ],
             ),
           ),
-          // Quick flash toggle (mirrors the bottom control) — only while live.
+          // Quick flash toggle (mirrors the bottom control) - only while live.
           if (ready)
             IconButton(
               onPressed: _cycleFlash,
@@ -578,7 +578,7 @@ class _ScannerScreenState extends State<ScannerScreen>
             // + a soft pulsing glow once a document is detected/ready. The
             // centre of the preview is intentionally kept clear.
             ScannerOverlay(state: _overlayState),
-            // Transient success toast — near the top, so it never covers the
+            // Transient success toast - near the top, so it never covers the
             // document. Mounted only briefly on a genuine new detection.
             Positioned(
               top: 18,
@@ -617,7 +617,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  /// Capture button visuals derived from the detection state — idle (neutral)
+  /// Capture button visuals derived from the detection state - idle (neutral)
   /// until a document is actually detected.
   CaptureButtonState get _captureButtonState => switch (_state) {
         ScannerState.idle ||
@@ -644,7 +644,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   /// The subtle bottom guidance hint for the current state. Never blocks the
   /// document (it hugs the bottom edge) and disappears entirely once a detected
-  /// document is locked in and steady — keeping the preview clean.
+  /// document is locked in and steady - keeping the preview clean.
   Widget _bottomHint() {
     final l10n = AppLocalizations.of(context);
     switch (_state) {
@@ -657,7 +657,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         );
       case ScannerState.documentDetected:
       case ScannerState.readyToScan:
-        // The "hold steady" hint shows briefly on detection, then fades — after
+        // The "hold steady" hint shows briefly on detection, then fades - after
         // which the bottom stays clear.
         return _showHoldHint
             ? ScanHintPill(

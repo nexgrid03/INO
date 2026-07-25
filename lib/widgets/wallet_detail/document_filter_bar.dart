@@ -6,7 +6,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 6 — the document Filter row.
+/// Section 6 - the document Filter row.
 ///
 /// A single horizontally-scrolling row of status chips (All / Favorites /
 /// Expiring / Archived). Sorting now lives as a "View recents" affordance on

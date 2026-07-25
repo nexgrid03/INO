@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 
-/// Section 3 — Life Overview Summary.
+/// Section 3 - Life Overview Summary.
 ///
 /// A responsive grid of compact stat cards (Documents, Properties, Net Worth …)
 /// each showing a count, a status chip, and the last-updated line. The grid
@@ -52,9 +53,11 @@ class LifeOverviewSection extends StatelessWidget {
   }
 }
 
-/// Premium gradient icon container. Uses the item's bespoke [gradient] when
-/// present (e.g. Net Worth's brand gradient, white glyph), otherwise a soft
-/// two-stop tint of the accent colour.
+/// Premium solid icon badge. These stat tiles sit high in the hierarchy, so
+/// they keep their saturated body and white glyph - the [ShinyIconStyle.filled]
+/// treatment - and gain the bright ring and glass gloss on top. The item's
+/// bespoke [gradient] (e.g. Net Worth's brand gradient) drives the accent when
+/// present.
 class _IconTile extends StatelessWidget {
   const _IconTile({required this.item});
 
@@ -62,31 +65,13 @@ class _IconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasGradient = item.gradient != null;
-    // Solid accent fill (or brand gradient for Net Worth) + white glyph.
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: hasGradient ? null : item.color,
-        gradient: hasGradient
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: item.gradient!,
-              )
-            : null,
-        borderRadius: BorderRadius.circular(11),
-        boxShadow: [
-          BoxShadow(
-            color: (hasGradient ? item.gradient!.first : item.color)
-                .withValues(alpha: 0.30),
-            blurRadius: 9,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Icon(item.icon, size: 18, color: Colors.white),
+    return ShinyIcon(
+      icon: item.icon,
+      color: item.gradient?.first ?? item.color,
+      size: 34,
+      iconSize: 18,
+      radius: 11,
+      style: ShinyIconStyle.filled,
     );
   }
 }

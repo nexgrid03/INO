@@ -9,7 +9,7 @@ import '../models/expense_models.dart';
 /// The single source of truth for the ITR-ready Transaction Vault.
 ///
 /// A notify-on-change **store** backed by Supabase (`public.expenses` +
-/// `public.tax_documents` via [ExpenseRepository] — see
+/// `public.tax_documents` via [ExpenseRepository] - see
 /// supabase/migrations/20260724000000_notes_expenses.sql). Mutations are
 /// optimistic: the UI updates instantly and the write is persisted in the
 /// background (the ReminderStore pattern), with the DB-generated id swapped in
@@ -17,7 +17,7 @@ import '../models/expense_models.dart';
 /// browsing) it works purely in memory, exactly as before.
 ///
 /// It records transactions and tax documents organised by financial year, and
-/// derives a tax summary. **No sample data** — a new account starts empty.
+/// derives a tax summary. **No sample data** - a new account starts empty.
 class ExpenseStore extends ChangeNotifier {
   ExpenseStore._();
   static final ExpenseStore instance = ExpenseStore._();
@@ -355,7 +355,7 @@ class ExpenseStore extends ChangeNotifier {
 
   // ---- Lifecycle -----------------------------------------------------------
 
-  /// Clears all vault state — called on sign-out (SessionReset) so a new
+  /// Clears all vault state - called on sign-out (SessionReset) so a new
   /// account never sees the previous user's records. The next [ensureLoaded]
   /// re-hydrates from Supabase for whoever signs in next (RLS-scoped).
   void clear() {

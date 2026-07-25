@@ -6,7 +6,7 @@ import '../models/wallet_models.dart';
 import '../repositories/document_repository.dart';
 import '../theme/app_theme.dart';
 
-/// Aggregate read model for the Wallet Hub — fetched once, fanned out to the
+/// Aggregate read model for the Wallet Hub - fetched once, fanned out to the
 /// section widgets.
 class WalletHubData {
   const WalletHubData({
@@ -37,7 +37,7 @@ abstract class WalletRepository {
 
 class SupabaseWalletRepository implements WalletRepository {
   /// The eight wallet "buckets" the app offers. These are the app's structure
-  /// (not stored data) — the counts below are filled in from real documents.
+  /// (not stored data) - the counts below are filled in from real documents.
   static const List<WalletCategory> _categories = [
     WalletCategory(
       name: 'Identity Wallet',

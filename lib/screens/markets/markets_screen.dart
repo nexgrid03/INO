@@ -8,7 +8,7 @@ import '../../widgets/dashboard/sparkline.dart';
 import '../../widgets/markets/live_metal_rates_card.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 
-/// Markets — the full list behind the Home "Market Snapshot": gold, silver and
+/// Markets - the full list behind the Home "Market Snapshot": gold, silver and
 /// fuel rates with mini trends and change indicators. Rates are indicative
 /// (realistic fallback) until a live pricing feed is connected.
 class MarketsScreen extends StatelessWidget {

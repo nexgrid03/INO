@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO — Transaction "direction" (credited / debited)
+-- INO - Transaction "direction" (credited / debited)
 -- ----------------------------------------------------------------------------
 -- Adds a money-direction column to public.expenses so a transaction records
 -- whether funds were debited (money out) or credited (money in), independent of
@@ -7,11 +7,11 @@
 -- (lib/models/expense_models.dart: TransactionDirection).
 --
 -- Backward compatibility: the column is nullable and existing rows are
--- backfilled from their type (income → credited, expense → debited) — the same
+-- backfilled from their type (income → credited, expense → debited) - the same
 -- rule the app applies in TransactionRecord.effectiveDirection, so nothing
 -- breaks for records saved before this migration.
 --
--- Idempotent — safe to run multiple times. Run with:  supabase db push
+-- Idempotent - safe to run multiple times. Run with:  supabase db push
 -- (or paste into the SQL editor).
 -- ============================================================================
 

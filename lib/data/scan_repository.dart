@@ -40,7 +40,7 @@ class MlKitScanRepository implements ScanRepository {
 }
 
 class SampleScanRepository implements ScanRepository {
-  /// Flip to `true` to make the next [extract] throw — exercises the failure /
+  /// Flip to `true` to make the next [extract] throw - exercises the failure /
   /// manual-entry UI without needing a real bad capture.
   bool failNext = false;
 

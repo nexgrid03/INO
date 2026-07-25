@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 
-/// Section 4 — Priority Center.
+/// Section 4 - Priority Center.
 ///
 /// Surfaces the urgent + important items the user must act on, each tagged with
 /// a traffic-light severity (🔴 critical / 🟠 important / 🟢 info). The card
@@ -84,21 +85,13 @@ class _PriorityCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.30),
-                            blurRadius: 9,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Icon(item.icon, size: 21, color: Colors.white),
+                    ShinyIcon(
+                      icon: item.icon,
+                      color: color,
+                      size: 40,
+                      iconSize: 21,
+                      radius: 12,
+                      style: ShinyIconStyle.filled,
                     ),
                     const SizedBox(width: 13),
                     Expanded(

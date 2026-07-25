@@ -4,11 +4,11 @@ import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 2 — Wallet Overview hero card.
+/// Section 2 - Wallet Overview hero card.
 ///
 /// A premium green→light-blue gradient card with a glassmorphism feel: faint
 /// blurred light orbs behind translucent stat blocks. Surfaces the at-a-glance
-/// vault summary — wallets, records, protected items, last backup and storage.
+/// vault summary - wallets, records, protected items, last backup and storage.
 class WalletOverviewCard extends StatelessWidget {
   const WalletOverviewCard({super.key, required this.overview});
 

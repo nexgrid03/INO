@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 /// A soft, radial glow halo intended to sit *behind* a logo.
 ///
 /// It is driven by an external [animation] whose value (0.0 → 1.0) controls
-/// both the halo's opacity and how far it expands — letting the parent shape
+/// both the halo's opacity and how far it expands - letting the parent shape
 /// a single gentle "pulse". Rendering is isolated in its own
 /// [AnimatedBuilder] so only this halo repaints each frame, keeping the rest
 /// of the splash tree static (good for a smooth 60 FPS).

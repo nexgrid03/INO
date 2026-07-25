@@ -17,7 +17,7 @@ class AreaConversion {
   final double value;
 
   /// [value] formatted for the UI (2 dp, trailing zeros stripped, smarter for
-  /// small magnitudes). Never compute this in a widget — always read it here.
+  /// small magnitudes). Never compute this in a widget - always read it here.
   final String display;
 }
 
@@ -90,7 +90,7 @@ class AreaConversionService {
     return s;
   }
 
-  /// "373.15 Sq.Yards" — a formatted value with its unit's short label.
+  /// "373.15 Sq.Yards" - a formatted value with its unit's short label.
   String formatWithUnit(double value, AreaUnit unit) =>
       '${format(value)} ${unit.shortLabel}';
 

@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 
-/// Section 5 — a single document record card.
+/// Section 5 - a single document record card.
 ///
 /// Tap opens the viewer; the ⋮ button (and a swipe-left) opens the quick-action
 /// menu (share / download / edit / move / delete); a swipe-right toggles
-/// favorite. Shows a gradient icon chip, name, category · upload date, and a
+/// favorite. Shows a glossy icon badge, name, category · upload date, and a
 /// colour-coded status badge. Premium mobile interactions, no extra packages.
 class DocumentCard extends StatelessWidget {
   const DocumentCard({
@@ -24,7 +25,7 @@ class DocumentCard extends StatelessWidget {
     this.onLongPress,
   });
 
-  /// The uniform document icon colour inside a wallet — the app theme teal.
+  /// The uniform document icon colour inside a wallet - the app theme teal.
   static const Color _iconColor = AppColors.primaryGreen;
 
   final DocumentRecord record;
@@ -32,7 +33,7 @@ class DocumentCard extends StatelessWidget {
   final VoidCallback onFavorite;
   final VoidCallback onMore;
 
-  /// When true, this document is biometric-protected — shows a lock badge.
+  /// When true, this document is biometric-protected - shows a lock badge.
   final bool protected;
 
   /// When true the card renders in multi-select mode: swipe actions are
@@ -43,7 +44,7 @@ class DocumentCard extends StatelessWidget {
   /// Whether this card is currently selected (only meaningful in [selectionMode]).
   final bool selected;
 
-  /// Long-press handler — used by the parent to enter multi-select mode.
+  /// Long-press handler - used by the parent to enter multi-select mode.
   final VoidCallback? onLongPress;
 
   @override
@@ -104,25 +105,16 @@ class DocumentCard extends StatelessWidget {
       borderColor: borderColor,
       child: Row(
         children: [
-          // Gradient icon chip with a favorite star overlay.
+          // Glossy icon badge with a favorite star overlay.
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _iconColor.withValues(alpha: 0.16),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Icon(record.icon, color: _iconColor, size: 23),
+              ShinyIcon(
+                icon: record.icon,
+                color: _iconColor,
+                size: 46,
+                iconSize: 23,
+                radius: 13,
               ),
               if (record.isFavorite)
                 Positioned(
@@ -287,7 +279,7 @@ class _MetaLine extends StatelessWidget {
   }
 }
 
-/// A compact, at-a-glance summary of a document's KEY extracted (OCR) fields —
+/// A compact, at-a-glance summary of a document's KEY extracted (OCR) fields -
 /// so the user sees the essentials (name / DOB / masked number) right in the
 /// wallet list without opening the document. Renders nothing for documents with
 /// no extracted data, so non-OCR records look exactly as before.

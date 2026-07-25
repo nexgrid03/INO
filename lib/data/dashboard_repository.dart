@@ -46,7 +46,7 @@ class DashboardData {
 ///
 /// The app talks to this abstraction only. Swap [SampleDashboardRepository] for
 /// a `SupabaseDashboardRepository` (or a live-pricing-backed one) later and the
-/// UI is unchanged — that is what "real-time data integration ready" means here.
+/// UI is unchanged - that is what "real-time data integration ready" means here.
 abstract class DashboardRepository {
   Future<DashboardData> load();
 
@@ -201,7 +201,7 @@ class SampleDashboardRepository implements DashboardRepository {
       ),
       PriorityItem(
         title: 'Property documentation pending',
-        subtitle: 'Pune flat — sale deed upload',
+        subtitle: 'Pune flat - sale deed upload',
         icon: Icons.home_work_rounded,
         level: PriorityLevel.important,
         due: 'Action needed',
@@ -437,7 +437,7 @@ class SampleDashboardRepository implements DashboardRepository {
     ],
     insights: const [
       SmartInsight(
-          message: 'Gold is up 0.8% today — your holdings gained ₹6,080.',
+          message: 'Gold is up 0.8% today - your holdings gained ₹6,080.',
           icon: Icons.trending_up_rounded,
           accent: AppColors.gold),
       SmartInsight(

@@ -17,6 +17,7 @@ import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
+import '../../widgets/shell/quick_actions.dart';
 import '../../widgets/wallet_detail/document_card.dart';
 import '../../widgets/wallet_detail/document_filter_bar.dart';
 import '../../widgets/wallet_detail/document_quick_view.dart';
@@ -27,8 +28,6 @@ import '../../widgets/wallet_detail/smart_banner.dart';
 import '../../widgets/wallet_detail/wallet_header.dart';
 import '../../widgets/wallet_detail/wallet_summary_card.dart';
 import '../documents/add_document_screen.dart';
-import '../expenses/add_expense_screen.dart';
-import '../notes/notes_screen.dart';
 import '../property/area_converter_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../share/manage_shares_screen.dart';
@@ -36,7 +35,7 @@ import '../share/share_settings_screen.dart';
 import '../shell/shell_controller.dart';
 import 'document_viewer_screen.dart';
 
-/// The reusable Wallet Detail screen — a premium *document manager*, not a
+/// The reusable Wallet Detail screen - a premium *document manager*, not a
 /// dashboard.
 ///
 /// Opened from the Wallet Hub for ANY wallet ([category]); the structure never
@@ -301,7 +300,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// True for the Property wallet, which gets the extra Area Converter action.
   bool get _isPropertyWallet => widget.category.name == 'Property Wallet';
 
-  /// Opens the Property Area Converter tool (a pure calculator — touches no
+  /// Opens the Property Area Converter tool (a pure calculator - touches no
   /// documents, so it can't affect existing property data).
   void _openAreaConverter() {
     Navigator.of(
@@ -344,7 +343,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   // ---- Biometric protection ------------------------------------------------
 
-  /// Opens a document in the full viewer — gating protected ones behind the
+  /// Opens a document in the full viewer - gating protected ones behind the
   /// native biometric prompt first. Never reveals the document before a
   /// successful unlock; a cancel simply returns the user to the list. Changes
   /// made inside the viewer (favorite / rename / archive / delete / move) are
@@ -360,7 +359,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       if (!unlocked || !mounted) return;
     }
     // If the document carries OCR-extracted data, peek at it in a Quick View
-    // first — the user shouldn't need to open the full file every time (#6).
+    // first - the user shouldn't need to open the full file every time (#6).
     if (r.extraction.hasData && mounted) {
       await showDocumentQuickView(
         context,
@@ -573,21 +572,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
-  /// The centre "+" quick-action menu — Expenses / Scan / Notes. Scanning stays
-  /// scoped to this wallet; the other two open their own screens.
-  void _onScanAction(ScanAction action) {
-    switch (action) {
-      case ScanAction.expenses:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-        );
-      case ScanAction.scan:
-        launchScanFlow(context, initialWallet: widget.category.name);
-      case ScanAction.notes:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NotesScreen()),
-        );
-    }
+  /// The centre "+" quick menu, shared with the shell. Scans launched from
+  /// here stay scoped to this wallet.
+  void _onQuickAction(QuickMenuAction action) {
+    openQuickMenuAction(context, action, initialWallet: widget.category.name);
   }
 
   // ---- Build ---------------------------------------------------------------
@@ -675,7 +663,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         bottomNavigationBar: InoBottomNav(
           index: 1,
           onSelect: _onNavTab,
-          onScanAction: _onScanAction,
+          onQuickMenuAction: _onQuickAction,
         ),
       ),
     );
@@ -709,7 +697,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         .length;
 
     return [
-      // 2. Search — scrolls with the page (nothing pinned).
+      // 2. Search - scrolls with the page (nothing pinned).
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
@@ -766,7 +754,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           ),
         ),
       ),
-      // 7. Documents — the primary focus. Count on the left, a "View recents"
+      // 7. Documents - the primary focus. Count on the left, a "View recents"
       // affordance (opens sort) aligned to the end.
       SliverToBoxAdapter(
         child: Padding(
@@ -842,7 +830,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 }
 
-/// A compact "View recents" affordance on the document-count row — a small
+/// A compact "View recents" affordance on the document-count row - a small
 /// label + arrow that opens the sort options (Recent / A–Z / …).
 class _ViewRecentsButton extends StatelessWidget {
   const _ViewRecentsButton({required this.onTap});

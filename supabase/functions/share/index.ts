@@ -1,5 +1,5 @@
 // ============================================================================
-// INO — Public Document Share (Supabase Edge Function)
+// INO - Public Document Share (Supabase Edge Function)
 // ----------------------------------------------------------------------------
 // Serves the recipient experience for a scanned QR / opened link. It runs with
 // the service-role key (server-side only, never shipped) and CONTENT-NEGOTIATES:
@@ -13,7 +13,7 @@
 //   GET /share/:shareId/file/:index?mode=view|download
 //       → the file BYTES, streamed (proxied) through this function. It mints a
 //         60-second signed URL server-side, fetches the object itself, and
-//         streams it back — so the client NEVER sees the bucket path, the
+//         streams it back - so the client NEVER sees the bucket path, the
 //         signed URL/token, the owner, or the document UUID.
 //
 // Security: every request re-validates status='active' AND expires_at>now();
@@ -117,7 +117,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 async function loadShare(idOrToken: string): Promise<LoadResult> {
   console.log(`[share] fetch id/token=${idOrToken}`);
   // Accept EITHER the short public token (new /s/{token} links) or the internal
-  // share_id (legacy links) — both resolve to the same row.
+  // share_id (legacy links) - both resolve to the same row.
   const { data, error } = await admin
     .from("document_shares")
     .select("share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count")
@@ -334,7 +334,7 @@ function json(body: unknown, status: number): Response {
 }
 
 function htmlResponse(html: string, status: number): Response {
-  // `html` is a RAW HTML STRING — never JSON.stringify'd, never wrapped in an
+  // `html` is a RAW HTML STRING - never JSON.stringify'd, never wrapped in an
   // object, never entity-escaped. Every HTML branch (active / expired /
   // revoked / not-found / error) returns through here.
   //
@@ -351,7 +351,7 @@ function htmlResponse(html: string, status: number): Response {
   });
   // What THIS function emits (all correct). NB: the Supabase edge runtime
   // rewrites Content-Type: text/html → text/plain AFTER this, on the shared
-  // *.functions.supabase.co domain — so these logs will show text/html while
+  // *.functions.supabase.co domain - so these logs will show text/html while
   // the browser receives text/plain. Serve via a proxy domain to fix (see
   // share-proxy/cloudflare-worker.js).
   console.log("Final response headers:", JSON.stringify([...response.headers]));
@@ -376,7 +376,7 @@ function shell(bodyInner: string, headExtra = ""): string {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>INO — Shared Documents</title>
+<title>INO - Shared Documents</title>
 <style>
   :root{--green:${GREEN};--blue:${BLUE};}
   *{box-sizing:border-box;margin:0;padding:0}

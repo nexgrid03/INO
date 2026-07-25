@@ -1,4 +1,4 @@
-# INO — Android App Links for QR Document Sharing
+# INO - Android App Links for QR Document Sharing
 
 Scanning a share QR opens the URL
 
@@ -8,7 +8,7 @@ https://ilfzppryyojoponkomrw.functions.supabase.co/share/<share_id>
 
 With App Links configured, that opens **the INO app** directly on
 `SharedDocumentsScreen`. If INO isn't installed, the same link opens in the
-**browser** (the content-negotiated HTML viewer) — no extra work for that
+**browser** (the content-negotiated HTML viewer) - no extra work for that
 fallback.
 
 Everything in the app is already wired:
@@ -35,13 +35,13 @@ https://<host>/.well-known/assetlinks.json
 ```
 
 ### ⚠️ Limitation of the Supabase Functions domain
-`ilfzppryyojoponkomrw.functions.supabase.co` is a **shared** Supabase host — you
+`ilfzppryyojoponkomrw.functions.supabase.co` is a **shared** Supabase host - you
 cannot place a file at its `/.well-known/` root. So auto-verification can't be
 completed for that domain. You have two options:
 
 ### Option A (recommended): a custom domain you control
 1. Point a domain/subdomain (e.g. `https://ino.app` or `https://share.ino.app`)
-   at the Edge Function — e.g. a Cloudflare Worker / Vercel rewrite that proxies
+   at the Edge Function - e.g. a Cloudflare Worker / Vercel rewrite that proxies
    `/share/*` → `https://ilfzppryyojoponkomrw.functions.supabase.co/share/*`.
 2. Host `deep-linking/assetlinks.json` (this repo) at
    `https://<your-domain>/.well-known/assetlinks.json` with your real fingerprint
@@ -61,7 +61,7 @@ The intent filter still registers INO as a handler for the functions.supabase.co
 links, but without verification Android 12+ won't auto-open them. A user can
 enable it manually: **Settings → Apps → INO → Open by default → “Open supported
 links” → add the functions.supabase.co domain.** (Good enough for testing; not a
-shippable UX — prefer Option A.)
+shippable UX - prefer Option A.)
 
 The `ino://share/<id>` custom scheme **always** opens the app with no
 verification (handy for testing and app-to-app hand-offs), but a browser can't

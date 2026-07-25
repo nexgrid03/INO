@@ -9,7 +9,7 @@ import '../../models/scan_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// Screen 3 — OCR processing.
+/// Screen 3 - OCR processing.
 ///
 /// A calm, premium loading state while [ScanRepository.extract] runs: a gradient
 /// progress ring with a live percentage, a stepped status line, and an estimate.
@@ -27,7 +27,7 @@ class OcrProcessingScreen extends StatefulWidget {
   final String? imagePath;
 
   /// True when the capture is already upright/cropped/rectified (ML Kit
-  /// scanner output) so OCR can skip its normalization bake — see
+  /// scanner output) so OCR can skip its normalization bake - see
   /// [ScanRepository.extract].
   final bool assumeClean;
 
@@ -45,7 +45,7 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
     duration: const Duration(milliseconds: 2200),
   );
 
-  // (progress threshold, AppLocalizations key) — resolved to text at render.
+  // (progress threshold, AppLocalizations key) - resolved to text at render.
   static const _steps = <(double, String)>[
     (0.0, 'ocrReading'),
     (0.35, 'ocrDetecting'),
@@ -75,7 +75,7 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
       widget.onFailed();
     } catch (e, st) {
       // Any *unexpected* throwable (platform/native/isolate error) must never
-      // hang or crash the flow — log it fully and fall back to manual entry.
+      // hang or crash the flow - log it fully and fall back to manual entry.
       developer.log('extraction failed (unexpected): $e',
           name: 'ocr', error: e, stackTrace: st);
       if (!mounted) return;

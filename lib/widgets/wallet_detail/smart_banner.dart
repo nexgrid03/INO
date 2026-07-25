@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 4 — the single Smart Banner.
+/// Section 4 - the single Smart Banner.
 ///
 /// Replaces the old large "AI Insights" section: one calm, tinted strip that
 /// appears *only* when something needs attention (a document expiring, a sync
 /// completed) and disappears once dismissed or actioned. Never more than one at
-/// a time — attention is a scarce resource.
+/// a time - attention is a scarce resource.
 class SmartBanner extends StatelessWidget {
   const SmartBanner({
     super.key,
@@ -41,14 +42,12 @@ class SmartBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: accent),
+          ShinyIcon(
+            icon: icon,
+            color: accent,
+            size: 34,
+            iconSize: 18,
+            radius: 10,
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -53,7 +53,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _directionAutoSet = false;
 
   /// The set of fields the last receipt scan filled (labels for the "Auto-filled
-  /// from receipt ✓" note) — empty when there's no live extraction.
+  /// from receipt ✓" note) - empty when there's no live extraction.
   final Set<String> _autoFilled = {};
 
   /// A snapshot of the fields OCR may touch, taken just before auto-fill, so
@@ -62,7 +62,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   DateTime? _preScanDate;
 
   /// True when the last scan couldn't confidently read the amount and the field
-  /// is empty — the amount field shows a "enter manually" hint (FIX 4). Filling
+  /// is empty - the amount field shows a "enter manually" hint (FIX 4). Filling
   /// nothing beats filling a wrong value.
   bool _amountUnread = false;
 
@@ -173,7 +173,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               leading:
                   const Icon(Icons.photo_camera_rounded, color: AppColors.primaryGreen),
               title: const Text('Camera'),
-              subtitle: const Text('Snap the receipt — auto-reads details'),
+              subtitle: const Text('Snap the receipt - auto-reads details'),
               onTap: () => Navigator.of(context).pop('camera'),
             ),
             ListTile(
@@ -216,7 +216,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         if (access != CameraAccess.granted) {
           _toast(
               access == CameraAccess.permanentlyDenied
-                  ? 'Camera access is blocked — enable it in Settings'
+                  ? 'Camera access is blocked - enable it in Settings'
                   : 'Camera access is needed to snap a receipt',
               error: true);
           if (access == CameraAccess.permanentlyDenied) {
@@ -237,7 +237,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         if (access != CameraAccess.granted) {
           _toast(
               access == CameraAccess.permanentlyDenied
-                  ? 'Photo access is blocked — enable it in Settings'
+                  ? 'Photo access is blocked - enable it in Settings'
                   : 'Photo access is needed to attach a screenshot',
               error: true);
           if (access == CameraAccess.permanentlyDenied) {
@@ -276,7 +276,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   /// Fields that are already empty are filled directly; if the scan found values
   /// for fields the user has ALREADY typed into, we ask "Replace existing
   /// values?" first. Every filled field stays editable, and a snapshot is kept
-  /// so "Clear" can discard the extraction. OCR failure is non-fatal — the form
+  /// so "Clear" can discard the extraction. OCR failure is non-fatal - the form
   /// stays fully usable.
   Future<void> _runOcr(String path) async {
     setState(() => _scanning = true);
@@ -284,13 +284,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final data = await ReceiptScanService.instance.scan(path);
       if (!mounted || data.isEmpty) {
         if (mounted) {
-          _toast('Couldn\'t read the receipt — fill manually', error: true);
+          _toast('Couldn\'t read the receipt - fill manually', error: true);
         }
         return;
       }
 
       // The Transaction ID field is fed by the parsed reference code first,
-      // then a GSTIN as a weak fallback — never by a numeric amount.
+      // then a GSTIN as a weak fallback - never by a numeric amount.
       final referenceValue = data.transactionId ?? data.gstNumber;
 
       // What can the scan offer, and does any of it collide with typed values?
@@ -338,7 +338,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         filled.add('Date');
       }
 
-      // Direction from the receipt (e.g. a bank/UPI screenshot) — set it and
+      // Direction from the receipt (e.g. a bank/UPI screenshot) - set it and
       // pulse the toggle so the user notices it was auto-chosen.
       if (data.direction != null && data.direction != _direction) {
         _direction = data.direction!;
@@ -353,14 +353,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ..addAll(filled);
       });
       if (amountUnread) {
-        _toast('Couldn\'t read amount — enter it manually', error: true);
+        _toast('Couldn\'t read amount - enter it manually', error: true);
       } else if (filled.isEmpty) {
         _toast('Nothing new to fill from the receipt');
       }
     } catch (_) {
       // OCR / network failure → keep the form usable.
       if (mounted) {
-        _toast('Couldn\'t read the receipt — fill manually', error: true);
+        _toast('Couldn\'t read the receipt - fill manually', error: true);
       }
     } finally {
       if (mounted) setState(() => _scanning = false);
@@ -503,7 +503,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           : TransactionType.expense),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    // Feature 1 — upload payment proof (top of the form). Reads
+                    // Feature 1 - upload payment proof (top of the form). Reads
                     // amount / date / vendor / direction and auto-fills below.
                     _UploadProof(
                       path: _receiptPath,
@@ -530,7 +530,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              'Couldn\'t read amount — enter it manually',
+                              'Couldn\'t read amount - enter it manually',
                               style: AppText.caption
                                   .copyWith(color: AppColors.critical),
                             ),
@@ -539,7 +539,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),
-                    // Feature 2 — money direction, defaulted from the type above.
+                    // Feature 2 - money direction, defaulted from the type above.
                     _Field(
                       label: 'Direction',
                       child: DirectionToggle(
@@ -816,7 +816,7 @@ class _PaymentPicker extends StatelessWidget {
   }
 }
 
-/// Feature 1 — the "Upload payment proof" area at the top of the form. A dashed
+/// Feature 1 - the "Upload payment proof" area at the top of the form. A dashed
 /// card with a receipt/camera icon when empty; once a file is chosen it shows a
 /// thumbnail (or PDF chip) and a "Scanning…" state while OCR runs. Tapping opens
 /// the Camera / Gallery / PDF source sheet.

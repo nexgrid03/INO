@@ -32,7 +32,7 @@ enum _Stage { mlkit, scanner, review, processing, result }
 /// Orchestrates the Scan flow: capture → review → OCR → confirm → continue.
 ///
 /// **Capture is WhatsApp-style by default**: on Android the flow opens Google
-/// ML Kit's native document scanner ([DocumentScannerService]) — live document
+/// ML Kit's native document scanner ([DocumentScannerService]) - live document
 /// boundary detection, edge highlighting, auto-capture, auto-crop, perspective
 /// correction and multi-page scanning. The in-app camera ([ScannerScreen]) is
 /// the fallback when the native scanner is unavailable (iOS / no Play
@@ -248,7 +248,7 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
 }
 
 /// Shown behind the native ML Kit scanner activity and during the brief
-/// transition back — a calm dark surface matching the capture chrome.
+/// transition back - a calm dark surface matching the capture chrome.
 class _NativeScannerBackdrop extends StatelessWidget {
   const _NativeScannerBackdrop();
 
@@ -302,7 +302,7 @@ Future<void> launchScanFlow(
   String? initialWallet,
 }) async {
   final result = await Navigator.of(context).push<ScanFlowResult>(
-    // Rises from the bottom like a camera opening — a full-screen sheet that
+    // Rises from the bottom like a camera opening - a full-screen sheet that
     // slides up on an easeOutCubic curve rather than the default push.
     PageRouteBuilder<ScanFlowResult>(
       transitionDuration: const Duration(milliseconds: 350),

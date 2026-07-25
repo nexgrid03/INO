@@ -12,7 +12,7 @@ import 'tax_records_screen.dart';
 import 'tax_summary_screen.dart';
 import 'transaction_details_screen.dart';
 
-/// ITR-ready Transaction Vault — records + receipts organised by financial year,
+/// ITR-ready Transaction Vault - records + receipts organised by financial year,
 /// with a tax-document vault and a tax summary. Starts completely empty.
 class ExpenseDashboardScreen extends StatefulWidget {
   const ExpenseDashboardScreen({super.key});

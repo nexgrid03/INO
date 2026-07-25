@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/reminders/completed_reminder_tile.dart';
 
-/// The reminder history — everything that's been marked done. A quiet, read-only
+/// The reminder history - everything that's been marked done. A quiet, read-only
 /// log kept off the home screen so "what needs attention" stays front and
 /// centre. Each item can be restored to the active list.
 class CompletedRemindersScreen extends StatefulWidget {

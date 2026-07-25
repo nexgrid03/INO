@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Plays a one-shot fade + slide-up the moment it mounts, after an optional
 /// [delay]. Wrapping each dashboard section in one of these (with a growing
-/// delay) gives the screen a staggered "settle in" entrance — the same feel as
-/// the login/onboarding screens — without a single central controller to
+/// delay) gives the screen a staggered "settle in" entrance - the same feel as
+/// the login/onboarding screens - without a single central controller to
 /// coordinate. It animates only once and then leaves the child untouched.
 class FadeSlideIn extends StatefulWidget {
   const FadeSlideIn({

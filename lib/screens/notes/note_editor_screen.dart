@@ -97,7 +97,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         Navigator.of(context).maybePop();
       }
     } catch (e) {
-      // Insert/update failed (offline, session expired, …) — keep the editor
+      // Insert/update failed (offline, session expired, …) - keep the editor
       // open with the user's text intact so nothing is lost.
       if (mounted) {
         _toast('Couldn\'t save the note. Check your connection.', error: true);

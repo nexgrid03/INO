@@ -23,11 +23,11 @@ subprojects {
 // Force every Android subproject (app + plugins) to compile against SDK 36.
 //
 // Some plugins still hard-code an older `compileSdk` in their own build.gradle
-// (e.g. file_picker pins 34). When another dependency in the graph —
-// flutter_plugin_android_lifecycle — requires compileSdk 36, that plugin's
+// (e.g. file_picker pins 34). When another dependency in the graph -
+// flutter_plugin_android_lifecycle - requires compileSdk 36, that plugin's
 // `checkAarMetadata` task fails the whole build. This raises the compileSdk of
 // each Android module to 36 without editing the plugins and without touching
-// min/target SDK — so device support and runtime behaviour are unchanged. Uses
+// min/target SDK - so device support and runtime behaviour are unchanged. Uses
 // the Groovy builder so the root script needs no AGP import.
 //
 // The `:app` project is already evaluated here (forced by evaluationDependsOn

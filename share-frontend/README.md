@@ -32,7 +32,7 @@ npm run dev                       # http://localhost:3000/s/<token>
    `https://ilfzppryyojoponkomrw.functions.supabase.co`.
 3. Add the domain **`share.inoapp.in`** to the project (Vercel → Domains) and
    point its DNS (CNAME → `cname.vercel-dns.com`) at Vercel.
-4. Deploy. Test `https://share.inoapp.in/s/<token>` — a single-doc share opens
+4. Deploy. Test `https://share.inoapp.in/s/<token>` - a single-doc share opens
    the document directly.
 
 The INO app already encodes `https://share.inoapp.in/s/<token>` in new QR codes

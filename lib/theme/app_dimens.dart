@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens for the INO app — the single source of truth for spacing,
+/// Design tokens for the INO app - the single source of truth for spacing,
 /// radii, sizes, typography and semantic icons. Built on an 8dp grid so the
 /// layout reads as one consistent system; widgets reference these instead of
 /// hard-coding values.
@@ -25,7 +25,7 @@ class AppSpacing {
   static const double grid = 16; // grid spacing
 }
 
-/// Corner radii — generous, premium curves (20–28 range for surfaces).
+/// Corner radii - generous, premium curves (20–28 range for surfaces).
 class AppRadius {
   AppRadius._();
 

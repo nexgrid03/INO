@@ -77,7 +77,7 @@ void main() {
     test('turning the setting off mid-greeting stops playback immediately',
         () async {
       svc.speaking.value = true; // greeting mid-utterance
-      // Flip the setting the way the Settings switch does — the service
+      // Flip the setting the way the Settings switch does - the service
       // listens to the notifier and silences playback instantly.
       await AppSettings.instance.setWelcomeSound(false);
       expect(svc.speaking.value, isFalse);
@@ -90,7 +90,7 @@ void main() {
 
       expect(svc.speaking.value, isFalse);
       expect(AppSettings.instance.welcomeSound.value, isFalse);
-      // Persisted — survives an app restart.
+      // Persisted - survives an app restart.
       final p = await SharedPreferences.getInstance();
       expect(p.getBool('pref_welcome_sound_enabled'), isFalse);
     });

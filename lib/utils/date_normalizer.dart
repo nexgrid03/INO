@@ -85,7 +85,7 @@ class DateNormalizer {
       return null;
     }
 
-    // No full date — keep a bare "Year of Birth" if present.
+    // No full date - keep a bare "Year of Birth" if present.
     return _yearOnlyRe.firstMatch(input)?.group(0);
   }
 

@@ -8,9 +8,9 @@ import '../pressable_scale.dart';
 /// with a soft floating shadow and a leading search icon.
 ///
 /// Two modes:
-///   • **Launcher** — pass [onTap] (and no [controller]); the bar is a tappable
+///   • **Launcher** - pass [onTap] (and no [controller]); the bar is a tappable
 ///     affordance that opens a dedicated search screen.
-///   • **Live field** — pass a [controller] / [onChanged]; the bar edits text
+///   • **Live field** - pass a [controller] / [onChanged]; the bar edits text
 ///     in place.
 class FloatingSearchBar extends StatelessWidget {
   const FloatingSearchBar({

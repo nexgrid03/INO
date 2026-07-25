@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 
 /// Models backing the Scan & OCR flow. UI-agnostic plain objects, hydrated today
 /// by `ScanRepository`'s sample implementation and tomorrow by a real OCR
-/// service — without touching the widgets.
+/// service - without touching the widgets.
 
 // ---------------------------------------------------------------------------
 // Detection confidence
@@ -56,12 +56,12 @@ extension DetectionConfidenceX on DetectionConfidence {
 /// The lifecycle of the live scanner, driven entirely by real camera/document
 /// detection results (never pre-loaded):
 ///
-///   idle             — camera live, no document found → instruction only
-///   detecting        — a candidate is appearing (debounce before confirming)
-///   documentDetected — a document is confirmed in-frame → green badge + glow
-///   readyToScan      — document held stable at high confidence → ready badge
-///   capturing        — shutter in progress
-///   success          — capture succeeded (then returns to idle)
+///   idle             - camera live, no document found → instruction only
+///   detecting        - a candidate is appearing (debounce before confirming)
+///   documentDetected - a document is confirmed in-frame → green badge + glow
+///   readyToScan      - document held stable at high confidence → ready badge
+///   capturing        - shutter in progress
+///   success          - capture succeeded (then returns to idle)
 enum ScannerState {
   idle,
   detecting,
@@ -168,7 +168,7 @@ class OcrResult {
   /// All OCR-extracted fields keyed by semantic key (name, number, dob, gender,
   /// fatherName, and type-specific extras like expiryDate / nationality /
   /// validity / vehicleClass). Persisted with the document so every extracted
-  /// field is visible again on reopen — not just the core four.
+  /// field is visible again on reopen - not just the core four.
   final Map<String, String> extractedFields;
 
   OcrResult copyWith({

@@ -6,7 +6,7 @@ import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
 /// A labelled field wrapper used on the OCR results screen. Keeps every editable
-/// row visually consistent — a small label (with an optional "Optional" hint)
+/// row visually consistent - a small label (with an optional "Optional" hint)
 /// above the editable control.
 class OcrField extends StatelessWidget {
   const OcrField({

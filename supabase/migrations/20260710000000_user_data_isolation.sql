@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO — User Data Isolation (Row Level Security hardening)
+-- INO - User Data Isolation (Row Level Security hardening)
 -- ----------------------------------------------------------------------------
 -- Fixes a data-isolation defect where one account could see another account's
 -- data (reported for reminders). The app scopes every table by `auth_user_id`
@@ -72,7 +72,7 @@ alter table public.users
 
 -- ----------------------------------------------------------------------------
 -- Enable Row Level Security everywhere. Enabling an already-enabled table is a
--- no-op. With RLS enabled and NO policy, a table denies all access — so the
+-- no-op. With RLS enabled and NO policy, a table denies all access - so the
 -- policies below are what let authenticated users reach their OWN rows.
 -- ----------------------------------------------------------------------------
 alter table public.reminders enable row level security;
@@ -80,7 +80,7 @@ alter table public.documents enable row level security;
 alter table public.users     enable row level security;
 
 -- ----------------------------------------------------------------------------
--- reminders — owner-only policies.
+-- reminders - owner-only policies.
 -- ----------------------------------------------------------------------------
 drop policy if exists "reminders: owner reads own"    on public.reminders;
 drop policy if exists "reminders: owner inserts own"  on public.reminders;
@@ -97,7 +97,7 @@ create policy "reminders: owner deletes own" on public.reminders
   for delete using (auth_user_id = auth.uid());
 
 -- ----------------------------------------------------------------------------
--- documents — owner-only policies (re-asserted to the canonical definition).
+-- documents - owner-only policies (re-asserted to the canonical definition).
 -- ----------------------------------------------------------------------------
 drop policy if exists "documents: owner reads own"   on public.documents;
 drop policy if exists "documents: owner inserts own" on public.documents;
@@ -114,7 +114,7 @@ create policy "documents: owner deletes own" on public.documents
   for delete using (auth_user_id = auth.uid());
 
 -- ----------------------------------------------------------------------------
--- users — owner-only policies (a profile row belongs to exactly one auth user).
+-- users - owner-only policies (a profile row belongs to exactly one auth user).
 -- ----------------------------------------------------------------------------
 drop policy if exists "users: owner reads own"   on public.users;
 drop policy if exists "users: owner inserts own" on public.users;

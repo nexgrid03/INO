@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
@@ -44,7 +45,7 @@ String localizedMetricLabel(AppLocalizations l10n, String label) {
 /// The Wallet Hub launcher grid.
 ///
 /// A soft, light-toned 2-column grid of all vaults. Each card wears its own
-/// **light pastel accent** (a curated airy palette — no heavy saturated blocks),
+/// **light pastel accent** (a curated airy palette - no heavy saturated blocks),
 /// with a bright icon chip, a gently drifting decorative blob and the wallet
 /// name + item count. Cards are a fixed, compact height so the layout is steady
 /// (no resizing/zooming) and all wallets fit on one screen. Cards stagger in and
@@ -63,11 +64,11 @@ class WalletGrid extends StatefulWidget {
   static const Color uniformAccent = Color(0xFF5FCBBF);
 
   /// Each wallet wears its own light pastel accent. The accent drives the whole
-  /// card — the soft fill wash, the border, the drifting blob and the icon —
+  /// card - the soft fill wash, the border, the drifting blob and the icon -
   /// so a single colour per wallet keeps everything cohesive.
   ///
   /// Investment Wallet deliberately uses the Home page's "Reminders Today"
-  /// coral (0xFFF5704A) — no pink.
+  /// coral (0xFFF5704A) - no pink.
   static const Map<String, Color> _accents = {
     'Identity Wallet': Color(0xFF2FB6A6), // teal
     'Document Wallet': Color(0xFF4383EA), // blue
@@ -155,15 +156,11 @@ class _WalletCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    // A soft, light wash of the card's own accent — premium and airy.
+    // A soft, light wash of the card's own accent - premium and airy.
     final fill = Color.alphaBlend(
       accent.withValues(alpha: palette.isDark ? 0.18 : 0.10),
       palette.surface,
     );
-    final badgeBg = palette.isDark
-        ? accent.withValues(alpha: 0.24)
-        : Colors.white;
-
     return PressableScale(
       pressedScale: 0.97,
       child: GestureDetector(
@@ -174,7 +171,10 @@ class _WalletCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: fill,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: accent.withValues(alpha: 0.22)),
+            // A thick, solid accent edge - the same treatment the Home
+            // screen's Today's Overview tiles carry, so the card reads as one
+            // coloured object rather than a pastel wash with a hairline.
+            border: Border.all(color: accent, width: 2.5),
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(alpha: 0.12),
@@ -185,7 +185,7 @@ class _WalletCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // Decorative drifting blob — the "graphic" that gives each card
+              // Decorative drifting blob - the "graphic" that gives each card
               // depth. Isolated in its own AnimatedBuilder so only it repaints.
               Positioned.fill(
                 child: IgnorePointer(
@@ -233,25 +233,12 @@ class _WalletCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: badgeBg,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: accent.withValues(alpha: 0.22),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              category.icon,
-                              color: accent,
-                              size: 20,
-                            ),
+                          ShinyIcon(
+                            icon: category.icon,
+                            color: accent,
+                            size: 38,
+                            iconSize: 20,
+                            radius: 12,
                           ),
                           const Spacer(),
                           Icon(

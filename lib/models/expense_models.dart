@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-// Models backing the ITR-ready Transaction Vault — a record + receipt store
+// Models backing the ITR-ready Transaction Vault - a record + receipt store
 // organised by financial year, with a tax-document vault and a tax summary.
 //
 // UI-agnostic plain objects so the in-memory store can be swapped for a
-// Supabase-backed repository later without touching a widget. NO sample data —
+// Supabase-backed repository later without touching a widget. NO sample data -
 // a new account starts completely empty.
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ extension TransactionTypeX on TransactionType {
       : TransactionType.expense;
 }
 
-/// Money direction — whether funds left the account ([debited]) or arrived
+/// Money direction - whether funds left the account ([debited]) or arrived
 /// ([credited]). Stored alongside [TransactionType]; when absent on an older
 /// record it is derived from the type (income → credited, expense → debited),
 /// so pre-existing transactions keep working unchanged.
@@ -294,7 +294,7 @@ class TransactionRecord {
   final TransactionType type;
   final TxnCategory category;
 
-  /// Money direction, or null when unset (older records) — read via
+  /// Money direction, or null when unset (older records) - read via
   /// [effectiveDirection], which falls back to the type-derived default.
   final TransactionDirection? direction;
 
@@ -391,7 +391,7 @@ class TransactionRecord {
         direction: TransactionDirectionX.fromName(row['direction'] as String?),
       );
 
-  /// The column values for an INSERT/UPDATE (no `id` — the DB generates it on
+  /// The column values for an INSERT/UPDATE (no `id` - the DB generates it on
   /// insert; updates target the row by id in the filter).
   Map<String, dynamic> toInsert() => {
         'title': description,
@@ -559,7 +559,7 @@ class TaxDocument {
             FinancialYear.current().startYear,
       );
 
-  /// The column values for an INSERT (no `id` — the DB generates it).
+  /// The column values for an INSERT (no `id` - the DB generates it).
   Map<String, dynamic> toInsert() => {
         'doc_type': type.name,
         'file_name': fileName,

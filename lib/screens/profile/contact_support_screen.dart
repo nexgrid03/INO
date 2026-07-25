@@ -9,7 +9,7 @@ import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 
-/// Contact Support — a validated message form that composes an email to the
+/// Contact Support - a validated message form that composes an email to the
 /// support address via the device's mail app (a real, reliable send path that
 /// needs no backend table).
 class ContactSupportScreen extends StatefulWidget {
@@ -47,7 +47,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         path: _email,
         query: _encodeQuery({
           'subject': _subject.text.trim(),
-          'body': '${_message.text.trim()}\n\n— Sent from INO',
+          'body': '${_message.text.trim()}\n\n- Sent from INO',
         }),
       );
       developer.log('contact: launching $uri', name: 'support');

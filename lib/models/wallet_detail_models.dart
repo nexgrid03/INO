@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import 'document_extraction.dart';
 
 /// Models backing the reusable Wallet Detail screen. The same UI renders every
-/// wallet type — only this data changes.
+/// wallet type - only this data changes.
 
 const List<String> _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
@@ -174,10 +174,10 @@ class DocumentRecord {
   final bool isFavorite;
 
   /// Storage object path of the actual uploaded file (null when there is no
-  /// backing file — e.g. a record with nothing yet uploaded).
+  /// backing file - e.g. a record with nothing yet uploaded).
   final String? filePath;
 
-  /// The document's `notes` column — either free text OR a
+  /// The document's `notes` column - either free text OR a
   /// [DocumentExtraction] JSON envelope carrying the OCR-extracted fields.
   /// Decode with `DocumentExtraction.decode(notes)` to read the structured data.
   final String? notes;

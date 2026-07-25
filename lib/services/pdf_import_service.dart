@@ -42,7 +42,7 @@ class PdfImportService {
   PdfImportService._();
   static final PdfImportService instance = PdfImportService._();
 
-  /// 50 MB — generous for scans, small enough to keep uploads reliable.
+  /// 50 MB - generous for scans, small enough to keep uploads reliable.
   static const int maxBytes = 50 * 1024 * 1024;
 
   Future<PickedPdf?> pickPdf() async {
@@ -81,7 +81,7 @@ class PdfImportService {
           'Could not read the selected file. Please pick it again.');
     }
 
-    // Type check (defensive — the picker is already filtered to .pdf).
+    // Type check (defensive - the picker is already filtered to .pdf).
     final ext = (picked.extension ?? path.split('.').last).toLowerCase();
     if (ext != 'pdf') {
       throw const PdfImportException('Please select a PDF file.');

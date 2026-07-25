@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// A grouped inset settings list — the core primitive of the redesigned Profile
+/// A grouped inset settings list - the core primitive of the redesigned Profile
 /// page (the Apple Settings / Google Account pattern).
 ///
 /// A small uppercase [caption] sits above a single white, softly-shadowed

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Wraps a child so it scales down slightly while pressed, then springs back
-/// on release — the tactile "squish" used by premium apps on their buttons.
+/// on release - the tactile "squish" used by premium apps on their buttons.
 ///
 /// Implemented with a [Listener] (not a GestureDetector) so it only *observes*
 /// pointer events without consuming them: the inner button still receives the

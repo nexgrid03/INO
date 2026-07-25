@@ -25,7 +25,7 @@ import '../services/voice_nav.dart';
 /// Hinglish, Telugu, Hindi and Tamil), a display [route] for the confirmation
 /// UI, the label spoken back, and the [navigate] action that opens it.
 ///
-/// Matching is deliberately loose (substring + fuzzy) — accents and phrasing
+/// Matching is deliberately loose (substring + fuzzy) - accents and phrasing
 /// vary and the recognizer routinely mis-hears a character or two. Phrase lists
 /// are all lowercase and include the English word, common romanized forms, and
 /// native-script words.
@@ -66,7 +66,7 @@ class VoiceCommand {
 
 /// The command registry, in match-priority order (first match wins). More
 /// specific multi-word destinations come first so a broad word can't shadow
-/// them — e.g. "gold calculator" must beat the "gold" investments keyword.
+/// them - e.g. "gold calculator" must beat the "gold" investments keyword.
 final List<VoiceCommand> kVoiceCommands = [
   // ── Finance calculators (specific multi-word phrases first) ───────────────
   VoiceCommand(
@@ -448,14 +448,14 @@ VoiceCommand? matchVoiceCommand(String words) {
   final text = words.toLowerCase().trim();
   if (text.isEmpty) return null;
 
-  // Pass 1 — direct substring (registry order = priority).
+  // Pass 1 - direct substring (registry order = priority).
   for (final c in kVoiceCommands) {
     for (final p in c.phrases) {
       if (text.contains(p)) return c;
     }
   }
 
-  // Pass 2 — fuzzy, token by token, Latin keywords only.
+  // Pass 2 - fuzzy, token by token, Latin keywords only.
   final tokens = text
       .split(RegExp(r'[^a-z0-9ఀ-౿ऀ-ॿ஀-௿]+'))
       .where((t) => t.isNotEmpty)

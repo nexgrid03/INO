@@ -8,7 +8,7 @@ import '../ino_card.dart';
 import '../section_header.dart';
 import '../sparkline.dart';
 
-/// Section 7 — Investment Overview.
+/// Section 7 - Investment Overview.
 ///
 /// Hero card pairing a headline (invested / current value / P&L) with an
 /// animated allocation donut and a legend, plus a portfolio-growth sparkline.

@@ -94,7 +94,7 @@ class MetalsRepository {
       _memory = MetalRates.decode(raw);
       return _memory;
     } catch (_) {
-      await prefs.remove(_cacheKey); // corrupt entry — drop it
+      await prefs.remove(_cacheKey); // corrupt entry - drop it
       return null;
     }
   }

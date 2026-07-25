@@ -2,19 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 
 /// One row in a [SettingsGroup].
 ///
-/// Follows the Stitch settings-row language: a brand-tinted rounded square
-/// holding a teal icon, a single-line title, and a trailing control — a
-/// [Switch], a muted [value] label, or a chevron. The [danger] variant flips
-/// the tint to red (Log Out / Delete Account), so hierarchy still comes from
-/// typography and grouping.
+/// Follows the Stitch settings-row language: a glossy badge holding the row's
+/// icon, a single-line title, and a trailing control - a [Switch], a muted
+/// [value] label, or a chevron. The [danger] variant flips the accent to red
+/// (Log Out / Delete Account), so hierarchy still comes from typography and
+/// grouping.
+///
+/// Give each row its own [iconColor] so a long settings list reads as distinct
+/// destinations rather than one repeated teal chip; it falls back to the brand
+/// teal when omitted.
 class SettingsRow extends StatelessWidget {
   const SettingsRow({
     super.key,
     required this.icon,
     required this.title,
+    this.iconColor,
     this.subtitle,
     this.trailing,
     this.value,
@@ -25,6 +31,10 @@ class SettingsRow extends StatelessWidget {
 
   final IconData icon;
   final String title;
+
+  /// The badge accent. Defaults to the brand teal; ignored when [danger] is set
+  /// (destructive rows are always red).
+  final Color? iconColor;
 
   /// An optional one-line explainer under the title (muted caption).
   final String? subtitle;
@@ -37,7 +47,7 @@ class SettingsRow extends StatelessWidget {
 
   final VoidCallback? onTap;
 
-  /// Destructive styling — red icon + title, no chevron (Log Out / Delete).
+  /// Destructive styling - red icon + title, no chevron (Log Out / Delete).
   final bool danger;
 
   /// Whether a chevron shows when the row is tappable and has no [trailing].
@@ -47,10 +57,9 @@ class SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final Color fg = danger ? AppColors.critical : palette.textPrimary;
-    final Color iconFg = danger ? AppColors.critical : AppColors.primaryGreen;
-    final Color iconBg = danger
-        ? AppColors.critical.withValues(alpha: 0.10)
-        : AppColors.primaryGreen.withValues(alpha: palette.isDark ? 0.16 : 0.10);
+    final Color accent = danger
+        ? AppColors.critical
+        : (iconColor ?? AppColors.primaryGreen);
 
     Widget? tail = trailing;
     tail ??= (value != null)
@@ -75,14 +84,12 @@ class SettingsRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 20, color: iconFg),
+          ShinyIcon(
+            icon: icon,
+            color: accent,
+            size: 40,
+            iconSize: 20,
+            radius: 12,
           ),
           const SizedBox(width: 14),
           Expanded(

@@ -6,7 +6,7 @@ import '../../models/dashboard_models.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 14 — the expandable Floating Action Button.
+/// Section 14 - the expandable Floating Action Button.
 ///
 /// Tapping the brand-gradient FAB fans out a labelled stack of "Add …" actions
 /// (document, reminder, investment, property, insurance, health record) and
@@ -64,7 +64,7 @@ class _ExpandableFabState extends State<ExpandableFab>
       alignment: Alignment.bottomRight,
       clipBehavior: Clip.none,
       children: [
-        // Scrim — only hit-testable while open.
+        // Scrim - only hit-testable while open.
         if (_open || _c.value > 0)
           Positioned.fill(
             child: IgnorePointer(

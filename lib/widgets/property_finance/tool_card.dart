@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// A premium gradient grid card for the Property & Finance Tools hub — a large
+/// A premium gradient grid card for the Property & Finance Tools hub - a large
 /// icon badge, title and short description, with a ripple + press animation.
 class ToolGridCard extends StatelessWidget {
   const ToolGridCard({
@@ -41,7 +42,9 @@ class ToolGridCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: color.withValues(alpha: 0.22)),
+          // Thick, solid accent edge in the same colour as the filled icon
+          // badge - matching the tool tiles on the Home screen.
+          border: Border.all(color: color, width: 2.5),
           boxShadow: palette.cardShadow,
         ),
         clipBehavior: Clip.antiAlias,
@@ -57,29 +60,13 @@ class ToolGridCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          color,
-                          Color.alphaBlend(
-                              Colors.white.withValues(alpha: 0.28), color),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(AppRadius.chip),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.32),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 26),
+                  ShinyIcon(
+                    icon: icon,
+                    color: color,
+                    size: 46,
+                    iconSize: 26,
+                    radius: AppRadius.chip,
+                    style: ShinyIconStyle.filled,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Column(

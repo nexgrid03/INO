@@ -22,7 +22,7 @@ class AuthService {
   static final AuthService instance = AuthService._();
 
   /// Resolved lazily so the app can build (and tests can run) without Supabase
-  /// being initialised — it's only touched when a method is actually called.
+  /// being initialised - it's only touched when a method is actually called.
   SupabaseClient get _client => Supabase.instance.client;
 
   // --- Session helpers ------------------------------------------------------
@@ -102,7 +102,7 @@ class AuthService {
   // Vonage …) enabled under Authentication → Providers → Phone in the Supabase
   // dashboard; the client code below is provider-agnostic. Supabase creates the
   // auth user on first successful verify, so a phone login yields the SAME
-  // account system + session as email / Google — routing, SessionReset and
+  // account system + session as email / Google - routing, SessionReset and
   // logout all work identically.
 
   /// Sends a 6-digit SMS code to [phone] (E.164 format, e.g. `+919876543210`).
@@ -127,7 +127,7 @@ class AuthService {
   // --- Apple (placeholder) --------------------------------------------------
 
   /// Whether "Continue with Apple" should be offered. Apple requires iOS +
-  /// the `sign_in_with_apple` package, which isn't wired yet — so this returns
+  /// the `sign_in_with_apple` package, which isn't wired yet - so this returns
   /// false for now and the UI hides the button outside iOS.
   bool get isAppleSignInAvailable => false;
 
@@ -164,7 +164,7 @@ class AuthService {
     developer.log('Google sign-in started', name: 'auth');
 
     // Fail loudly (not silently) when the Google Web client ID is still the
-    // placeholder — otherwise Credential Manager can't mint a valid token and
+    // placeholder - otherwise Credential Manager can't mint a valid token and
     // the failure is cryptic.
     if (!SupabaseConfig.isGoogleConfigured) {
       developer.log('Google sign-in aborted: web client ID not configured',

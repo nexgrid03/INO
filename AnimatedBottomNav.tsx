@@ -1,5 +1,5 @@
 /**
- * AnimatedBottomNav — a pill-shaped bottom bar with a center FAB that fans out
+ * AnimatedBottomNav - a pill-shaped bottom bar with a center FAB that fans out
  * a three-item quick-action menu in a shallow arc.
  *
  * Stack: React Native + Expo, expo-router, react-native-reanimated v3 (worklets),
@@ -8,7 +8,7 @@
  * Mount ONCE at the root of your screen/layout (e.g. inside app/_layout.tsx,
  * as the last child so it overlays page content). The whole component is an
  * absolutely-positioned, `box-none` overlay: it never pushes or reflows page
- * content — the scrim and options are absolute layers above the bar.
+ * content - the scrim and options are absolute layers above the bar.
  *
  * To add/remove a quick action, edit ACTIONS in ONE place (and, because a
  * Reanimated shared value + animated style are created per action, the arrays
@@ -62,7 +62,7 @@ const RIPPLE_TIMING = { duration: 600, easing: Easing.out(Easing.cubic) } as con
 const REDUCED_TIMING = { duration: 150, easing: Easing.linear } as const;
 
 // ---------------------------------------------------------------------------
-// Quick-action config — the single source of truth. Add/remove here.
+// Quick-action config - the single source of truth. Add/remove here.
 // tx/ty are the OPEN-state translation of the option's centre, relative to the
 // FAB centre. openDelay/closeDelay drive the stagger (close reverses the order).
 // ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ export default function AnimatedBottomNav() {
   const fabCenterFromTop = height - fabCenterFromBottom;
 
   // ---- Reanimated drivers ------------------------------------------------
-  // One shared value per action (stable-length map — ACTIONS is a module const).
+  // One shared value per action (stable-length map - ACTIONS is a module const).
   /* eslint-disable react-hooks/rules-of-hooks */
   const progress = ACTIONS.map(() => useSharedValue(0));
   const optionStyles = ACTIONS.map((a, i) =>
@@ -245,7 +245,7 @@ export default function AnimatedBottomNav() {
   // ---- Render ------------------------------------------------------------
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Scrim — full screen, taps close the menu. Below the options & FAB. */}
+      {/* Scrim - full screen, taps close the menu. Below the options & FAB. */}
       <Animated.View
         style={[styles.scrim, scrimStyle]}
         pointerEvents={open ? 'auto' : 'none'}
@@ -258,7 +258,7 @@ export default function AnimatedBottomNav() {
         />
       </Animated.View>
 
-      {/* Ripple ring — behind the FAB. */}
+      {/* Ripple ring - behind the FAB. */}
       <Animated.View
         pointerEvents="none"
         style={[
@@ -271,7 +271,7 @@ export default function AnimatedBottomNav() {
         ]}
       />
 
-      {/* Quick-action options — absolute overlay, no reflow. */}
+      {/* Quick-action options - absolute overlay, no reflow. */}
       {ACTIONS.map((a, i) => (
         <Animated.View
           key={a.key}
@@ -328,7 +328,7 @@ export default function AnimatedBottomNav() {
         ))}
       </View>
 
-      {/* FAB — separate absolute layer so it can overlap the bar's top edge
+      {/* FAB - separate absolute layer so it can overlap the bar's top edge
           without Android clipping. Rendered last → sits above the options,
           which fan out from behind it. */}
       <Animated.View

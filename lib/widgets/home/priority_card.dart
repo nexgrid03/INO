@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 
-/// Section 3 — a single Priority Center card (premium vertical format).
+/// Section 3 - a single Priority Center card (premium vertical format).
 ///
-/// A compact card for a horizontal row: tinted icon chip top-left, a status
-/// badge top-right (colour-coded by urgency), then title, subtitle and a
+/// A compact card for a horizontal row: glossy icon chip top-left, a
+/// status badge top-right (colour-coded by urgency), then title, subtitle and a
 /// chevron. Home surfaces only the top three.
 class PriorityCard extends StatelessWidget {
   const PriorityCard({super.key, required this.item, this.onTap});
@@ -41,14 +42,12 @@ class PriorityCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Icon(item.icon, color: color, size: 22),
+              ShinyIcon(
+                icon: item.icon,
+                color: color,
+                size: AppSizes.iconContainerSm,
+                iconSize: 22,
+                radius: AppRadius.chip,
               ),
               const Spacer(),
               Flexible(

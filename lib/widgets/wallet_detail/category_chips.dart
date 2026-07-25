@@ -4,11 +4,11 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 5 — horizontal Category Chips.
+/// Section 5 - horizontal Category Chips.
 ///
 /// A fast, single-tap way to narrow the list to one kind of document. The
 /// labels are derived from the wallet's actual records (a leading "All", then
-/// each distinct category / tag present) so the row is never decorative — every
+/// each distinct category / tag present) so the row is never decorative - every
 /// chip resolves to real results. Selecting a chip filters the list below.
 class CategoryChips extends StatelessWidget {
   const CategoryChips({

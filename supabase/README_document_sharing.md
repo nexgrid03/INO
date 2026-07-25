@@ -1,8 +1,8 @@
-# Secure Document Sharing via QR — Backend Deploy
+# Secure Document Sharing via QR - Backend Deploy
 
 This feature needs two backend pieces deployed to **your** Supabase project
 (`ilfzppryyojoponkomrw`). The Flutter app is already wired to them. Nothing here
-touches existing tables — it only **adds** `document_shares`, `share_views`,
+touches existing tables - it only **adds** `document_shares`, `share_views`,
 `share_downloads` and one Edge Function.
 
 ## 1. Database migration
@@ -20,10 +20,10 @@ supabase db push
 
 or paste the file into **Supabase Dashboard → SQL Editor → Run**.
 
-**Verify it applied** — run `supabase/verify_document_sharing.sql` in the SQL
+**Verify it applied** - run `supabase/verify_document_sharing.sql` in the SQL
 Editor. Every row must say `OK` (tables, the `create_document_share` RPC,
 indexes, RLS). If the app shows **“QR Sharing Backend Not Configured”**, this
-migration hasn't been applied (or the PostgREST cache is stale — the migration
+migration hasn't been applied (or the PostgREST cache is stale - the migration
 ends with `notify pgrst, 'reload schema';` to handle that; you can re-run just
 that line).
 
@@ -56,30 +56,30 @@ documents, storage paths, signed URLs/tokens, or the service key.
 supabase functions deploy share --no-verify-jwt
 ```
 
-`--no-verify-jwt` is required — recipients are anonymous and have no JWT. Auth is
+`--no-verify-jwt` is required - recipients are anonymous and have no JWT. Auth is
 enforced *inside* the function by the share validation, not by the gateway.
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically by the
-Edge runtime — you do **not** set them yourself.
+Edge runtime - you do **not** set them yourself.
 
 ## ⚠️ Known Supabase limitation: HTML is downgraded on the shared domain
 
 **Proven behavior (2026-07-07):** the Supabase Edge Runtime rewrites
 `Content-Type: text/html` → **`text/plain`** and injects
 `X-Content-Type-Options: nosniff` + `Content-Security-Policy: default-src 'none';
-sandbox` for responses served on `*.functions.supabase.co` — an anti-abuse
+sandbox` for responses served on `*.functions.supabase.co` - an anti-abuse
 measure. Result: opening `https://…functions.supabase.co/share/<id>` in a browser
 shows the **HTML source**, not the rendered page. `application/json` and file
-bytes (`image/*`, `application/pdf`) are **not** downgraded — only `text/html`.
+bytes (`image/*`, `application/pdf`) are **not** downgraded - only `text/html`.
 
 This is enforced *after* the function returns, so **no code change in
 `index.ts` can fix it**. Two ways to get a rendered browser page:
 
-1. **Reverse proxy (recommended, free)** — `share-proxy/cloudflare-worker.js`:
+1. **Reverse proxy (recommended, free)** - `share-proxy/cloudflare-worker.js`:
    a Cloudflare Worker on a domain you control that re-serves the page as real
    `text/html`. Deploy it, then set `ShareConfig.customBaseUrlOverride` to your
    domain so new QR codes point at it.
-2. **App deep link** — with App Links configured (see `DEEP_LINKING.md`), the QR
+2. **App deep link** - with App Links configured (see `DEEP_LINKING.md`), the QR
    opens the native `SharedDocumentsScreen` instead of the browser.
 
 Verify the downgrade yourself:
@@ -98,7 +98,7 @@ https://ilfzppryyojoponkomrw.functions.supabase.co/share/<share_id>
 
 - **Through the proxy domain** (option 1 above) → a rendered INO document viewer:
   cards with View / Download and a live countdown.
-- **The raw functions.supabase.co URL** shows source in a browser — that's the
+- **The raw functions.supabase.co URL** shows source in a browser - that's the
   Supabase downgrade above, not a bug in the function.
 - Force JSON (what the app receives): `curl -s "https://…/share/<share_id>?format=json"`
   → `application/json` with the documents.
@@ -111,7 +111,7 @@ https://ilfzppryyojoponkomrw.functions.supabase.co/share/<share_id>
 ## Storage note
 
 The Edge Function signs files from the existing **private** `documents` bucket
-using the service role, so you do **not** need to make the bucket public — keep
+using the service role, so you do **not** need to make the bucket public - keep
 it private. Recipients only ever get short-lived signed URLs for the exact files
 in the share.
 

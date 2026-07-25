@@ -9,7 +9,7 @@ import '../../widgets/home/empty_state.dart';
 import '../shell/shell_controller.dart';
 import '../wallet/wallet_detail_screen.dart';
 
-/// Global Search — live search across documents, reminders, categories and tags,
+/// Global Search - live search across documents, reminders, categories and tags,
 /// with recent searches, suggestions and a proper empty state.
 class GlobalSearchScreen extends StatefulWidget {
   const GlobalSearchScreen({super.key});

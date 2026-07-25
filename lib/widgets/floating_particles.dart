@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 ///
 /// Driven by a single looping [animation] (0→1). Everything is painted on one
 /// [CustomPaint] inside a [RepaintBoundary], so the drift never rebuilds the
-/// widget tree above it — just repaints this layer. Opacity is kept very low.
+/// widget tree above it - just repaints this layer. Opacity is kept very low.
 class FloatingParticles extends StatelessWidget {
   const FloatingParticles({super.key, required this.animation});
 
@@ -58,7 +58,7 @@ class _Particle {
   final bool isCircle;
 }
 
-/// A fixed, hand-placed set of particles — deterministic (no RNG) so the
+/// A fixed, hand-placed set of particles - deterministic (no RNG) so the
 /// layout is stable and reviewable.
 const List<_Particle> _particles = [
   _Particle(x: 0.18, y: 0.18, radius: 5, phase: 0.0, driftX: 0.02, driftY: 0.03, opacity: 0.10, color: AppColors.primaryGreen, isCircle: true),

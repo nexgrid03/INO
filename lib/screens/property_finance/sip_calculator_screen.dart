@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../models/currency.dart';
+import '../../services/app_settings.dart';
 import '../../services/sip_calculator_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
+import '../../widgets/property_finance/currency_selector.dart';
 
-/// SIP Calculator — monthly investment + return + years → invested amount,
-/// estimated returns and future value.
+/// SIP Calculator - monthly investment + return + years → invested amount,
+/// estimated returns and future value. Works in any currency (header pill).
 class SipCalculatorScreen extends StatefulWidget {
   const SipCalculatorScreen({super.key});
 
@@ -32,6 +36,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currency = Currencies.byCode(AppSettings.instance.currency.value);
+
     final monthly = _num(_monthly);
     final ret = _num(_return);
     final years = _num(_years).round();
@@ -46,22 +53,23 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         : SipResult.zero;
 
     return CalculatorScaffold(
-      title: 'SIP Calculator',
-      subtitle: 'Project your mutual-fund growth',
+      title: l10n.t('sipCalculator'),
+      subtitle: l10n.t('sipSubtitle'),
+      trailing: CurrencySelector(onChanged: (_) => setState(() {})),
       children: [
         CalcInputCard(
-          title: 'Investment Details',
+          title: l10n.t('investmentDetails'),
           children: [
             CalcField(
-              label: 'Monthly Investment',
+              label: l10n.t('monthlyInvestment'),
               controller: _monthly,
-              prefix: '₹',
+              prefix: currency.symbol,
               hint: 'e.g. 10000',
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Expected Return (% per year)',
+              label: l10n.t('expectedReturnPerYear'),
               controller: _return,
               suffix: '%',
               hint: 'e.g. 12',
@@ -69,9 +77,8 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Time Period (Years)',
+              label: l10n.t('timePeriodYears'),
               controller: _years,
-              suffix: 'yrs',
               hint: 'e.g. 10',
               onChanged: () => setState(() {}),
             ),
@@ -79,30 +86,28 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         if (!valid)
-          const CalcHint(
-              message:
-                  'Enter a monthly amount and duration to project your returns.')
+          CalcHint(message: l10n.t('sipHint'))
         else ...[
           HeroResultCard(
-            label: 'Future Value',
-            value: rupees(result.futureValue.round()),
-            copyText: rupees(result.futureValue.round()),
+            label: l10n.t('futureValue'),
+            value: money(result.futureValue.round(), currency),
+            copyText: money(result.futureValue.round(), currency),
             gradient: AppColors.insightGradient,
           ),
           const SizedBox(height: AppSpacing.md),
           ResultBreakdownCard(
             rows: [
               ResultRow(
-                  label: 'Invested Amount',
-                  value: rupees(result.investedAmount.round())),
+                  label: l10n.t('investedAmount'),
+                  value: money(result.investedAmount.round(), currency)),
               ResultRow(
-                label: 'Estimated Returns',
-                value: rupees(result.estimatedReturns.round()),
+                label: l10n.t('estimatedReturns'),
+                value: money(result.estimatedReturns.round(), currency),
                 valueColor: AppColors.primaryGreen,
               ),
               ResultRow(
-                  label: 'Total Value',
-                  value: rupees(result.futureValue.round())),
+                  label: l10n.t('totalValue'),
+                  value: money(result.futureValue.round(), currency)),
             ],
           ),
         ],

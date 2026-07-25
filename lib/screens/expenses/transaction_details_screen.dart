@@ -149,7 +149,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                                   valueColor: t.category.color),
                               _divider(palette),
                               _row(context, 'Transaction ID',
-                                  t.reference ?? '—', Icons.tag_rounded),
+                                  t.reference ?? '-', Icons.tag_rounded),
                               _divider(palette),
                               _row(context, 'Date & Time',
                                   formatTxnDateTime(t.dateTime),

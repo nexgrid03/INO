@@ -1,7 +1,7 @@
 /// Best-effort, LABEL-AWARE extraction of ITR-relevant fields from raw receipt /
 /// payment-screenshot OCR text.
 ///
-/// Deliberately conservative — every field is nullable and only returned when a
+/// Deliberately conservative - every field is nullable and only returned when a
 /// confident, context-appropriate pattern matches, so the Add screen only
 /// *pre-fills* (never overwrites blindly, never fills garbage). Pure Dart +
 /// regex → unit-testable without a device.
@@ -26,7 +26,7 @@ class ReceiptData {
   final String? vendorName;
 
   /// A payment reference code (Transaction ID / UTR / order id), kept verbatim
-  /// as a string — never numeric.
+  /// as a string - never numeric.
   final String? transactionId;
 
   bool get isEmpty =>
@@ -68,7 +68,7 @@ class ReceiptParser {
   );
 
   // Unlabelled fallbacks: a PhonePe-style "T" + 12–22 digits, or a bare 12–22
-  // digit run. These lengths are ID territory — far longer than any amount.
+  // digit run. These lengths are ID territory - far longer than any amount.
   static final _phonePeIdRe = RegExp(r'\bT\d{12,22}\b', caseSensitive: false);
   static final _longDigitsRe = RegExp(r'\b\d{12,22}\b');
 
@@ -112,7 +112,7 @@ class ReceiptParser {
     // Drop currency symbols/words and thousands separators / spaces.
     s = s.replaceAll(RegExp(r'(?:₹|rs\.?|inr)', caseSensitive: false), '');
     s = s.replaceAll(RegExp(r'[,\s]'), '');
-    // Only a plain decimal number is acceptable — this single check rejects any
+    // Only a plain decimal number is acceptable - this single check rejects any
     // token containing letters (IDs like "T2607251037436024") or extra dots.
     if (!RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(s)) return null;
     // Digit-count ceiling: IDs are long, amounts are not.
@@ -131,7 +131,7 @@ class ReceiptParser {
   ///   3. a plain number on an amount/paid/total line that is NOT a
   ///      reference/ID line.
   /// Every candidate must pass [parseAmount]. There is deliberately NO
-  /// "largest bare number" fallback (that was the bug) — if nothing matches with
+  /// "largest bare number" fallback (that was the bug) - if nothing matches with
   /// context, we return null and the screen leaves the field blank with a hint.
   static double? _amount(String text) {
     double? labelledCurrency;
@@ -157,7 +157,7 @@ class ReceiptParser {
       }
 
       // Plain (untagged) numbers are trusted ONLY on an amount line that isn't
-      // also a reference/ID line — so "Txn No 2607…" never yields an amount.
+      // also a reference/ID line - so "Txn No 2607…" never yields an amount.
       if (amountCtx && !idCtx) {
         for (final m in _amountRe.allMatches(line)) {
           final v = parseAmount(m.group(1));
@@ -180,7 +180,7 @@ class ReceiptParser {
 
   // ─────────────────────────── transaction id ───────────────────────────
 
-  /// Extracts a payment reference code as a STRING, exactly as printed — never
+  /// Extracts a payment reference code as a STRING, exactly as printed - never
   /// numeric, never with a decimal inserted. Prefers a labelled code; falls
   /// back to a PhonePe-style `T…` code or a long (12–22) digit run.
   static String? _transactionId(String text) {
@@ -222,7 +222,7 @@ class ReceiptParser {
   }
 
   static String? _vendor(String text) {
-    // The vendor is usually near the top — the first line that is mostly
+    // The vendor is usually near the top - the first line that is mostly
     // letters and not a header like "TAX INVOICE" / "RECEIPT".
     for (final raw in text.split('\n')) {
       final line = raw.trim();

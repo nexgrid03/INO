@@ -10,7 +10,7 @@ import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 
-/// Change Password — verifies the current password against Supabase Auth, checks
+/// Change Password - verifies the current password against Supabase Auth, checks
 /// the new password's strength, then updates the credential in the backend.
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key, required this.email});

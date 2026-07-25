@@ -23,7 +23,7 @@ import 'forgot_password_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
 
-/// Screen 3 — Login.
+/// Screen 3 - Login.
 ///
 /// A fast, card-less sign-in: brand mark, email/mobile + password, Remember me
 /// / Forgot password, the gradient primary CTA, then federated options and a
@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Only email sign-in is wired to Supabase today; guide mobile users kindly.
     if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage('Mobile sign-in is coming soon — please use your email.');
+      _showMessage('Mobile sign-in is coming soon - please use your email.');
       return;
     }
 
@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       developer.log(
-        'Email sign-in OK: user=${user.id} — routing',
+        'Email sign-in OK: user=${user.id} - routing',
         name: 'auth',
       );
       // Same resilient, completeness-aware routing as the Google path.
@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await AuthService.instance.signInWithGoogle();
       if (res == null) {
         developer.log(
-          'Google sign-in cancelled — staying on login',
+          'Google sign-in cancelled - staying on login',
           name: 'auth',
         );
         return; // user cancelled the picker
@@ -134,12 +134,12 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       developer.log(
-        'Google sign-in OK: user=${user.id} — routing',
+        'Google sign-in OK: user=${user.id} - routing',
         name: 'auth',
       );
       // Route via the app-root navigator (inside routeAfterAuth) so it works
       // even if THIS widget was disposed while the Google picker (Credential
-      // Manager) was open — the previous code used the local context + a
+      // Manager) was open - the previous code used the local context + a
       // `!mounted` guard here, which is exactly why nothing happened after
       // picking an account.
       await routeAfterAuth(
@@ -189,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Demo-only: fill the email + password fields with the shared demo account
   /// (typed in with a light animation) and then trigger the normal [_signIn]
-  /// flow — no auth is bypassed, this just automates the same tap a tester
+  /// flow - no auth is bypassed, this just automates the same tap a tester
   /// would make. Guarded by [isDemoBuild] at the call site.
   Future<void> _loginAsGuest() async {
     if (_busy || _googleBusy || _guestBusy) return;
@@ -415,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// Demo-only "Login as Guest" button — an outlined, full-width control with a
+/// Demo-only "Login as Guest" button - an outlined, full-width control with a
 /// light Rama-blue (brand teal) border and a white surface, matching the width
 /// of the primary Sign In button above it.
 class _GuestLoginButton extends StatelessWidget {

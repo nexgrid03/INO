@@ -4,9 +4,10 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 
 /// A small "Recently Completed" row: a green check chip, the title, and when it
-/// was completed. Compact and quiet — these are done, not demanding attention.
+/// was completed. Compact and quiet - these are done, not demanding attention.
 class CompletedReminderTile extends StatelessWidget {
   const CompletedReminderTile({
     super.key,
@@ -24,16 +25,13 @@ class CompletedReminderTile extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.sm),
       child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-            ),
-            child: const Icon(Icons.check_circle_rounded,
-                size: 20, color: AppColors.primaryGreen),
+        children: [
+          const ShinyIcon(
+            icon: Icons.check_circle_rounded,
+            color: AppColors.primaryGreen,
+            size: 36,
+            iconSize: 20,
+            radius: AppRadius.chip,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

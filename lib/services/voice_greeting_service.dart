@@ -9,14 +9,14 @@ import 'voice_manager.dart';
 void _log(String message) => developer.log(message, name: 'greeting');
 
 /// Speaks a time-based welcome ("Good Morning, Rahul.") exactly once per
-/// session — right after login, or when the app opens with a user already
+/// session - right after login, or when the app opens with a user already
 /// signed in. Both paths reach the authenticated shell, which calls
 /// [greetOnce] from a post-frame callback.
 ///
 /// Double-play protection (the "greeting plays twice" bug), in layers:
 ///  1. [_greeted] is flipped SYNCHRONOUSLY before any async work, so no two
-///     callers — shell rebuilds, navigation back, provider refreshes, a second
-///     shell mount during the auth handoff — can both pass the guard;
+///     callers - shell rebuilds, navigation back, provider refreshes, a second
+///     shell mount during the auth handoff - can both pass the guard;
 ///  2. speech goes through the app-wide shared [VoiceManager], which is warmed up
 ///     at app start (the native cold-start re-queue race that could replay the
 ///     first utterance can no longer occur) and which drops a duplicate
@@ -36,7 +36,7 @@ class VoiceGreetingService {
 
   void _onSettingChanged() {
     if (!AppSettings.instance.welcomeSound.value && speaking.value) {
-      _log('Greeting setting turned off mid-utterance — stopping playback');
+      _log('Greeting setting turned off mid-utterance - stopping playback');
       speaking.value = false;
       unawaited(VoiceManager.instance.stop());
     }
@@ -53,7 +53,7 @@ class VoiceGreetingService {
   /// Speaks the greeting once. Subsequent calls in the same session are no-ops.
   ///
   /// Respects the persisted "Welcome sound" preference
-  /// ([AppSettings.welcomeSound]) — read BEFORE any audio work, so when the
+  /// ([AppSettings.welcomeSound]) - read BEFORE any audio work, so when the
   /// user has muted the greeting nothing is loaded or spoken at all (never
   /// load-then-stop).
   ///
@@ -61,8 +61,8 @@ class VoiceGreetingService {
   /// ("Good Morning.").
   Future<void> greetOnce({String? userName}) async {
     if (_greeted) {
-      _log('Greeting skipped — already played this session');
-      debugPrint('Greeting skipped — already played this session');
+      _log('Greeting skipped - already played this session');
+      debugPrint('Greeting skipped - already played this session');
       return;
     }
     // Set BEFORE any await: a second caller in the same microtask window must
@@ -70,8 +70,8 @@ class VoiceGreetingService {
     _greeted = true;
 
     if (!AppSettings.instance.welcomeSound.value) {
-      _log('Greeting skipped — welcome sound is turned off');
-      debugPrint('Greeting skipped — welcome sound is turned off');
+      _log('Greeting skipped - welcome sound is turned off');
+      debugPrint('Greeting skipped - welcome sound is turned off');
       return;
     }
 
@@ -90,10 +90,10 @@ class VoiceGreetingService {
 
   /// The in-the-moment mute: immediately stops the greeting mid-utterance AND
   /// persists `welcomeSound = false` so it won't play on the next launch
-  /// either. No confirmation — the silence intent is honoured instantly.
+  /// either. No confirmation - the silence intent is honoured instantly.
   Future<void> muteNow() async {
-    _log('Greeting muted by the user — disabling the welcome sound');
-    debugPrint('Greeting muted by the user — disabling the welcome sound');
+    _log('Greeting muted by the user - disabling the welcome sound');
+    debugPrint('Greeting muted by the user - disabling the welcome sound');
     speaking.value = false;
     await AppSettings.instance.setWelcomeSound(false);
     try {
@@ -116,14 +116,14 @@ class VoiceGreetingService {
       phrase = 'Good Evening';
     }
     final person = (name ?? '').trim();
-    // Greet by first name only — it sounds more natural spoken aloud.
+    // Greet by first name only - it sounds more natural spoken aloud.
     final firstName = person.isEmpty ? '' : person.split(RegExp(r'\s+')).first;
     return firstName.isEmpty ? '$phrase.' : '$phrase, $firstName.';
   }
 
   /// Re-arms the greeting for the next sign-in. Called from `SessionReset` on
   /// sign-out, so the next account (or the same one signing back in) is
-  /// greeted at the start of ITS session — still exactly once.
+  /// greeted at the start of ITS session - still exactly once.
   void resetForNextSession() {
     _greeted = false;
     _log('Greeting re-armed for the next session');

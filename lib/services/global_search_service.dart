@@ -33,7 +33,7 @@ class SearchHit {
   final String? documentId;
 }
 
-/// Global search across the user's real data — documents (name / category /
+/// Global search across the user's real data - documents (name / category /
 /// tags / wallet), reminders (title / subtitle), plus category and tag matches.
 ///
 /// Also owns the persisted "recent searches" list. Everything is queried live so

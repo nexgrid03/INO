@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// Built from raw spot USD/oz + USD→INR FX via [MetalRates.fromSpot], which
 /// applies the troy-ounce → gram conversion automatically (the "bonus"
-/// requirement — no manual conversion at the call site).
+/// requirement - no manual conversion at the call site).
 @immutable
 class MetalRates {
   const MetalRates({
@@ -25,7 +25,7 @@ class MetalRates {
   /// ₹ per gram of silver.
   final double silverPerGram;
 
-  /// ISO currency code — always `INR` for the Indian UI.
+  /// ISO currency code - always `INR` for the Indian UI.
   final String currency;
 
   /// When these rates were fetched (stored in UTC).
@@ -57,7 +57,7 @@ class MetalRates {
     );
   }
 
-  /// 22K gold is 22/24 of pure — a common Indian retail reference.
+  /// 22K gold is 22/24 of pure - a common Indian retail reference.
   double get gold22kPerGram => goldPerGram * 22 / 24;
 
   Map<String, dynamic> toJson() => {

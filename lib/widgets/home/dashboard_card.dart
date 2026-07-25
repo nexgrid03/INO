@@ -6,16 +6,17 @@ import '../../core/responsive/responsive_extensions.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
-/// Today's Overview — the hero highlight of the INO Home Screen.
+/// Today's Overview - the hero highlight of the INO Home Screen.
 ///
 /// A living teal section: a primary-only gradient washed with slowly drifting
 /// organic blobs, a soft wave, and geometric ring accents (all painted, no
 /// assets), fronted by a gently bobbing "shield mascot" badge. The four summary
 /// tiles break away from the section with their own soft pastel fills, hairline
-/// borders and staggered entrance — connected to the teal world, yet clearly
+/// borders and staggered entrance - connected to the teal world, yet clearly
 /// lifted off it.
 class DashboardCard extends StatefulWidget {
   const DashboardCard({
@@ -37,7 +38,7 @@ class DashboardCard extends StatefulWidget {
 
   final HomeHero hero;
 
-  // Real counts for the four summary tiles — 0 when there's nothing to show.
+  // Real counts for the four summary tiles - 0 when there's nothing to show.
   final int documentsExpiring;
   final int remindersToday;
   final int insuranceRenewals;
@@ -57,8 +58,8 @@ class DashboardCard extends StatefulWidget {
 
 class _DashboardCardState extends State<DashboardCard>
     with SingleTickerProviderStateMixin {
-  // One slow, perpetual loop drives every ambient motion in the section — the
-  // drifting backdrop and the subtle gradient shift — so the whole surface
+  // One slow, perpetual loop drives every ambient motion in the section - the
+  // drifting backdrop and the subtle gradient shift - so the whole surface
   // breathes together at ~12s per cycle.
   late final AnimationController _ambient = AnimationController(
     vsync: this,
@@ -103,7 +104,7 @@ class _DashboardCardState extends State<DashboardCard>
                         begin: Alignment(-1 + t * 0.4, -1),
                         end: Alignment(1, 1 - t * 0.4),
                         // Primary-only: a lighter tint highlight easing into
-                        // the anchor — never darker than #30ACB3 (brand rule).
+                        // the anchor - never darker than #30ACB3 (brand rule).
                         colors: const [
                           Color(0xFF4FBEC4), // lighter tint highlight
                           AppColors.primaryGreen, // #30ACB3 anchor
@@ -202,7 +203,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// A small translucent "Live" pill with a pulsing dot — a soft accent graphic
+/// A small translucent "Live" pill with a pulsing dot - a soft accent graphic
 /// that flags the section as up-to-date.
 class _LiveChip extends StatefulWidget {
   @override
@@ -410,16 +411,17 @@ class _SummaryGrid extends StatelessWidget {
         icon: Icons.warning_amber_rounded,
         accent: const Color(0xFFF59E0B),
         fill: const Color(0xFFFFF6E9),
-        // Only draw attention when something actually needs it.
-        pulse: documentsExpiring > 0,
         onTap: onDocumentsExpiring,
       ),
       _OverviewTile(
         title: 'EMI Due Tomorrow',
         value: '$emiDue',
         icon: Icons.account_balance_wallet_rounded,
-        accent: AppColors.primaryGreen,
-        fill: const Color(0xFFE4F5F6),
+        // Blue, not the brand teal: a teal border here disappeared into the
+        // section's own teal backdrop. Also clear of the other three tiles
+        // (amber / coral / purple).
+        accent: const Color(0xFF2563EB),
+        fill: const Color(0xFFE9EFFD),
         onTap: onEmiDues,
       ),
       _OverviewTile(
@@ -477,7 +479,6 @@ class _OverviewTile extends StatelessWidget {
     required this.icon,
     required this.accent,
     required this.fill,
-    this.pulse = false,
     this.onTap,
   });
 
@@ -486,7 +487,6 @@ class _OverviewTile extends StatelessWidget {
   final IconData icon;
   final Color accent;
   final Color fill;
-  final bool pulse;
   final VoidCallback? onTap;
 
   @override
@@ -497,7 +497,10 @@ class _OverviewTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withValues(alpha: 0.22)),
+        // A thick, solid accent edge - the same colour the icon badge is
+        // filled with, so the tile reads as one coloured object rather than a
+        // pastel card with a hairline around it.
+        border: Border.all(color: accent, width: 2.5),
         boxShadow: [
           BoxShadow(
             color: accent.withValues(alpha: 0.10),
@@ -530,33 +533,14 @@ class _OverviewTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Icon badge, with a small pulse dot overlay on the urgent tile.
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: isSmall ? 34 : 38,
-                    height: isSmall ? 34 : 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.20),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(icon, size: isSmall ? 18 : 20, color: accent),
-                  ),
-                  if (pulse)
-                    Positioned(
-                      top: -3,
-                      right: -3,
-                      child: _PulseDot(color: accent),
-                    ),
-                ],
+              ShinyIcon(
+                icon: icon,
+                color: accent,
+                size: isSmall ? 34 : 38,
+                iconSize: isSmall ? 18 : 20,
+                radius: 12,
+                // Saturated accent body + white glyph, matching the border.
+                style: ShinyIconStyle.filled,
               ),
             ],
           ),
@@ -588,64 +572,6 @@ class _OverviewTile extends StatelessWidget {
   }
 }
 
-/// A small pulsing dot used to flag the most time-sensitive tile.
-class _PulseDot extends StatefulWidget {
-  const _PulseDot({required this.color});
-
-  final Color color;
-
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value;
-        return SizedBox(
-          width: 20,
-          height: 20,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 8 + t * 10,
-                height: 8 + t * 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.color.withValues(alpha: 0.18 * (1 - t)),
-                ),
-              ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.color,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
 
 /// Paints the drifting abstract graphics over the teal gradient: soft white
 /// blobs, a gentle wave band and thin geometric ring accents. Everything moves
@@ -659,7 +585,7 @@ class _OverviewBackdrop extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final drift = (t - 0.5) * 22; // −11 → +11 px slow travel
 
-    // Soft radial blobs — layered translucent light.
+    // Soft radial blobs - layered translucent light.
     void blob(Offset c, double r, double alpha) {
       final paint = Paint()
         ..shader = RadialGradient(

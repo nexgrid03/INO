@@ -48,7 +48,7 @@ class ShareSettings {
   final ShareDuration duration;
 
   /// True when the source image pixels must be transformed at all (i.e. anything
-  /// other than the original) — so a processed copy is required rather than a
+  /// other than the original) - so a processed copy is required rather than a
   /// plain copy of the original.
   bool get requiresImageProcessing => colorMode != ShareColorMode.original;
 

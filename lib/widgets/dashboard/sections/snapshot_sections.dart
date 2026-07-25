@@ -6,7 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 
-/// Sections 8, 9 & 10 — Property, Health and Insurance snapshots.
+/// Sections 8, 9 & 10 - Property, Health and Insurance snapshots.
 ///
 /// Each is a compact "overview" card built from a shared [_StatCell] grid so
 /// the three read as a consistent family. Kept in one file because they share

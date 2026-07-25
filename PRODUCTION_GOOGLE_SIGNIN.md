@@ -1,4 +1,4 @@
-# INO — Production Google Sign-In Readiness
+# INO - Production Google Sign-In Readiness
 
 Audit date basis: PR #5 merged to `main` (`62f1488`); `ino-release.jks` created;
 release SHA-1/256 generated. This document is the current status, the remaining
@@ -14,7 +14,7 @@ actions, the risks, and how to verify.
 | Release signing **active** | ❌ **NOT active** | `android/key.properties` **does not exist** → release builds currently fall back to **debug** signing |
 | Release keystore | ⚠️ exists but **inside the repo** | `ino-release.jks` is at the repo **root** and is **NOT git-ignored** (security risk) |
 | `applicationId` consistency | ✅ consistent | `namespace` = `applicationId` = `com.example.inoapp`; `MainActivity` at `.../kotlin/com/example/inoapp/`; manifest `.MainActivity` |
-| Production package name | ❌ placeholder | `com.example.inoapp` — Play rejects `com.example.*` |
+| Production package name | ❌ placeholder | `com.example.inoapp` - Play rejects `com.example.*` |
 | Google Sign-In code | ✅ best-practice | Native `google_sign_in` v7 → `signInWithIdToken`; robust error handling; config guard |
 | Google Cloud SHA registration | ⏳ manual, pending | Release/Play/upload/debug SHAs (see below) |
 | Play App Signing | ⏳ pending | Enroll on first AAB upload |
@@ -28,17 +28,17 @@ is **not production-ready for Google Sign-In yet.**
 
 ## 🔴 Blockers & risks (fix these)
 
-### B1 — Release signing is not active (HIGH)
+### B1 - Release signing is not active (HIGH)
 `android/key.properties` is missing, so `flutter build --release` produces a
-**debug-signed** build (Gradle prints the "DEBUG-signed — do NOT distribute"
+**debug-signed** build (Gradle prints the "DEBUG-signed - do NOT distribute"
 warning). Debug-signed builds fail Google Sign-In on other devices and cannot be
 uploaded to Play.
 **Fix:** create `android/key.properties` (below).
 
-### B2 — Keystore is committable (HIGH, security)
+### B2 - Keystore is committable (HIGH, security)
 `ino-release.jks` is at the repo **root**, which is **not** covered by
 `android/.gitignore` (`**/*.jks` only applies under `android/`). It's untracked
-now, but `git add -A` would commit your **release keystore** — a credential leak.
+now, but `git add -A` would commit your **release keystore** - a credential leak.
 **Fix (pick one):**
 - **Recommended:** move `ino-release.jks` **outside** the repo (e.g.
   `C:\Users\tanis\keys\ino-release.jks`) and point `key.properties` at it; **or**
@@ -51,7 +51,7 @@ now, but `git add -A` would commit your **release keystore** — a credential le
 Also confirm it never got committed: `git log --all --oneline -- ino-release.jks`
 (should be empty). If it was ever committed, rotate the key.
 
-### B3 — Placeholder package name (MEDIUM, pre-production)
+### B3 - Placeholder package name (MEDIUM, pre-production)
 `com.example.inoapp` cannot be published to Play. Migrate to a real reverse-domain
 package before production and re-register SHAs under it. (Fine for internal
 testing today.)
@@ -64,7 +64,7 @@ testing today.)
 ```powershell
 Copy-Item android\key.properties.example android\key.properties
 ```
-Edit `android/key.properties` (git-ignored — never commit):
+Edit `android/key.properties` (git-ignored - never commit):
 ```
 storePassword=<store password>
 keyPassword=<key password>
@@ -87,8 +87,8 @@ apps → Android → SHA certificate fingerprints → Add.)*
 Register:
 - ✅ **Release key SHA-1** `05:5D:BE:42:52:80:98:16:C1:E2:00:6C:87:BD:BF:CC:35:53:93:B3`
 - ✅ **Release key SHA-256** `2C:CE:7C:AA:04:E7:8A:E8:16:1C:9F:B0:FA:2B:F9:B0:B5:AA:C0:0F:6D:4A:2C:E6:BD:BF:5D:85:84:93:21:ED`
-- ✅ **Play App Signing SHA-1 + SHA-256** — after step 3 (from Play Console)
-- ✅ **Each developer's Debug SHA-1 + SHA-256** — so local `flutter run` signs in
+- ✅ **Play App Signing SHA-1 + SHA-256** - after step 3 (from Play Console)
+- ✅ **Each developer's Debug SHA-1 + SHA-256** - so local `flutter run` signs in
   (this machine's debug SHA-1 = `6B:DE:A0:0D:8B:32:CA:A5:A8:FB:7A:FF:CC:C2:AF:60:A9:BD:DE:BD`)
 
 ### 3. Play Console (manual)
@@ -103,7 +103,7 @@ Register:
 
 ---
 
-## Which SHA must be registered — and why
+## Which SHA must be registered - and why
 
 | Key | SHA to register | Why |
 |---|---|---|
@@ -112,7 +112,7 @@ Register:
 | **Upload key** (as recorded by Play) | from Play Console | Play maps your uploads to this cert |
 | **Developer debug keys** | each dev's debug SHA | So `flutter run` (debug) signs in on each machine |
 
-You can add **multiple** SHA-1s to one Android OAuth client — add them all.
+You can add **multiple** SHA-1s to one Android OAuth client - add them all.
 
 ---
 
@@ -132,7 +132,7 @@ Supabase Google provider enabled with the Web client ID `535920485088-…`.
 ---
 
 ## Verification checklist
-- [ ] `ino-release.jks` moved outside the repo (or root `.gitignore` updated) — keystore not committable
+- [ ] `ino-release.jks` moved outside the repo (or root `.gitignore` updated) - keystore not committable
 - [ ] `android/key.properties` created (git-ignored)
 - [ ] Release APK `keytool -printcert` shows SHA-1 `05:5D:…:93:B3` (not the debug `6B:DE:…`)
 - [ ] Release SHA-1 + SHA-256 registered in the Android OAuth client

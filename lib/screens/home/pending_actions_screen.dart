@@ -13,7 +13,7 @@ import '../../widgets/profile/settings_scaffold.dart';
 import '../shell/shell_controller.dart';
 import '../wallet/wallet_detail_screen.dart';
 
-/// A pending item — either a due reminder or an expiring document.
+/// A pending item - either a due reminder or an expiring document.
 class _Pending {
   const _Pending({
     required this.title,
@@ -31,7 +31,7 @@ class _Pending {
   final String? wallet; // set for documents → opens that wallet
 }
 
-/// Pending Actions — everything that needs the user's attention: overdue / due
+/// Pending Actions - everything that needs the user's attention: overdue / due
 /// reminders and documents expiring within 30 days, from real data.
 class PendingActionsScreen extends StatefulWidget {
   const PendingActionsScreen({super.key});
@@ -81,7 +81,7 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
           }
         }
       } catch (_) {
-        // Offline / signed out — reminders alone still populate the page.
+        // Offline / signed out - reminders alone still populate the page.
       }
 
       if (!mounted) return;

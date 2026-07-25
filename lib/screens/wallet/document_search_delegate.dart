@@ -19,7 +19,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
         super(searchFieldLabel: 'Search documents');
 
   /// Canonical wallet names (e.g. "Identity Wallet") to constrain results to.
-  /// Empty means no wallet filter — set from the Wallet hub's filter panel.
+  /// Empty means no wallet filter - set from the Wallet hub's filter panel.
   final Set<String> walletFilter;
 
   Future<List<Document>>? _corpus;

@@ -32,7 +32,7 @@ class AccountArchive {
 /// profile, settings and all document metadata. Powers **Export Data**,
 /// **Download Account Data** and the JSON payload for **Cloud Backup**.
 ///
-/// It never fabricates data — everything comes from the live profile, the
+/// It never fabricates data - everything comes from the live profile, the
 /// `documents` table and the persisted settings. Progress is reported through an
 /// optional callback so the UI can show a determinate indicator on big vaults.
 class DataExportService {
@@ -54,7 +54,7 @@ class DataExportService {
     try {
       docs = await DocumentRepository.instance.listAll();
     } catch (e) {
-      // Offline / signed out — still export the profile + settings we have.
+      // Offline / signed out - still export the profile + settings we have.
       developer.log('export: document fetch failed: $e', name: 'export');
     }
     onProgress?.call(0.6);

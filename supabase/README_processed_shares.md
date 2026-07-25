@@ -1,4 +1,4 @@
-# Processed-copy QR shares — deploy guide
+# Processed-copy QR shares - deploy guide
 
 The **Advanced Document Share** flow ("Share Settings" screen) can share a
 **processed copy** of a document (colour mode, watermark, redaction) instead of
@@ -21,7 +21,7 @@ It does **not** touch the existing `create_document_share` (original-file) path.
 
 The app uploads each processed copy to `documents/<uid>/shares/<stamp>/<i>.<ext>`
 before calling the RPC. Your existing Storage RLS (which already lets a user
-write under their own `<uid>/` prefix — the normal upload path) covers this; no
+write under their own `<uid>/` prefix - the normal upload path) covers this; no
 new Storage policy is required.
 
 ## 2. `share` Edge Function patch

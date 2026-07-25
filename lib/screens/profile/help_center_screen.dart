@@ -55,7 +55,7 @@ const List<_Faq> _faqs = [
   ),
   _Faq(
     'Can I use INO in dark mode?',
-    'Yes — Preferences → Dark Mode. Your choice is remembered across restarts '
+    'Yes - Preferences → Dark Mode. Your choice is remembered across restarts '
         'and applies instantly across the whole app.',
     'dark mode theme appearance light',
   ),
@@ -68,7 +68,7 @@ const List<_Faq> _faqs = [
   ),
 ];
 
-/// Help Center — searchable FAQ with a shortcut to Contact Support.
+/// Help Center - searchable FAQ with a shortcut to Contact Support.
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key, this.supportEmail});
 

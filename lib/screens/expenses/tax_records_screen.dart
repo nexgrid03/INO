@@ -13,8 +13,8 @@ import '../../utils/share_origin.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 
-/// The Tax Document Vault — Form 16, 26AS, AIS, TDS, salary slips, proofs, rent
-/// receipts, medical & insurance bills, home-loan certificates — filed under the
+/// The Tax Document Vault - Form 16, 26AS, AIS, TDS, salary slips, proofs, rent
+/// receipts, medical & insurance bills, home-loan certificates - filed under the
 /// selected financial year.
 class TaxRecordsScreen extends StatefulWidget {
   const TaxRecordsScreen({super.key});
@@ -112,7 +112,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
   }
 
   /// Shares every tax document filed under the selected financial year in one
-  /// go — the "Share Tax Folder" action (e.g. to send to a CA).
+  /// go - the "Share Tax Folder" action (e.g. to send to a CA).
   Future<void> _shareFolder() async {
     final fy = _store.selectedYear;
     final docs = _store.taxDocumentsForYear(fy);
@@ -124,7 +124,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
     try {
       await Share.shareXFiles(
         [for (final d in docs) XFile(d.filePath)],
-        subject: 'INO Tax Folder — FY ${fy.label}',
+        subject: 'INO Tax Folder - FY ${fy.label}',
         text: '${docs.length} tax document(s) for FY ${fy.label}',
         sharePositionOrigin: origin,
       );

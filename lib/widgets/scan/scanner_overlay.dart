@@ -6,13 +6,13 @@ import '../../screens/scan/scan_theme.dart';
 
 /// The three detection states the overlay can reflect (per the scanner brief).
 enum ScanOverlayState {
-  /// No document framed yet — neutral border, sweeping scan line.
+  /// No document framed yet - neutral border, sweeping scan line.
   idle,
 
-  /// A document is framed — green border + soft pulsing glow.
+  /// A document is framed - green border + soft pulsing glow.
   detected,
 
-  /// Locked on and sharp — brighter green + stronger glow.
+  /// Locked on and sharp - brighter green + stronger glow.
   ready,
 }
 
@@ -21,7 +21,7 @@ enum ScanOverlayState {
 /// Corner brackets, a state-driven border (neutral → green) and a scan line that
 /// sweeps while searching then eases out once a document locks in. On detection
 /// the border smoothly thickens/greens (a short "reveal" animation) and a soft
-/// green glow pulses continuously — the trustworthy language of Adobe Scan /
+/// green glow pulses continuously - the trustworthy language of Adobe Scan /
 /// Microsoft Lens. Purely decorative: it sits above the preview and never
 /// intercepts touches.
 class ScannerOverlay extends StatefulWidget {
@@ -42,7 +42,7 @@ class _ScannerOverlayState extends State<ScannerOverlay>
   )..repeat();
 
   // Short one-shot that eases the border/glow in as detection succeeds and out
-  // when the document is lost — so nothing ever snaps.
+  // when the document is lost - so nothing ever snaps.
   late final AnimationController _reveal = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 280),

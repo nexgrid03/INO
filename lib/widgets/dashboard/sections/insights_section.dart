@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../../pressable_scale.dart';
 
-/// Section 13 — Smart Insights.
+/// Section 13 - Smart Insights.
 ///
 /// The app's "AI assistant" layer: a horizontal deck of recommendation cards.
 /// Each pairs an accent-tinted icon with a single, plain-language insight, and
@@ -96,14 +97,12 @@ class _InsightCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: insight.accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(insight.icon, size: 18, color: insight.accent),
+                ShinyIcon(
+                  icon: insight.icon,
+                  color: insight.accent,
+                  size: 34,
+                  iconSize: 18,
+                  radius: 10,
                 ),
                 const Spacer(),
                 Icon(Icons.arrow_outward_rounded,

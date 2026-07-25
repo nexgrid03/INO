@@ -1,8 +1,8 @@
 /// Shared, UI-only form validators for the authentication screens.
 ///
 /// Kept in one place so Login, Signup and Forgot-Password validate identically
-/// (a premium app never contradicts itself between screens). Pure functions —
-/// no state, no side effects — so they're trivial to reason about and reuse.
+/// (a premium app never contradicts itself between screens). Pure functions -
+/// no state, no side effects - so they're trivial to reason about and reuse.
 class AuthValidators {
   AuthValidators._();
 

@@ -1,34 +1,47 @@
 /// The weight unit gold is entered in.
-enum GoldWeightUnit { grams, tola }
+enum GoldWeightUnit { grams, kilograms, tola, sovereign, ounce }
 
 extension GoldWeightUnitX on GoldWeightUnit {
   String get label => switch (this) {
         GoldWeightUnit.grams => 'Grams',
+        GoldWeightUnit.kilograms => 'Kg',
         GoldWeightUnit.tola => 'Tola',
+        GoldWeightUnit.sovereign => 'Sovereign',
+        GoldWeightUnit.ounce => 'Ounce',
       };
 
-  /// Grams in one of this unit (1 tola = 11.6638 g).
+  /// Grams in one of this unit.
+  ///
+  /// 1 tola = 11.6638 g (Indian bullion standard); 1 sovereign (pavan) = 8 g;
+  /// 1 troy ounce = 31.1034768 g (exact).
   double get grams => switch (this) {
         GoldWeightUnit.grams => 1,
+        GoldWeightUnit.kilograms => 1000,
         GoldWeightUnit.tola => 11.6638,
+        GoldWeightUnit.sovereign => 8,
+        GoldWeightUnit.ounce => 31.1034768,
       };
 }
 
 /// Gold purity (karat).
-enum GoldPurity { k24, k22, k18 }
+enum GoldPurity { k24, k22, k20, k18, k14 }
 
 extension GoldPurityX on GoldPurity {
   String get label => switch (this) {
         GoldPurity.k24 => '24K',
         GoldPurity.k22 => '22K',
+        GoldPurity.k20 => '20K',
         GoldPurity.k18 => '18K',
+        GoldPurity.k14 => '14K',
       };
 
-  /// Fraction of pure gold (24K = 1.0, 22K = 22/24, 18K = 18/24).
+  /// Fraction of pure gold (24K = 1.0, 22K = 22/24, … 14K = 14/24).
   double get factor => switch (this) {
         GoldPurity.k24 => 24 / 24,
         GoldPurity.k22 => 22 / 24,
+        GoldPurity.k20 => 20 / 24,
         GoldPurity.k18 => 18 / 24,
+        GoldPurity.k14 => 14 / 24,
       };
 }
 

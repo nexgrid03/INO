@@ -18,7 +18,7 @@ import '../../widgets/pressable_scale.dart';
 /// The recipient-facing viewer for a shared link/QR.
 ///
 /// Fetches the share's public metadata from the `share` Edge Function (JSON,
-/// anonymous — no Supabase session) and renders the shared documents with View
+/// anonymous - no Supabase session) and renders the shared documents with View
 /// and Download actions. Files are streamed **through** the Edge Function, so
 /// the storage path / signed URL are never exposed. Shows clear terminal states
 /// for expired / revoked / missing links.

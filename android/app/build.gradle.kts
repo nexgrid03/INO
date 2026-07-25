@@ -3,6 +3,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -62,7 +63,7 @@ android {
             // Sign with the real release key when android/key.properties is
             // present; otherwise fall back to debug signing so the build still
             // succeeds (fresh clone, CI, or `flutter run --release` without the
-            // keystore). No passwords are hardcoded — they come from the
+            // keystore). No passwords are hardcoded - they come from the
             // git-ignored key.properties. See RELEASE_SIGNING.md.
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
@@ -72,7 +73,7 @@ android {
                 // require the registered release key). Warn loudly so a
                 // debug-signed release can't be shipped by accident.
                 logger.warn(
-                    "INO: android/key.properties not found — the RELEASE build " +
+                    "INO: android/key.properties not found - the RELEASE build " +
                     "is DEBUG-signed. Do NOT distribute it. See RELEASE_SIGNING.md.",
                 )
                 signingConfigs.getByName("debug")

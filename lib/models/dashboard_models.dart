@@ -329,7 +329,7 @@ class FamilyEvent {
 // 12. Recent activity timeline
 // ---------------------------------------------------------------------------
 
-/// The kind of activity — drives the icon/colour and the history filters.
+/// The kind of activity - drives the icon/colour and the history filters.
 enum ActivityKind { document, asset, reminder, backup, insurance, security, system }
 
 class ActivityItem {
@@ -355,7 +355,7 @@ class ActivityItem {
   /// The real timestamp, used for sorting / grouping / filtering when available.
   final DateTime? at;
 
-  /// The raw document / reminder name (user data — not translated), used to
+  /// The raw document / reminder name (user data - not translated), used to
   /// build the localized title at render time.
   final String? name;
 

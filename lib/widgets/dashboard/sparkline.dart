@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// A lightweight mini trend line drawn with [CustomPainter] — no chart package.
+/// A lightweight mini trend line drawn with [CustomPainter] - no chart package.
 ///
 /// Renders a smooth-ish polyline of [values] with a soft gradient fill beneath
 /// it, plus a dot on the latest point. Colour comes from [color] so callers can

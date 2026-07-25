@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Quick View — a peek at a document's key details (name, type, and the
+/// Quick View - a peek at a document's key details (name, type, and the
 /// OCR-extracted fields) WITHOUT opening the full file. Requirement #6: the user
 /// should not need to open the document every time to see what's inside.
 ///
@@ -74,18 +75,13 @@ class _QuickViewSheet extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: accent,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(record.icon, color: Colors.white, size: 24),
+                  ShinyIcon(
+                    icon: record.icon,
+                    color: accent.first,
+                    size: 48,
+                    iconSize: 24,
+                    radius: 14,
+                    style: ShinyIconStyle.filled,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

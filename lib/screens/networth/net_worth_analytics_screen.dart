@@ -10,7 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/home/net_worth_chart.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 
-/// Net Worth Analytics — total wealth, an interactive multi-range trend chart,
+/// Net Worth Analytics - total wealth, an interactive multi-range trend chart,
 /// the asset distribution (donut + legend) and month/year growth, all from the
 /// [NetWorthService].
 class NetWorthAnalyticsScreen extends StatelessWidget {

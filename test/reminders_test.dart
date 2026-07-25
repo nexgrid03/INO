@@ -19,7 +19,7 @@ UserProfile _profile() => UserProfile(
 
 // Wide canvas so the horizontally-scrolling filter chips all lay out. Pumps the
 // screen and advances time so the store's async load completes (the screen's
-// initState kicks it off — we must NOT await the load ourselves, since its
+// initState kicks it off - we must NOT await the load ourselves, since its
 // Future.delayed only fires when the test clock is pumped).
 Future<void> _pump(WidgetTester tester,
     {Size size = const Size(2400, 7000)}) async {

@@ -32,7 +32,7 @@ class MetalsException implements Exception {
       case MetalsErrorType.timeout:
         return 'Request timed out';
       case MetalsErrorType.rateLimit:
-        return 'Too many requests — try again shortly';
+        return 'Too many requests - try again shortly';
       case MetalsErrorType.unauthorized:
         return 'Rate service unauthorized';
       case MetalsErrorType.server:
@@ -92,7 +92,7 @@ class MetalsApiService {
       } on MetalsException catch (e) {
         last = e;
         _log('attempt $attempt failed: ${e.type} (${e.message})');
-        // An auth error will not fix itself on retry — fail fast.
+        // An auth error will not fix itself on retry - fail fast.
         if (e.type == MetalsErrorType.unauthorized) rethrow;
         if (attempt < maxAttempts) {
           await Future<void>.delayed(Duration(milliseconds: 400 * attempt));

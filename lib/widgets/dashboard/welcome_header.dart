@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
-/// Section 1 — the personalised welcome bar.
+/// Section 1 - the personalised welcome bar.
 ///
 /// Left: a gradient avatar (initials) + a time-aware greeting and the brand
 /// "welcome back" line. Right: global search, a notification bell with an
@@ -21,10 +21,15 @@ class WelcomeHeader extends StatefulWidget {
     this.onProfile,
     this.photoUrl,
     this.notificationCount = 0,
+    this.voiceButtonKey,
   });
 
   final String fullName;
   final VoidCallback onNotifications;
+
+  /// Optional key attached to the voice-assistant button so the first-run tour
+  /// can spotlight it.
+  final Key? voiceButtonKey;
 
   /// Opens the Profile page when the avatar is tapped.
   final VoidCallback? onProfile;
@@ -212,8 +217,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
             ],
           ),
         ),
-        // Voice assistant — a small icon beside the bell (replaces search).
-        const VoiceMicIconButton(size: 42),
+        // Voice assistant - a small icon beside the bell (replaces search).
+        VoiceMicIconButton(key: widget.voiceButtonKey, size: 42),
         const SizedBox(width: 8),
         _HeaderIcon(
           icon: Icons.notifications_none_rounded,

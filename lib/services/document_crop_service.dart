@@ -9,13 +9,13 @@ import 'package:image/image.dart' as img;
 ///
 /// Given the four corners of the document (as fractions of the image, in the
 /// order top-left, top-right, bottom-right, bottom-left), it maps that
-/// quadrilateral onto a straight rectangle using [img.copyRectify] — the same
-/// perspective correction Adobe Scan / Microsoft Lens perform — and writes the
+/// quadrilateral onto a straight rectangle using [img.copyRectify] - the same
+/// perspective correction Adobe Scan / Microsoft Lens perform - and writes the
 /// result to a new JPEG. The output is sized to the corrected page's real edge
 /// lengths so the aspect ratio stays natural.
 ///
 /// The decode + rectify (large buffer allocations) run in a **background
-/// isolate** and the working image is capped to [_kMaxDim] — so a full-
+/// isolate** and the working image is capped to [_kMaxDim] - so a full-
 /// resolution capture can't exhaust the UI isolate's heap and crash the app.
 class DocumentCropService {
   DocumentCropService._();

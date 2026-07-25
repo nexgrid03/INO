@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/sparkline.dart';
 import '../pressable_scale.dart';
 
-/// Market Snapshot — Gold & Silver in one calm, scannable card.
+/// Market Snapshot - Gold & Silver in one calm, scannable card.
 ///
 /// A single premium surface (white, 20-radius, hairline teal border, whisper
 /// shadow) with a "Live rates" header and one row per metal:
@@ -14,8 +15,8 @@ import '../pressable_scale.dart';
 ///   [icon badge]  Gold          ~~sparkline~~   ₹10,250   [+0.35%]
 ///                 per gram                      caption
 ///
-/// Everything lines up on a shared grid — name column left, trend centre,
-/// price column right — so the eye scans straight down. Rows are divided by a
+/// Everything lines up on a shared grid - name column left, trend centre,
+/// price column right - so the eye scans straight down. Rows are divided by a
 /// soft hairline; the whole card is one tap target for the full markets view.
 class MarketCard extends StatelessWidget {
   const MarketCard({super.key, required this.quotes, this.onTap});
@@ -150,15 +151,13 @@ class _MetalRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
       child: Row(
         children: [
-          // Identity: soft tinted badge + name / caption.
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: badgeColor.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: badgeColor, size: 21),
+          // Identity: glossy metal badge + name / caption.
+          ShinyIcon(
+            icon: icon,
+            color: badgeColor,
+            size: 42,
+            iconSize: 21,
+            radius: 14,
           ),
           const SizedBox(width: 12),
           SizedBox(
@@ -238,7 +237,7 @@ class _MetalRow extends StatelessWidget {
   }
 }
 
-/// A softly pulsing teal dot — the "live" affordance in the card header.
+/// A softly pulsing teal dot - the "live" affordance in the card header.
 class _LiveDot extends StatefulWidget {
   const _LiveDot();
 

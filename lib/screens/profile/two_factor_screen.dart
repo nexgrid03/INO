@@ -13,7 +13,7 @@ import '../../widgets/security/biometric_ux.dart';
 
 enum _Stage { loading, disabled, enrolling, enabled }
 
-/// Two-Factor Authentication — a full TOTP flow backed by Supabase MFA.
+/// Two-Factor Authentication - a full TOTP flow backed by Supabase MFA.
 ///
 /// Disabled → Enable starts enrollment and shows the secret/URI to add to an
 /// authenticator app → entering a valid 6-digit code verifies it and turns 2FA

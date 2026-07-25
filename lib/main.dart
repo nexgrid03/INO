@@ -60,11 +60,11 @@ Future<void> main() async {
 
   // Warm the centralized voice manager so the native TextToSpeech service is
   // already bound (and past its cold-start races) before the voice greeting
-  // fires — part of the duplicate-speech fix (see services/voice_manager.dart).
+  // fires - part of the duplicate-speech fix (see services/voice_manager.dart).
   VoiceManager.instance.warmUp();
 
   // Capture a share deep link the app may have been cold-launched from, BEFORE
-  // the first frame — so the app root can show the shared documents directly
+  // the first frame - so the app root can show the shared documents directly
   // (see [InoApp._home]) instead of the splash flow overwriting it.
   await DeepLinkService.instance.captureInitialLink();
 
@@ -78,7 +78,7 @@ class InoApp extends StatefulWidget {
   /// that started sign-in was disposed (e.g. Android Credential Manager
   /// recreating the Activity while the Google picker was open). Without this,
   /// navigation was tied to the login widget's `context`/`mounted` and was
-  /// silently dropped — the "nothing happens after picking an account" bug.
+  /// silently dropped - the "nothing happens after picking an account" bug.
   /// Also used by [DeepLinkService] to present the shared-documents viewer.
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
@@ -128,7 +128,7 @@ class _InoAppState extends State<InoApp> {
       builder: (context, mode, _) {
         // The language notifier is persisted (AppSettings) and drives the app
         // locale, so selecting a language rebuilds every Localizations dependant
-        // instantly — no restart required.
+        // instantly - no restart required.
         return ValueListenableBuilder<String>(
           valueListenable: AppSettings.instance.language,
           builder: (context, langCode, _) {

@@ -13,7 +13,7 @@ String _spotBody(double bid, double ask) =>
     '[{"spreadProfilePrices":[{"bid":$bid,"ask":$ask}]}]';
 const _fxBody = '{"amount":1.0,"base":"USD","rates":{"INR":83.0}}';
 
-/// A fake API that returns a canned result or throws — for repo/provider tests.
+/// A fake API that returns a canned result or throws - for repo/provider tests.
 class _FakeApi extends MetalsApiService {
   _FakeApi({this.result, this.error});
 

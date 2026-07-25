@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/note_models.dart';
 
-/// Source of Notes Vault data — the `public.notes` table in Supabase.
+/// Source of Notes Vault data - the `public.notes` table in Supabase.
 ///
 /// The store/screens depend only on this abstraction, so it stays the single
 /// place that talks to the notes table (same pattern as ReminderRepository /
@@ -37,7 +37,7 @@ class SupabaseNotesRepository implements NotesRepository {
   Future<List<Note>> load() async {
     // `_uid` reads the Supabase client; resolving it inside the caller's
     // try/catch keeps load() from throwing when Supabase isn't initialised
-    // (e.g. in tests) — here we throw so the store can show an error state.
+    // (e.g. in tests) - here we throw so the store can show an error state.
     final uid = _uid;
     if (uid == null) return const [];
     final rows = await _client

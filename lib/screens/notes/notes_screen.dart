@@ -27,7 +27,7 @@ const _months = [
 
 String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
-/// The Notes Vault — personal notes, reminders, password hints (never actual
+/// The Notes Vault - personal notes, reminders, password hints (never actual
 /// passwords), property/tax notes and general records. Starts empty; grid or
 /// list view; search, pin, favorite and archive.
 class NotesScreen extends StatefulWidget {
@@ -134,7 +134,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 _store.remove(note.id).then((_) {
                   if (mounted) _toast('Note deleted');
                 }).catchError((Object e) {
-                  // The store already rolled the note back — just tell the user.
+                  // The store already rolled the note back - just tell the user.
                   if (mounted) {
                     _toast('Couldn\'t delete the note. Check your connection.',
                         error: true);
@@ -667,7 +667,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Capture reminders, password hints, property and tax notes, '
-              'and general records — securely in one place.',
+              'and general records - securely in one place.',
               textAlign: TextAlign.center,
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.5),

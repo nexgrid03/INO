@@ -5,10 +5,10 @@ import '../../../models/dashboard_models.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
 
-/// Section 6 — Wallet Ecosystem Overview.
+/// Section 6 - Wallet Ecosystem Overview.
 ///
 /// A horizontal row of gradient wallet tiles (Identity, Documents, Insurance …)
-/// — the Apple/Google Wallet metaphor. Each shows item count, last activity and
+/// - the Apple/Google Wallet metaphor. Each shows item count, last activity and
 /// a status chip on a brand-tinted gradient so the section feels like a deck of
 /// premium cards.
 class WalletSection extends StatelessWidget {

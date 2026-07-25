@@ -4,7 +4,7 @@ import '../models/user_profile.dart';
 
 /// The ONLY place in the app that reads/writes the `public.users` table.
 ///
-/// Screens never query Supabase directly — they go through this repository.
+/// Screens never query Supabase directly - they go through this repository.
 /// That keeps database logic in one spot (easy to change, test, and reason
 /// about) and is the pattern you'll copy for every future table.
 class UserRepository {
@@ -86,7 +86,7 @@ class UserRepository {
 
   /// Returns the existing profile, or creates one if it's missing.
   /// Handy for "Continue with Google" (Step 9), where there is no explicit
-  /// sign-up moment — we just ensure a profile exists.
+  /// sign-up moment - we just ensure a profile exists.
   Future<UserProfile> ensureProfile({
     required String authUserId,
     required String fullName,

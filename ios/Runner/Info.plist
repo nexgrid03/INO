@@ -68,7 +68,7 @@
 	</array>
 
 	<!-- ============================================================= -->
-	<!-- Privacy usage strings (required — the app crashes on first use -->
+	<!-- Privacy usage strings (required - the app crashes on first use -->
 	<!-- of each feature if its string is missing, and App Review       -->
 	<!-- rejects builds without them). Edit the copy to taste.          -->
 	<!-- ============================================================= -->

@@ -20,14 +20,14 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'shared_documents_screen.dart';
 
-/// QR Share screen — the generated share, ready to hand out.
+/// QR Share screen - the generated share, ready to hand out.
 ///
 /// Shows the large QR, live expiry, the shared-document count, and the four
 /// owner actions: Copy Link, Share Link, Download QR, Revoke Access. A live
 /// ticker keeps the expiry honest and flips the screen to an "expired" state
 /// the moment it lapses; revoking flips it to a "revoked" state. All access
 /// (validation, signed URLs, analytics) is enforced server-side by the `share`
-/// Edge Function — this screen only presents and manages the share.
+/// Edge Function - this screen only presents and manages the share.
 class QrShareScreen extends StatefulWidget {
   const QrShareScreen({
     super.key,
@@ -37,7 +37,7 @@ class QrShareScreen extends StatefulWidget {
 
   final DocumentShare share;
 
-  /// The documents included (for the on-screen summary). Optional — the share
+  /// The documents included (for the on-screen summary). Optional - the share
   /// itself is the source of truth for what's accessible.
   final List<DocumentRecord> documents;
 
@@ -50,11 +50,11 @@ class _QrShareScreenState extends State<QrShareScreen> {
   Timer? _ticker;
   bool _busy = false;
 
-  // Crisp near-black for the EXPORTED PNG — printed / re-shared QRs need the
+  // Crisp near-black for the EXPORTED PNG - printed / re-shared QRs need the
   // highest contrast to scan on any surface.
   static const _qrDark = Color(0xFF04121A);
 
-  // Softer dark slate for the ON-SCREEN QR — lower contrast is easier on the
+  // Softer dark slate for the ON-SCREEN QR - lower contrast is easier on the
   // eye while still scanning reliably off a phone display.
   static const _qrDisplayDark = Color(0xFF37474F);
 
@@ -140,7 +140,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
     if (_busy) return;
     final confirmed = await _confirmRevoke();
     if (confirmed != true) return;
-    // The confirm dialog awaited above — the screen may be gone now.
+    // The confirm dialog awaited above - the screen may be gone now.
     if (!mounted) return;
     setState(() => _busy = true);
     try {
@@ -148,7 +148,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
       if (!mounted) return;
       setState(() => _share = _share.copyAsRevoked());
       HapticFeedback.mediumImpact();
-      _toast('Share revoked — the link no longer works');
+      _toast('Share revoked - the link no longer works');
     } on ShareException catch (e) {
       _toast(e.message, error: true);
     } catch (_) {

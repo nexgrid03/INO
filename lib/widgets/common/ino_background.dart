@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 
-/// The signature INO decorative backdrop — a soft teal aurora.
+/// The signature INO decorative backdrop - a soft teal aurora.
 ///
 /// Layers (bottom → top):
 ///   1. A vertical mist gradient (teal-white wash → white → faint foam) so no
@@ -117,7 +117,7 @@ class _AuroraPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final dark = palette.isDark;
 
-    // 1. Base mist wash — never plain white.
+    // 1. Base mist wash - never plain white.
     final wash = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -133,7 +133,7 @@ class _AuroraPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, wash);
 
-    // 2. Drifting organic blobs — light tints only, whisper alphas.
+    // 2. Drifting organic blobs - light tints only, whisper alphas.
     final drift = 18.0 * (t - 0.5); // −9 → +9 px of slow travel
     void blob(Offset c, double r, Color color, double alpha) {
       final paint = Paint()
@@ -165,7 +165,7 @@ class _AuroraPainter extends CustomPainter {
       0.14,
     );
 
-    // 3. Dot texture band — a quiet geometric accent near the top.
+    // 3. Dot texture band - a quiet geometric accent near the top.
     if (showDots && !dark) {
       final dot = Paint()
         ..color = AppColors.primaryGreen.withValues(alpha: 0.05 * intensity);

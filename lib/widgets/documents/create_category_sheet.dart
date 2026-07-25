@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/category_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 /// Opens the Create Category sheet and returns the created [DocumentCategory],
@@ -110,15 +111,12 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 // Header: live preview badge + titles.
                 Row(
                   children: [
-                    Container(
-                      width: AppSizes.iconContainer,
-                      height: AppSizes.iconContainer,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(AppRadius.chip),
-                      ),
-                      child: Icon(categoryIconFor(_iconKey),
-                          color: color, size: 26),
+                    ShinyIcon(
+                      icon: categoryIconFor(_iconKey),
+                      color: color,
+                      size: AppSizes.iconContainer,
+                      iconSize: 26,
+                      radius: AppRadius.chip,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(

@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 ///
 /// The scanner uses light, professional chrome around a live camera viewport so
 /// it matches INO's primary light theme. Accents are a confident teal
-/// — the "document detected / ready to scan" language users trust from Adobe
-/// Scan & Microsoft Lens — giving the scanner a positive, ready-to-go feel.
-/// Scoped to the scanner module — the global [AppColors] / app theme are left
+/// - the "document detected / ready to scan" language users trust from Adobe
+/// Scan & Microsoft Lens - giving the scanner a positive, ready-to-go feel.
+/// Scoped to the scanner module - the global [AppColors] / app theme are left
 /// untouched.
 class ScanColors {
   ScanColors._();
 
-  /// Primary accent — the brand teal #30ACB3 (never darkened; the companion
+  /// Primary accent - the brand teal #30ACB3 (never darkened; the companion
   /// is the lighter tint #55C2C8 per the brand rule).
   static const Color accent = Color(0xFF30ACB3);
   static const Color accentDeep = Color(0xFF55C2C8); // light tint partner

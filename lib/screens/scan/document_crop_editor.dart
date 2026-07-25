@@ -9,7 +9,7 @@ import '../../services/document_crop_service.dart';
 import '../../theme/app_theme.dart';
 
 /// A document crop editor with four draggable corner handles and live
-/// perspective preview — the Adobe Scan / Microsoft Lens interaction.
+/// perspective preview - the Adobe Scan / Microsoft Lens interaction.
 ///
 /// The user drags the corners to the document's edges; on Apply we run a real
 /// perspective correction ([DocumentCropService.rectify]) that maps the

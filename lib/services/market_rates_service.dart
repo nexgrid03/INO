@@ -14,7 +14,7 @@ import '../models/dashboard_models.dart';
 ///
 /// Petrol/Diesel stay on their fallback values for now. Everything is
 /// best-effort: no network or an API error simply leaves each quote at its
-/// fallback value — the Market card never breaks.
+/// fallback value - the Market card never breaks.
 class MarketRatesService {
   MarketRatesService._();
   static final MarketRatesService instance = MarketRatesService._();

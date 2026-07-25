@@ -23,7 +23,7 @@ import 'voice_greeting_service.dart';
 /// Why this is required: the app holds several `static final … instance`
 /// singletons ([ReminderStore], [NotificationCenter], [CategoryStore],
 /// [DocumentProtectionStore], …). The Dart process does NOT restart on sign-out,
-/// so those singletons — and their `_loaded` guards — survive an account switch.
+/// so those singletons - and their `_loaded` guards - survive an account switch.
 /// Without this reset, `ReminderStore.ensureLoaded()` would no-op for the second
 /// user and hand them the first user's reminders.
 ///
@@ -38,7 +38,7 @@ class SessionReset {
   Future<void> clear() async {
     developer.log('clearing user-scoped state', name: 'session');
 
-    // In-memory reminders (+ `_loaded` guard) — the reported leak vector.
+    // In-memory reminders (+ `_loaded` guard) - the reported leak vector.
     await _guard('reminders', () async => ReminderStore.instance.clear());
 
     // Derived notifications + persisted read/dismissed ids (global keys).
@@ -57,12 +57,12 @@ class SessionReset {
     // account's ensureLoaded() re-hydrates its OWN records).
     await _guard('expenses', () async => ExpenseStore.instance.clear());
 
-    // Notes Vault cache — same: drop in-memory state + re-arm the loader; the
+    // Notes Vault cache - same: drop in-memory state + re-arm the loader; the
     // next account's ensureLoaded() fetches its own RLS-scoped rows.
     await _guard('notes', () async => NotesStore.instance.clear());
 
     // Re-arm the spoken welcome so the next sign-in is greeted at the start of
-    // ITS session — still exactly once per session.
+    // ITS session - still exactly once per session.
     await _guard('greeting',
         () async => VoiceGreetingService.instance.resetForNextSession());
 
@@ -70,7 +70,7 @@ class SessionReset {
     // device preference and is intentionally preserved.
     await _guard('settings', () => AppSettings.instance.resetAccountScoped());
 
-    // Nudge document listeners (storage meter, wallet counts) to re-fetch — the
+    // Nudge document listeners (storage meter, wallet counts) to re-fetch - the
     // next fetch is RLS-scoped to whoever signs in next.
     DocumentRepository.revision.value++;
   }

@@ -8,7 +8,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 // FlutterFragmentActivity (not FlutterActivity) is required by the local_auth
-// plugin — its BiometricPrompt needs a FragmentActivity host.
+// plugin - its BiometricPrompt needs a FragmentActivity host.
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "ino/biometric"
 

@@ -38,7 +38,7 @@ class DocumentViewerResult {
 
 enum _FileKind { image, pdf, text, other }
 
-/// Every distinct failure mode when resolving a document's file — each mapped to
+/// Every distinct failure mode when resolving a document's file - each mapped to
 /// its own icon/title/message so the user (and the logs) know exactly what went
 /// wrong, instead of a blanket "network" error.
 enum _LoadError {
@@ -58,15 +58,15 @@ enum _LoadError {
 /// A production document viewer.
 ///
 /// Resolves the *real* stored file from Supabase Storage. Images load via a
-/// **signed URL** (`createSignedUrl`) + `Image.network` — the correct path for a
-/// private bucket, with no dependency on local file plugins — and the URL is
+/// **signed URL** (`createSignedUrl`) + `Image.network` - the correct path for a
+/// private bucket, with no dependency on local file plugins - and the URL is
 /// auto-regenerated once if it fails/expires. PDFs / office files are cached
 /// locally and opened with the system app. Every step is logged (under the
 /// `viewer` log name) and, in debug builds, the exact exception is shown on the
 /// error screen so failures are diagnosable rather than generic.
 ///
 /// Security: only ever pushed *after* biometric unlock for protected documents,
-/// and the file is fetched in [initState] — never before authentication.
+/// and the file is fetched in [initState] - never before authentication.
 class DocumentViewerScreen extends StatefulWidget {
   const DocumentViewerScreen({
     super.key,
@@ -133,7 +133,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (const ['txt', 'md', 'csv', 'json', 'log', 'xml'].contains(ext)) {
       return _FileKind.text;
     }
-    // HEIC/HEIF etc. — real images Flutter can't decode inline → open with the
+    // HEIC/HEIF etc. - real images Flutter can't decode inline → open with the
     // device's photo viewer instead of silently failing in Image.network.
     return _FileKind.other;
   }
@@ -164,7 +164,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
     // Step 3–4: normalise to the EXACT storage object path, repairing a bare
     // filename (missing "<uid>/" folder), a leading slash, or a stray bucket
-    // prefix — the exact "wrong file_path" cases.
+    // prefix - the exact "wrong file_path" cases.
     final storagePath = _normalizeStoragePath(rawPath, uid);
     final folder = storagePath.contains('/') ? storagePath.split('/').first : '(none)';
     developer.log(
@@ -176,7 +176,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     );
     if (storagePath != rawPath) {
       developer.log(
-        'file_path REPAIRED: "$rawPath" -> "$storagePath" — migrating the row.',
+        'file_path REPAIRED: "$rawPath" -> "$storagePath" - migrating the row.',
         name: 'viewer',
       );
       // Step 7: auto-migrate the incorrect record so it's permanently fixed.
@@ -259,7 +259,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     }
   }
 
-  /// Fetches the signed URL once to log its real HTTP status/content-type — the
+  /// Fetches the signed URL once to log its real HTTP status/content-type - the
   /// definitive "does the URL return 200?" check. Debug-only (avoids a second
   /// download in release).
   Future<void> _probeUrl(String url) async {
@@ -287,7 +287,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     try {
       return await action();
     } catch (e) {
-      developer.log('first attempt failed ($e) — retrying once', name: 'viewer');
+      developer.log('first attempt failed ($e) - retrying once', name: 'viewer');
       return await action();
     }
   }
@@ -302,7 +302,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   /// Downloads + caches the bytes in the background so File-based actions
-  /// (share / download / size) work — failures here are non-fatal (the image is
+  /// (share / download / size) work - failures here are non-fatal (the image is
   /// already showing via the signed URL).
   Future<void> _warmLocalFile(String path) async {
     try {
@@ -372,7 +372,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// Auto-recovery: regenerate the signed URL once when the image fails to load
   /// (e.g. an expired URL).
   Future<void> _regenerateImageUrl(Object renderError) async {
-    developer.log('image render failed ($renderError) — regenerating signed URL',
+    developer.log('image render failed ($renderError) - regenerating signed URL',
         name: 'viewer');
     final path = _storagePath ?? _record.filePath;
     if (path == null || !mounted) return;
@@ -441,7 +441,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       final file = await _localFile();
       final path = _record.filePath;
       if (file == null || path == null) {
-        _snack('Nothing to share — the file could not be loaded.', error: true);
+        _snack('Nothing to share - the file could not be loaded.', error: true);
         return;
       }
       final named =
@@ -465,7 +465,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       final file = await _localFile();
       final path = _record.filePath;
       if (file == null || path == null) {
-        _snack('Nothing to download — the file could not be loaded.',
+        _snack('Nothing to download - the file could not be loaded.',
             error: true);
         return;
       }
@@ -765,7 +765,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                                 label: l10n.t('fileSize'),
                                 value: _fileSize > 0
                                     ? _formatBytes(_fileSize)
-                                    : '—'),
+                                    : '-'),
                           ),
                           SizedBox(
                             width: cell,
@@ -797,7 +797,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     );
   }
 
-  /// The "Extracted Information" section for the info sheet — the OCR fields
+  /// The "Extracted Information" section for the info sheet - the OCR fields
   /// captured when the document was scanned, surfaced again on every reopen.
   /// Styled as the Stitch insights panel: tinted wash card, accent hairline,
   /// label-over-value rows with the copy affordance.

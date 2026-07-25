@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/user_profile.dart';
+import '../../services/app_settings.dart';
+import '../../services/guest_mode.dart';
 import '../../services/voice_greeting_service.dart';
 import '../../widgets/home/welcome_sound_pill.dart';
+import '../../widgets/shell/feature_tour.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
-import '../expenses/add_expense_screen.dart';
+import '../../widgets/shell/quick_actions.dart';
 import '../home/home_screen.dart';
-import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reminders/reminders_screen.dart';
-import '../scan/scan_flow_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'placeholder_tab.dart';
 import 'shell_controller.dart';
@@ -21,7 +22,7 @@ import 'shell_controller.dart';
 /// Bottom nav: Home · Wallet · Scan · Reminders · Profile. The nav bar is
 /// always fixed to the bottom and stays visible while content scrolls
 /// beneath it (`extendBody` lets the blur show the page through). The single
-/// floating affordance is the hands-free voice mic at the bottom-right —
+/// floating affordance is the hands-free voice mic at the bottom-right -
 /// tapping it opens the voice sheet and the matched destination navigates
 /// itself.
 class MainShell extends StatefulWidget {
@@ -53,6 +54,13 @@ class _MainShellState extends State<MainShell>
   /// destination that shows the user's details.
   late UserProfile _profile = widget.profile;
 
+  /// Whether the one-time first-run coach-mark tour is currently showing.
+  bool _tourActive = false;
+
+  /// Locates the Home header's voice-assistant button for the tour's final
+  /// step. Threaded Home → WelcomeHeader → VoiceMicIconButton.
+  final GlobalKey _voiceKey = GlobalKey();
+
   /// Plays a brief fade + slide-in each time the destination changes. The
   /// [IndexedStack] keeps every page alive (no rebuilds, scroll preserved); we
   /// only animate the freshly-revealed page in from the right.
@@ -66,13 +74,25 @@ class _MainShellState extends State<MainShell>
   void initState() {
     super.initState();
     ShellController.tab.addListener(_onTabChanged);
-    // Smart voice greeting — spoken once per session when the authenticated
+    // Smart voice greeting - spoken once per session when the authenticated
     // shell first appears (covers both a fresh login and opening while signed
     // in). Deferred a beat so it doesn't compete with the first-frame work.
     // greetOnce() is self-guarding: rebuilds, navigation back, or a second
     // shell mount can never replay it (see VoiceGreetingService).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      VoiceGreetingService.instance.greetOnce(userName: _profile.fullName);
+      // Guests get no spoken greeting - there's no one to greet yet, and the
+      // first-run tour is about to take the stage.
+      if (!GuestMode.active) {
+        VoiceGreetingService.instance.greetOnce(userName: _profile.fullName);
+      }
+      // One-time feature tour: nav destinations + the voice assistant. Shown
+      // the very first time the shell appears on this device (i.e. right after
+      // "Get Started"), then never again.
+      if (!AppSettings.instance.tourSeen.value) {
+        Future<void>.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) setState(() => _tourActive = true);
+        });
+      }
     });
   }
 
@@ -86,6 +106,14 @@ class _MainShellState extends State<MainShell>
   // Driven by the shared controller so pushed routes can switch tabs too.
   void _onTabChanged() {
     final next = ShellController.tab.value;
+    // Guests may only rest on Home - every other destination needs an account.
+    // Gating HERE (not in _select) catches every path that switches tabs:
+    // the nav bar, in-page shortcuts and voice navigation alike.
+    if (mounted && GuestMode.active && next != 0) {
+      ShellController.tab.value = _index; // snap back (no-op re-entry)
+      GuestMode.promptSignIn(context);
+      return;
+    }
     if (mounted && _index != next) {
       setState(() {
         _tabHistory.add(_index); // remember where we came from
@@ -116,58 +144,128 @@ class _MainShellState extends State<MainShell>
     ShellController.tab.value = i;
   }
 
-  /// The centre "+" button's quick-action menu resolves to one of three
-  /// destinations. Scanning still lives here; OCR / camera are save options
-  /// inside the Scan flow, not top-level menu items.
-  void _onScanAction(ScanAction action) {
-    switch (action) {
-      case ScanAction.expenses:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-        );
-      case ScanAction.scan:
-        launchScanFlow(context);
-      case ScanAction.notes:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NotesScreen()),
-        );
+  /// The centre "+" button's quick menu (tap fan-out or hold-wheel) resolved
+  /// to a feature. Guests get the sign-in prompt; everyone else goes straight
+  /// to the shared [openQuickMenuAction] router.
+  void _onQuickAction(QuickMenuAction action) async {
+    if (!await GuestMode.requireAuth(context)) return;
+    if (!mounted) return;
+    openQuickMenuAction(context, action);
+  }
+
+  /// The one-time tour's stops: the four nav destinations, the centre quick-add
+  /// button, then the voice assistant up top. Nav positions are derived from
+  /// the bar's own geometry (see [InoBottomNav]: 16px outer + 8px inner padding,
+  /// 66px tall, 12px above the safe area, five equal slots).
+  List<TourStep> _tourSteps(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final slotW = (size.width - 32 - 16) / 5;
+    final navY = size.height - safeBottom - 12 - 33;
+    Offset slot(int i) => Offset(24 + slotW * (i + 0.5), navY);
+
+    Offset voiceCenter() {
+      final box = _voiceKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        return box.localToGlobal(box.size.center(Offset.zero));
+      }
+      // Fallback: where the header places it (beside the bell, top-right).
+      return Offset(size.width - 82, MediaQuery.paddingOf(context).top + 46);
     }
+
+    return [
+      TourStep(
+        title: 'Home',
+        body: 'Your dashboard - everything important at a glance.',
+        target: () => slot(0),
+      ),
+      TourStep(
+        title: 'Vault',
+        body: 'Secure wallets for all your documents.',
+        target: () => slot(1),
+      ),
+      TourStep(
+        title: 'Quick Add',
+        body: 'Scan documents, add expenses or jot a note.',
+        target: () => slot(2),
+        radius: 40,
+      ),
+      TourStep(
+        title: 'Alerts',
+        body: 'Reminders so renewals never slip past you.',
+        target: () => slot(3),
+      ),
+      TourStep(
+        title: 'Profile',
+        body: 'Your account, security and settings.',
+        target: () => slot(4),
+      ),
+      TourStep(
+        title: 'Voice Assistant',
+        body: 'Navigate hands-free - try saying "Open documents".',
+        target: voiceCenter,
+        radius: 32,
+      ),
+    ];
+  }
+
+  void _finishTour() {
+    setState(() => _tourActive = false);
+    AppSettings.instance.setTourSeen(true);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Guests can only rest on Home (every other tab snaps back to a sign-in
+    // prompt), so don't mount the real data screens unauthenticated - an
+    // IndexedStack builds ALL its children, visible or not.
+    final guest = GuestMode.active;
     final pages = [
       HomeScreen(
         profile: _profile,
         themeMode: widget.themeMode,
         onToggleTheme: widget.onToggleTheme,
+        voiceTourKey: _voiceKey,
       ),
-      WalletScreen(profile: _profile),
+      if (guest)
+        const PlaceholderTab(
+          title: 'Vault',
+          icon: Icons.account_balance_wallet_rounded,
+          message: 'Sign in to open your secure vault.',
+        )
+      else
+        WalletScreen(profile: _profile),
       const PlaceholderTab(
         title: 'Scan',
         icon: Icons.document_scanner_rounded,
         message: 'Scan documents straight into your secure vault.',
       ),
-      RemindersScreen(profile: _profile),
-      ProfileScreen(
-        profile: _profile,
-        themeMode: widget.themeMode,
-        onToggleTheme: widget.onToggleTheme,
-        onProfileUpdated: (updated) => setState(() => _profile = updated),
-      ),
+      if (guest)
+        const PlaceholderTab(
+          title: 'Alerts',
+          icon: Icons.notifications_rounded,
+          message: 'Sign in to set reminders and alerts.',
+        )
+      else
+        RemindersScreen(profile: _profile),
+      if (guest)
+        const PlaceholderTab(
+          title: 'Profile',
+          icon: Icons.person_rounded,
+          message: 'Sign in to manage your account.',
+        )
+      else
+        ProfileScreen(
+          profile: _profile,
+          themeMode: widget.themeMode,
+          onToggleTheme: widget.onToggleTheme,
+          onProfileUpdated: (updated) => setState(() => _profile = updated),
+        ),
     ];
 
-    return PopScope(
-      // We handle the back gesture ourselves so it retraces tabs instead of
-      // closing the app; only _handleBack() exits (once tab history is empty).
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _handleBack();
-      },
-      child: Scaffold(
-        // Let content (and the nav's blur) sit behind the floating nav bar.
-        extendBody: true,
+    final shell = Scaffold(
+      // Let content (and the nav's blur) sit behind the floating nav bar.
+      extendBody: true,
       // Keep the bottom nav planted at all times: it lives in
       // `bottomNavigationBar` (so it never scrolls with the page), and this
       // stops the keyboard inset from ever pushing it upward. The nav stays
@@ -185,15 +283,17 @@ class _MainShellState extends State<MainShell>
                 // Ramp from a soft 0.35 (never a harsh blank) up to fully opaque.
                 opacity: 0.35 + 0.65 * v,
                 child: FractionalTranslation(
-                  translation:
-                      Offset(0.06 * (1 - v), 0), // enters from the right
+                  translation: Offset(
+                    0.06 * (1 - v),
+                    0,
+                  ), // enters from the right
                   child: child,
                 ),
               );
             },
             child: IndexedStack(index: _index, children: pages),
           ),
-          // Non-blocking "Mute greeting" pill — visible only while the spoken
+          // Non-blocking "Mute greeting" pill - visible only while the spoken
           // welcome greeting is playing (see WelcomeSoundPill).
           const Positioned(
             top: 0,
@@ -209,11 +309,34 @@ class _MainShellState extends State<MainShell>
           ),
         ],
       ),
-        bottomNavigationBar: InoBottomNav(
-          index: _index,
-          onSelect: _select,
-          onScanAction: _onScanAction,
-        ),
+      bottomNavigationBar: InoBottomNav(
+        index: _index,
+        onSelect: _select,
+        onQuickMenuAction: _onQuickAction,
+      ),
+    );
+
+    return PopScope(
+      // We handle the back gesture ourselves so it retraces tabs instead of
+      // closing the app; only _handleBack() exits (once tab history is empty).
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      // The tour overlay sits ABOVE the whole Scaffold (body + nav bar) so its
+      // spotlight can point at the nav destinations themselves.
+      child: Stack(
+        children: [
+          shell,
+          if (_tourActive)
+            Positioned.fill(
+              child: FeatureTour(
+                steps: _tourSteps(context),
+                onFinish: _finishTour,
+              ),
+            ),
+        ],
       ),
     );
   }

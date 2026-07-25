@@ -39,9 +39,9 @@ class AppNotification {
       );
 }
 
-/// Generates and manages notifications from **real app state** — due reminders,
+/// Generates and manages notifications from **real app state** - due reminders,
 /// expiring documents, security posture (biometric / 2FA) and cloud-backup
-/// health — and persists which ones the user has read or dismissed.
+/// health - and persists which ones the user has read or dismissed.
 ///
 /// Notifications are derived (not stored server-side), so [refresh] rebuilds
 /// them from current state and re-applies the persisted read/dismissed sets by
@@ -80,7 +80,7 @@ class NotificationCenter extends ChangeNotifier {
         ..clear()
         ..addAll(p.getStringList(_kDismissed) ?? const []);
     } catch (_) {
-      // No plugin (tests) — start empty.
+      // No plugin (tests) - start empty.
     }
     await refresh();
   }
@@ -209,7 +209,7 @@ class NotificationCenter extends ChangeNotifier {
   /// Wipes the notification feed and its persisted read/dismissed state so a new
   /// account never inherits the previous user's notifications. The read/dismissed
   /// ids are stored under GLOBAL keys (not per-user), so they MUST be cleared on
-  /// sign-out — otherwise the next user's notifications would show up pre-read.
+  /// sign-out - otherwise the next user's notifications would show up pre-read.
   /// Called from [SessionReset].
   Future<void> clear() async {
     _all = [];

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// The popover anchor rect iPadOS needs when presenting the system share sheet.
 ///
 /// `share_plus` **throws on iPad** if `sharePositionOrigin` is null, and ignores
-/// the value entirely on iPhone and Android — so passing this at every share
+/// the value entirely on iPhone and Android - so passing this at every share
 /// call site is safe and changes nothing on non-iPad platforms.
 ///
 /// Anchors to the given [context]'s render box; falls back to the screen centre

@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
 
-/// Section 11 — Family & Events Center.
+/// Section 11 - Family & Events Center.
 ///
 /// High-visibility horizontal row of upcoming birthdays, anniversaries and
 /// family events. Each card leads with a warm gradient icon, the relative
-/// countdown ("in 5 days") and the date — the emotional heart of the app.
+/// countdown ("in 5 days") and the date - the emotional heart of the app.
 class FamilySection extends StatelessWidget {
   const FamilySection({super.key, required this.events});
 
@@ -73,21 +74,13 @@ class _EventCard extends StatelessWidget {
           onTap: () {},
           child: Row(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: g),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: g.first.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(event.icon, color: Colors.white, size: 23),
+              ShinyIcon(
+                icon: event.icon,
+                color: g.first,
+                size: 46,
+                iconSize: 23,
+                radius: 14,
+                style: ShinyIconStyle.filled,
               ),
               const SizedBox(width: 12),
               Expanded(

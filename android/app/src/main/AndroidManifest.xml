@@ -52,12 +52,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- ============ Secure Document Sharing — deep links ============ -->
+            <!-- ============ Secure Document Sharing - deep links ============ -->
             <!-- Android App Links: a scanned share URL opens INO directly.
                  android:autoVerify triggers domain verification against
                  https://<host>/.well-known/assetlinks.json (see DEEP_LINKING.md).
                  When INO is NOT installed, the same https link opens in the
-                 browser as normal — nothing else is needed for that fallback. -->
+                 browser as normal - nothing else is needed for that fallback. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -79,7 +79,7 @@
             </intent-filter>
             -->
 
-            <!-- Custom-scheme fallback — ALWAYS opens the app (no domain
+            <!-- Custom-scheme fallback - ALWAYS opens the app (no domain
                  verification needed). Used for testing and any non-web trigger:
                  ino://share/<share_id> -->
             <intent-filter>

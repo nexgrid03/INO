@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/notes_repository.dart';
 import '../models/note_models.dart';
 
-/// The Notes Vault store — a notify-on-change source of truth for the user's
+/// The Notes Vault store - a notify-on-change source of truth for the user's
 /// personal notes.
 ///
 /// Persistence: the `public.notes` table in Supabase via [NotesRepository],
@@ -18,7 +18,7 @@ import '../models/note_models.dart';
 ///
 /// Legacy migration: notes saved by older builds under `ino_notes_<uid>` are
 /// uploaded to Supabase on the first signed-in load, then the local key is
-/// removed — nobody loses the notes they already wrote.
+/// removed - nobody loses the notes they already wrote.
 ///
 /// Cross-session isolation: [clear] (called from `SessionReset` on sign-out)
 /// drops the in-memory cache and re-arms the loader, so the next account loads
@@ -293,7 +293,7 @@ class NotesStore extends ChangeNotifier {
     try {
       await NotesRepository.instance.update(_notes[i]);
     } catch (e) {
-      // Toggles are quick actions — roll back quietly, no throw.
+      // Toggles are quick actions - roll back quietly, no throw.
       debugPrint('Note update failed: $e');
       final j = _notes.indexWhere((n) => n.id == id);
       if (j != -1) _notes[j] = previous;

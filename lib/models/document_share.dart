@@ -21,7 +21,7 @@ extension ShareDurationX on ShareDuration {
     }
   }
 
-  /// Time-to-live in seconds — sent to the `create_document_share` RPC.
+  /// Time-to-live in seconds - sent to the `create_document_share` RPC.
   int get seconds {
     switch (this) {
       case ShareDuration.tenMinutes:

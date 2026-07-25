@@ -9,7 +9,7 @@ enum CaptureButtonState { idle, detected, capturing, success }
 
 /// The scanner's bottom control bar: Gallery · Capture · Flash.
 ///
-/// The capture button is the unmistakable primary action — a large 78dp ring
+/// The capture button is the unmistakable primary action - a large 78dp ring
 /// with a green→blue gradient core that morphs through idle → detected →
 /// capturing (spinner) → success (check). Gallery and flash are quiet glassy
 /// affordances flanking it.

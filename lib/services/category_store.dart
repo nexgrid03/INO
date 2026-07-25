@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// A selectable icon for a document category.
 ///
-/// Kept as a fixed catalogue of *const* [IconData]s — never reconstructed from a
-/// raw code point — so Flutter can still tree-shake the icon font in release
+/// Kept as a fixed catalogue of *const* [IconData]s - never reconstructed from a
+/// raw code point - so Flutter can still tree-shake the icon font in release
 /// builds. We persist the stable [key], and resolve back to the const icon.
 class CategoryIconOption {
   const CategoryIconOption(this.key, this.icon);
@@ -60,7 +60,7 @@ IconData categoryIconFor(String key) {
   return Icons.folder_rounded;
 }
 
-/// A document category — either one of the built-in defaults or a user-created
+/// A document category - either one of the built-in defaults or a user-created
 /// custom one. Identified case-insensitively by [name] (which is what the
 /// `documents.category` column stores).
 class DocumentCategory {
@@ -99,7 +99,7 @@ class DocumentCategory {
 ///
 /// Categories are keyed by name (the same string stored on each document row),
 /// so a custom category is immediately usable everywhere documents reference a
-/// category — the add-document picker, the OCR review picker and wallet filters.
+/// category - the add-document picker, the OCR review picker and wallet filters.
 class CategoryStore extends ChangeNotifier {
   CategoryStore._();
   static final CategoryStore instance = CategoryStore._();

@@ -11,7 +11,7 @@ enum MetalRatesStatus { idle, loading, loaded, error }
 
 /// App-wide store for live metal rates.
 ///
-/// A [ChangeNotifier] — the state pattern used across INO (no Riverpod) — that
+/// A [ChangeNotifier] - the state pattern used across INO (no Riverpod) - that
 /// owns the **15-minute auto-refresh timer** and a **resume-from-background**
 /// refresh, so the UI just listens via [ListenableBuilder]. Fetching + caching
 /// live in [MetalsRepository]; this class only maps results to view state.

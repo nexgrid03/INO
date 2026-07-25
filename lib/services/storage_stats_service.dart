@@ -47,7 +47,7 @@ class StorageStatsService {
       try {
         backups = await repo.listUserObjects(subFolder: 'backups');
       } catch (_) {
-        // No backups folder yet — that's fine.
+        // No backups folder yet - that's fine.
       }
 
       var used = 0;

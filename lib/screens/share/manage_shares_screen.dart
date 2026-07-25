@@ -10,7 +10,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 
-/// Manage Shares — every QR/link the user has created, so they can review
+/// Manage Shares - every QR/link the user has created, so they can review
 /// analytics (views / downloads) and revoke access at any time, long after the
 /// original QR screen was closed.
 ///
@@ -150,7 +150,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not revoke — please try again'),
+          content: Text('Could not revoke - please try again'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.critical,
         ),
@@ -322,7 +322,7 @@ class _SharesList extends StatelessWidget {
   }
 }
 
-/// Overline section header — matches the "AGENDA ·" pattern used on Reminders.
+/// Overline section header - matches the "AGENDA ·" pattern used on Reminders.
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({
     required this.label,

@@ -7,8 +7,8 @@ import '../pressable_scale.dart';
 /// A quiet, outlined "Continue with …" button for federated sign-in
 /// (Google / Phone / Apple).
 ///
-/// Deliberately understated — a theme-aware surface with a soft brand-tinted
-/// border and the glyph seated in a small tinted well — so the gradient
+/// Deliberately understated - a theme-aware surface with a soft brand-tinted
+/// border and the glyph seated in a small tinted well - so the gradient
 /// primary CTA stays the clear focus. Pass [brand] as the leading glyph (see
 /// [GoogleGlyph] / [Icon(Icons.apple)]).
 class SocialAuthButton extends StatelessWidget {

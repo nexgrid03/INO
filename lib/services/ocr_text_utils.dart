@@ -103,7 +103,7 @@ String? dateNear(List<String> lines, List<String> keywords) {
 /// line (tolerating ':' and "(s)" artifacts), else the following line, when it
 /// looks like a person's name. Null when not found.
 ///
-/// Labels are tried in order across ALL lines — so a specific label ("elector's
+/// Labels are tried in order across ALL lines - so a specific label ("elector's
 /// name") wins over a broad one ("name") that a heading might also contain.
 String? nameAfterLabel(List<String> lines, List<String> labels) {
   for (final label in labels) {

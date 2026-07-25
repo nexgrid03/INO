@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
@@ -15,7 +16,7 @@ void copyToClipboard(BuildContext context, String text, {String? message}) {
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
-        content: Text(message ?? 'Copied to clipboard'),
+        content: Text(message ?? AppLocalizations.of(context).t('copied')),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.primaryGreen,
       ),
@@ -29,11 +30,15 @@ class CalculatorScaffold extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.children,
+    this.trailing,
   });
 
   final String title;
   final String subtitle;
   final List<Widget> children;
+
+  /// Optional header action (e.g. the currency pill).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +48,7 @@ class CalculatorScaffold extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _CalcHeader(title: title, subtitle: subtitle),
+            _CalcHeader(title: title, subtitle: subtitle, trailing: trailing),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -63,10 +68,15 @@ class CalculatorScaffold extends StatelessWidget {
 }
 
 class _CalcHeader extends StatelessWidget {
-  const _CalcHeader({required this.title, required this.subtitle});
+  const _CalcHeader({
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
 
   final String title;
   final String subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +121,10 @@ class _CalcHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            trailing!,
+          ],
         ],
       ),
     );
@@ -213,7 +227,7 @@ class CalcField extends StatelessWidget {
   }
 }
 
-/// The headline result of a calculator — a gradient card with a big value and
+/// The headline result of a calculator - a gradient card with a big value and
 /// a copy action.
 class HeroResultCard extends StatelessWidget {
   const HeroResultCard({

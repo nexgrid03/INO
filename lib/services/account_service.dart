@@ -28,7 +28,7 @@ extension PasswordStrengthX on PasswordStrength {
 /// and permanently deleting the account (data + files).
 ///
 /// All auth work goes through the Supabase client so it's genuinely backed by
-/// the authentication backend — no local-only stubs.
+/// the authentication backend - no local-only stubs.
 class AccountService {
   AccountService._();
   static final AccountService instance = AccountService._();
@@ -54,7 +54,7 @@ class AccountService {
   }
 
   /// Re-authenticates by re-signing-in with the current password. Throws
-  /// [AuthException] if the password is wrong — used to gate sensitive actions
+  /// [AuthException] if the password is wrong - used to gate sensitive actions
   /// (change password, delete account).
   Future<void> reauthenticate({
     required String email,
@@ -82,7 +82,7 @@ class AccountService {
   /// row, then attempt a server-side auth-user deletion RPC (if the project
   /// defines one), and finally sign out. Client SDKs can't delete the auth user
   /// directly (that needs the service role), so the optional `delete_account`
-  /// RPC is the supported hook — its absence is non-fatal.
+  /// RPC is the supported hook - its absence is non-fatal.
   Future<void> deleteAccount() async {
     final userId = _client.auth.currentUser?.id;
     developer.log('deleteAccount: starting for $userId', name: 'account');

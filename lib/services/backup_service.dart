@@ -29,7 +29,7 @@ class CloudBackup {
 /// restores previous backups.
 ///
 /// A "backup" is the same archive produced by [DataExportService], uploaded to a
-/// private `backups` sub-folder. Real network calls, real objects — the last
+/// private `backups` sub-folder. Real network calls, real objects - the last
 /// backup time is persisted in [AppSettings] so the Cloud Backup page shows it
 /// immediately.
 class BackupService {

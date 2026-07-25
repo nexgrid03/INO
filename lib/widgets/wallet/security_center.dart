@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
 import '../dashboard/section_header.dart';
 
-/// Section 6 — Security Center.
+/// Section 6 - Security Center.
 ///
 /// Pairs an animated circular security-score ring with a checklist of the
 /// vault's protections (lock, biometric, backup, cloud sync). The ring sweeps

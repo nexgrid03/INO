@@ -5,9 +5,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
-import '../auth/login_screen.dart';
 import 'floating_satellites.dart';
 import 'onboarding_icon.dart';
+import 'secured_intro_screen.dart';
 
 /// A single onboarding slide's content.
 class _OnboardingPage {
@@ -34,7 +34,7 @@ class _OnboardingPage {
 /// the ambient text colour, second line in brand teal), left-aligned copy,
 /// left-aligned progress dots and a full-bleed gradient pill CTA.
 ///
-/// Animation ownership (important — this is what avoids the "blank then load"
+/// Animation ownership (important - this is what avoids the "blank then load"
 /// flash): each [_OnboardingSlide] owns its OWN entrance controller and plays
 /// it as the page is built / slides in. There is NO shared controller that
 /// gets reset after a page settles, so a centred page is never blanked.
@@ -68,19 +68,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingPage(
       icon: Icons.folder_shared_rounded,
       title: 'All Your Documents,\nOne Secure Vault',
-      description: 'Aadhaar, PAN, Passport and more — encrypted and '
+      description:
+          'Aadhaar, PAN, Passport and more - encrypted and '
           'always within reach.',
     ),
     _OnboardingPage(
       icon: Icons.insights_rounded,
       title: 'Track Wealth\n& Health',
-      description: 'Property, investments and health records, '
+      description:
+          'Property, investments and health records, '
           'organised at a glance.',
     ),
     _OnboardingPage(
       icon: Icons.qr_code_2_rounded,
       title: 'Share Instantly\n& Safely',
-      description: 'Send documents in seconds with secure QR codes, '
+      description:
+          'Send documents in seconds with secure QR codes, '
           'protected by biometrics.',
     ),
   ];
@@ -103,13 +106,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _arrowSlide = Tween<Offset>(
       begin: const Offset(0, 0.6),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic));
     _arrowFade = CurvedAnimation(parent: _intro, curve: Curves.easeIn);
-    _arrowScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _intro, curve: Curves.easeOutBack),
-    );
+    _arrowScale = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutBack));
     _intro.forward();
 
     _dotPop = AnimationController(
@@ -128,11 +130,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _dotPop.forward(from: 0); // pop the newly-active dot
   }
 
+  /// Onboarding hands off to the "your documents are secured" moment, which in
+  /// turn routes to the shell (guest explore mode, or straight in for a
+  /// returning signed-in user). Login is no longer forced up-front.
   void _goToLogin() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => const LoginScreen(),
+        pageBuilder: (_, _, _) => const SecuredIntroScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -215,7 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
 
-                // Slides — each owns its own entrance animation.
+                // Slides - each owns its own entrance animation.
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -235,7 +240,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 // above a full-width gradient pill CTA.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screen, 12, AppSpacing.screen, 28),
+                    AppSpacing.screen,
+                    12,
+                    AppSpacing.screen,
+                    28,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -251,7 +260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                       const SizedBox(height: 20),
 
-                      // Gradient CTA — one-time fade + slide-up + scale, with
+                      // Gradient CTA - one-time fade + slide-up + scale, with
                       // a press "squish" (ripple comes from its InkWell).
                       SlideTransition(
                         position: _arrowSlide,
@@ -260,9 +269,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           child: ScaleTransition(
                             scale: _arrowScale,
                             child: PressableScale(
-                              child: _GradientNextButton(
-                                onTap: _onNextPressed,
-                              ),
+                              child: _GradientNextButton(onTap: _onNextPressed),
                             ),
                           ),
                         ),
@@ -282,9 +289,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 /// The visual content of a single onboarding slide, in the Stitch onboarding
 /// language: a soft gradient-washed hero panel holding the animated
 /// illustration, then an uppercase step pill, a two-tone headline and the
-/// supporting copy — all left-aligned.
+/// supporting copy - all left-aligned.
 ///
-/// Each slide owns a short entrance controller that plays in [initState] — so
+/// Each slide owns a short entrance controller that plays in [initState] - so
 /// the reveal happens *as the page slides in*, and a centred page is never
 /// reset to blank. On top of the entrance, a [PageController]-driven parallax
 /// shifts the hero more than the text and scales the content down slightly
@@ -318,7 +325,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   // eye lands on the illustration first, then the content:
   //   circle  0.03–0.20   (appears first, completes early)
   //   inner   0.10–0.34   (folder pop / chart draw / QR scan + glow)
-  //   chips   0.40–0.80   (satellites pop in one-by-one — see FloatingSatellites)
+  //   chips   0.40–0.80   (satellites pop in one-by-one - see FloatingSatellites)
   //   title   0.81–0.90   (only after the chips have appeared)
   //   desc    0.91–1.00   (last)
   late final Animation<Offset> _contentSlide;
@@ -356,18 +363,20 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     _iconFade = _fade(0.0, 0.14);
     _glow = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem(
-        tween:
-            Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 0.0,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 45,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.0,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 55,
       ),
-    ]).animate(
-      CurvedAnimation(parent: _c, curve: const Interval(0.10, 0.34)),
-    );
+    ]).animate(CurvedAnimation(parent: _c, curve: const Interval(0.10, 0.34)));
     _reveal = _fade(0.10, 0.34, Curves.easeInOutCubic);
     _folderPop = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
@@ -385,8 +394,11 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     _c.forward();
   }
 
-  Animation<double> _fade(double begin, double end,
-      [Curve curve = Curves.easeIn]) {
+  Animation<double> _fade(
+    double begin,
+    double end, [
+    Curve curve = Curves.easeIn,
+  ]) {
     return CurvedAnimation(
       parent: _c,
       curve: Interval(begin, end, curve: curve),
@@ -409,7 +421,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     super.dispose();
   }
 
-  /// The illustration itself — the animated circle + floating satellite chips,
+  /// The illustration itself - the animated circle + floating satellite chips,
   /// floating directly on the page background (no panel behind it). The 160px
   /// box preserves the internal layout; satellites overflow via Clip.none.
   Widget _illustration() {
@@ -421,11 +433,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
         alignment: Alignment.center,
         children: [
           // Contextual chips floating around the circle.
-          FloatingSatellites(
-            index: widget.index,
-            pop: _c,
-            float: _float,
-          ),
+          FloatingSatellites(index: widget.index, pop: _c, float: _float),
           // The main animated circle (unchanged).
           FadeTransition(
             opacity: _iconFade,
@@ -445,7 +453,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     );
   }
 
-  /// A tiny step indicator that replaces the old "STEP 1 OF 3" pill — same
+  /// A tiny step indicator that replaces the old "STEP 1 OF 3" pill - same
   /// info, a fraction of the footprint (the progress dots carry the rest).
   Widget _stepIndicator() {
     return Container(
@@ -503,7 +511,8 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
         double delta = 0;
         if (widget.controller.hasClients &&
             widget.controller.position.haveDimensions) {
-          delta = (widget.controller.page ?? widget.index.toDouble()) -
+          delta =
+              (widget.controller.page ?? widget.index.toDouble()) -
               widget.index;
         }
         // Hero moves more than text (parallax depth); content scales down a
@@ -513,15 +522,14 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
         final double swipeScale = (1 - delta.abs() * 0.08).clamp(0.0, 1.0);
 
         return Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
           child: SlideTransition(
             position: _contentSlide,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Illustration (with parallax + swipe scale on top), now
-                // floating on the background — no panel behind it.
+                // floating on the background - no panel behind it.
                 Expanded(
                   child: Center(
                     child: Transform.translate(

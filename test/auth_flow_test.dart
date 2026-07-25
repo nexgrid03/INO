@@ -10,7 +10,7 @@ import 'package:inoapp/screens/auth/signup_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
 
 /// The auth screens are UI-only until the user acts, so they must build and
-/// render their key affordances without a live Supabase/biometric backend —
+/// render their key affordances without a live Supabase/biometric backend -
 /// never throwing in the test host.
 void main() {
   // A generously tall window so the content-heavy forms lay out without

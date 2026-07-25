@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../models/currency.dart';
+import '../../services/app_settings.dart';
 import '../../services/emi_calculator_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
+import '../../widgets/property_finance/currency_selector.dart';
 
-/// EMI Calculator — loan amount + interest + tenure → monthly EMI, total
-/// interest and total payment.
+/// How the loan tenure is entered.
+enum _TenureUnit { years, months }
+
+/// EMI Calculator - loan amount + interest + tenure → monthly EMI, total
+/// interest and total payment. Works in any currency (header pill).
 class EmiCalculatorScreen extends StatefulWidget {
   const EmiCalculatorScreen({super.key});
 
@@ -17,13 +24,14 @@ class EmiCalculatorScreen extends StatefulWidget {
 class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   final _amount = TextEditingController();
   final _rate = TextEditingController();
-  final _years = TextEditingController();
+  final _tenure = TextEditingController();
+  _TenureUnit _tenureUnit = _TenureUnit.years;
 
   @override
   void dispose() {
     _amount.dispose();
     _rate.dispose();
-    _years.dispose();
+    _tenure.dispose();
     super.dispose();
   }
 
@@ -31,10 +39,15 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currency = Currencies.byCode(AppSettings.instance.currency.value);
+
     final principal = _num(_amount);
     final rate = _num(_rate);
-    final years = _num(_years);
-    final months = (years * 12).round();
+    final tenure = _num(_tenure);
+    final months = _tenureUnit == _TenureUnit.years
+        ? (tenure * 12).round()
+        : tenure.round();
     final valid = principal > 0 && months > 0;
 
     final result = valid
@@ -46,22 +59,23 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         : EmiResult.zero;
 
     return CalculatorScaffold(
-      title: 'EMI Calculator',
-      subtitle: 'Loan repayment breakdown',
+      title: l10n.t('emiCalculator'),
+      subtitle: l10n.t('emiSubtitle'),
+      trailing: CurrencySelector(onChanged: (_) => setState(() {})),
       children: [
         CalcInputCard(
-          title: 'Loan Details',
+          title: l10n.t('loanDetails'),
           children: [
             CalcField(
-              label: 'Loan Amount',
+              label: l10n.t('loanAmount'),
               controller: _amount,
-              prefix: '₹',
+              prefix: currency.symbol,
               hint: 'e.g. 5000000',
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Interest Rate (% per year)',
+              label: l10n.t('interestRatePerYear'),
               controller: _rate,
               suffix: '%',
               hint: 'e.g. 8.5',
@@ -69,36 +83,44 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Loan Tenure (Years)',
-              controller: _years,
-              suffix: 'yrs',
-              hint: 'e.g. 20',
+              label: l10n.t('loanTenure'),
+              controller: _tenure,
+              hint: _tenureUnit == _TenureUnit.years ? 'e.g. 20' : 'e.g. 240',
               onChanged: () => setState(() {}),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            CalcSegmented<_TenureUnit>(
+              label: l10n.t('unit'),
+              options: _TenureUnit.values,
+              selected: _tenureUnit,
+              labelOf: (u) => u == _TenureUnit.years
+                  ? l10n.t('years')
+                  : l10n.t('months'),
+              onChanged: (u) => setState(() => _tenureUnit = u),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
         if (!valid)
-          const CalcHint(
-              message:
-                  'Enter a loan amount and tenure to see your monthly EMI.')
+          CalcHint(message: l10n.t('emiHint'))
         else ...[
           HeroResultCard(
-            label: 'Monthly EMI',
-            value: rupees(result.emi.round()),
-            copyText: rupees(result.emi.round()),
+            label: l10n.t('monthlyEmi'),
+            value: money(result.emi.round(), currency),
+            copyText: money(result.emi.round(), currency),
           ),
           const SizedBox(height: AppSpacing.md),
           ResultBreakdownCard(
             rows: [
               ResultRow(
-                  label: 'Principal', value: rupees(result.principal.round())),
+                  label: l10n.t('principal'),
+                  value: money(result.principal.round(), currency)),
               ResultRow(
-                  label: 'Total Interest',
-                  value: rupees(result.totalInterest.round())),
+                  label: l10n.t('totalInterest'),
+                  value: money(result.totalInterest.round(), currency)),
               ResultRow(
-                  label: 'Total Payment',
-                  value: rupees(result.totalPayment.round())),
+                  label: l10n.t('totalPayment'),
+                  value: money(result.totalPayment.round(), currency)),
             ],
           ),
         ],

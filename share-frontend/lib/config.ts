@@ -1,4 +1,4 @@
-// Server-side config. SUPABASE_FUNCTIONS_URL is never sent to the browser —
+// Server-side config. SUPABASE_FUNCTIONS_URL is never sent to the browser -
 // the frontend proxies the Edge Function so tokens/paths stay hidden.
 export const FUNCTIONS_URL =
   process.env.SUPABASE_FUNCTIONS_URL ??

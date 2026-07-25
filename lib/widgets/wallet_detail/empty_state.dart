@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 /// Empty state shown when a wallet (or the active filter/search) yields no
@@ -30,23 +31,14 @@ class WalletEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
       child: Column(
         children: [
-          // Gradient illustration badge.
-          Container(
-            width: 110,
-            height: 110,
-            decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
-              borderRadius: BorderRadius.circular(32),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.32),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.folder_open_rounded,
-                color: Colors.white, size: 52),
+          // Glossy illustration badge.
+          const ShinyIcon(
+            icon: Icons.folder_open_rounded,
+            color: AppColors.primaryGreen,
+            size: 110,
+            iconSize: 52,
+            radius: 32,
+            style: ShinyIconStyle.filled,
           ),
           const SizedBox(height: 22),
           Text(

@@ -4,7 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// Section 3 — Smart Search.
+/// Section 3 - Smart Search.
 ///
 /// A prominent rounded search field (name · tags · category · record number).
 /// Rendered inside a pinned [SliverPersistentHeader] via [SearchHeaderDelegate]

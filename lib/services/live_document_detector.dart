@@ -4,12 +4,12 @@ import 'package:camera/camera.dart';
 class DocumentSignal {
   const DocumentSignal(this.confidence, this.steady);
 
-  /// 0..1 — how "document-like" the framed subject is right now (a sharp,
+  /// 0..1 - how "document-like" the framed subject is right now (a sharp,
   /// high-contrast page fills the centre with edges; empty/blurry scenes score
   /// low).
   final double confidence;
 
-  /// True when the frame is holding still (low frame-to-frame change) — the
+  /// True when the frame is holding still (low frame-to-frame change) - the
   /// signal used to decide the document is stable enough to scan.
   final bool steady;
 
@@ -24,10 +24,10 @@ class DocumentSignal {
 /// luminance (Y) plane of each frame, sampled on a small fixed grid over the
 /// central scanner region:
 ///
-///   • confidence — mean local gradient (edge energy). A document page with
+///   • confidence - mean local gradient (edge energy). A document page with
 ///     text/borders on a contrasting surface produces far more edge energy than
 ///     an empty wall or a blurry, out-of-focus view.
-///   • steady     — mean absolute difference against the previous frame's
+///   • steady     - mean absolute difference against the previous frame's
 ///     samples. Low movement ⇒ the user is holding the document still.
 ///
 /// Only ~[_grid]² pixels are read per frame regardless of resolution, so this
@@ -38,7 +38,7 @@ class LiveDocumentDetector {
   static const int _grid = 32;
 
   /// Converts mean gradient (0..255) into 0..1 confidence. ~22 of average
-  /// neighbour contrast maps to full confidence — enough to separate a framed
+  /// neighbour contrast maps to full confidence - enough to separate a framed
   /// document from a flat background, without needing a pristine scan.
   static const double _focusNorm = 22.0;
 
@@ -59,7 +59,7 @@ class LiveDocumentDetector {
     final int rowStride = plane.bytesPerRow;
     final int pixStride = plane.bytesPerPixel ?? 1;
 
-    // Central region only (15%..85%) — matches where the frame guide sits, so
+    // Central region only (15%..85%) - matches where the frame guide sits, so
     // background clutter at the edges doesn't trip detection.
     final int x0 = (w * 0.15).floor();
     final int x1 = (w * 0.85).floor();

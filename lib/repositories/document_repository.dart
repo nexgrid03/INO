@@ -9,7 +9,7 @@ import '../models/document.dart';
 
 /// The ONLY place in the app that reads/writes the `public.documents` table.
 ///
-/// Screens go through this repository instead of querying Supabase directly —
+/// Screens go through this repository instead of querying Supabase directly -
 /// the same pattern as [UserRepository]. RLS guarantees a user only ever
 /// touches their own rows, so we never pass a user id: the table fills
 /// `auth_user_id` from `auth.uid()` automatically.
@@ -26,7 +26,7 @@ class DocumentRepository {
   /// Hidden wallet that holds PROCESSED SHARE COPIES (black & white / grayscale /
   /// compressed-PDF images produced for a QR share). They live as real
   /// `documents` rows so the existing `share` Edge Function can serve them by id
-  /// — exactly like any other document — but are filtered out of [listAll] so
+  /// - exactly like any other document - but are filtered out of [listAll] so
   /// they never appear in the user's wallets, search, dashboards or exports.
   static const String shareCacheWallet = '__ino_share_cache__';
 
@@ -34,7 +34,7 @@ class DocumentRepository {
   String? get _uid => _client.auth.currentUser?.id;
 
   /// Bumped every time the document set changes (create / delete / upload) so
-  /// listeners — e.g. the Profile storage meter — can refresh automatically
+  /// listeners - e.g. the Profile storage meter - can refresh automatically
   /// without polling.
   static final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
@@ -124,7 +124,7 @@ class DocumentRepository {
           'tags': tags,
           'notes': notes,
           'is_favorite': isFavorite,
-          // `expires_at` is a DATE column — send YYYY-MM-DD, not a timestamp.
+          // `expires_at` is a DATE column - send YYYY-MM-DD, not a timestamp.
           'expires_at': expiresAt == null ? null : _dateOnly(expiresAt),
           'file_path': filePath,
         })
@@ -177,7 +177,7 @@ class DocumentRepository {
 
   /// Best-effort cleanup of processed share copies older than [olderThan] (past
   /// the maximum share TTL, so their QR links have already expired). Removes both
-  /// the row and its Storage object. Never throws — cleanup is opportunistic.
+  /// the row and its Storage object. Never throws - cleanup is opportunistic.
   Future<void> pruneShareCopies(
       {Duration olderThan = const Duration(days: 8)}) async {
     try {
@@ -221,7 +221,7 @@ class DocumentRepository {
 
   // ---- Storage introspection / account deletion ---------------------------
 
-  /// Lists the raw Storage objects under the signed-in user's folder — used by
+  /// Lists the raw Storage objects under the signed-in user's folder - used by
   /// the storage meter (sizes) and account deletion (cleanup). Returns an empty
   /// list when signed out. [subFolder] targets e.g. the `backups` sub-folder.
   Future<List<FileObject>> listUserObjects({String? subFolder}) async {

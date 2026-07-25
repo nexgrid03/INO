@@ -32,7 +32,7 @@ enum BiometricSupport {
   /// Hardware present AND at least one fingerprint/face enrolled.
   ready,
 
-  /// Hardware present but nothing enrolled — send the user to Settings.
+  /// Hardware present but nothing enrolled - send the user to Settings.
   notEnrolled,
 
   /// No biometric hardware / platform (or web).
@@ -41,7 +41,7 @@ enum BiometricSupport {
 
 /// Every failure mode the biometric prompt can produce, mapped to a friendly,
 /// actionable message. [canceled] is intentionally "silent" (the user chose to
-/// dismiss — don't nag).
+/// dismiss - don't nag).
 enum BiometricError {
   notAvailable,
   notEnrolled,
@@ -89,10 +89,10 @@ class BiometricAuthOutcome {
 ///   1. Report capability ([support] / [isAvailable] / [detectKind]).
 ///   2. Prompt the OS biometric sheet ([authenticate] / [authenticateDetailed]).
 ///   3. Open the OS biometric-enrollment screen ([openEnrollmentSettings]).
-///   4. Own the **app-lock preference** — persisted via `shared_preferences` and
+///   4. Own the **app-lock preference** - persisted via `shared_preferences` and
 ///      mirrored on [lockEnabled] so every surface stays in sync instantly.
 ///
-/// It never stores or sees biometric data — only a boolean preference.
+/// It never stores or sees biometric data - only a boolean preference.
 class BiometricService {
   BiometricService._();
   static final BiometricService instance = BiometricService._();

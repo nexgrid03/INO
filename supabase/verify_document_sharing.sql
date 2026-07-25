@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO — Verify the QR Document Sharing backend is installed.
+-- INO - Verify the QR Document Sharing backend is installed.
 -- Paste into Supabase Dashboard → SQL Editor → Run. Every row should report OK.
 -- If any report MISSING, (re)run supabase/migrations/20260704000000_document_shares.sql
 -- ============================================================================
@@ -46,5 +46,5 @@ select 'rls: policies on document_shares (expect >= 4)',
 order by check;
 
 -- 5. If the RPC exists but the app still gets PGRST202, the PostgREST schema
---    cache is stale — force a reload:
+--    cache is stale - force a reload:
 -- notify pgrst, 'reload schema';

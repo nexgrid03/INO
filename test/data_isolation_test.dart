@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// the process-wide singletons keep the previous user's data, so the next
 /// account that signs in on the same device starts from a blank slate.
 ///
-/// (The server-side half — Row Level Security — is enforced by
+/// (The server-side half - Row Level Security - is enforced by
 /// `supabase/migrations/20260710000000_user_data_isolation.sql` and can only be
 /// exercised against a live Supabase project; see DATA_ISOLATION.md for the SQL
 /// two-user test.)
@@ -112,7 +112,7 @@ void main() {
       expect(AppSettings.instance.twoFactor.value, isFalse);
       expect(AppSettings.instance.notifications.value, isTrue); // default
       expect(AppSettings.instance.lastBackupAt.value, isNull);
-      // Language is a DEVICE preference — preserved across the account switch.
+      // Language is a DEVICE preference - preserved across the account switch.
       expect(AppSettings.instance.language.value, 'hi');
     });
   });

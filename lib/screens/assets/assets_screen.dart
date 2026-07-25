@@ -16,7 +16,7 @@ import '../../widgets/profile/settings_scaffold.dart';
 import '../documents/add_document_screen.dart';
 import '../networth/net_worth_analytics_screen.dart';
 
-/// Assets — the total asset value, a searchable breakdown by class (from the
+/// Assets - the total asset value, a searchable breakdown by class (from the
 /// [NetWorthService] allocation model) and a real "Add asset" entry point that
 /// opens the add-document flow.
 class AssetsScreen extends StatefulWidget {
@@ -76,7 +76,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
       ],
       child: Column(
         children: [
-          // Hero — gradient performance card (total, trend pill, sparkline).
+          // Hero - gradient performance card (total, trend pill, sparkline).
           FadeSlideIn(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(

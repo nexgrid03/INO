@@ -11,7 +11,7 @@ import '../../widgets/reminders/reminder_detail_sheet.dart';
 import '../../widgets/reminders/reminder_filter_chips.dart';
 import 'reminder_calendar_screen.dart';
 
-/// The full reminders list — everything the compact home screen defers to.
+/// The full reminders list - everything the compact home screen defers to.
 ///
 /// Reminders are grouped into time buckets (Overdue → Later) and filterable by
 /// category. Opened either as the "View All" destination (scope `all`) or

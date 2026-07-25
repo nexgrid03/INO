@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../services/area_conversion_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 
-/// "Area Conversion Summary" — a reusable INO card that shows [value] [fromUnit]
+/// "Area Conversion Summary" - a reusable INO card that shows [value] [fromUnit]
 /// converted into every other supported unit, plus a Copy All action.
 ///
 /// Pure presentation: all maths comes from [AreaConversionService]; the widget
@@ -18,7 +20,7 @@ class AreaConversionSummary extends StatelessWidget {
     required this.value,
     required this.fromUnit,
     this.units = AreaConversionService.displayOrder,
-    this.title = 'Area Conversion Summary',
+    this.title,
   });
 
   /// The entered area value (in [fromUnit]).
@@ -30,7 +32,8 @@ class AreaConversionSummary extends StatelessWidget {
   /// Which target units to show (source unit is excluded automatically).
   final List<AreaUnit> units;
 
-  final String title;
+  /// Card title; defaults to the localized "Area Conversion Summary".
+  final String? title;
 
   static const _service = AreaConversionService.instance;
 
@@ -41,8 +44,8 @@ class AreaConversionSummary extends StatelessWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Area conversions copied to clipboard'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('areaCopied')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.primaryGreen,
         ),
@@ -63,22 +66,23 @@ class AreaConversionSummary extends StatelessWidget {
           // ---- Header ----
           Row(
             children: [
-              Container(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
-                decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: const Icon(Icons.straighten_rounded,
-                    color: Colors.white, size: 22),
+              const ShinyIcon(
+                icon: Icons.straighten_rounded,
+                color: AppColors.primaryGreen,
+                size: AppSizes.iconContainerSm,
+                iconSize: 22,
+                radius: AppRadius.chip,
+                style: ShinyIconStyle.filled,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
+                    Text(
+                        title ??
+                            AppLocalizations.of(context)
+                                .t('areaConversionSummary'),
                         style: AppText.title
                             .copyWith(color: palette.textPrimary)),
                     const SizedBox(height: 2),
@@ -190,7 +194,7 @@ class _CopyAllButton extends StatelessWidget {
                   size: 18, color: AppColors.darkGreen),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'Copy All',
+                AppLocalizations.of(context).t('copyAll'),
                 style: AppText.subtitle.copyWith(
                   color: AppColors.darkGreen,
                   fontWeight: FontWeight.w700,

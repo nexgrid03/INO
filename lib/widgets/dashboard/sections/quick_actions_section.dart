@@ -7,7 +7,7 @@ import '../ino_card.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
 
-/// Section 5 — Quick Actions.
+/// Section 5 - Quick Actions.
 ///
 /// A one-tap action grid (Scan, Add Document, Open Vault, QR Share …) wrapped
 /// in a single surface. Tiles use large touch targets (≥64px) so they remain

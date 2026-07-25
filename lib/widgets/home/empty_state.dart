@@ -66,7 +66,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// A full-page error state with a retry action — used for network / load
+/// A full-page error state with a retry action - used for network / load
 /// failures on the dashboard destination pages.
 class ErrorRetry extends StatelessWidget {
   const ErrorRetry({

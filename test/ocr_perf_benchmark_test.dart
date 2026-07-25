@@ -4,18 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:inoapp/services/image_enhancer.dart';
 
-/// A measurement harness for the OCR image-processing stages (STEP 1 — MEASURE).
+/// A measurement harness for the OCR image-processing stages (STEP 1 - MEASURE).
 ///
 /// These are the pure-Dart, CPU-bound stages that run in background isolates:
 /// [ImageEnhancer.bakeBase] (decode → orientation → downscale → re-encode) and
 /// [ImageEnhancer.buildCandidate] (crop/deskew/upscale/grayscale/denoise/sharpen
 /// [+ adaptive threshold]). They run on the Dart VM here, so the absolute ms are
-/// a DESKTOP lower bound — a phone is slower — but the RELATIVE cost between
+/// a DESKTOP lower bound - a phone is slower - but the RELATIVE cost between
 /// stages is what identifies the bottleneck, and it's a real measurement rather
 /// than a guess.
 ///
 /// The on-device ML Kit recognition passes need the native plugin (a device), so
-/// they can't be timed here — they're measured by the in-app `TIMINGS` log line
+/// they can't be timed here - they're measured by the in-app `TIMINGS` log line
 /// (see OcrService.extract) on a real run.
 ///
 /// Run just this file:
@@ -29,7 +29,7 @@ void main() {
   setUpAll(() async {
     dir = await Directory.systemTemp.createTemp('ocr_bench');
     // A realistic ~12 MP portrait phone capture (3024×4032) with text-like
-    // horizontal bars on a light background — representative of a receipt photo
+    // horizontal bars on a light background - representative of a receipt photo
     // for decode/downscale/convolution cost (content doesn't change timing).
     final im = img.Image(width: 3024, height: 4032);
     img.fill(im, color: img.ColorRgb8(238, 238, 236));
@@ -73,7 +73,7 @@ void main() {
       baseId = r.path;
     });
 
-    // Receipt/text bake (new: 1600 px, q70) — the receipt path's downscale.
+    // Receipt/text bake (new: 1600 px, q70) - the receipt path's downscale.
     await time('bakeBase  text(1600px/q70)', () async {
       await ImageEnhancer.bakeBase(bigPhoto,
           maxDim: ImageEnhancer.kTextMaxDim, quality: ImageEnhancer.kTextQuality);
@@ -93,7 +93,7 @@ void main() {
     print('--- Receipt path image work: BEFORE vs AFTER ---');
     // BEFORE (old receipt path == full ID pipeline): bake(id) + enhanced + binarized.
     // AFTER  (textOnly): bake(text) only, then ONE ML Kit pass, no candidates.
-    // (ML Kit passes aren't timed here — device only — but the image work below
+    // (ML Kit passes aren't timed here - device only - but the image work below
     //  is what the optimization removes.)
     // ignore: avoid_print
     print('  BEFORE ≈ bakeBase(id) + enhanced + binarized image passes');
@@ -101,7 +101,7 @@ void main() {
     print('  AFTER  ≈ bakeBase(text) only  → the two multi-second '
         'buildCandidate passes are skipped\n');
 
-    // No assertion — this is a measurement harness; it must always pass.
+    // No assertion - this is a measurement harness; it must always pass.
     expect(true, isTrue);
   });
 }

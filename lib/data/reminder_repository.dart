@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/reminder_models.dart';
 
-/// Source of Reminders data — the `public.reminders` table in Supabase.
+/// Source of Reminders data - the `public.reminders` table in Supabase.
 ///
 /// The screens/store depend only on this abstraction, so it stays the single
 /// place that talks to the reminders table (same pattern as DocumentRepository).
@@ -90,7 +90,7 @@ class SupabaseReminderRepository implements ReminderRepository {
     }
     // Stamp the owner explicitly. The DB column also defaults to auth.uid() and
     // RLS enforces it, but setting it here guarantees ownership even if the
-    // column default is ever missing — no reminder is created without an owner.
+    // column default is ever missing - no reminder is created without an owner.
     final payload = reminder.toInsert()..['auth_user_id'] = uid;
     final row = await _client.from(_table).insert(payload).select().single();
     return Reminder.fromMap(row);

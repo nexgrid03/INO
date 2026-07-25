@@ -4,7 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 1 — Wallet Hub header (launcher style).
+/// Section 1 - Wallet Hub header (launcher style).
 ///
 /// Avatar + search/notification controls, the "My Wallets" title, and a single
 /// lightweight summary line ("8 Wallets • 128 Records"). Kept deliberately

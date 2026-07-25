@@ -5,7 +5,7 @@ import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
 import '../dashboard/section_header.dart';
 
-/// Section 9 — Storage Analytics.
+/// Section 9 - Storage Analytics.
 ///
 /// A clean analytics card: total files, used vs available storage on a modern
 /// progress bar, plus a small monthly-uploads mini bar chart.

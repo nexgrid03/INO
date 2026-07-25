@@ -17,21 +17,21 @@ import 'voter_id_parser.dart';
 
 /// The real, on-device OCR pipeline built on Google ML Kit Text Recognition.
 ///
-/// Recognition quality on phone captures is noisy — the recognizer routinely
+/// Recognition quality on phone captures is noisy - the recognizer routinely
 /// drops or mangles characters (e.g. `Jujjuri` → `Jujuri`). To fight that we run
 /// OCR on *several* preprocessed versions of the same capture and keep the best
 /// read, rather than trusting a single pass:
 ///
-///   1. **probe** — OCR the upright original; this also tells us where the text
+///   1. **probe** - OCR the upright original; this also tells us where the text
 ///      sits (for cropping) and how tilted it is (for deskewing);
-///   2. **enhanced** — crop to the text region, deskew, upscale, sharpen;
-///   3. **binarized** — an adaptive-threshold pass, tried only when the first two
+///   2. **enhanced** - crop to the text region, deskew, upscale, sharpen;
+///   3. **binarized** - an adaptive-threshold pass, tried only when the first two
 ///      still read poorly (rescues low-contrast / unevenly-lit scans).
 ///
 /// Each pass is scored by how confidently ML Kit recognised it *and* how
 /// complete a document it parses into; the highest-scoring pass wins. It never
 /// fabricates data: when nothing readable is found it throws [OcrException] so
-/// the flow can offer manual entry. The parser logic itself is untouched — this
+/// the flow can offer manual entry. The parser logic itself is untouched - this
 /// only improves the pixels and picks the best recognition.
 class OcrService {
   OcrService._();
@@ -41,8 +41,8 @@ class OcrService {
       TextRecognizer(script: TextRecognitionScript.latin);
 
   /// Completed extractions, keyed by the source file's identity
-  /// (`path|size|mtime`). Re-running OCR on the SAME unchanged file — going
-  /// back and forth in the scan flow, re-opening the result — returns
+  /// (`path|size|mtime`). Re-running OCR on the SAME unchanged file - going
+  /// back and forth in the scan flow, re-opening the result - returns
   /// instantly instead of paying for the whole pipeline again.
   static const int _cacheCap = 8;
   final Map<String, OcrExtraction> _cache = {};
@@ -69,7 +69,7 @@ class OcrService {
   static const int _kTextMinChars = 8;
 
   /// A raw-text-only extraction (receipt / plain-text mode): no ID-document type
-  /// detection or field parsing — the receipt flow re-parses [rawText] itself.
+  /// detection or field parsing - the receipt flow re-parses [rawText] itself.
   OcrExtraction _textExtraction(String text) => OcrExtraction(
         type: IdDocumentType.unknown,
         typeConfidence: 0,
@@ -90,7 +90,7 @@ class OcrService {
   ///
   /// [assumeClean] marks a capture that is already upright, cropped and
   /// perspective-corrected (ML Kit document-scanner output): the orientation/
-  /// resolution bake is skipped and the probe reads the file directly — on
+  /// resolution bake is skipped and the probe reads the file directly - on
   /// clean scans this collapses the pipeline to a single recognition pass.
   ///
   /// Every heavy image step happens in a background isolate (see [ImageEnhancer])
@@ -98,12 +98,12 @@ class OcrService {
   /// so a failure is fully diagnosable. Intermediate files are deleted in a
   /// `finally` block. Any unexpected error is logged with its stack and converted
   /// to an [OcrException] so the flow degrades to manual entry instead of
-  /// crashing — the pipeline never suppresses a failure silently.
+  /// crashing - the pipeline never suppresses a failure silently.
   Future<OcrExtraction> extract(String imagePath,
       {bool assumeClean = false, bool textOnly = false}) async {
     final sw = Stopwatch()..start();
     final temps = <String>{};
-    // Per-stage timing summary (STEP 1 — MEASURE). Each awaited stage records a
+    // Per-stage timing summary (STEP 1 - MEASURE). Each awaited stage records a
     // lap; a single `TIMINGS …` line is emitted before every return so a real
     // device run reports exactly where the milliseconds go.
     final timings = <String, int>{};
@@ -118,7 +118,7 @@ class OcrService {
     _step('START extract | ${_fileKB(imagePath)}KB | $imagePath | '
         'textOnly=$textOnly assumeClean=$assumeClean', sw: sw);
 
-    // Result cache — the same unchanged file never pays for OCR twice.
+    // Result cache - the same unchanged file never pays for OCR twice.
     final cacheKey = _cacheKey(imagePath);
     final cached = cacheKey == null ? null : _cache[cacheKey];
     if (cached != null) {
@@ -150,7 +150,7 @@ class OcrService {
                   quality: ImageEnhancer.kTextQuality)
               : await ImageEnhancer.bakeBase(imagePath);
         } catch (e, st) {
-          // Isolate failed (e.g. OOM contained to the worker) — fall back to
+          // Isolate failed (e.g. OOM contained to the worker) - fall back to
           // the original capture rather than aborting the whole extraction.
           _error('bakeBase', e, st, sw);
           base = ProcessedImage(
@@ -164,7 +164,7 @@ class OcrService {
       }
       timings['bake'] = lap();
 
-      // 1. Probe pass — baseline read + text region (crop) + skew (deskew).
+      // 1. Probe pass - baseline read + text region (crop) + skew (deskew).
       _step('START OCR original', sw: sw);
       final probe = await _recognize(base.path, 'original');
       timings['probe'] = lap();
@@ -179,7 +179,7 @@ class OcrService {
       // it does NOT need the ID-document structured extraction, and its
       // structure score can never trip the ID fast-path below. So for textOnly
       // we return the probe's text immediately and SKIP the enhanced +
-      // binarized image passes — the measured ~9–10s-each bottleneck. Only when
+      // binarized image passes - the measured ~9–10s-each bottleneck. Only when
       // the plain pass read almost nothing do we pay for ONE enhanced pass.
       if (textOnly) {
         final probeText = probe.result.text.trim();
@@ -316,7 +316,7 @@ class OcrService {
       _cachePut(cacheKey, extraction);
       return extraction;
     } on OcrException {
-      rethrow; // expected outcome — the screen shows manual entry.
+      rethrow; // expected outcome - the screen shows manual entry.
     } catch (e, st) {
       // Unexpected failure: log EVERYTHING, then degrade to manual entry. This
       // is the safety net that turns a would-be crash into a recoverable state.
@@ -391,7 +391,7 @@ class OcrService {
   /// Scores a recognition pass by parsing it and measuring completeness. The
   /// structure score (how much of a valid document we got) dominates, then
   /// average word confidence, then raw recognised-character count as a
-  /// tiebreaker — this directly rewards the pass that yields the best fields.
+  /// tiebreaker - this directly rewards the pass that yields the best fields.
   _Pass _score(_Recognized r) {
     final text = r.result.text;
     final lines = <String>[

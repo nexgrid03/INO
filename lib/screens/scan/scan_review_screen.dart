@@ -13,15 +13,15 @@ import 'document_crop_editor.dart';
 /// The review screen deliberately commits to the premium DARK camera chrome
 /// (matching the scanner viewport it follows) in both app themes, so the flow
 /// reads as one continuous capture experience. All colours come from the
-/// [AppPalette.dark] token set — never ad-hoc hex values.
+/// [AppPalette.dark] token set - never ad-hoc hex values.
 const AppPalette _chrome = AppPalette.dark;
 
-/// Screen 2 — review the capture.
+/// Screen 2 - review the capture.
 ///
 /// Shows the captured page(s) large inside a dark viewport and offers the
 /// standard adjustments before committing to OCR:
 ///
-///  • **copy modes** — Original · Enhanced · B&W · Grayscale, the WhatsApp /
+///  • **copy modes** - Original · Enhanced · B&W · Grayscale, the WhatsApp /
 ///    Adobe Scan filter set, rendered by the shared document-grade pipeline
 ///    ([ImageEnhancer.applyColorMode], Bradley–Roth adaptive B&W);
 ///  • **Crop / Rotate / Retake** tools (single-page captures; multi-page scans
@@ -70,7 +70,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   /// The committed edited image in single-page mode (crop / rotate baked in).
   String? _workingPath;
 
-  /// Multi-page sources (geometry final — ML Kit already cropped/rectified).
+  /// Multi-page sources (geometry final - ML Kit already cropped/rectified).
   late final List<String> _pages =
       (widget.pages != null && widget.pages!.isNotEmpty)
           ? List<String>.from(widget.pages!)
@@ -151,7 +151,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   }
 
   /// Opens the 4-corner crop editor and commits the perspective-corrected
-  /// result (single-page mode only — ML Kit pages are already rectified).
+  /// result (single-page mode only - ML Kit pages are already rectified).
   Future<void> _openCrop() async {
     final base = _workingPath;
     if (base == null || !File(base).existsSync()) {
@@ -363,7 +363,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   }
 }
 
-/// The copy-mode selector: Original · Enhanced · B&W · Grayscale chips — the
+/// The copy-mode selector: Original · Enhanced · B&W · Grayscale chips - the
 /// WhatsApp / Adobe Scan filter row.
 class _ModeSelector extends StatelessWidget {
   const _ModeSelector({
@@ -622,7 +622,7 @@ class _PlaceholderPage extends StatelessWidget {
   }
 }
 
-/// The dark rounded-top control sheet hosting the tools and the CTA — the
+/// The dark rounded-top control sheet hosting the tools and the CTA - the
 /// Stitch "preview & filter" panel, translated to the teal system.
 class _ControlSheet extends StatelessWidget {
   const _ControlSheet({required this.children});
@@ -680,7 +680,7 @@ class _Tool extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Tools no longer carry a persistent "active" state — the copy-mode chips
+    // Tools no longer carry a persistent "active" state - the copy-mode chips
     // above communicate the selected filter.
     return PressableScale(
       pressedScale: 0.9,

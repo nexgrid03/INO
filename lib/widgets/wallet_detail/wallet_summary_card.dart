@@ -4,11 +4,11 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// Section 3 — the Wallet Summary stat-card row.
+/// Section 3 - the Wallet Summary stat-card row.
 ///
 /// One glance, three facts, styled as a strip of tinted stat cards ("Total
 /// Documents" treatment): each card carries a coloured accent edge on the
-/// left, a small label + icon up top and one big figure below — documents,
+/// left, a small label + icon up top and one big figure below - documents,
 /// expiring, and the vault-protection assurance. Deliberately *not* a storage
 /// dashboard; analytics live in Wallet Settings. Reads from live counts so it
 /// stays in sync as the user favorites / archives / deletes.
@@ -77,7 +77,7 @@ class WalletSummaryCard extends StatelessWidget {
 }
 
 /// One tinted stat card: accent edge on the left, label + small icon on top,
-/// a big figure (or assurance icon) below — the Stitch summary treatment.
+/// a big figure (or assurance icon) below - the Stitch summary treatment.
 class _StatCard extends StatelessWidget {
   const _StatCard({
     required this.accent,
@@ -122,7 +122,7 @@ class _StatCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        // Scale-down keeps the label on one line — never dots.
+                        // Scale-down keeps the label on one line - never dots.
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,

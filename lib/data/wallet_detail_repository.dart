@@ -37,7 +37,7 @@ class WalletDetailData {
 }
 
 /// Source of Wallet Detail data. The screen depends only on this abstraction.
-/// The same UI is reused for every wallet — [load] returns the signed-in user's
+/// The same UI is reused for every wallet - [load] returns the signed-in user's
 /// real documents for the given wallet, straight from Supabase.
 abstract class WalletDetailRepository {
   Future<WalletDetailData> load(WalletCategory category);
@@ -45,7 +45,7 @@ abstract class WalletDetailRepository {
   void updateRecord(String walletName, DocumentRecord record);
   void deleteRecord(String walletName, String recordId);
 
-  /// Removes a record from the in-memory cache only (no DB delete) — used when a
+  /// Removes a record from the in-memory cache only (no DB delete) - used when a
   /// document is *moved* to another wallet.
   void deleteRecordLocal(String walletName, String recordId);
 
@@ -69,7 +69,7 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
       records = docs.map(_toRecord).toList();
       _cache[category.name] = records;
     } catch (_) {
-      // Offline / not signed in — fall back to whatever we already have.
+      // Offline / not signed in - fall back to whatever we already have.
       records = _cache[category.name] ?? const [];
     }
 
@@ -92,7 +92,7 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
         totalRecords: records.length,
         activeRecords: active,
         expiringSoon: expiring,
-        lastAccessed: records.isEmpty ? '—' : 'Today',
+        lastAccessed: records.isEmpty ? '-' : 'Today',
         storageUsedLabel: '$usedMb MB',
         storageFraction: (usedMb / 5120).clamp(0.0, 1.0),
       ),

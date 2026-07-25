@@ -20,7 +20,7 @@ import 'login_screen.dart';
 /// persists them, then continues into the app shell.
 ///
 /// Built entirely from the existing shared auth components so it matches the
-/// rest of the flow — it is an ADD, not a redesign of any existing screen.
+/// rest of the flow - it is an ADD, not a redesign of any existing screen.
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({
     super.key,
@@ -86,7 +86,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       );
       UserProfile profile;
       if (widget.existingProfile == null) {
-        // Row doesn't exist yet — create it complete, with the phone included.
+        // Row doesn't exist yet - create it complete, with the phone included.
         profile = await UserRepository.instance.createProfile(
           authUserId: widget.authUserId,
           fullName: name,
@@ -94,7 +94,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           phone: phone,
         );
       } else {
-        // Row exists but was missing details — fill them in.
+        // Row exists but was missing details - fill them in.
         profile = await UserRepository.instance.updateProfile(
           authUserId: widget.authUserId,
           fullName: name,
@@ -136,7 +136,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
-      // No back button: sign-in already succeeded — the only way forward is to
+      // No back button: sign-in already succeeded - the only way forward is to
       // finish these details (or the app would strand an authed user on Login).
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

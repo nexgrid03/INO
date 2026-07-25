@@ -209,7 +209,7 @@ class Note {
         isFavorite: (row['is_favorite'] as bool?) ?? false,
       );
 
-  /// The column values for an INSERT/UPDATE (no `id` — the DB generates it on
+  /// The column values for an INSERT/UPDATE (no `id` - the DB generates it on
   /// insert; updates target the row by id in the filter).
   Map<String, dynamic> toInsert() => {
         'title': title,

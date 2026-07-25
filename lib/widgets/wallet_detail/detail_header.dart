@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 1 — Wallet Detail header.
+/// Section 1 - Wallet Detail header.
 ///
 /// Back button + search/filter controls, then a gradient wallet icon with the
 /// wallet name & subtitle, and a totals row (documents · last updated). Mirrors
@@ -63,19 +64,13 @@ class DetailHeader extends StatelessWidget {
         const SizedBox(height: 18),
         Row(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: gradient,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.glow(gradient.first, opacity: 0.34),
-              ),
-              child: Icon(icon, color: Colors.white, size: 26),
+            ShinyIcon(
+              icon: icon,
+              color: gradient.first,
+              size: 52,
+              iconSize: 26,
+              radius: 16,
+              style: ShinyIconStyle.filled,
             ),
             const SizedBox(width: 14),
             Expanded(

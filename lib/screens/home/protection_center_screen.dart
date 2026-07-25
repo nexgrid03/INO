@@ -9,7 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../shell/shell_controller.dart';
 
-/// Protection Center — the security & coverage overview behind the "Protected"
+/// Protection Center - the security & coverage overview behind the "Protected"
 /// summary card and the "Protect" quick action: a live security score, the
 /// device protections in place, protected-document count and insurance coverage.
 class ProtectionCenterScreen extends StatelessWidget {

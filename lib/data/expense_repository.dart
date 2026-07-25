@@ -11,7 +11,7 @@ class ExpenseData {
   final List<TaxDocument> taxDocuments;
 }
 
-/// Source of Transaction Vault data — the `public.expenses` and
+/// Source of Transaction Vault data - the `public.expenses` and
 /// `public.tax_documents` tables in Supabase.
 ///
 /// The store/screens depend only on this abstraction, so it stays the single
@@ -80,7 +80,7 @@ class SupabaseExpenseRepository implements ExpenseRepository {
     if (uid == null) {
       throw const AuthException('You must be signed in to save a transaction.');
     }
-    // Stamp the owner explicitly — same belt-and-suspenders as reminders/notes.
+    // Stamp the owner explicitly - same belt-and-suspenders as reminders/notes.
     final payload = txn.toInsert()..['auth_user_id'] = uid;
     final row =
         await _client.from(_txnTable).insert(payload).select().single();

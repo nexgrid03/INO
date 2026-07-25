@@ -16,7 +16,7 @@ import 'app_settings.dart';
 /// cloud backup. Everything is timestamped and sorted newest-first.
 ///
 /// If nothing real exists yet (fresh account / offline), it returns an empty
-/// list so the UI can show a proper empty state — it never invents fake rows.
+/// list so the UI can show a proper empty state - it never invents fake rows.
 class ActivityService {
   ActivityService._();
   static final ActivityService instance = ActivityService._();

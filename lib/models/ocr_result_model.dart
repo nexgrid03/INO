@@ -19,7 +19,7 @@ enum IdDocumentType {
 
   bool get isKnown => this != IdDocumentType.unknown;
 
-  /// A short title fragment for auto-naming a scanned document — e.g. "Aadhaar"
+  /// A short title fragment for auto-naming a scanned document - e.g. "Aadhaar"
   /// so a scan reads "Tanishq Aadhaar" instead of the generic "Aadhaar Card".
   String get shortLabel {
     switch (this) {
@@ -53,7 +53,7 @@ class OcrExtraction {
 
   final IdDocumentType type;
 
-  /// 0.0–1.0 — how confidently the document type was detected.
+  /// 0.0–1.0 - how confidently the document type was detected.
   final double typeConfidence;
 
   /// Extracted field values keyed by `name`, `dob`, `gender`, `number`,
@@ -76,7 +76,7 @@ class OcrExtraction {
     return DetectionConfidence.low;
   }
 
-  /// The identity fields expected for this type that came back empty — surfaced
+  /// The identity fields expected for this type that came back empty - surfaced
   /// on the review screen so the user knows what to fill in.
   List<String> get missingFields {
     final expected = switch (type) {

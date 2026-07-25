@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 5 — a single Quick Action.
+/// Section 5 - a single Quick Action.
 ///
-/// A circular pill: the coloured glyph floats inside a round, softly-tinted
-/// container that lifts off the background, with the caption below — the
-/// premium "round action" treatment. Large touch target, press-squish via
-/// [PressableScale].
+/// A circular pill: a white glyph on a saturated accent [ShinyIcon] that lifts
+/// off the background, with the caption below - the premium "round action"
+/// treatment. Large touch target, press-squish via [PressableScale].
 class QuickActionButton extends StatelessWidget {
   const QuickActionButton({
     super.key,
@@ -27,10 +27,6 @@ class QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    // The action colour washed over the card surface so the pill reads
-    // correctly in both light and dark mode.
-    final fill = Color.alphaBlend(
-        color.withValues(alpha: palette.isDark ? 0.18 : 0.10), palette.surface);
     return PressableScale(
       child: GestureDetector(
         onTap: onTap,
@@ -40,18 +36,14 @@ class QuickActionButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 58,
-                height: 58,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: fill,
-                  border: Border.all(
-                      color: color.withValues(alpha: 0.22), width: 1),
-                  boxShadow: palette.cardShadow,
-                ),
-                child: Icon(icon, color: color, size: 24),
+              ShinyIcon(
+                icon: icon,
+                color: color,
+                size: 58,
+                iconSize: 24,
+                // White glyph on a saturated accent body, ringed in the same
+                // accent - the treatment the Overview and Tools tiles use.
+                style: ShinyIconStyle.filled,
               ),
               const SizedBox(height: AppSpacing.xs),
               // Scale the label down to fit rather than truncating, so full

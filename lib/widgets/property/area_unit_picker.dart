@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -9,9 +10,10 @@ import '../../theme/app_theme.dart';
 Future<AreaUnit?> showAreaUnitPicker(
   BuildContext context, {
   required AreaUnit selected,
-  String title = 'Select Unit',
+  String? title,
 }) {
   final palette = AppPalette.of(context);
+  title ??= AppLocalizations.of(context).t('selectUnit');
   return showModalBottomSheet<AreaUnit>(
     context: context,
     backgroundColor: palette.surface,
@@ -33,7 +35,7 @@ Future<AreaUnit?> showAreaUnitPicker(
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(title,
+          Text(title!,
               style: AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
           Flexible(

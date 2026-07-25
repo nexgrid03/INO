@@ -35,7 +35,7 @@ const _months = [
 
 String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
-/// Screen 4 — review & confirm the extracted information.
+/// Screen 4 - review & confirm the extracted information.
 ///
 /// Auto-detection badge on top, then clean editable cards for every field. The
 /// user corrects anything OCR got wrong, then Continues to save (or retakes).
@@ -165,7 +165,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     // The identity fields travel as STRUCTURED values (fullName/dob/gender/…),
-    // not folded into notes — Add Document persists them as a structured
+    // not folded into notes - Add Document persists them as a structured
     // DocumentExtraction so they're always visible again on reopen. `notes`
     // carries only the user's own free text.
     final updated = widget.result.copyWith(
@@ -214,7 +214,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    // Identity fields (ID documents) — extracted, editable.
+                    // Identity fields (ID documents) - extracted, editable.
                     if (_showIdentity) ...[
                       _CardSection(
                         title: l10n.t('extractedDetails'),

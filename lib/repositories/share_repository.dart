@@ -39,7 +39,7 @@ class ShareException implements Exception {
   String toString() => 'ShareException: $message';
 }
 
-/// Thrown when the sharing backend hasn't been deployed to Supabase yet — i.e.
+/// Thrown when the sharing backend hasn't been deployed to Supabase yet - i.e.
 /// the `create_document_share` RPC / `document_shares` table are missing.
 /// Surfaced to the user as "QR Sharing Backend Not Configured" instead of a
 /// generic failure, so the fix (deploy the migration + Edge Function) is clear.
@@ -53,7 +53,7 @@ class ShareBackendNotConfiguredException extends ShareException {
 /// Mirrors [DocumentRepository]'s design: a singleton over `Supabase.instance`,
 /// with RLS scoping every query to the signed-in owner. Creation goes through
 /// the `create_document_share` RPC, which server-side verifies that every
-/// document actually belongs to the caller before minting the share — so the
+/// document actually belongs to the caller before minting the share - so the
 /// client can never share an id it doesn't own.
 ///
 /// The *public* side (anonymous recipients scanning the QR) never touches this
@@ -230,7 +230,7 @@ class ShareRepository {
   }
 
   /// Mints a QR share that serves PROCESSED COPIES (black & white / grayscale /
-  /// compressed PDF) through the EXISTING, already-deployed sharing backend —
+  /// compressed PDF) through the EXISTING, already-deployed sharing backend -
   /// the same `create_document_share` RPC + `share` Edge Function + Vercel
   /// viewer that shares originals.
   ///
@@ -243,7 +243,7 @@ class ShareRepository {
   /// The original documents are never modified. Throws [ShareException] on
   /// failure; surfaces [ShareBackendNotConfiguredException] only if the ORIGINAL
   /// `create_document_share` RPC itself is missing (i.e. sharing was never
-  /// deployed) — never for a processed-copy-specific reason.
+  /// deployed) - never for a processed-copy-specific reason.
   Future<DocumentShare> createProcessedDocumentShare({
     required List<ProcessedShareItem> items,
     required ShareDuration duration,
@@ -283,7 +283,7 @@ class ShareRepository {
     }
 
     // 2) Mint the share through the EXISTING deployed RPC (serves originals and
-    //    these processed copies identically — by document id).
+    //    these processed copies identically - by document id).
     return createShare(documentIds: ids, duration: duration);
   }
 
@@ -372,18 +372,18 @@ class ShareRepository {
   }
 
   // ---- Public (recipient) side --------------------------------------------
-  // These hit the anonymous `share` Edge Function over plain HTTP — recipients
+  // These hit the anonymous `share` Edge Function over plain HTTP - recipients
   // have no Supabase session, and the private tables are never queried directly.
 
   /// Fetches the public metadata for [shareId] from the Edge Function. Returns a
   /// [PublicShare] whose [PublicShare.status] tells the viewer what to render
-  /// (active / expired / revoked / notFound / error). Never throws — a network
+  /// (active / expired / revoked / notFound / error). Never throws - a network
   /// failure resolves to [PublicShare.errored].
   Future<PublicShare> fetchPublicShare(String token) async {
     final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json');
     developer.log('fetchPublicShare → GET $uri', name: 'share');
     try {
-      // Ask for JSON explicitly — the Edge Function content-negotiates and
+      // Ask for JSON explicitly - the Edge Function content-negotiates and
       // returns the branded HTML page to browsers, JSON to the app.
       final res = await http.get(uri, headers: const {'accept': 'application/json'});
       developer.log(
@@ -431,7 +431,7 @@ class ShareRepository {
         } else if (body is Map && body['message'] is String) {
           message = body['message'] as String;
         }
-      } catch (_) {/* non-JSON body — keep the default message */}
+      } catch (_) {/* non-JSON body - keep the default message */}
       throw ShareException(message);
     }
     final mime = res.headers['content-type'] ?? 'application/octet-stream';

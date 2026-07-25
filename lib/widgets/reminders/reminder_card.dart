@@ -4,12 +4,13 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
-/// A compact reminder row — the workhorse card used across every Reminders
+/// A compact reminder row - the workhorse card used across every Reminders
 /// surface, styled as a floating agenda card: a priority accent running down
-/// the card's left edge, a tinted category icon container, a small meta line
+/// the card's left edge, a glossy category icon badge, a small meta line
 /// (due chip + category) above the bold title, and an optional tap-to-complete
 /// circle on the right. Tapping the body opens details.
 ///
@@ -56,16 +57,13 @@ class ReminderCard extends StatelessWidget {
                       horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                   child: Row(
                     children: [
-                      // Tinted category icon container.
-                      Container(
-                        width: AppSizes.iconContainerSm,
-                        height: AppSizes.iconContainerSm,
-                        decoration: BoxDecoration(
-                          color: categoryColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(AppRadius.chip),
-                        ),
-                        child: Icon(reminder.category.icon,
-                            color: categoryColor, size: 22),
+                      // Glossy category icon badge.
+                      ShinyIcon(
+                        icon: reminder.category.icon,
+                        color: categoryColor,
+                        size: AppSizes.iconContainerSm,
+                        iconSize: 22,
+                        radius: AppRadius.chip,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(

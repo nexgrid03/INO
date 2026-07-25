@@ -1,4 +1,5 @@
-import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+// CupertinoPageTransitionsBuilder is exported by material.dart - no separate
+// cupertino import needed.
 import 'package:flutter/material.dart';
 
 /// Central color palette and theme for the INO app.
@@ -8,13 +9,13 @@ import 'package:flutter/material.dart';
 ///   #30ACB3 → #55C2C8 → #7FD3D8 → #A7E2E5 → #D5F3F4 → white.
 ///
 /// Three layers:
-///   • [AppColors] — brand constants (teal tints + status colours). Theme-
+///   • [AppColors] - brand constants (teal tints + status colours). Theme-
 ///     agnostic; used by splash/login/onboarding and every gradient surface.
 ///     NOTE: legacy member names (primaryGreen, lightBlue, …) are kept so the
-///     whole app re-skins from this one file — their VALUES are the new system.
-///   • [AppGradients] / [AppShadows] / [AppBorders] — the named design-system
+///     whole app re-skins from this one file - their VALUES are the new system.
+///   • [AppGradients] / [AppShadows] / [AppBorders] - the named design-system
 ///     primitives every new surface should reach for.
-///   • [AppPalette] — semantic, brightness-aware tokens (background, surface,
+///   • [AppPalette] - semantic, brightness-aware tokens (background, surface,
 ///     text, border, ambient glow …) resolved via [AppPalette.of]. The whole
 ///     dashboard draws from these, so re-theming is a one-file change.
 class AppColors {
@@ -22,29 +23,29 @@ class AppColors {
 
   // --- Brand: the #30ACB3 tint ladder ---------------------------------------
 
-  /// Primary brand teal — #30ACB3. (Legacy name kept for app-wide reach.)
+  /// Primary brand teal - #30ACB3. (Legacy name kept for app-wide reach.)
   static const Color primaryGreen = Color(0xFF30ACB3);
 
-  /// Tint 1 — #55C2C8. Secondary fills, gradient partner, soft accents.
+  /// Tint 1 - #55C2C8. Secondary fills, gradient partner, soft accents.
   static const Color secondaryGreen = Color(0xFF55C2C8);
 
   /// Text/icons sitting on tinted fills. Per the brand rule the primary is
   /// never darkened, so this aliases the anchor itself.
   static const Color darkGreen = Color(0xFF30ACB3);
 
-  /// Tint 1 — #55C2C8. (Legacy "cyan partner" name; now the first tint.)
+  /// Tint 1 - #55C2C8. (Legacy "cyan partner" name; now the first tint.)
   static const Color lightBlue = Color(0xFF55C2C8);
 
-  /// Tint 2 — #7FD3D8. Washes, glows and dark-mode accents.
+  /// Tint 2 - #7FD3D8. Washes, glows and dark-mode accents.
   static const Color skyBlue = Color(0xFF7FD3D8);
 
-  /// Tint 3 — #A7E2E5. Chip strokes, decorative shapes.
+  /// Tint 3 - #A7E2E5. Chip strokes, decorative shapes.
   static const Color tealPale = Color(0xFFA7E2E5);
 
-  /// Tint 4 — #D5F3F4. Mist fills, progress tracks, chip backgrounds.
+  /// Tint 4 - #D5F3F4. Mist fills, progress tracks, chip backgrounds.
   static const Color tealMist = Color(0xFFD5F3F4);
 
-  /// Near-white teal — #EFF9FA. Section washes and inset surfaces.
+  /// Near-white teal - #EFF9FA. Section washes and inset surfaces.
   static const Color tealFoam = Color(0xFFEFF9FA);
 
   // --- Semantic status colours ----------------------------------------------
@@ -66,21 +67,21 @@ class AppColors {
 
   // --- Premium gradient system (legacy aliases → AppGradients) ---------------
 
-  /// Hero gradient — buttons, FAB, avatars, splash. #30ACB3 → #55C2C8.
+  /// Hero gradient - buttons, FAB, avatars, splash. #30ACB3 → #55C2C8.
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [primaryGreen, secondaryGreen],
   );
 
-  /// Wallet gradient — tint 1 → tint 2.
+  /// Wallet gradient - tint 1 → tint 2.
   static const LinearGradient walletGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [secondaryGreen, skyBlue],
   );
 
-  /// Insight gradient — anchor → tint 2 (a wider, airier sweep).
+  /// Insight gradient - anchor → tint 2 (a wider, airier sweep).
   static const LinearGradient insightGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -93,17 +94,17 @@ class AppColors {
 class AppGradients {
   AppGradients._();
 
-  /// The primary brand gradient (#30ACB3 → #55C2C8) — primary buttons, the
+  /// The primary brand gradient (#30ACB3 → #55C2C8) - primary buttons, the
   /// active nav pill, avatars, hero chips.
   static const LinearGradient primary = AppColors.brandGradient;
 
-  /// Softer companion (#55C2C8 → #7FD3D8) — wallet tiles, secondary heroes.
+  /// Softer companion (#55C2C8 → #7FD3D8) - wallet tiles, secondary heroes.
   static const LinearGradient soft = AppColors.walletGradient;
 
-  /// The widest in-family sweep (#30ACB3 → #7FD3D8) — hero banners.
+  /// The widest in-family sweep (#30ACB3 → #7FD3D8) - hero banners.
   static const LinearGradient hero = AppColors.insightGradient;
 
-  /// Airy mist gradient (white → #D5F3F4) — screen washes, empty states.
+  /// Airy mist gradient (white → #D5F3F4) - screen washes, empty states.
   static const LinearGradient mist = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -128,13 +129,13 @@ class AppGradients {
   );
 }
 
-/// The named elevation system — soft, floating, premium. Depth comes mostly
+/// The named elevation system - soft, floating, premium. Depth comes mostly
 /// from spacing, layering and hairline borders; shadows stay whisper-light and
 /// teal-tinted so nothing ever looks heavy. Never use harsh ad-hoc shadows.
 class AppShadows {
   AppShadows._();
 
-  /// The standard floating-card shadow — a soft teal-tinted halo.
+  /// The standard floating-card shadow - a soft teal-tinted halo.
   static List<BoxShadow> get card => [
     BoxShadow(
       color: AppColors.primaryGreen.withValues(alpha: 0.07),
@@ -192,7 +193,7 @@ class AppBorders {
 
 /// Brightness-aware semantic colour tokens for the dashboard.
 ///
-/// Resolve the right set with [AppPalette.of(context)] — it reads the ambient
+/// Resolve the right set with [AppPalette.of(context)] - it reads the ambient
 /// [Theme]'s brightness. Build dashboard surfaces against these tokens (never
 /// hard-coded colours) so the whole experience flips between light and dark.
 class AppPalette {
@@ -235,7 +236,7 @@ class AppPalette {
   final Color textSecondary;
   final Color textFaint;
 
-  /// Hairline borders / glass edges — rgba(48,172,179,0.15) in light.
+  /// Hairline borders / glass edges - rgba(48,172,179,0.15) in light.
   final Color border;
 
   /// Neutral drop-shadow colour.
@@ -249,7 +250,7 @@ class AppPalette {
 
   bool get isDark => brightness == Brightness.dark;
 
-  // Light is the PRIMARY theme — bright, airy, teal-washed, never plain white.
+  // Light is the PRIMARY theme - bright, airy, teal-washed, never plain white.
   static const AppPalette light = AppPalette(
     brightness: Brightness.light,
     bg: Color(0xFFF3FAFB), // soft teal-white wash

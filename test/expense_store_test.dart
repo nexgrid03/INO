@@ -31,7 +31,7 @@ void main() {
         gstAmount: gst,
       );
 
-  test('starts completely empty — no seed data', () {
+  test('starts completely empty - no seed data', () {
     expect(store.isEmpty, isTrue);
     expect(store.transactionsForYear(fy), isEmpty);
     expect(store.countForYear(fy), 0);
@@ -217,7 +217,7 @@ void main() {
       add('Hospital', 18000, TxnCategory.medical);
       add('Advance tax', 50000, TxnCategory.taxPayment);
       add('Groceries', 60000, TxnCategory.food);
-      // Different FY — must be excluded.
+      // Different FY - must be excluded.
       add('Old', 999, TxnCategory.food, at: DateTime(2025, 1, 1));
 
       final s = store.taxSummary(fy);

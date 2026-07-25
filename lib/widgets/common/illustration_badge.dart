@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import 'shiny_icon.dart';
 
-/// The design system's vector-style illustration primitive: soft concentric
-/// gradient discs with floating accent dots around a central glyph. Gives empty
-/// states / heroes a premium illustrated feel without shipping image assets —
-/// it's pure Flutter, so it scales crisply and follows the theme.
+/// The design system's vector-style illustration primitive: a soft outer halo
+/// disc, a glossy [ShinyIcon] at its centre, and floating accent dots.
+/// Gives empty states / heroes a premium illustrated feel without shipping
+/// image assets - it's pure Flutter, so it scales crisply and follows the theme.
 class IllustrationBadge extends StatelessWidget {
   const IllustrationBadge({
     super.key,
@@ -47,24 +48,14 @@ class IllustrationBadge extends StatelessWidget {
               ),
             ),
           ),
-          // Inner disc.
-          Container(
-            width: size * 0.72,
-            height: size * 0.72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  tint.withValues(alpha: 0.18),
-                  partner.withValues(alpha: 0.16),
-                ],
-              ),
-            ),
-            child: Icon(icon, size: size * 0.34, color: tint),
+          // Inner disc - the glossy badge.
+          ShinyIcon(
+            icon: icon,
+            color: tint,
+            size: size * 0.72,
+            iconSize: size * 0.34,
           ),
-          // Floating accent dots — the "illustrated" sparkle.
+          // Floating accent dots - the "illustrated" sparkle.
           Positioned(
             top: size * 0.06,
             right: size * 0.14,

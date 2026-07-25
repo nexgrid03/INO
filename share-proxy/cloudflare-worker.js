@@ -1,12 +1,12 @@
 // ============================================================================
-// INO — Share page proxy (Cloudflare Worker)
+// INO - Share page proxy (Cloudflare Worker)
 // ----------------------------------------------------------------------------
 // WHY THIS EXISTS:
 // The Supabase Edge Runtime, on the shared *.functions.supabase.co domain,
 // forcibly rewrites `Content-Type: text/html` → `text/plain` and injects
 // `X-Content-Type-Options: nosniff` + `Content-Security-Policy: sandbox`
 // (an anti-abuse measure). That makes browsers show the share page as SOURCE
-// instead of rendering it. JSON and file bytes are NOT downgraded — only HTML.
+// instead of rendering it. JSON and file bytes are NOT downgraded - only HTML.
 //
 // This Worker sits on a domain YOU control (e.g. share.yourdomain.com), proxies
 // to the `share` Edge Function, and re-serves the share page as real text/html
@@ -30,7 +30,7 @@ export default {
     const upstream = SUPABASE_FUNCTIONS + url.pathname + url.search;
 
     // File byte endpoints (…/share/<id>/file/<index>) already return correct
-    // types (image/*, application/pdf, …) — stream them straight through.
+    // types (image/*, application/pdf, …) - stream them straight through.
     if (url.pathname.includes("/file/")) {
       return fetch(upstream, {
         method: request.method,

@@ -13,7 +13,7 @@ class LegalSection {
 
 /// A reusable reader for legal text (Privacy Policy, Terms & Conditions),
 /// rendered in-app from bundled content so it works offline and matches the
-/// app's look — no external webview needed.
+/// app's look - no external webview needed.
 class LegalDocumentScreen extends StatelessWidget {
   const LegalDocumentScreen({
     super.key,
@@ -53,12 +53,12 @@ class LegalDocumentScreen extends StatelessWidget {
             'Biometrics',
             'Biometric checks happen entirely on your device through the operating '
                 'system. INO never receives, stores, or transmits your fingerprint or '
-                'face data — only a secure on/off preference.',
+                'face data - only a secure on/off preference.',
           ),
           LegalSection(
             'Your controls',
             'You can export or download all your data at any time, back it up to the '
-                'cloud, and permanently delete your account — which removes your '
+                'cloud, and permanently delete your account - which removes your '
                 'documents, files and profile.',
           ),
           LegalSection(

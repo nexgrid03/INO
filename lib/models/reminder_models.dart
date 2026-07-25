@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
-/// Models backing the Reminders Dashboard — the Life Events & Due Dates center.
+/// Models backing the Reminders Dashboard - the Life Events & Due Dates center.
 /// UI-agnostic plain objects, hydrated today by `ReminderRepository`'s sample
 /// data and tomorrow by Supabase without touching a single widget.
 
@@ -140,24 +140,37 @@ extension ReminderCategoryX on ReminderCategory {
     }
   }
 
+  /// The category's identity colour, driving its icon badge in every reminder
+  /// list.
+  ///
+  /// One hue per category, all clearly distinct: previously `documents`,
+  /// `investments` and `custom` all resolved to brand teal, so a typical agenda
+  /// was a column of identical teal chips and the badge carried no information.
+  /// Hues come from the app's curated accent family (the set the Wallet grid
+  /// draws from) so the list still reads as one system.
+  ///
+  /// Note these are *identity* colours, deliberately separate from the time
+  /// urgency colours in [reminderUrgencyColor] - a card shows both, and mixing
+  /// the two scales would make "amber" ambiguous between "insurance" and "due
+  /// tomorrow".
   Color get color {
     switch (this) {
       case ReminderCategory.documents:
-        return AppColors.lightBlue;
+        return const Color(0xFF4383EA); // blue
       case ReminderCategory.insurance:
-        return AppColors.warning;
+        return const Color(0xFFF2B33D); // amber - protection/renewal
       case ReminderCategory.health:
-        return const Color(0xFFEC6A8C);
+        return const Color(0xFF22B8CF); // cyan
       case ReminderCategory.property:
-        return const Color(0xFF8B6CEF);
+        return const Color(0xFF9B6DE0); // purple
       case ReminderCategory.investments:
-        return const Color(0xFF30ACB3);
+        return const Color(0xFF37C08A); // green - growth
       case ReminderCategory.birthdays:
-        return const Color(0xFFF5704A);
+        return const Color(0xFFF5704A); // coral
       case ReminderCategory.anniversaries:
-        return const Color(0xFFEC4899);
+        return const Color(0xFF7C6CF0); // violet
       case ReminderCategory.custom:
-        return AppColors.primaryGreen;
+        return AppColors.primaryGreen; // brand teal for the catch-all
     }
   }
 
@@ -303,7 +316,7 @@ Color reminderUrgencyColor(Reminder r, DateTime today) {
 // ---------------------------------------------------------------------------
 
 /// The curated set of top-level filters shown on the Reminders screens. Kept
-/// deliberately short (six chips) — "Family" groups birthdays + anniversaries;
+/// deliberately short (six chips) - "Family" groups birthdays + anniversaries;
 /// investments/custom items surface only under "All".
 enum ReminderFilterKind { all, documents, insurance, health, property, family }
 

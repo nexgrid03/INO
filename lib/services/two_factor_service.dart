@@ -18,7 +18,7 @@ class TotpSetup {
   final String uri;
 }
 
-/// Two-Factor Authentication backed by **Supabase MFA (TOTP)** — a genuine,
+/// Two-Factor Authentication backed by **Supabase MFA (TOTP)** - a genuine,
 /// server-verified second factor, not a local flag.
 ///
 /// Flow: [startEnrollment] registers a TOTP factor and returns the secret/URI →

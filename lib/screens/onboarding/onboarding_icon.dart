@@ -3,15 +3,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/directional_reveal.dart';
 import '../../widgets/soft_glow.dart';
 
-/// The animated circular onboarding icon.
+/// The animated circular onboarding icon - the app's hero badge.
 ///
-/// Visually identical at rest to the original 160px gradient circle with an
-/// 80px white icon — the layout box stays 160px. On top of that it adds:
-///   • a soft glow halo behind the circle (overflows the 160 box via
-///     [OverflowBox] so it does NOT change layout/spacing),
+/// A 160px glossy [ShinyIcon] carrying an 80px teal glyph - a bright accent
+/// ring around a lit glass disc. The layout box stays 160px, so surrounding
+/// spacing is unchanged. On top of that it adds:
+///   • a one-shot glow flare on entrance that fades out to leave the badge
+///     (overflows the 160 box via [OverflowBox] so it does NOT change
+///     layout/spacing),
 ///   • a per-screen reveal of the inner icon:
 ///       – Screen 0 (folder): a gentle pop/bounce,
 ///       – Screen 1 (chart):  a left→right "draw" wipe + a sparkle,
@@ -51,8 +54,8 @@ class AnimatedOnboardingIcon extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Glow halo — rendered larger than 160 via OverflowBox so it bleeds
-          // beyond the circle without expanding the layout box.
+          // Entrance flare - rendered larger than 160 via OverflowBox so it
+          // bleeds beyond the circle without expanding the layout box.
           Center(
             child: OverflowBox(
               maxWidth: 230,
@@ -61,15 +64,11 @@ class AnimatedOnboardingIcon extends StatelessWidget {
             ),
           ),
 
-          // The original gradient circle (unchanged).
-          Container(
-            width: 160,
-            height: 160,
-            decoration: const BoxDecoration(
-              gradient: AppColors.brandGradient,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
+          // The hero badge: bright ring + lit glass disc, with the per-screen
+          // reveal riding inside it.
+          ShinyIcon.custom(
+            color: AppColors.primaryGreen,
+            size: 160,
             child: SizedBox(
               width: 80,
               height: 80,
@@ -82,7 +81,9 @@ class AnimatedOnboardingIcon extends StatelessWidget {
   }
 
   Widget _innerIcon() {
-    final iconWidget = Icon(icon, size: 80, color: Colors.white);
+    // Teal glyph on the light glass disc (the badge body is no longer a solid
+    // teal fill, so a white glyph would disappear).
+    final iconWidget = Icon(icon, size: 80, color: AppColors.primaryGreen);
 
     switch (index) {
       case 1:
@@ -126,7 +127,7 @@ class AnimatedOnboardingIcon extends StatelessWidget {
   }
 }
 
-/// A small star that fades/scales in then out near the end of [progress] —
+/// A small star that fades/scales in then out near the end of [progress] -
 /// a refined "sparkle on completion" for the wealth chart.
 class _Sparkle extends StatelessWidget {
   const _Sparkle({required this.progress});
@@ -150,7 +151,7 @@ class _Sparkle extends StatelessWidget {
             child: const Icon(
               Icons.auto_awesome,
               size: 18,
-              color: Colors.white,
+              color: AppColors.secondaryGreen,
             ),
           ),
         );
@@ -160,7 +161,7 @@ class _Sparkle extends StatelessWidget {
 }
 
 /// A thin glowing line that sweeps top→bottom once as [progress] runs, then
-/// fades out — the "scanning" effect over the QR code.
+/// fades out - the "scanning" effect over the QR code.
 class _ScanLine extends StatelessWidget {
   const _ScanLine({required this.progress, required this.area});
 
@@ -189,7 +190,7 @@ class _ScanLine extends StatelessWidget {
                 gradient: const LinearGradient(
                   colors: [
                     Colors.transparent,
-                    Colors.white,
+                    AppColors.primaryGreen,
                     Colors.transparent,
                   ],
                 ),

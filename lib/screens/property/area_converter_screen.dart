@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -14,7 +15,7 @@ import '../../widgets/property/area_unit_picker.dart';
 ///
 /// Enter a property area (value + unit) to see it converted into every common
 /// Indian land unit (with a Copy All), plus a standalone quick From→To
-/// converter. Purely a calculator tool — it reads/writes no documents, so it
+/// converter. Purely a calculator tool - it reads/writes no documents, so it
 /// can't affect existing property data.
 class AreaConverterScreen extends StatefulWidget {
   const AreaConverterScreen({
@@ -50,7 +51,7 @@ class _AreaConverterScreenState extends State<AreaConverterScreen> {
 
   Future<void> _pickUnit() async {
     final picked = await showAreaUnitPicker(context,
-        selected: _unit, title: 'Area Unit');
+        selected: _unit, title: AppLocalizations.of(context).t('areaUnit'));
     if (picked != null) setState(() => _unit = picked);
   }
 
@@ -132,7 +133,7 @@ class _AreaInputCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Property Area',
+          Text(AppLocalizations.of(context).t('propertyArea'),
               style: AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -144,7 +145,7 @@ class _AreaInputCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Value',
+                    Text(AppLocalizations.of(context).t('value'),
                         style: AppText.label
                             .copyWith(color: palette.textFaint, fontSize: 11)),
                     const SizedBox(height: 5),
@@ -181,7 +182,7 @@ class _AreaInputCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Unit',
+                    Text(AppLocalizations.of(context).t('unit'),
                         style: AppText.label
                             .copyWith(color: palette.textFaint, fontSize: 11)),
                     const SizedBox(height: 5),
@@ -247,7 +248,7 @@ class _EmptyHint extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Enter an area value above to see it converted into every unit.',
+              AppLocalizations.of(context).t('areaHint'),
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.4),
             ),
@@ -300,11 +301,11 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Area Converter',
+                Text(AppLocalizations.of(context).t('areaConverter'),
                     style: AppText.headline.copyWith(
                         color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('Convert between all Indian land units',
+                Text(AppLocalizations.of(context).t('areaConverterSubtitle'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],

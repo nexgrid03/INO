@@ -29,7 +29,7 @@ const List<double> _floatPhases = [0.0, 0.4, 0.7, 0.2, 0.55];
 /// Contextual chips per screen (4–6 elements, kept uncrowded). Matched to that
 /// screen's theme.
 const List<List<_SatelliteData>> _byScreen = [
-  // Screen 0 — Documents.
+  // Screen 0 - Documents.
   [
     _SatelliteData(Icons.verified_user_rounded, AppColors.primaryGreen),
     _SatelliteData(Icons.badge_rounded, AppColors.lightBlue),
@@ -37,7 +37,7 @@ const List<List<_SatelliteData>> _byScreen = [
     _SatelliteData(Icons.menu_book_rounded, AppColors.lightBlue),
     _SatelliteData(Icons.cloud_done_rounded, AppColors.primaryGreen),
   ],
-  // Screen 1 — Wealth & Health.
+  // Screen 1 - Wealth & Health.
   [
     _SatelliteData(Icons.savings_rounded, AppColors.primaryGreen),
     _SatelliteData(Icons.account_balance_rounded, AppColors.lightBlue),
@@ -45,7 +45,7 @@ const List<List<_SatelliteData>> _byScreen = [
     _SatelliteData(Icons.favorite_rounded, AppColors.lightBlue),
     _SatelliteData(Icons.currency_rupee_rounded, AppColors.primaryGreen),
   ],
-  // Screen 2 — Share & Secure.
+  // Screen 2 - Share & Secure.
   [
     _SatelliteData(Icons.share_rounded, AppColors.primaryGreen),
     _SatelliteData(Icons.lock_rounded, AppColors.lightBlue),

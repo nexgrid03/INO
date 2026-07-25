@@ -4,6 +4,7 @@ import '../../models/expense_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 const _months = [
@@ -55,14 +56,12 @@ class TransactionTile extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      width: AppSizes.iconContainerSm,
-                      height: AppSizes.iconContainerSm,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(AppRadius.chip),
-                      ),
-                      child: Icon(txn.category.icon, color: accent, size: 21),
+                    ShinyIcon(
+                      icon: txn.category.icon,
+                      color: accent,
+                      size: AppSizes.iconContainerSm,
+                      iconSize: 21,
+                      radius: AppRadius.chip,
                     ),
                     if (txn.hasReceipt)
                       Positioned(

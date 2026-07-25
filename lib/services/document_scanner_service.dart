@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
-/// Wraps Google ML Kit's on-device document scanner — the engine that performs
+/// Wraps Google ML Kit's on-device document scanner - the engine that performs
 /// real auto edge detection (live boundary highlight), perspective correction,
 /// auto-crop and enhancement. This is the same technology class behind the
 /// WhatsApp / Google Drive scanner experience, and it is the PRIMARY capture
@@ -18,7 +18,7 @@ class DocumentScannerService {
   /// True where the native document scanner is available (Android only).
   bool get isSupported => Platform.isAndroid;
 
-  /// Launches the scanner for a MULTI-PAGE session (up to [pageLimit] pages —
+  /// Launches the scanner for a MULTI-PAGE session (up to [pageLimit] pages -
   /// the user taps "add page" inside the scanner UI) and returns the scanned
   /// page paths in order, or `null` if the user cancelled. Throws on a genuine
   /// scanning failure so the caller can fall back to the in-app camera.

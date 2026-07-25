@@ -19,7 +19,7 @@ class EmiResult {
       EmiResult(emi: 0, principal: 0, totalInterest: 0, totalPayment: 0);
 }
 
-/// Standard reducing-balance EMI maths. Stateless service layer — no UI here.
+/// Standard reducing-balance EMI maths. Stateless service layer - no UI here.
 class EmiCalculatorService {
   const EmiCalculatorService._();
   static const EmiCalculatorService instance = EmiCalculatorService._();

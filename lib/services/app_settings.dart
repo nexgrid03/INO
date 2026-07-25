@@ -20,8 +20,11 @@ class AppSettings {
   static const _kAutoBackup = 'pref_auto_backup_enabled';
   static const _kTwoFactor = 'pref_two_factor_enabled';
   static const _kLanguage = 'pref_language';
+  static const _kCurrency = 'pref_currency';
   static const _kLastBackup = 'pref_last_backup_at';
   static const _kWelcomeSound = 'pref_welcome_sound_enabled';
+  static const _kTourSeen = 'pref_feature_tour_seen';
+  static const _kQuickMenu = 'pref_quick_menu';
 
   /// Push / reminder notifications. Default on.
   final ValueNotifier<bool> notifications = ValueNotifier<bool>(true);
@@ -42,8 +45,25 @@ class AppSettings {
   /// Preferred language code: `en` / `hi` / `ta`.
   final ValueNotifier<String> language = ValueNotifier<String>('en');
 
+  /// Preferred currency (ISO 4217 code) for the Property & Finance tools.
+  /// Device preference like [language] - it survives sign-out.
+  final ValueNotifier<String> currency = ValueNotifier<String>('INR');
+
   /// When the last successful cloud backup completed, or null if never.
   final ValueNotifier<DateTime?> lastBackupAt = ValueNotifier<DateTime?>(null);
+
+  /// Whether the one-time first-run feature tour (nav bar + voice assistant
+  /// coach marks) has already been shown on this device. Device-scoped like
+  /// [welcomeSound] - it survives sign-out.
+  final ValueNotifier<bool> tourSeen = ValueNotifier<bool>(false);
+
+  /// The user's picked quick-menu features (action ids, in their chosen order,
+  /// max 5) for the bottom nav's "+" button. Device preference. The ids map to
+  /// `QuickAction.name`s; unknown ids are ignored at read time so an old
+  /// preference can never break the menu.
+  final ValueNotifier<List<String>> quickMenu = ValueNotifier<List<String>>(
+    const ['expenses', 'scan', 'notes'],
+  );
 
   /// Reads every persisted preference into memory. Call once at startup.
   Future<void> load() async {
@@ -54,9 +74,16 @@ class AppSettings {
       autoBackup.value = p.getBool(_kAutoBackup) ?? false;
       twoFactor.value = p.getBool(_kTwoFactor) ?? false;
       language.value = p.getString(_kLanguage) ?? 'en';
+      currency.value = p.getString(_kCurrency) ?? 'INR';
+      tourSeen.value = p.getBool(_kTourSeen) ?? false;
+      final menu = p.getStringList(_kQuickMenu);
+      if (menu != null && menu.isNotEmpty) {
+        quickMenu.value = List.unmodifiable(menu.take(5));
+      }
       final ts = p.getInt(_kLastBackup);
-      lastBackupAt.value =
-          ts == null ? null : DateTime.fromMillisecondsSinceEpoch(ts);
+      lastBackupAt.value = ts == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(ts);
       developer.log(
         'loaded: notifications=${notifications.value} '
         'autoBackup=${autoBackup.value} twoFactor=${twoFactor.value} '
@@ -73,6 +100,8 @@ class AppSettings {
 
   Future<void> setWelcomeSound(bool value) =>
       _setBool(_kWelcomeSound, welcomeSound, value);
+
+  Future<void> setTourSeen(bool value) => _setBool(_kTourSeen, tourSeen, value);
 
   Future<void> setAutoBackup(bool value) =>
       _setBool(_kAutoBackup, autoBackup, value);
@@ -91,6 +120,29 @@ class AppSettings {
     }
   }
 
+  Future<void> setQuickMenu(List<String> ids) async {
+    final capped = List<String>.unmodifiable(ids.take(5));
+    quickMenu.value = capped;
+    developer.log('quickMenu → $capped', name: 'settings');
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setStringList(_kQuickMenu, capped);
+    } catch (e) {
+      developer.log('setQuickMenu failed: $e', name: 'settings');
+    }
+  }
+
+  Future<void> setCurrency(String code) async {
+    currency.value = code;
+    developer.log('currency → $code', name: 'settings');
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kCurrency, code);
+    } catch (e) {
+      developer.log('setCurrency failed: $e', name: 'settings');
+    }
+  }
+
   Future<void> markBackedUpNow() async {
     final now = DateTime.now();
     lastBackupAt.value = now;
@@ -103,7 +155,10 @@ class AppSettings {
   }
 
   Future<void> _setBool(
-      String key, ValueNotifier<bool> notifier, bool value) async {
+    String key,
+    ValueNotifier<bool> notifier,
+    bool value,
+  ) async {
     notifier.value = value;
     developer.log('$key → $value', name: 'settings');
     try {

@@ -7,7 +7,7 @@ import '../pressable_scale.dart';
 
 /// An interactive net-worth line chart: a range selector (7D / 30D / 3M / 6M /
 /// 1Y), an animated draw-in, and tap-to-inspect with a tooltip that snaps to the
-/// nearest point. Pure `CustomPaint` — no charting dependency.
+/// nearest point. Pure `CustomPaint` - no charting dependency.
 class NetWorthChart extends StatefulWidget {
   const NetWorthChart({super.key, this.height = 200});
 

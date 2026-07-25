@@ -1,9 +1,9 @@
-# INO — safe launcher for Windows.
+# INO - safe launcher for Windows.
 #
 # The recurring Gradle error "Unable to delete directory ... mergeDebugAssets"
 # happens when a leftover dart/java/adb process (usually a previous `flutter run`
 # that wasn't stopped) still holds files inside build\. This script kills any
-# such lockers, clears build\, then runs the app — so every launch starts clean.
+# such lockers, clears build\, then runs the app - so every launch starts clean.
 #
 # Usage: from the project folder, run:  ./run.ps1
 # (Use this INSTEAD of the VS Code "Run" button until the lock stops recurring.)

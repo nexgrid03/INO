@@ -11,8 +11,8 @@ import '../pressable_scale.dart';
 ///
 /// Self-contained: it drives itself from the app-wide [MetalRatesProvider]
 /// singleton (starting the 15-min auto-refresh + background refresh on first
-/// mount) and rebuilds via [ListenableBuilder]. Handles every state — loading,
-/// loaded, offline (last-known values) and error — and offers a manual refresh.
+/// mount) and rebuilds via [ListenableBuilder]. Handles every state - loading,
+/// loaded, offline (last-known values) and error - and offers a manual refresh.
 class LiveMetalRatesCard extends StatefulWidget {
   const LiveMetalRatesCard({super.key});
 
@@ -33,7 +33,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
   @override
   void initState() {
     super.initState();
-    // Idempotent — safe to call on every mount.
+    // Idempotent - safe to call on every mount.
     _provider.ensureStarted();
   }
 

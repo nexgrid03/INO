@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../common/shiny_icon.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 
-/// Section 12 — Recent Activity Timeline.
+/// Section 12 - Recent Activity Timeline.
 ///
 /// A chronological feed of the user's latest actions, drawn as a classic
 /// timeline: a connecting rail with coloured nodes, the action title and a
@@ -60,21 +61,12 @@ class _TimelineRow extends StatelessWidget {
           // Rail with node.
           Column(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: item.color,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: item.color.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(item.icon, size: 17, color: Colors.white),
+              ShinyIcon(
+                icon: item.icon,
+                color: item.color,
+                size: 34,
+                iconSize: 17,
+                style: ShinyIconStyle.filled,
               ),
               if (!isLast)
                 Expanded(

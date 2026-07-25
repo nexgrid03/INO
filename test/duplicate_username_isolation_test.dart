@@ -12,14 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Proves that user identity/ownership is keyed **exclusively on auth_user_id**,
 /// never on username / display name / full name / email / phone. Two users who
 /// share the *same* name "Ramesh" (and identical profile fields) must remain
-/// completely isolated — no data, cache, or search crossover.
+/// completely isolated - no data, cache, or search crossover.
 ///
 /// The database half is enforced by RLS (`auth_user_id = auth.uid()`) and can
 /// only run against a live Supabase; here we model that partitioning with a fake
 /// repository keyed on auth_user_id and drive the REAL `ReminderStore` /
 /// `SessionReset` / caches through a same-name account switch.
 
-/// A fake reminders backend that partitions rows by auth_user_id — exactly what
+/// A fake reminders backend that partitions rows by auth_user_id - exactly what
 /// RLS + the `.eq('auth_user_id', uid)` filter do server-side. Ownership is the
 /// uid, never the user's name.
 class _FakeReminderRepository implements ReminderRepository {

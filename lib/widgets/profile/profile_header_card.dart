@@ -8,8 +8,8 @@ import '../pressable_scale.dart';
 ///
 /// Just what a user needs to recognise the account and edit it: a gradient
 /// avatar, name, email, one subtle "Vault protected" trust cue, and a small
-/// edit affordance. The ENTIRE row is tappable ([onEdit]) — the Apple ID / your
-/// Google Account pattern — so there's no oversized "Edit Profile" button.
+/// edit affordance. The ENTIRE row is tappable ([onEdit]) - the Apple ID / your
+/// Google Account pattern - so there's no oversized "Edit Profile" button.
 class ProfileHeaderCard extends StatelessWidget {
   const ProfileHeaderCard({
     super.key,

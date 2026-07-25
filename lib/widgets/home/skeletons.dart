@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// A shimmering gradient sweep applied to its child's shape — the base of every
+/// A shimmering gradient sweep applied to its child's shape - the base of every
 /// skeleton loader. Wrap skeleton boxes in one [Shimmer] so they animate in sync.
 class Shimmer extends StatefulWidget {
   const Shimmer({super.key, required this.child});

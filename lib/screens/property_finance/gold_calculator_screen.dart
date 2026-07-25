@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../models/currency.dart';
+import '../../services/app_settings.dart';
 import '../../services/gold_calculator_service.dart';
 import '../../services/gold_price_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
+import '../../widgets/property_finance/currency_selector.dart';
 
-/// Gold Calculator — weight + purity + live/placeholder 24K rate → current
-/// value and price per gram.
+/// Gold Calculator - weight + purity + live/placeholder 24K rate → current
+/// value and price per gram. Works in any currency and every common gold
+/// weight unit (grams / kg / tola / sovereign / troy ounce).
 class GoldCalculatorScreen extends StatefulWidget {
   const GoldCalculatorScreen({super.key});
 
@@ -40,8 +45,20 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
     return s.endsWith('.00') ? s.substring(0, s.length - 3) : s;
   }
 
+  String _unitLabel(AppLocalizations l10n, GoldWeightUnit u) =>
+      switch (u) {
+        GoldWeightUnit.grams => l10n.t('unitGrams'),
+        GoldWeightUnit.kilograms => l10n.t('unitKilograms'),
+        GoldWeightUnit.tola => l10n.t('unitTola'),
+        GoldWeightUnit.sovereign => l10n.t('unitSovereign'),
+        GoldWeightUnit.ounce => l10n.t('unitOunce'),
+      };
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currency = Currencies.byCode(AppSettings.instance.currency.value);
+
     final weight = _num(_weight);
     final price = _num(_price);
     final valid = weight > 0 && price > 0;
@@ -57,30 +74,31 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
         : GoldValue.zero;
 
     return CalculatorScaffold(
-      title: 'Gold Calculator',
-      subtitle: 'Value your gold by weight & purity',
+      title: l10n.t('goldCalculator'),
+      subtitle: l10n.t('goldSubtitle'),
+      trailing: CurrencySelector(onChanged: (_) => setState(() {})),
       children: [
         CalcInputCard(
-          title: 'Gold Details',
+          title: l10n.t('goldDetails'),
           children: [
             CalcField(
-              label: 'Weight',
+              label: l10n.t('weight'),
               controller: _weight,
               hint: 'e.g. 10',
-              suffix: _unit.label.toLowerCase(),
+              suffix: _unitLabel(l10n, _unit).toLowerCase(),
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcSegmented<GoldWeightUnit>(
-              label: 'Unit',
+              label: l10n.t('unit'),
               options: GoldWeightUnit.values,
               selected: _unit,
-              labelOf: (u) => u.label,
+              labelOf: (u) => _unitLabel(l10n, u),
               onChanged: (u) => setState(() => _unit = u),
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcSegmented<GoldPurity>(
-              label: 'Purity',
+              label: l10n.t('purity'),
               options: GoldPurity.values,
               selected: _purity,
               labelOf: (p) => p.label,
@@ -88,11 +106,9 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: isLive
-                  ? '24K Price / gram (live)'
-                  : '24K Price / gram (edit to today\'s rate)',
+              label: isLive ? l10n.t('goldPriceLive') : l10n.t('goldPriceEdit'),
               controller: _price,
-              prefix: '₹',
+              prefix: currency.symbol,
               hint: 'e.g. 7350',
               onChanged: () => setState(() {}),
             ),
@@ -100,14 +116,12 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         if (!valid)
-          const CalcHint(
-              message:
-                  'Enter a weight and the current 24K price to value your gold.')
+          CalcHint(message: l10n.t('goldHint'))
         else ...[
           HeroResultCard(
-            label: 'Current Gold Value (${_purity.label})',
-            value: rupees(result.totalValue.round()),
-            copyText: rupees(result.totalValue.round()),
+            label: '${l10n.t('currentGoldValue')} (${_purity.label})',
+            value: money(result.totalValue.round(), currency),
+            copyText: money(result.totalValue.round(), currency),
             gradient: const LinearGradient(
               colors: [AppColors.gold, Color(0xFFF5C542)],
               begin: Alignment.topLeft,
@@ -118,12 +132,14 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
           ResultBreakdownCard(
             rows: [
               ResultRow(
-                  label: 'Weight', value: '${_grams(result.weightInGrams)} g'),
+                  label: l10n.t('weight'),
+                  value: '${_grams(result.weightInGrams)} g'),
               ResultRow(
-                  label: 'Price / gram (${_purity.label})',
-                  value: rupees(result.pricePerGram.round())),
+                  label: '${l10n.t('pricePerGram')} (${_purity.label})',
+                  value: money(result.pricePerGram.round(), currency)),
               ResultRow(
-                  label: 'Price / gram (24K)', value: rupees(price.round())),
+                  label: '${l10n.t('pricePerGram')} (24K)',
+                  value: money(price.round(), currency)),
             ],
           ),
         ],

@@ -11,7 +11,7 @@ import '../../widgets/pressable_scale.dart';
 /// enabled the biometric app-lock, covers everything with a lock screen that
 /// requires a fingerprint / Face ID (or the device PIN fallback) to dismiss.
 ///
-/// It locks on cold start and every time the app returns from the background —
+/// It locks on cold start and every time the app returns from the background -
 /// the standard banking-app behaviour. When the lock is off it is completely
 /// inert (zero overhead, never shown).
 class AppLock extends StatefulWidget {
@@ -29,7 +29,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   bool _initialized = false;
   bool _locked = false;
 
-  /// True while the OS biometric sheet is up — guards against the prompt's own
+  /// True while the OS biometric sheet is up - guards against the prompt's own
   /// pause/resume re-triggering a second prompt (no loops, no double sheets).
   bool _authenticating = false;
 
@@ -66,7 +66,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
     if (!_svc.lockEnabled.value && _locked) {
       setState(() => _locked = false);
     }
-    // Turning it ON does not lock the current session immediately — it takes
+    // Turning it ON does not lock the current session immediately - it takes
     // effect on the next background→foreground, like every other app-lock.
   }
 
@@ -127,7 +127,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
 /// a secure-link header, display headline, a tappable concentric biometric
 /// hero (glass ring + gradient disc) and an "Unlock" [PrimaryButton] that
 /// re-invokes the biometric prompt. The surface deliberately commits to the
-/// dark palette in both themes — the standard banking-app lock treatment.
+/// dark palette in both themes - the standard banking-app lock treatment.
 class _LockScreen extends StatelessWidget {
   const _LockScreen({required this.authenticating, required this.onUnlock});
 
@@ -321,7 +321,7 @@ class _BiometricHero extends StatelessWidget {
   }
 }
 
-/// The "— VERIFIED ENCRYPTION —" hairline divider row (decorative).
+/// The "- VERIFIED ENCRYPTION -" hairline divider row (decorative).
 class _EncryptionDivider extends StatelessWidget {
   const _EncryptionDivider();
 

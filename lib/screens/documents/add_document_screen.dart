@@ -102,7 +102,7 @@ const _wallets = <(String, IconData)>[
 /// category" instead of an existing one.
 const String _kCreateCategory = '__create_category__';
 
-/// Add Document — the fastest path to get a document into the vault.
+/// Add Document - the fastest path to get a document into the vault.
 ///
 /// Pick a source (scan / image), then fill a short set of details and save.
 /// Deliberately minimal: no analytics, dashboards or extra sections.
@@ -211,7 +211,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       put('fatherName', prefill.fatherName);
       _extractedData = data;
     } else if (_localFilePath != null) {
-      // Captured without OCR data — attach the file, leave fields for the user.
+      // Captured without OCR data - attach the file, leave fields for the user.
       _source = _DocSource.scan;
       _tempFileName = _localFilePath!.split(RegExp(r'[\\/]')).last;
     }
@@ -263,7 +263,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
       if (path == null || !mounted) return; // user cancelled
       final captured = path;
-      // Attach the file only — leave all detail fields blank for the user.
+      // Attach the file only - leave all detail fields blank for the user.
       setState(() {
         _source = source;
         _localFilePath = captured;
@@ -371,7 +371,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     // Persist OCR-extracted fields as a structured envelope so they're always
     // visible again on reopen. When there's no extracted data (e.g. a manually
-    // added file), keep the notes column as plain text — nothing to encode.
+    // added file), keep the notes column as plain text - nothing to encode.
     final extraction = DocumentExtraction(
       documentType: _docTypeKey,
       data: _extractedData,
@@ -895,7 +895,7 @@ class _OptionCard extends StatelessWidget {
       );
     }
 
-    // Selected: filled brand-gradient tile — the "primary method" treatment
+    // Selected: filled brand-gradient tile - the "primary method" treatment
     // from the Stitch mock doubles as an unmistakable selected state.
     final card = Container(
       decoration: BoxDecoration(
@@ -1014,7 +1014,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// Draws a rounded dashed border — the Stitch "Secure Drop" zone edge.
+/// Draws a rounded dashed border - the Stitch "Secure Drop" zone edge.
 class _DashedBorderPainter extends CustomPainter {
   const _DashedBorderPainter({required this.color, required this.radius});
 

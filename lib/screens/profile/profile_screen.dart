@@ -39,7 +39,37 @@ import 'help_center_screen.dart';
 import 'trusted_devices_screen.dart';
 import 'two_factor_screen.dart';
 
-/// The Profile screen — a premium, grouped **settings** page (Apple Settings /
+/// Per-row badge accents for the settings list.
+///
+/// A twenty-row list of identical teal chips is hard to scan - every row looks
+/// like the same destination. Giving each row its own hue turns the badge into a
+/// recognisable landmark ("the purple one is Trusted Devices"), which is how
+/// Settings screens stay navigable as they grow.
+///
+/// The hues are the app's existing curated accent family (the same set the
+/// Wallet grid draws from), so the page still reads as one system - and they're
+/// ordered so no two neighbouring rows repeat, including across group
+/// boundaries. Destructive rows ignore these and stay red.
+class _RowAccent {
+  _RowAccent._();
+
+  static const teal = Color(0xFF30ACB3);
+  static const cyan = Color(0xFF22B8CF);
+  static const blue = Color(0xFF4383EA);
+  static const indigo = Color(0xFF4E7FE0);
+  static const violet = Color(0xFF7C6CF0);
+  static const purple = Color(0xFF9B6DE0);
+  static const seafoam = Color(0xFF3CB59E);
+  static const green = Color(0xFF37C08A);
+  static const emerald = Color(0xFF22C55E);
+  static const amber = Color(0xFFF2B33D);
+  static const coral = Color(0xFFF5704A);
+
+  /// Deliberately neutral - it's the Dark Mode row.
+  static const slate = Color(0xFF64748B);
+}
+
+/// The Profile screen - a premium, grouped **settings** page (Apple Settings /
 /// Google Account), NOT a dashboard.
 ///
 /// Every row is fully functional: real biometric lock, Supabase-backed password
@@ -60,7 +90,7 @@ class ProfileScreen extends StatefulWidget {
   final VoidCallback onToggleTheme;
 
   /// Notifies the owner (the shell) when the profile is edited, so every tab
-  /// reflects the change — not just this screen.
+  /// reflects the change - not just this screen.
   final ValueChanged<UserProfile>? onProfileUpdated;
 
   @override
@@ -72,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// Local copy so edits show immediately; also pushed up via onProfileUpdated.
   late UserProfile _profile = widget.profile;
 
-  // Security / preference state — sourced from the persisted stores so it
+  // Security / preference state - sourced from the persisted stores so it
   // survives restarts. Reading a store's `.value` never touches disk.
   late bool _biometric = BiometricService.instance.lockEnabled.value;
   late bool _notifications = AppSettings.instance.notifications.value;
@@ -251,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _toggleWelcomeSound(bool value) async {
     setState(() => _welcomeSound = value);
-    // Persisting false also stops a greeting that's currently playing —
+    // Persisting false also stops a greeting that's currently playing -
     // VoiceGreetingService listens to this setting.
     await AppSettings.instance.setWelcomeSound(value);
     _toast(value ? 'Startup greeting on' : 'Startup greeting off');
@@ -262,7 +292,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     await AppSettings.instance.setAutoBackup(value);
     if (!mounted) return;
     if (value) {
-      _toast('Auto backup on — backing up now…');
+      _toast('Auto backup on - backing up now…');
       unawaited(_silentBackup());
     } else {
       _toast('Auto backup turned off');
@@ -273,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       await BackupService.instance.backupNow(profile: _profile);
     } catch (_) {
-      // Silent — the manual Cloud Backup screen surfaces errors explicitly.
+      // Silent - the manual Cloud Backup screen surfaces errors explicitly.
     }
   }
 
@@ -377,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         setState(() => _profile = updated);
         widget.onProfileUpdated?.call(updated);
       } catch (_) {
-        // Ignore — local lock state is the source of truth for this device.
+        // Ignore - local lock state is the source of truth for this device.
       }
     }());
   }
@@ -566,22 +596,26 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.fingerprint_rounded,
+            iconColor: _RowAccent.teal,
             title: l10n.t('biometricAuth'),
             trailing: _switch(_biometric, _toggleBiometric),
           ),
           SettingsRow(
             icon: Icons.password_rounded,
+            iconColor: _RowAccent.indigo,
             title: l10n.t('changePassword'),
             onTap: _openChangePassword,
           ),
           SettingsRow(
             icon: Icons.verified_user_rounded,
+            iconColor: _RowAccent.green,
             title: l10n.t('twoFactor'),
             value: _twoFactor ? l10n.t('on') : l10n.t('off'),
             onTap: _openTwoFactor,
           ),
           SettingsRow(
             icon: Icons.devices_rounded,
+            iconColor: _RowAccent.purple,
             title: l10n.t('trustedDevices'),
             onTap: () => _push(const TrustedDevicesScreen()),
           ),
@@ -592,21 +626,25 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.cloud_sync_rounded,
+            iconColor: _RowAccent.cyan,
             title: l10n.t('autoBackup'),
             trailing: _switch(_autoBackup, _toggleAutoBackup),
           ),
           SettingsRow(
             icon: Icons.backup_rounded,
+            iconColor: _RowAccent.blue,
             title: l10n.t('cloudBackup'),
             onTap: () => _push(CloudBackupScreen(profile: _profile)),
           ),
           SettingsRow(
             icon: Icons.file_download_outlined,
+            iconColor: _RowAccent.seafoam,
             title: l10n.t('exportData'),
             onTap: () => _exportData(subject: 'INO data export'),
           ),
           SettingsRow(
             icon: Icons.download_for_offline_outlined,
+            iconColor: _RowAccent.amber,
             title: l10n.t('downloadAccountData'),
             onTap: () => _exportData(subject: 'INO account archive'),
           ),
@@ -617,11 +655,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.notifications_rounded,
+            iconColor: _RowAccent.coral,
             title: l10n.t('notifications'),
             trailing: _switch(_notifications, _toggleNotifications),
           ),
           SettingsRow(
             icon: Icons.campaign_rounded,
+            iconColor: _RowAccent.violet,
             title: l10n.t('welcomeSound'),
             subtitle: l10n.t('welcomeSoundSubtitle'),
             trailing: Semantics(
@@ -632,11 +672,13 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SettingsRow(
             icon: Icons.dark_mode_rounded,
+            iconColor: _RowAccent.slate,
             title: l10n.t('darkMode'),
             trailing: _switch(isDark, (_) => _toggleDarkMode()),
           ),
           SettingsRow(
             icon: Icons.language_rounded,
+            iconColor: _RowAccent.emerald,
             title: l10n.t('language'),
             value: _language,
             onTap: _pickLanguage,
@@ -648,17 +690,20 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.help_center_rounded,
+            iconColor: _RowAccent.blue,
             title: l10n.t('helpCenter'),
             onTap: () => _push(HelpCenterScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.support_agent_rounded,
+            iconColor: _RowAccent.seafoam,
             title: l10n.t('contactSupport'),
             onTap: () =>
                 _push(ContactSupportScreen(supportEmail: _supportEmail)),
           ),
           SettingsRow(
             icon: Icons.info_outline_rounded,
+            iconColor: _RowAccent.purple,
             title: l10n.t('aboutIno'),
             onTap: () => _push(const AboutScreen()),
           ),
@@ -669,11 +714,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           SettingsRow(
             icon: Icons.privacy_tip_rounded,
+            iconColor: _RowAccent.teal,
             title: l10n.t('privacyPolicy'),
             onTap: () => _push(LegalDocumentScreen.privacy()),
           ),
           SettingsRow(
             icon: Icons.description_rounded,
+            iconColor: _RowAccent.amber,
             title: l10n.t('termsConditions'),
             onTap: () => _push(LegalDocumentScreen.terms()),
           ),
@@ -946,7 +993,7 @@ class _HeroBadge extends StatelessWidget {
 }
 
 /// The prominent Storage-usage card (Stitch "Storage Usage" tile): an icon in
-/// a gradient-wash container, a percent pill, and a thick gradient meter —
+/// a gradient-wash container, a percent pill, and a thick gradient meter -
 /// all fed by the same real Storage usage as before.
 class _StorageCard extends StatelessWidget {
   const _StorageCard({

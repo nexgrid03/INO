@@ -29,8 +29,8 @@ class DocumentProcessException implements Exception {
   String toString() => message;
 }
 
-/// Produces a PROCESSED TEMPORARY COPY of a document for sharing — the chosen
-/// copy style (Original / Black & White / Grayscale / Compressed PDF) — without
+/// Produces a PROCESSED TEMPORARY COPY of a document for sharing - the chosen
+/// copy style (Original / Black & White / Grayscale / Compressed PDF) - without
 /// ever touching the original stored file.
 ///
 /// Images are transformed pixel-by-pixel in a background isolate (mirroring
@@ -50,7 +50,7 @@ class DocumentProcessor {
     required bool sourceIsPdf,
     required ShareSettings settings,
   }) async {
-    // PDFs: no pixel processing available — hand back a plain temp copy. (The
+    // PDFs: no pixel processing available - hand back a plain temp copy. (The
     // Share Settings screen disables the colour options for PDFs, so nothing is
     // silently dropped here.)
     if (sourceIsPdf) {
@@ -135,12 +135,15 @@ class DocumentProcessor {
 
     // 2) Colour mode. (index: 0 original, 1 b&w, 2 grayscale, 3 compressedPdf)
     // Both looks come from the SHARED document-grade implementations in
-    // [ImageEnhancer] — the same pixels the scan review's copy modes produce.
+    // [ImageEnhancer] - the same pixels the scan review's copy modes produce.
     if (colorIdx == ShareColorMode.grayscale.index ||
         colorIdx == ShareColorMode.compressedPdf.index) {
       im = ImageEnhancer.documentGrayscale(im);
     } else if (colorIdx == ShareColorMode.blackWhite.index) {
-      im = ImageEnhancer.scanBinarize(im);
+      // The softened share variant, not the scanner's hard binarize - the
+      // threshold version crushed photos/seals into solid black and shared
+      // copies read far too dark.
+      im = ImageEnhancer.shareBlackWhite(im);
     }
 
     final quality = compress ? 42 : 88;

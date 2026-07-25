@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO — Notes Vault + Transaction Vault persistence
+-- INO - Notes Vault + Transaction Vault persistence
 -- ----------------------------------------------------------------------------
 -- Moves the Notes module (previously device-local shared_preferences) and the
 -- Expenses / Transaction Vault module (previously in-memory only) onto
@@ -11,12 +11,12 @@
 --   3. owner-only policies: a user can only SELECT/INSERT/UPDATE/DELETE rows
 --      whose auth_user_id equals their own auth.uid().
 --
--- Idempotent — safe to run multiple times. Uses ONLY core Postgres.
+-- Idempotent - safe to run multiple times. Uses ONLY core Postgres.
 -- Run with:  supabase db push   (or paste into the SQL editor).
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- notes — the Notes Vault. Columns mirror the Flutter model
+-- notes - the Notes Vault. Columns mirror the Flutter model
 -- (lib/models/note_models.dart: Note.toInsert / fromRow). `content` holds what
 -- the app model calls `description`.
 -- ----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ create index if not exists notes_owner_updated_idx
   on public.notes (auth_user_id, updated_at desc);
 
 -- ----------------------------------------------------------------------------
--- expenses — the ITR-ready Transaction Vault. Columns mirror the Flutter model
+-- expenses - the ITR-ready Transaction Vault. Columns mirror the Flutter model
 -- (lib/models/expense_models.dart: TransactionRecord.toInsert / fromRow).
 -- `title` holds what the app model calls `description`; `expense_date` is a
 -- timestamptz because records keep their time of day for ordering.
@@ -78,7 +78,7 @@ create index if not exists expenses_owner_date_idx
   on public.expenses (auth_user_id, expense_date desc);
 
 -- ----------------------------------------------------------------------------
--- tax_documents — the tax-document vault attached to the Transaction Vault
+-- tax_documents - the tax-document vault attached to the Transaction Vault
 -- (Form 16, 26AS, proofs, …). Files stay on-device; this persists the metadata
 -- so the vault survives an app restart.
 -- ----------------------------------------------------------------------------
@@ -104,7 +104,7 @@ create index if not exists tax_documents_owner_fy_idx
 
 -- ----------------------------------------------------------------------------
 -- Enable Row Level Security. With RLS on and NO policy a table denies all
--- access — the owner-only policies below are what let authenticated users
+-- access - the owner-only policies below are what let authenticated users
 -- reach their OWN rows.
 -- ----------------------------------------------------------------------------
 alter table public.notes         enable row level security;
@@ -112,7 +112,7 @@ alter table public.expenses      enable row level security;
 alter table public.tax_documents enable row level security;
 
 -- ----------------------------------------------------------------------------
--- notes — owner-only policies.
+-- notes - owner-only policies.
 -- ----------------------------------------------------------------------------
 drop policy if exists "notes: owner reads own"   on public.notes;
 drop policy if exists "notes: owner inserts own" on public.notes;
@@ -129,7 +129,7 @@ create policy "notes: owner deletes own" on public.notes
   for delete using (auth_user_id = auth.uid());
 
 -- ----------------------------------------------------------------------------
--- expenses — owner-only policies.
+-- expenses - owner-only policies.
 -- ----------------------------------------------------------------------------
 drop policy if exists "expenses: owner reads own"   on public.expenses;
 drop policy if exists "expenses: owner inserts own" on public.expenses;
@@ -146,7 +146,7 @@ create policy "expenses: owner deletes own" on public.expenses
   for delete using (auth_user_id = auth.uid());
 
 -- ----------------------------------------------------------------------------
--- tax_documents — owner-only policies.
+-- tax_documents - owner-only policies.
 -- ----------------------------------------------------------------------------
 drop policy if exists "tax_documents: owner reads own"   on public.tax_documents;
 drop policy if exists "tax_documents: owner inserts own" on public.tax_documents;

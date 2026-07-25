@@ -20,7 +20,7 @@ class _Country {
 }
 
 /// A compact list of common dialling codes (India first / default). Extend as
-/// needed — the picker searches by name or code.
+/// needed - the picker searches by name or code.
 const List<_Country> _countries = [
   _Country('India', '+91', '🇮🇳'),
   _Country('United States', '+1', '🇺🇸'),
@@ -42,7 +42,7 @@ const List<_Country> _countries = [
   _Country('Japan', '+81', '🇯🇵'),
 ];
 
-/// "Continue with Phone Number" — collects a country code + mobile number,
+/// "Continue with Phone Number" - collects a country code + mobile number,
 /// sends a Supabase SMS OTP, then hands off to the shared [OtpVerificationScreen].
 ///
 /// This lives ALONGSIDE the untouched Google flow: on a successful verify it

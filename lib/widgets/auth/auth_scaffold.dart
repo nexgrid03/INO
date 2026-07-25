@@ -8,7 +8,7 @@ import '../floating_particles.dart';
 /// One place owns the auth "chrome" so Splash → Onboarding → Login → Signup →
 /// OTP → Forgot → Biometric all share the exact same ambient teal-cyan
 /// backdrop, the subtle drifting particles, safe-area handling and an optional
-/// back button. Screens only supply their [child] content — keeping each
+/// back button. Screens only supply their [child] content - keeping each
 /// screen file focused on its single purpose.
 class AuthScaffold extends StatefulWidget {
   const AuthScaffold({
@@ -44,7 +44,7 @@ class AuthScaffold extends StatefulWidget {
 
 class _AuthScaffoldState extends State<AuthScaffold>
     with SingleTickerProviderStateMixin {
-  /// Slow, perpetual loop for the floating background particles — matches the
+  /// Slow, perpetual loop for the floating background particles - matches the
   /// splash / onboarding cadence so the transition between them feels seamless.
   late final AnimationController _particles = AnimationController(
     vsync: this,
@@ -76,7 +76,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
       backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // Ambient corner glows — a cyan wash bleeding in from the top-left
+          // Ambient corner glows - a cyan wash bleeding in from the top-left
           // and a teal wash from the bottom-right, both fading into the
           // scaffold background. Works over the light AND dark palettes.
           const Positioned(
@@ -122,7 +122,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
   }
 }
 
-/// A soft radial brand glow anchored just off-screen — the ambient "blob"
+/// A soft radial brand glow anchored just off-screen - the ambient "blob"
 /// backdrop element that gives the auth flow its premium depth.
 class _AmbientBlob extends StatelessWidget {
   const _AmbientBlob({required this.color, required this.size});

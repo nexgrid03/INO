@@ -5,22 +5,22 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 
 import 'ocr_text_utils.dart';
 
-/// Extracts and validates Aadhaar-card fields from raw OCR text — built for
+/// Extracts and validates Aadhaar-card fields from raw OCR text - built for
 /// accuracy on *real, noisy* OCR (spelling errors, merged separators, missing
 /// word boundaries), not clean text.
 ///
 /// Design:
-///   • **Fuzzy rejection** — header lines ("Government of India", "Unique
+///   • **Fuzzy rejection** - header lines ("Government of India", "Unique
 ///     Identification Authority of India", "UIDAI") are rejected even when OCR
 ///     garbles them ("Iniaue Ldentification Auttaaritv Of Lndia"), via a
 ///     Levenshtein-based similarity check.
-///   • **Name = line above DOB** — the primary name is the nearest valid,
+///   • **Name = line above DOB** - the primary name is the nearest valid,
 ///     non-header line immediately above the DOB / DO8 / D0B line.
-///   • **Fuzzy DOB label** — `DOB`, `DO8`, `D0B`, `D08` all count; the date is
+///   • **Fuzzy DOB label** - `DOB`, `DO8`, `D0B`, `D08` all count; the date is
 ///     reconstructed even when OCR merges separators ("17/1212006" → 17/12/2006).
-///   • **Enrolment dates rejected** — dates on/next to "Enrolment/Enrollment"
+///   • **Enrolment dates rejected** - dates on/next to "Enrolment/Enrollment"
 ///     lines are never used as DOB.
-///   • **Fuzzy gender** — `Male`, `Mle`, `Malee`, and `Male` glued inside a
+///   • **Fuzzy gender** - `Male`, `Mle`, `Malee`, and `Male` glued inside a
 ///     token ("DdzyaIMale") all resolve to Male; likewise Female.
 class AadhaarParser {
   AadhaarParser._();
@@ -139,7 +139,7 @@ class AadhaarParser {
         }
       }
     }
-    // 3. Any date (not on/after an enrolment line) — last resort.
+    // 3. Any date (not on/after an enrolment line) - last resort.
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
       final nearEnrol =
@@ -214,7 +214,7 @@ class AadhaarParser {
   }
 
   /// Validates a (day, month, year) triple and formats it as DD/MM/YYYY, or
-  /// returns null when out of range — so an impossible date is never fabricated.
+  /// returns null when out of range - so an impossible date is never fabricated.
   static String? _formatDmy(int day, int month, int year) {
     if (day < 1 || day > 31 || month < 1 || month > 12) return null;
     if (year < 1900 || year > DateTime.now().year) return null;

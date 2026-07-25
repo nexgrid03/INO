@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Secure-preference store for *which documents require biometric unlock*.
 ///
 /// Stores only a set of document IDs (one boolean protection flag per document)
-/// — never document content and never biometric data. Backed by
+/// - never document content and never biometric data. Backed by
 /// `shared_preferences` and exposed as a [ChangeNotifier] so lock badges rebuild
 /// the moment protection changes.
 class DocumentProtectionStore extends ChangeNotifier {

@@ -12,7 +12,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 
-/// Share Configuration screen — choose how long a QR share stays valid, then
+/// Share Configuration screen - choose how long a QR share stays valid, then
 /// generate it.
 ///
 /// Reuses the existing document set (no new storage) and the app's green + light
@@ -57,7 +57,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
               QrShareScreen(share: share, documents: widget.documents),
         ),
       );
-      return; // screen is being replaced — don't touch state below.
+      return; // screen is being replaced - don't touch state below.
     } on ShareBackendNotConfiguredException {
       if (!mounted) return;
       _showBackendNotConfigured();

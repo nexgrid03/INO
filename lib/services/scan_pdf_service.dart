@@ -9,8 +9,8 @@ import 'image_enhancer.dart';
 /// Assembles a multi-page scan into ONE optimized PDF (the WhatsApp / Adobe
 /// Scan "Scan Page 1 … Page N → single PDF" behaviour).
 ///
-/// Every page is first optimized for embedding — orientation baked, longest
-/// side capped, recompressed (see [ImageEnhancer.optimizeForPdf]) — so a
+/// Every page is first optimized for embedding - orientation baked, longest
+/// side capped, recompressed (see [ImageEnhancer.optimizeForPdf]) - so a
 /// 5-page scan stays a sensible file size instead of embedding five full-res
 /// camera captures. Pages are laid out on A4 with a small margin, matching the
 /// share pipeline's single-page PDF wrap.

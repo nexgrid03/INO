@@ -8,8 +8,8 @@ const Color _borderColor = Color(0xFFE2E8F0);
 
 /// A premium text field with a smooth focus glow, used across every auth screen.
 ///
-/// On focus it lifts with a soft green halo and a brand-coloured border — the
-/// subtle "active" feedback of Revolut / Google Account forms — on top of the
+/// On focus it lifts with a soft green halo and a brand-coloured border - the
+/// subtle "active" feedback of Revolut / Google Account forms - on top of the
 /// theme's rounded, filled decoration. Extracted so Login, Signup and
 /// Forgot-Password all render identical inputs.
 class AuthTextField extends StatefulWidget {

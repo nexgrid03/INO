@@ -15,7 +15,9 @@ import '../../services/net_worth_service.dart';
 import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
@@ -41,7 +43,7 @@ import '../shell/shell_controller.dart';
 import '../wallet/wallet_detail_screen.dart';
 
 /// The read model the Home screen renders: a real-data hero and the market
-/// snapshot (realistic fallback) — assembled in one load.
+/// snapshot (realistic fallback) - assembled in one load.
 class _HomeData {
   const _HomeData({
     required this.hero,
@@ -55,7 +57,7 @@ class _HomeData {
   final HomeHero hero;
   final List<MarketQuote> market;
 
-  // Real "Today's Overview" tile counts — sourced from the user's documents
+  // Real "Today's Overview" tile counts - sourced from the user's documents
   // and reminders, never fabricated. Any with no data source read as 0.
   final int documentsExpiring;
   final int remindersToday;
@@ -63,7 +65,7 @@ class _HomeData {
   final int emiDue;
 }
 
-/// The INO Home — Premium Responsive Fintech & Digital Life Management Dashboard.
+/// The INO Home - Premium Responsive Fintech & Digital Life Management Dashboard.
 ///
 /// Responsive Features:
 /// - Screen margins scale dynamically via `context.responsivePadding` across devices.
@@ -76,11 +78,16 @@ class HomeScreen extends StatefulWidget {
     required this.profile,
     this.themeMode = ThemeMode.system,
     this.onToggleTheme,
+    this.voiceTourKey,
   });
 
   final UserProfile profile;
   final ThemeMode themeMode;
   final VoidCallback? onToggleTheme;
+
+  /// Attached to the header's voice-assistant button so the first-run tour can
+  /// spotlight it (see [MainShell]).
+  final GlobalKey? voiceTourKey;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -126,10 +133,12 @@ class _HomeScreenState extends State<HomeScreen> {
       pending += active.where((r) => r.daysFrom(today) <= 7).length;
       remindersToday = active.where((r) => r.daysFrom(today) == 0).length;
       insuranceRenewals = active
-          .where((r) =>
-              r.category == ReminderCategory.insurance &&
-              r.daysFrom(today) >= 0 &&
-              r.daysFrom(today) <= 30)
+          .where(
+            (r) =>
+                r.category == ReminderCategory.insurance &&
+                r.daysFrom(today) >= 0 &&
+                r.daysFrom(today) <= 30,
+          )
           .length;
     } catch (_) {}
 
@@ -161,12 +170,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---- Navigation ----------------------------------------------------------
 
+  // Tab switches are gated for guests inside MainShell._onTabChanged, so this
+  // needs no guard of its own.
   void _goToTab(int index) => ShellController.tab.value = index;
 
-  Future<T?> _push<T>(Widget screen) =>
-      Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => screen));
+  /// The single choke point every Home shortcut funnels through - which is
+  /// what lets guest explore mode gate "anything that opens a feature" with
+  /// one sign-in check instead of one per tile.
+  Future<T?> _push<T>(Widget screen) async {
+    if (!await GuestMode.requireAuth(context)) return null;
+    if (!mounted) return null;
+    return Navigator.of(
+      context,
+    ).push<T>(MaterialPageRoute(builder: (_) => screen));
+  }
 
-  void _scan() => launchScanFlow(context);
+  void _scan() async {
+    if (!await GuestMode.requireAuth(context)) return;
+    if (!mounted) return;
+    launchScanFlow(context);
+  }
 
   void _openWallet(String name) {
     final category = SupabaseWalletRepository.categoryFor(name);
@@ -185,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
           bottom: false,
           child: Column(
             children: [
-              // 1. Greeting header — FIXED at the top. It lives outside the
+              // 1. Greeting header - FIXED at the top. It lives outside the
               // scroll view, so it stays pinned while the content below scrolls.
               _header(palette),
               // 2. Scrollable content beneath the fixed header.
@@ -249,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 1. Greeting Header Card — pinned at the top of the screen.
+  /// 1. Greeting Header Card - pinned at the top of the screen.
   Widget _header(AppPalette palette) {
     final sidePadding = context.responsivePadding;
     return Container(
@@ -275,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
             notificationCount: NotificationCenter.instance.unreadCount,
             onProfile: () => _goToTab(4),
             onNotifications: () => _push(const NotificationsScreen()),
+            voiceButtonKey: widget.voiceTourKey,
           ),
         ),
       ),
@@ -301,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
       ),
 
-      // 2. Quick Actions — four symmetric shortcuts.
+      // 2. Quick Actions - four symmetric shortcuts.
       _Section(
         header: SectionHeader(
           title: l10n.t('quickActions'),
@@ -354,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // One consistent vertical rhythm for the whole screen: an identical, tight
     // gap between every section (fixed, so it never over-scales on tall
-    // devices), and no trailing gap on the last one — the sliver's bottom
+    // devices), and no trailing gap on the last one - the sliver's bottom
     // padding owns the clearance above the floating nav.
     const sectionGap = 22.0;
     return [
@@ -388,10 +412,10 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// 2. Quick Actions — four symmetric shortcuts in one balanced row.
+/// 2. Quick Actions - four symmetric shortcuts in one balanced row.
 ///
 /// Exactly four actions means every tile gets an identical flex slice on any
-/// screen width — no horizontal scrolling, no ragged trailing gap.
+/// screen width - no horizontal scrolling, no ragged trailing gap.
 class _QuickActionsRow extends StatelessWidget {
   const _QuickActionsRow({
     required this.onDocuments,
@@ -408,29 +432,32 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // One clearly distinct hue per action. Documents, Notes and Scanner used to
+    // be three shades of the same teal (Notes' `lightBlue` and Scanner were the
+    // identical #55C2C8), so the row read as one repeated button.
     final actions = <Widget>[
       QuickActionButton(
         icon: Icons.folder_shared_rounded,
         label: l10n.t('documents'),
-        color: AppColors.primaryGreen,
+        color: AppColors.primaryGreen, // teal - the brand anchor
         onTap: onDocuments,
       ),
       QuickActionButton(
         icon: Icons.edit_note_rounded,
         label: l10n.t('notes'),
-        color: AppColors.lightBlue,
+        color: const Color(0xFFF2B33D), // amber - paper & pencil
         onTap: onNotes,
       ),
       QuickActionButton(
         icon: Icons.account_balance_wallet_rounded,
         label: l10n.t('expenses'),
-        color: const Color(0xFF8B6CEF),
+        color: const Color(0xFF8B6CEF), // purple - money
         onTap: onExpenses,
       ),
       QuickActionButton(
         icon: Icons.document_scanner_rounded,
         label: l10n.t('scanner'),
-        color: const Color(0xFF55C2C8),
+        color: const Color(0xFF4383EA), // blue - capture / tech
         onTap: onScanner,
       ),
     ];
@@ -467,47 +494,45 @@ class _SixFinanceTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // One distinct hue per tool, from the app's curated accent family. Four of
+    // the six used to be teal (two were the same #55C2C8), so the grid read as
+    // one repeated tile. The tint behind each icon is derived from its own
+    // accent, so the two can no longer drift apart.
     final tools = [
       _ToolTile(
         title: l10n.t('areaCalc'),
         icon: Icons.straighten_rounded,
-        color: const Color(0xFF30ACB3),
-        bgColor: const Color(0xFFEAFBF7),
+        color: const Color(0xFF30ACB3), // teal
         onTap: onOpenArea,
       ),
       _ToolTile(
         title: l10n.t('emiCalc'),
         icon: Icons.account_balance_rounded,
-        color: const Color(0xFF55C2C8),
-        bgColor: const Color(0xFFEDF8FF),
+        color: const Color(0xFF4383EA), // blue
         onTap: onOpenEmi,
       ),
       _ToolTile(
         title: l10n.t('sipCalc'),
         icon: Icons.trending_up_rounded,
-        color: const Color(0xFF8B6CEF),
-        bgColor: const Color(0xFFF3EFFF),
+        color: const Color(0xFF9B6DE0), // purple
         onTap: onOpenSip,
       ),
       _ToolTile(
         title: l10n.t('stampDuty'),
         icon: Icons.gavel_rounded,
-        color: const Color(0xFFF59E0B),
-        bgColor: const Color(0xFFFFF7ED),
+        color: const Color(0xFFF2B33D), // amber
         onTap: onOpenStampDuty,
       ),
       _ToolTile(
         title: l10n.t('unitConv'),
         icon: Icons.swap_horiz_rounded,
-        color: const Color(0xFF7FD3D8),
-        bgColor: const Color(0xFFF0F9FF),
+        color: const Color(0xFF22B8CF), // cyan
         onTap: onOpenUnitConv,
       ),
       _ToolTile(
         title: l10n.t('taxCalc'),
         icon: Icons.receipt_long_rounded,
-        color: const Color(0xFF55C2C8),
-        bgColor: const Color(0xFFF0FDF4),
+        color: const Color(0xFF37C08A), // green
         onTap: onOpenTax,
       ),
     ];
@@ -521,7 +546,7 @@ class _SixFinanceTools extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       // CRITICAL: with no explicit padding a GridView absorbs the ambient
       // MediaQuery insets (inflated by the extendBody nav bar) as its own
-      // bottom padding — which rendered as a huge blank band between this
+      // bottom padding - which rendered as a huge blank band between this
       // section and Market Snapshot. Zero it so the section-gap system is the
       // only source of vertical rhythm.
       padding: EdgeInsets.zero,
@@ -538,27 +563,34 @@ class _ToolTile extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.color,
-    required this.bgColor,
     required this.onTap,
   });
 
   final String title;
   final IconData icon;
   final Color color;
-  final Color bgColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    // The tile's own accent wash, so the fill can never drift from the icon the
+    // way the hardcoded pastels had (the tax tile was green behind a teal glyph).
+    final fill = Color.alphaBlend(
+      color.withValues(alpha: palette.isDark ? 0.16 : 0.09),
+      palette.surface,
+    );
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: fill,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.20)),
+          // A thick, solid accent edge in the same colour the icon badge is
+          // filled with - matching the Today's Overview tiles.
+          border: Border.all(color: color, width: 2),
         ),
         // FittedBox around the whole stack: if a tile ever ends up a hair
         // shorter than its content (tight grid aspect ratios on odd widths),
@@ -568,13 +600,22 @@ class _ToolTile extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 21),
+              // A filled accent badge: white glyph on the tile's own colour, so
+              // the icon carries the same accent the border does.
+              ShinyIcon(
+                icon: icon,
+                color: color,
+                size: 32,
+                iconSize: 18,
+                radius: 10,
+                style: ShinyIconStyle.filled,
+              ),
               const SizedBox(height: 3),
               Text(
                 title,
                 maxLines: 1,
-                style: const TextStyle(
-                  color: AppColors.textDark,
+                style: TextStyle(
+                  color: palette.textPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),

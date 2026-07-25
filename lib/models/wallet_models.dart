@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 ///
 /// Like the dashboard models these are UI-agnostic plain objects, hydrated
 /// today by `WalletRepository`'s sample implementation and tomorrow by Supabase
-/// / the vault service — without touching the widgets.
+/// / the vault service - without touching the widgets.
 
 // ---------------------------------------------------------------------------
 // 2. Wallet overview hero

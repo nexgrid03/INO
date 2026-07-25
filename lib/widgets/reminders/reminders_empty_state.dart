@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 /// Shown when there are no reminders at all. A premium gradient illustration, a
@@ -21,22 +22,13 @@ class RemindersEmptyState extends StatelessWidget {
           vertical: 48, horizontal: AppSpacing.screen),
       child: Column(
         children: [
-          Container(
-            width: 110,
-            height: 110,
-            decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
-              borderRadius: BorderRadius.circular(AppRadius.large + 8),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.30),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.notifications_active_rounded,
-                color: Colors.white, size: 50),
+          const ShinyIcon(
+            icon: Icons.notifications_active_rounded,
+            color: AppColors.primaryGreen,
+            size: 110,
+            iconSize: 50,
+            radius: AppRadius.large + 8,
+            style: ShinyIconStyle.filled,
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(l10n.t('noRemindersYet'),

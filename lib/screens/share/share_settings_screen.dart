@@ -16,7 +16,7 @@ import '../../utils/share_origin.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 
-/// Share options — shown BEFORE a share is generated. The user picks a copy
+/// Share options - shown BEFORE a share is generated. The user picks a copy
 /// style (Original / Black & White / Grayscale / Compressed PDF) and a link
 /// expiry; a processed temporary copy is produced and shared (via a QR code or
 /// directly), while the original stored file is never modified. PDFs can't be
@@ -100,7 +100,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   ///   • Original Color (no pixel change) → shares the real documents directly,
   ///     exactly like the pre-existing QR flow.
   ///   • Black & White / Grayscale / Compressed PDF → produces the processed
-  ///     copy, uploads it as a hidden document, and shares THAT — so the QR
+  ///     copy, uploads it as a hidden document, and shares THAT - so the QR
   ///     opens the selected copy style in the existing viewer.
   Future<void> _generateQr() async {
     if (_busy) return;
@@ -235,7 +235,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                     ),
                   if (!_allImages) const SizedBox(height: AppSpacing.md),
 
-                  // Copy style — the ONLY thing the user picks besides expiry.
+                  // Copy style - the ONLY thing the user picks besides expiry.
                   _label('Copy Style', palette),
                   const SizedBox(height: AppSpacing.sm),
                   _ColorGrid(
@@ -245,7 +245,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // Link expiry — enforced server-side by the share backend.
+                  // Link expiry - enforced server-side by the share backend.
                   _label('Link Expiry', palette),
                   const SizedBox(height: AppSpacing.sm),
                   _ExpiryRow(
@@ -481,7 +481,7 @@ class _ChoiceChip extends StatelessWidget {
                 size: 18, color: on ? Colors.white : palette.textSecondary),
             const SizedBox(width: 8),
             Flexible(
-              // Shrink the label to fit one line instead of ellipsizing it —
+              // Shrink the label to fit one line instead of ellipsizing it -
               // long copy-style / expiry labels must never show trailing dots.
               child: FittedBox(
                 fit: BoxFit.scaleDown,

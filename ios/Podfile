@@ -1,6 +1,6 @@
 # INO iOS Podfile.
 #
-# Minimum iOS is 15.5 — required by the GoogleMLKit pods pulled in by
+# Minimum iOS is 15.5 - required by the GoogleMLKit pods pulled in by
 # google_mlkit_text_recognition. Do not lower it below 15.5 or `pod install`
 # will fail to resolve the ML Kit frameworks.
 platform :ios, '15.5'

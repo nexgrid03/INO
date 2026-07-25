@@ -17,7 +17,7 @@ class ProfitLoss {
 }
 
 /// Property-value maths: area × rate, plus profit/loss against a purchase
-/// price. Stateless service layer — the UI never multiplies inline.
+/// price. Stateless service layer - the UI never multiplies inline.
 class PropertyValuationService {
   const PropertyValuationService._();
   static const PropertyValuationService instance =

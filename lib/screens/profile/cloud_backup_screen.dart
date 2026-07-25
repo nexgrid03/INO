@@ -14,7 +14,7 @@ import '../../utils/formatting.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 
-/// Cloud Backup — shows the last backup time, runs a manual backup (with a
+/// Cloud Backup - shows the last backup time, runs a manual backup (with a
 /// determinate progress bar), and lists / restores previous backups.
 class CloudBackupScreen extends StatefulWidget {
   const CloudBackupScreen({super.key, required this.profile});

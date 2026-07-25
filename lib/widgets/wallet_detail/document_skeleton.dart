@@ -4,7 +4,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
 
-/// Loading placeholder for the document list — a gently pulsing stack of
+/// Loading placeholder for the document list - a gently pulsing stack of
 /// skeleton tiles shown while the wallet loads, instead of a bare spinner. The
 /// silhouette mirrors a real [DocumentCard] (icon chip · two text lines ·
 /// trailing dot) so the transition to live content feels seamless.

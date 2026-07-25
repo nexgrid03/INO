@@ -2,9 +2,9 @@
 // Rama Blue (#30ACB3) on the soft teal-mist gradient used by the splash.
 //
 // Outputs (1024×1024, consumed by the flutter_launcher_icons config):
-//   assets/icon/ino_icon.png     — full icon (gradient + wordmark)
-//   assets/icon/ino_icon_bg.png  — adaptive background (gradient only)
-//   assets/icon/ino_icon_fg.png  — adaptive foreground (wordmark, transparent)
+//   assets/icon/ino_icon.png     - full icon (gradient + wordmark)
+//   assets/icon/ino_icon_bg.png  - adaptive background (gradient only)
+//   assets/icon/ino_icon_fg.png  - adaptive foreground (wordmark, transparent)
 //
 // Run:  dart run tool/generate_icons.dart
 // Then: dart run flutter_launcher_icons
@@ -144,5 +144,5 @@ void main() {
   // Adaptive foreground: wordmark only, ~53% width (inside the 66% safe zone).
   save('ino_icon_fg.png', _render(background: false, wordmarkWidth: 540));
 
-  stdout.writeln('done — now run: dart run flutter_launcher_icons');
+  stdout.writeln('done - now run: dart run flutter_launcher_icons');
 }

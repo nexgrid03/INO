@@ -21,7 +21,7 @@ import 'all_reminders_screen.dart';
 import 'completed_reminders_screen.dart';
 import 'reminder_calendar_screen.dart';
 
-/// The Reminders home — a calm, single-glance answer to "what needs my
+/// The Reminders home - a calm, single-glance answer to "what needs my
 /// attention right now?".
 ///
 /// Deliberately short: header → a 2×2 summary of tap-through counts → six
@@ -420,7 +420,7 @@ class _CaughtUpNote extends StatelessWidget {
 }
 
 /// Horizontal date scroller from the calendar-hub design: the days around
-/// today rendered as floating pills — day-of-week over the day number, with
+/// today rendered as floating pills - day-of-week over the day number, with
 /// up to three category-coloured activity dots per day. Today wears the brand
 /// gradient + glow; days fade with distance. Tapping any pill opens the
 /// calendar screen.

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 1 — the compact Wallet header.
+/// Section 1 - the compact Wallet header.
 ///
 /// A single row: a circular Back button, a brand-gradient icon chip that
-/// identifies the wallet, the wallet title (auto-shrinks to fit — never
+/// identifies the wallet, the wallet title (auto-shrinks to fit - never
 /// ellipsised) and the wallet's contextual actions on the right. Search and
-/// sort/filter no longer live here — they scroll with the page — so the header
+/// sort/filter no longer live here - they scroll with the page - so the header
 /// stays light and the title always reads in full.
 class WalletHeader extends StatelessWidget {
   const WalletHeader({
@@ -27,10 +28,10 @@ class WalletHeader extends StatelessWidget {
   /// The wallet's glyph, shown in a small brand-gradient chip beside the title.
   final IconData? icon;
 
-  /// Optional — opens the "Shared Links" manager (the QR / scan action).
+  /// Optional - opens the "Shared Links" manager (the QR / scan action).
   final VoidCallback? onManageShares;
 
-  /// Optional — opens the Property Area Converter (only the Property wallet).
+  /// Optional - opens the Property Area Converter (only the Property wallet).
   final VoidCallback? onAreaConverter;
 
   @override
@@ -46,15 +47,13 @@ class WalletHeader extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         if (icon != null) ...[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: AppGradients.primary,
-              borderRadius: BorderRadius.circular(13),
-              boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
-            ),
-            child: Icon(icon, color: Colors.white, size: 21),
+          ShinyIcon(
+            icon: icon!,
+            color: AppColors.primaryGreen,
+            size: 40,
+            iconSize: 21,
+            radius: 13,
+            style: ShinyIconStyle.filled,
           ),
           const SizedBox(width: 12),
         ],

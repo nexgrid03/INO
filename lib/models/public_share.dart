@@ -20,7 +20,7 @@ PublicShareStatus _statusFrom(String? raw) {
   }
 }
 
-/// One document listed in a public share. Deliberately minimal — the API never
+/// One document listed in a public share. Deliberately minimal - the API never
 /// returns file paths, owner ids, or any storage internals.
 class SharedDoc {
   const SharedDoc({required this.id, required this.name, required this.type});
@@ -40,7 +40,7 @@ class SharedDoc {
       );
 }
 
-/// The parsed response of `GET /share/:id` — everything the recipient viewer
+/// The parsed response of `GET /share/:id` - everything the recipient viewer
 /// needs, and nothing sensitive.
 class PublicShare {
   const PublicShare({
@@ -86,7 +86,7 @@ class PublicShare {
 }
 
 /// The bytes of a shared file plus the metadata needed to open/save it. Fetched
-/// (proxied) through the Edge Function — never a direct storage URL.
+/// (proxied) through the Edge Function - never a direct storage URL.
 class SharedFile {
   const SharedFile({
     required this.bytes,

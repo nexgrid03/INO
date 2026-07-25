@@ -16,13 +16,13 @@ import '../notifications/notifications_screen.dart';
 import 'document_search_delegate.dart';
 import 'wallet_detail_screen.dart';
 
-/// The INO Wallet Hub — a premium, fast-access vault launcher.
+/// The INO Wallet Hub - a premium, fast-access vault launcher.
 ///
 /// Deliberately minimal, arranged in the "document wallet hub" rhythm:
 /// a compact identity header (avatar · "My Wallets" · notifications), a hero
 /// floating search bar, a single lightweight summary card ("8 Wallets • 128
 /// Records") and the compact grid of all wallets, so every vault is visible
-/// without scrolling — the Apple/Google Wallet model where access speed beats
+/// without scrolling - the Apple/Google Wallet model where access speed beats
 /// analytics. Tapping a wallet opens its detail screen. (Overview analytics,
 /// quick actions, recents, security and insights live on the detail/other
 /// screens.)
@@ -50,7 +50,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   /// Opens the filter panel (from the search bar's filter icon). Picking one or
-  /// more wallets opens the document search constrained to those wallets — the
+  /// more wallets opens the document search constrained to those wallets - the
   /// filter icon never opens the plain search itself.
   Future<void> _openFilters(List<WalletCategory> categories) async {
     final selected = await showModalBottomSheet<Set<String>>(
@@ -114,7 +114,7 @@ class _WalletScreenState extends State<WalletScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header — avatar · "My Wallets" · notification bell.
+                  // Header - avatar · "My Wallets" · notification bell.
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: FadeSlideIn(
@@ -130,7 +130,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                   ),
-                  // Compact hero search — the hub's primary affordance.
+                  // Compact hero search - the hub's primary affordance.
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     child: FadeSlideIn(
@@ -151,7 +151,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                   ),
-                  // Launcher grid — fixed-height cards, all wallets visible.
+                  // Launcher grid - fixed-height cards, all wallets visible.
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: data == null
@@ -171,12 +171,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-/// The Wallet tab's own backdrop — deliberately different from the Home aurora
+/// The Wallet tab's own backdrop - deliberately different from the Home aurora
 /// so the pale teal cards lift off the page instead of blending in.
 ///
 /// Light mode: a cool, slightly deeper mist gradient (blue-leaning at the top,
 /// warming to a near-white seafoam at the bottom) with two soft accent blobs
-/// and a faint diagonal sheen. Still airy and on-theme — never dark. Dark mode
+/// and a faint diagonal sheen. Still airy and on-theme - never dark. Dark mode
 /// falls back to the standard palette background.
 class _WalletBackdrop extends StatelessWidget {
   const _WalletBackdrop({required this.child});
@@ -205,7 +205,7 @@ class _WalletBackdrop extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Soft accent blobs — quiet depth behind the grid.
+          // Soft accent blobs - quiet depth behind the grid.
           const Positioned(
             top: -70,
             right: -60,
@@ -290,7 +290,7 @@ class _HubHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        // Voice assistant — highlighted icon beside the bell.
+        // Voice assistant - highlighted icon beside the bell.
         const VoiceMicIconButton(size: 44),
         const SizedBox(width: 10),
         _BellButton(

@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 /// white badge.
 ///
 /// This is a TEMPORARY placeholder. When the real logo is ready, replace the
-/// inner [Stack] with `Image.asset('assets/logo.png')` — every screen that
+/// inner [Stack] with `Image.asset('assets/logo.png')` - every screen that
 /// uses [InoLogo] will pick up the new mark automatically.
 ///
 /// Kept presentation-only (no animation) so it can be reused on the splash,

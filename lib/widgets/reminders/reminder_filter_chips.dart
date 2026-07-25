@@ -6,7 +6,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Horizontally scrolling filter chips — the curated six: All · Documents ·
+/// Horizontally scrolling filter chips - the curated six: All · Documents ·
 /// Insurance · Health · Property · Family. The selected chip uses the brand
 /// green→blue accent.
 class ReminderFilterChips extends StatelessWidget {

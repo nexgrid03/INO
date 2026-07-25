@@ -5,7 +5,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// Section 4 — Filters.
+/// Section 4 - Filters.
 ///
 /// A horizontally scrolling row of filter chips (All / Active / Expiring … )
 /// plus a sort control on the right. Selecting a chip animates its fill to the

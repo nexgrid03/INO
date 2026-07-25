@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../models/wallet_models.dart' show RecentItem;
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 import '../dashboard/section_header.dart';
 import '../pressable_scale.dart';
 
-/// Section 6 — Recently Accessed (horizontal).
+/// Section 6 - Recently Accessed (horizontal).
 ///
 /// A horizontally scrolling row of recently viewed records, each a compact card
 /// with a tinted icon chip, name, category and last-viewed time.
@@ -63,21 +64,13 @@ class _RecentCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: item.color,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: item.color.withValues(alpha: 0.30),
-                      blurRadius: 9,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(item.icon, color: Colors.white, size: 20),
+              ShinyIcon(
+                icon: item.icon,
+                color: item.color,
+                size: 38,
+                iconSize: 20,
+                radius: 12,
+                style: ShinyIconStyle.filled,
               ),
               const Spacer(),
               Text(

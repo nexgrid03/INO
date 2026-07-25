@@ -9,7 +9,7 @@ import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import 'auth_validators.dart';
 
-/// Screen 6 — Forgot Password.
+/// Screen 6 - Forgot Password.
 ///
 /// A single-purpose reset request: enter the registered email (mobile coming
 /// later) and we send the reset instructions via Supabase. On success it shows
@@ -58,7 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final identifier = _controller.text.trim();
 
     if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage('Mobile reset is coming soon — please use your email.');
+      _showMessage('Mobile reset is coming soon - please use your email.');
       return;
     }
 

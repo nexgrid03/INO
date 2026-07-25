@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// Reusable, premium biometric dialogs + snackbars — the Google Password
+/// Reusable, premium biometric dialogs + snackbars - the Google Password
 /// Manager / Samsung Secure Folder feel. Pure UI; no biometric logic lives here,
 /// so services and screens share one consistent look.
 class BiometricUx {
@@ -45,7 +45,7 @@ class BiometricUx {
 
   // ---- Dialogs --------------------------------------------------------------
 
-  /// "No Biometrics Found" — returns true if the user chose Open Device Settings.
+  /// "No Biometrics Found" - returns true if the user chose Open Device Settings.
   static Future<bool> noBiometricsDialog(BuildContext context) async {
     final result = await _dialog(
       context,
@@ -60,7 +60,7 @@ class BiometricUx {
     return result ?? false;
   }
 
-  /// "Disable Biometric Authentication?" — returns true if confirmed.
+  /// "Disable Biometric Authentication?" - returns true if confirmed.
   static Future<bool> disableBiometricDialog(BuildContext context) async {
     final result = await _dialog(
       context,

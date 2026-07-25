@@ -10,7 +10,7 @@ import 'sip_calculator_screen.dart';
 /// One entry in the Property & Finance Tools registry.
 ///
 /// This registry is the single source of truth for the hub grid AND the Home
-/// "Quick Tools" row — so adding a future calculator (GST, Stamp Duty, Rental
+/// "Quick Tools" row - so adding a future calculator (GST, Stamp Duty, Rental
 /// Yield, Retirement, FD …) is a one-line append here and it appears in both
 /// places automatically. No screen needs editing.
 class FinanceTool {

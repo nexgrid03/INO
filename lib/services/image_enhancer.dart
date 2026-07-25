@@ -20,7 +20,7 @@ extension ScanColorModeX on ScanColorMode {
 }
 
 /// The result of a preprocessing step: the output file path plus the produced
-/// image's pixel dimensions and encoded file size — surfaced so the caller can
+/// image's pixel dimensions and encoded file size - surfaced so the caller can
 /// log exactly what each step produced (useful for diagnosing memory issues).
 class ProcessedImage {
   const ProcessedImage({
@@ -44,7 +44,7 @@ class ProcessedImage {
 ///
 ///   1. **caps the longest side to [_kMaxDim]** so no buffer is oversized;
 ///   2. **runs in a short-lived background isolate** ([Isolate.run]) whose heap
-///      is fully reclaimed when it exits — so the UI isolate never holds the big
+///      is fully reclaimed when it exits - so the UI isolate never holds the big
 ///      buffers, and even an out-of-memory in the worker surfaces as a catchable
 ///      error instead of killing the whole app;
 ///   3. uses **typed lists** (`Uint8List` / `Int32List`) for the adaptive
@@ -84,14 +84,14 @@ class ImageEnhancer {
     }
   }
 
-  /// Renders [path] in the given copy [mode] — the document-grade processing
+  /// Renders [path] in the given copy [mode] - the document-grade processing
   /// set shared with the share pipeline (see [DocumentProcessor]):
   ///
-  ///  • **original**   — untouched, returns [path] as-is;
-  ///  • **enhanced**   — colour kept: tonal normalization (auto brightness /
+  ///  • **original**   - untouched, returns [path] as-is;
+  ///  • **enhanced**   - colour kept: tonal normalization (auto brightness /
   ///    contrast / shadow lift) + a gentle sharpen;
-  ///  • **grayscale**  — photocopy-clean grayscale (normalize + small lift);
-  ///  • **blackWhite** — crisp scanner-style B&W via contrast normalization,
+  ///  • **grayscale**  - photocopy-clean grayscale (normalize + small lift);
+  ///  • **blackWhite** - crisp scanner-style B&W via contrast normalization,
   ///    brightness balancing, denoise and a LOCAL (Bradley–Roth) adaptive
   ///    threshold, so shadows never crush text into black blobs.
   ///
@@ -177,7 +177,7 @@ class ImageEnhancer {
   ///
   /// [maxDim] / [quality] default to the ID-document settings (2000 px, q90).
   /// The receipt/plain-text path passes a smaller, more compressed target
-  /// ([kTextMaxDim] / [kTextQuality]) — a receipt only needs enough pixels for
+  /// ([kTextMaxDim] / [kTextQuality]) - a receipt only needs enough pixels for
   /// the recognizer, so a smaller JPEG means a faster decode here AND a faster
   /// ML Kit pass downstream (the single biggest OCR win).
   static Future<ProcessedImage> bakeBase(
@@ -212,7 +212,7 @@ class ImageEnhancer {
 
   /// Builds an OCR candidate from [basePath]: crop to the text region, deskew,
   /// upscale, grayscale/contrast/denoise/sharpen, and an optional adaptive
-  /// threshold. Runs entirely in a background isolate — the heavy buffers live
+  /// threshold. Runs entirely in a background isolate - the heavy buffers live
   /// and die there, never on the UI isolate.
   static Future<ProcessedImage> buildCandidate(
     String basePath, {
@@ -262,7 +262,7 @@ class ImageEnhancer {
       im = img.copyCrop(im, x: cropX, y: cropY, width: cropW, height: cropH);
     }
 
-    // 2. Deskew — only for a meaningful, plausible tilt.
+    // 2. Deskew - only for a meaningful, plausible tilt.
     if (deskewDegrees != null &&
         deskewDegrees.abs() >= 1.0 &&
         deskewDegrees.abs() <= 30.0) {
@@ -311,8 +311,8 @@ class ImageEnhancer {
     return img.adjustColor(im, contrast: 1.08, brightness: 1.03);
   }
 
-  /// Turns a photo of a document into a crisp, printer-friendly "scan" — the
-  /// look Adobe Scan / Microsoft Lens / CamScanner produce — instead of a harsh
+  /// Turns a photo of a document into a crisp, printer-friendly "scan" - the
+  /// look Adobe Scan / Microsoft Lens / CamScanner produce - instead of a harsh
   /// global threshold that crushes shadows into black blobs and drops faint
   /// text.
   ///
@@ -320,7 +320,7 @@ class ImageEnhancer {
   /// Gaussian denoise → LOCAL (Bradley–Roth) adaptive threshold whose window
   /// scales with the image. The adaptive step compares each pixel to the mean
   /// of its neighbourhood, so uneven lighting and shadows no longer swallow the
-  /// text — edges stay sharp and small print stays legible.
+  /// text - edges stay sharp and small print stays legible.
   static img.Image scanBinarize(img.Image src) {
     var im = img.grayscale(src);
     // Stretch the tonal range, then a gentle contrast/brightness lift so faint
@@ -332,8 +332,41 @@ class ImageEnhancer {
     return adaptiveThresholdScaled(im);
   }
 
+  /// The share pipeline's Black & White: the scan look, minus the flood.
+  ///
+  /// [scanBinarize] is right for the scanner - its output feeds OCR and print -
+  /// but shared IDs and receipts often carry photos, seals and tinted panels
+  /// that a hard threshold crushes into solid black, so shared copies read far
+  /// too dark. Here the threshold only decides what counts as paper: paper goes
+  /// clean white, and everything else keeps its grayscale detail, gently
+  /// deepened so text still reads as ink.
+  static img.Image shareBlackWhite(img.Image src) {
+    // Explicit copy first: the filters underneath both helpers mutate their
+    // input in place, so without it the detail layer and the mask would end up
+    // being the same binarized image.
+    final gray = documentGrayscale(img.Image.from(src));
+    final mask = scanBinarize(src);
+    for (final p in gray) {
+      if (mask.getPixel(p.x, p.y).r > 127) {
+        p
+          ..r = 255
+          ..g = 255
+          ..b = 255;
+      } else {
+        // 70% of the grayscale value: dark enough to read as ink, light
+        // enough that photos and shading keep their detail.
+        final v = (p.r * 0.7).round();
+        p
+          ..r = v
+          ..g = v
+          ..b = v;
+      }
+    }
+    return gray;
+  }
+
   /// Bradley–Roth adaptive threshold with an image-scaled window: ~8% of the
-  /// shorter side (odd, clamped 15–51) — big enough to span a glyph's
+  /// shorter side (odd, clamped 15–51) - big enough to span a glyph's
   /// neighbourhood, small enough to track local lighting.
   static img.Image adaptiveThresholdScaled(img.Image src, {double t = 0.15}) {
     var window = (math.min(src.width, src.height) * 0.08).round();
@@ -344,7 +377,7 @@ class ImageEnhancer {
 
   /// Bradley–Roth adaptive threshold. Uses a `Uint8List` luminance buffer
   /// (1 byte/px) and an `Int32List` integral image (4 bytes/px) instead of two
-  /// 64-bit `List<int>`s — roughly 6–8× less memory. At the capped resolution
+  /// 64-bit `List<int>`s - roughly 6–8× less memory. At the capped resolution
   /// (≤ 2000 px longest side) the maximum integral sum (255 × w × h) stays below
   /// 2³¹, so `Int32List` cannot overflow.
   static img.Image _adaptiveThreshold(img.Image src,
@@ -394,7 +427,7 @@ class ImageEnhancer {
   // ─────────────────────────── helpers ───────────────────────────
 
   /// Downscales [im] so its longest side is at most [maxDim] (aspect preserved).
-  /// This is the key memory guard — it bounds every downstream buffer.
+  /// This is the key memory guard - it bounds every downstream buffer.
   static img.Image _capLongestSide(img.Image im, int maxDim) {
     final longest = math.max(im.width, im.height);
     if (longest <= maxDim) return im;

@@ -12,7 +12,7 @@ import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 import '../auth/login_screen.dart';
 
-/// Delete Account — a deliberately high-friction flow: an explicit warning, a
+/// Delete Account - a deliberately high-friction flow: an explicit warning, a
 /// type-to-confirm gate, and re-authentication, before permanently removing the
 /// user's files, documents and profile.
 class DeleteAccountScreen extends StatefulWidget {

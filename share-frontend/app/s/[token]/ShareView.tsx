@@ -6,7 +6,7 @@ import Brand from "@/components/Brand";
 import ExpiryPill from "@/components/ExpiryPill";
 import type { SharedDoc } from "@/lib/config";
 
-// The viewer pulls in pdf.js / zoom libs — load it client-only, on demand.
+// The viewer pulls in pdf.js / zoom libs - load it client-only, on demand.
 const DocViewer = dynamic(() => import("./DocViewer"), {
   ssr: false,
   loading: () => (

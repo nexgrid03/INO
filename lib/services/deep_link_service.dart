@@ -11,11 +11,11 @@ import '../screens/share/shared_documents_screen.dart';
 ///
 /// Two entry paths, so it works whether the app was **closed, backgrounded or
 /// foregrounded**:
-///   • **Cold start** — [captureInitialLink] runs in `main()` before the first
+///   • **Cold start** - [captureInitialLink] runs in `main()` before the first
 ///     frame and records the launch URL's share id in [initialShareId]. The app
 ///     root shows [SharedDocumentsScreen] directly for that id (so the splash's
 ///     own navigation can't clobber it).
-///   • **Warm** (background→foreground, or already running) — [startListening]
+///   • **Warm** (background→foreground, or already running) - [startListening]
 ///     subscribes to the link stream and pushes [SharedDocumentsScreen] onto the
 ///     live navigator.
 ///
@@ -36,7 +36,7 @@ class DeepLinkService {
   String? get initialShareId => _initialShareId;
 
   /// Captures the cold-start launch link. Call in `main()` before `runApp`.
-  /// Never throws — a failure just means "no initial deep link".
+  /// Never throws - a failure just means "no initial deep link".
   Future<void> captureInitialLink() async {
     try {
       final uri = await _appLinks.getInitialLink();
@@ -81,7 +81,7 @@ class DeepLinkService {
   void _onStreamUri(Uri uri) {
     final str = uri.toString();
     developer.log('incoming link (warm) → $uri', name: 'deeplink');
-    // The stream can replay the launch link once — it's already shown as the
+    // The stream can replay the launch link once - it's already shown as the
     // cold-start home, so skip it a single time to avoid a duplicate screen.
     if (str == _initialLinkStr) {
       _initialLinkStr = null;
@@ -102,7 +102,7 @@ class DeepLinkService {
     final nav = _navigatorKey?.currentState;
     if (nav == null) {
       if (attempt >= 20) {
-        developer.log('navigate: navigator never became ready — giving up',
+        developer.log('navigate: navigator never became ready - giving up',
             name: 'deeplink');
         return;
       }

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 
 /// One of the four compact headline cards at the top of the dashboard
-/// (Today · This Week · Expiring · Completed). Tinted icon chip, a big count,
+/// (Today · This Week · Expiring · Completed). Bright glossy icon chip, a big count,
 /// and a short label. Sized to sit two-up in a grid, always visible.
 class ReminderSummaryCard extends StatelessWidget {
   const ReminderSummaryCard({
@@ -36,14 +37,12 @@ class ReminderSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Icon(icon, color: color, size: 18),
+              ShinyIcon(
+                icon: icon,
+                color: color,
+                size: 32,
+                iconSize: 18,
+                radius: AppRadius.chip,
               ),
               const Spacer(),
               Text(

@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_theme.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 7 — Recent Activity Card.
+/// Section 7 - Recent Activity Card.
 ///
-/// White background card, soft shadow, small colored icon, title, timestamp
-/// and trailing chevron arrow.
+/// White background card, soft shadow, a glossy icon badge, title,
+/// timestamp and trailing chevron arrow.
 class ActivityTile extends StatelessWidget {
   const ActivityTile({
     super.key,
@@ -39,15 +40,12 @@ class ActivityTile extends StatelessWidget {
         ],
       ),
       child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(item.icon, size: 20, color: item.color),
+        children: [
+          ShinyIcon(
+            icon: item.icon,
+            color: item.color,
+            size: 40,
+            iconSize: 20,
           ),
           const SizedBox(width: 12),
           Expanded(

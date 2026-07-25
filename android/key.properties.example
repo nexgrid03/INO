@@ -1,7 +1,7 @@
-# INO — release signing credentials (TEMPLATE).
+# INO - release signing credentials (TEMPLATE).
 #
 # Copy this file to  android/key.properties  and fill in your real values.
-# `android/key.properties` and the .jks keystore are GIT-IGNORED — never commit
+# `android/key.properties` and the .jks keystore are GIT-IGNORED - never commit
 # them. See RELEASE_SIGNING.md for how to create the keystore.
 #
 # storeFile: path to your .jks. Either an ABSOLUTE path, or a path relative to

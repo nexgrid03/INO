@@ -57,7 +57,7 @@ class ScanFailState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            // Primary — try again.
+            // Primary - try again.
             PressableScale(
               child: Container(
                 height: AppSizes.button,
@@ -97,7 +97,7 @@ class ScanFailState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            // Secondary — manual entry.
+            // Secondary - manual entry.
             PressableScale(
               child: Material(
                 color: palette.surface,

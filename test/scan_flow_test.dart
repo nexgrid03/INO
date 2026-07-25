@@ -13,7 +13,7 @@ void main() {
   setUp(() => ScanRepository.instance = SampleScanRepository());
 
   // In the test host there is no camera/permission plugin, so the scanner must
-  // degrade gracefully to its "camera unavailable" recovery state — never throw.
+  // degrade gracefully to its "camera unavailable" recovery state - never throw.
   testWidgets('Scanner handles a missing camera gracefully', (tester) async {
     tester.view.physicalSize = const Size(1400, 2800);
     tester.view.devicePixelRatio = 3.0;

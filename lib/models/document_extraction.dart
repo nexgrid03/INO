@@ -2,11 +2,11 @@ import 'dart:convert';
 
 /// Structured data extracted from a scanned/uploaded document (OCR), persisted
 /// alongside the document so it is ALWAYS visible again when the document is
-/// reopened — after an app restart, logout/login, or navigation.
+/// reopened - after an app restart, logout/login, or navigation.
 ///
 /// Storage strategy: encoded as a compact JSON envelope in the document's
 /// `notes` column. That column already exists, is per-user + RLS-scoped, and is
-/// durable in Supabase — so extracted data survives everything with **no schema
+/// durable in Supabase - so extracted data survives everything with **no schema
 /// migration**. The envelope keeps the machine-readable extracted fields
 /// separate from any free-text notes the user typed. Moving this to a dedicated
 /// `jsonb` column later is a one-line change at the repository boundary.
@@ -18,7 +18,7 @@ class DocumentExtraction {
   });
 
   /// Semantic document-type key: 'aadhaar', 'pan', 'passport',
-  /// 'drivingLicense', 'voterId', 'insurance', 'property' — or null when the
+  /// 'drivingLicense', 'voterId', 'insurance', 'property' - or null when the
   /// document type is unknown / not an identity document.
   final String? documentType;
 
@@ -33,7 +33,7 @@ class DocumentExtraction {
   bool get hasData => data.isNotEmpty;
   bool get isEmpty => data.isEmpty && userNotes.trim().isEmpty;
 
-  /// One string combining every extracted value + notes — used for search.
+  /// One string combining every extracted value + notes - used for search.
   String get searchableText =>
       [...data.values, userNotes].where((s) => s.trim().isNotEmpty).join(' ');
 
@@ -76,7 +76,7 @@ class DocumentExtraction {
           );
         }
       } catch (_) {
-        // Not our JSON — fall through to legacy / plain handling.
+        // Not our JSON - fall through to legacy / plain handling.
       }
     }
 

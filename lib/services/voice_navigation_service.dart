@@ -59,7 +59,7 @@ class VoiceNavigationService extends ChangeNotifier {
   /// True from [start] until the session is RESOLVED (a command matched) or
   /// CANCELLED (sheet closed). The recognizer's callbacks are persistent and
   /// Android routinely delivers one last result/error AFTER `stop()`/`cancel()`
-  /// — without this flag such a stale callback lands after [cancel] has reset
+  /// - without this flag such a stale callback lands after [cancel] has reset
   /// [_status] to idle (re-arming the `_status == matched` guards) and re-runs
   /// the whole resolve → speak pipeline. That was the root cause of the
   /// "Opening …" confirmation being spoken twice while navigation (driven by
@@ -71,7 +71,7 @@ class VoiceNavigationService extends ChangeNotifier {
   bool _sessionActive = false;
 
   /// True once the "Opening …" confirmation for THIS session has been
-  /// dispatched — a second dispatch attempt is ignored, so the confirmation
+  /// dispatched - a second dispatch attempt is ignored, so the confirmation
   /// can be spoken at most once per listening session.
   bool _confirmationSpoken = false;
 
@@ -157,7 +157,7 @@ class VoiceNavigationService extends ChangeNotifier {
       for (final l in locales) {
         if (norm(l.localeId).startsWith('${code}_')) return l.localeId;
       }
-      // Not listed — for English still try en_IN explicitly (many recognizers
+      // Not listed - for English still try en_IN explicitly (many recognizers
       // accept it), and fall back to the system locale on a language error.
       if (code == 'en') return 'en_IN';
       final sys = await _speech.systemLocale();
@@ -191,7 +191,7 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   void _onResult(SpeechRecognitionResult result) {
-    // Stale callback from a session that was already resolved or cancelled —
+    // Stale callback from a session that was already resolved or cancelled -
     // must never re-enter the resolve → speak pipeline (the double-speech bug).
     if (!_sessionActive) {
       _log('[VOICE] Stale result ignored (session closed): '
@@ -214,7 +214,7 @@ class VoiceNavigationService extends ChangeNotifier {
     if (!_sessionActive) return; // stale event from a closed session
     if (_status == VoiceStatus.matched) return;
     // The recognizer stopped on its own (end of speech / timeout). Resolve
-    // whatever we heard — only meaningful once we've actually started listening.
+    // whatever we heard - only meaningful once we've actually started listening.
     if ((status == 'done' || status == 'notListening') &&
         _status == VoiceStatus.listening) {
       _resolveFromRecognized();
@@ -264,7 +264,7 @@ class VoiceNavigationService extends ChangeNotifier {
       speakConfirmation(m);
     } else {
       _log('Matched Route: none  (recognized="$_recognized")');
-      // No match keeps the session active — a late, richer final result may
+      // No match keeps the session active - a late, richer final result may
       // still upgrade this to a match while the sheet is open.
       _set(VoiceStatus.noMatch);
       _stopSpeech();
@@ -272,7 +272,7 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   /// Speaks the "Opening …" confirmation for [command] via the app's single
-  /// centralized [VoiceManager] (one native TTS engine for the whole app —
+  /// centralized [VoiceManager] (one native TTS engine for the whole app -
   /// see voice_manager.dart for why multiple instances caused double speech).
   /// Guaranteed to dispatch at most ONCE per listening session.
   Future<void> speakConfirmation(VoiceCommand command) async {
@@ -304,10 +304,10 @@ class VoiceNavigationService extends ChangeNotifier {
   Future<void> cancel() async {
     // Whether this cancel follows a successful match (the sheet auto-closes
     // 750 ms into the confirmation). In that case the "Opening …" utterance
-    // must be allowed to FINISH — stopping it mid-word both sounded broken and
+    // must be allowed to FINISH - stopping it mid-word both sounded broken and
     // made the follow-up stale-callback replay audible as a "second" playback.
     final wasMatched = _status == VoiceStatus.matched;
-    _sessionActive = false; // close the session FIRST — late callbacks are dead
+    _sessionActive = false; // close the session FIRST - late callbacks are dead
     try {
       await _speech.cancel();
     } catch (_) {}

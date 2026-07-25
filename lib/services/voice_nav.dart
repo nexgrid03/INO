@@ -9,7 +9,7 @@ import '../screens/wallet/wallet_detail_screen.dart';
 /// Global navigation entry points for the voice assistant.
 ///
 /// Every voice destination in [kVoiceCommands] routes through these helpers, so
-/// navigation stays in ONE place and works from anywhere — the assistant uses
+/// navigation stays in ONE place and works from anywhere - the assistant uses
 /// the app-root navigator ([InoApp.navigatorKey]) and the tab controller
 /// ([ShellController]) rather than a screen-local `context`. This is what lets a
 /// spoken command open any screen regardless of where the user is.

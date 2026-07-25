@@ -3,7 +3,7 @@ import 'ocr_service.dart';
 import 'receipt_parser.dart';
 
 /// Everything a receipt scan can suggest for the Add Transaction form. Every
-/// field is nullable — OCR only ever *suggests*, so the screen fills whatever
+/// field is nullable - OCR only ever *suggests*, so the screen fills whatever
 /// came back and leaves the rest to the user.
 class ReceiptScanResult {
   const ReceiptScanResult({
@@ -15,7 +15,7 @@ class ReceiptScanResult {
     this.direction,
   });
 
-  /// A validated money amount ([ReceiptParser.parseAmount]) — never an ID read
+  /// A validated money amount ([ReceiptParser.parseAmount]) - never an ID read
   /// as a number. Null when no amount could be confidently read (the screen
   /// then leaves the field blank with a "enter manually" hint).
   final double? amount;
@@ -26,7 +26,7 @@ class ReceiptScanResult {
   final String? gstNumber;
 
   /// A payment reference code (Transaction ID / UTR), kept verbatim as a string
-  /// — offered for the Transaction ID field, never the amount.
+  /// - offered for the Transaction ID field, never the amount.
   final String? transactionId;
 
   /// The money direction inferred from the receipt text (e.g. a bank SMS/UPI
@@ -45,9 +45,9 @@ class ReceiptScanResult {
 }
 
 /// The one reusable place that turns a receipt/screenshot file into structured
-/// form suggestions — the equivalent of a `useReceiptScan()` hook.
+/// form suggestions - the equivalent of a `useReceiptScan()` hook.
 ///
-/// It runs the existing on-device OCR ([OcrService], ML Kit — no cloud/API key
+/// It runs the existing on-device OCR ([OcrService], ML Kit - no cloud/API key
 /// needed) and the existing regex extractor ([ReceiptParser]) for
 /// amount/date/vendor/GSTIN, then adds a light direction inference from the raw
 /// text. All parsing is defensive: a scan that reads nothing returns
@@ -63,8 +63,8 @@ class ReceiptScanService {
   ///
   /// Uses the OCR engine's **textOnly** mode: a receipt only needs the raw text
   /// (re-parsed below with regex), so this runs a single downscaled recognition
-  /// pass and skips the enhanced/binarized image passes — the measured
-  /// multi-second bottleneck — that exist only to rescue ID-card field
+  /// pass and skips the enhanced/binarized image passes - the measured
+  /// multi-second bottleneck - that exist only to rescue ID-card field
   /// extraction. Results are cached by the engine, so re-opening the same image
   /// returns instantly.
   Future<ReceiptScanResult> scan(String path) async {
@@ -82,7 +82,7 @@ class ReceiptScanService {
     );
   }
 
-  /// Infers credited vs. debited from bank/UPI receipt wording. Conservative —
+  /// Infers credited vs. debited from bank/UPI receipt wording. Conservative -
   /// returns null unless one direction clearly dominates, so it never
   /// overrides the user's context-based default on a guess.
   static TransactionDirection? _inferDirection(String text) {

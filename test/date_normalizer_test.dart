@@ -39,7 +39,7 @@ void main() {
       expect(DateNormalizer.normalizeDob('2006/13/40'), '2006/13/40');
     });
 
-    test('idempotent — normalizing an already-normalized value is stable', () {
+    test('idempotent - normalizing an already-normalized value is stable', () {
       expect(DateNormalizer.normalizeDob('17/12/2006'), '17/12/2006');
     });
   });

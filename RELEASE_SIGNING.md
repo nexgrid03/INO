@@ -1,7 +1,7 @@
-# INO — Android Release Signing & Google Sign-In (Permanent Setup)
+# INO - Android Release Signing & Google Sign-In (Permanent Setup)
 
 The definitive, production-grade guide to signing INO for Android and making
-**Google Sign-In work on every device** — your machine, teammates, CI, internal
+**Google Sign-In work on every device** - your machine, teammates, CI, internal
 testing (APK + AAB), and Play Store production.
 
 Credentials live **only** in `android/key.properties` (git-ignored); nothing
@@ -14,7 +14,7 @@ shipped by accident.
 ## Why Google Sign-In "works on my device but not others"
 
 On Android this app authenticates to Google **purely by
-`package name + signing-certificate SHA-1`** (native `google_sign_in` v7 —
+`package name + signing-certificate SHA-1`** (native `google_sign_in` v7 -
 `initialize(clientId: null, serverClientId: webClientId)` in
 `lib/services/auth_service.dart`). Google issues an ID token **only** if the
 installed APK's signing SHA-1 is registered in the **Android OAuth client** of
@@ -32,7 +32,7 @@ SHAs registered.** This document is that setup.
 
 ---
 
-## How the signing pipeline works (already wired — PR #5)
+## How the signing pipeline works (already wired - PR #5)
 
 - `android/app/build.gradle.kts` loads `android/key.properties` and builds a
   `release` `signingConfig` from it. **No passwords are hardcoded.**
@@ -53,7 +53,7 @@ real, reverse-domain package **before your first production/Play upload** (e.g.
 1. `android/app/build.gradle.kts` → set `namespace` and `applicationId` to the new id.
 2. Move `android/app/src/main/kotlin/com/example/inoapp/MainActivity.kt` to the
    new package folders and update its `package` line.
-3. `AndroidManifest.xml` uses `.MainActivity` (relative) — no change needed.
+3. `AndroidManifest.xml` uses `.MainActivity` (relative) - no change needed.
 4. **Re-register** the new package name + your SHA-1s in the Android OAuth client
    (below). The OAuth client's package must exactly match the installed
    `applicationId`.
@@ -63,9 +63,9 @@ real, reverse-domain package **before your first production/Play upload** (e.g.
 
 ---
 
-## Step 1 — Create the ONE release keystore (one time, ever)
+## Step 1 - Create the ONE release keystore (one time, ever)
 
-Keep the `.jks` **outside the repo** and **back it up** — losing it means you can
+Keep the `.jks` **outside the repo** and **back it up** - losing it means you can
 never update the app under the same key.
 
 ```powershell
@@ -75,7 +75,7 @@ keytool -genkeypair -v `
 ```
 (`keytool` ships with the JDK, e.g. `C:\Users\tanis\jdk17\jdk-17.0.19+10\bin\keytool.exe`.)
 
-## Step 2 — Configure `android/key.properties`
+## Step 2 - Configure `android/key.properties`
 
 ```powershell
 Copy-Item android\key.properties.example android\key.properties
@@ -87,12 +87,12 @@ keyAlias=ino
 storeFile=C:/Users/you/keys/ino-release.jks
 ```
 
-## Step 3 — Enroll in Play App Signing (recommended, permanent)
+## Step 3 - Enroll in Play App Signing (recommended, permanent)
 
 When you create the app in Play Console and upload your first AAB, opt into
 **Play App Signing** (default for new apps). Google then holds the **app signing
 key**; you sign uploads with your **upload key** (the keystore above). This is
-the durable strategy — you can reset the upload key if lost, and Google manages
+the durable strategy - you can reset the upload key if lost, and Google manages
 the production signing key.
 
 Consequence you MUST handle: **installs from Play are signed with Google's app
@@ -101,17 +101,17 @@ signing key**, whose SHA differs from your upload/release key. That Play SHA
 
 ---
 
-## Step 4 — Obtain every fingerprint (exact commands)
+## Step 4 - Obtain every fingerprint (exact commands)
 
 | Fingerprint | How to get it |
 |---|---|
-| **Release / Upload key SHA-1 & SHA-256** | `keytool -list -v -keystore C:\Users\you\keys\ino-release.jks -alias ino` — read `SHA1:` / `SHA256:` |
+| **Release / Upload key SHA-1 & SHA-256** | `keytool -list -v -keystore C:\Users\you\keys\ino-release.jks -alias ino` - read `SHA1:` / `SHA256:` |
 | (alt: both keys at once) | `cd android; .\gradlew signingReport` (shows debug + release) |
 | **Play App Signing SHA-1 & SHA-256** | Play Console → your app → **Test and release → Setup → App integrity → App signing key certificate** |
 | **Upload key SHA-1 & SHA-256** (shown by Play) | same page → **Upload key certificate** |
 | **Debug SHA-1 & SHA-256** (per developer) | `keytool -list -v -keystore "%USERPROFILE%\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android` |
 
-This machine's **debug** fingerprints (already registered — why your device works):
+This machine's **debug** fingerprints (already registered - why your device works):
 ```
 Debug SHA-1  : 6B:DE:A0:0D:8B:32:CA:A5:A8:FB:7A:FF:CC:C2:AF:60:A9:BD:DE:BD
 Debug SHA-256: EC:37:23:6C:C2:09:86:E3:A6:88:75:90:DE:97:E9:D3:F6:95:4F:D8:8E:16:5F:31:00:84:DB:94:ED:AC:0A:52
@@ -119,7 +119,7 @@ Debug SHA-256: EC:37:23:6C:C2:09:86:E3:A6:88:75:90:DE:97:E9:D3:F6:95:4F:D8:8E:16
 
 ---
 
-## Step 5 — Register the fingerprints in Google Cloud (the actual fix)
+## Step 5 - Register the fingerprints in Google Cloud (the actual fix)
 
 **Where:** Google Cloud Console → project **535920485088** →
 **APIs & Services → Credentials** → open the OAuth 2.0 client of type
@@ -139,11 +139,11 @@ under *SHA-1 certificate fingerprints* → **Save** (≈5 min to propagate).
 | **Each developer's Debug SHA-1** | ✅ Required | So `flutter run` (debug) signs in on each teammate's machine |
 | Debug SHA-256 | ✅ Recommended | SHA-256 path for local dev |
 
-You can add **multiple** SHA-1s to one Android OAuth client — add all of the above.
+You can add **multiple** SHA-1s to one Android OAuth client - add all of the above.
 
 ---
 
-## Step 6 — Release build commands
+## Step 6 - Release build commands
 
 ```powershell
 flutter build appbundle --release   # → build/app/outputs/bundle/release/app-release.aab  (Play upload)
@@ -160,7 +160,7 @@ keytool -printcert -jarfile build\app\outputs\flutter-apk\app-release.apk
 ## Team members & CI (sign with the SAME release key)
 
 - **Teammates building releases**: share `ino-release.jks` **securely** (a secrets
-  manager / password vault — never git/Slack/email). Each creates their own local
+  manager / password vault - never git/Slack/email). Each creates their own local
   `android/key.properties` pointing at it.
 - **CI**: store the keystore (base64) + passwords as CI **secrets**; in the job,
   decode the keystore and write `android/key.properties` before `flutter build`.
@@ -203,7 +203,7 @@ All rows also require: package name in the OAuth client == installed
 
 ---
 
-## Supabase (verify — already correct since one device works)
+## Supabase (verify - already correct since one device works)
 
 Authentication → Providers → **Google**: enabled; **Client ID** = the Web client
 `535920485088-…`; its **Client Secret** set; the Web client ID also listed under

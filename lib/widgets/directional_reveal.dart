@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 /// Driven by [progress] (0 = hidden, 1 = fully visible). A soft transparent
 /// edge follows the wipe so the reveal looks like the artwork is being
 /// "drawn" rather than hard-cut. Used for:
-///   • the wealth chart — horizontal wipe = the line drawing left→right
-///   • the QR code — vertical wipe = blocks appearing top→bottom
+///   • the wealth chart - horizontal wipe = the line drawing left→right
+///   • the QR code - vertical wipe = blocks appearing top→bottom
 ///
 /// It does NOT change the child's appearance once fully revealed, so the
 /// resting design is preserved exactly.

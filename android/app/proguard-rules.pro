@@ -1,12 +1,12 @@
 # ============================================================================
-# INO — R8 / ProGuard keep rules
+# INO - R8 / ProGuard keep rules
 # ============================================================================
 # Release builds run R8 in full mode (Flutter enables code shrinking for
 # release). These rules keep the reflectively-loaded ML Kit classes and silence
 # R8's missing-class check for optional components we deliberately don't bundle.
 
 # ----------------------------------------------------------------------------
-# Google ML Kit — Text Recognition (google_mlkit_text_recognition) and the
+# Google ML Kit - Text Recognition (google_mlkit_text_recognition) and the
 # Document Scanner (google_mlkit_document_scanner).
 # ----------------------------------------------------------------------------
 # The text-recognition plugin's Android code references FIVE script recognizers
@@ -23,7 +23,7 @@
 -dontwarn com.google.mlkit.vision.text.korean.**
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 
-# Keep the ML Kit surface — options/builders/detectors are instantiated
+# Keep the ML Kit surface - options/builders/detectors are instantiated
 # reflectively by the SDK, so stripping/renaming them breaks text recognition
 # and document scanning at runtime.
 -keep class com.google.mlkit.** { *; }

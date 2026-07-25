@@ -6,8 +6,8 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// A two-segment control for the money direction — **Debited** (money out) and
-/// **Credited** (money in) — used on the Add Transaction form below the amount.
+/// A two-segment control for the money direction - **Debited** (money out) and
+/// **Credited** (money in) - used on the Add Transaction form below the amount.
 ///
 /// Debited uses a subtle neutral/red accent, credited the app's teal/green, so
 /// the selected side reads at a glance. When [highlight] is true (e.g. the
@@ -38,8 +38,8 @@ class _DirectionToggleState extends State<DirectionToggle>
     duration: const Duration(milliseconds: 900),
   );
 
-  static const _debitColor = AppColors.critical; // money out — subtle red
-  static const _creditColor = AppColors.primaryGreen; // money in — teal/green
+  static const _debitColor = AppColors.critical; // money out - subtle red
+  static const _creditColor = AppColors.primaryGreen; // money in - teal/green
 
   @override
   void initState() {

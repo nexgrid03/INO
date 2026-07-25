@@ -38,7 +38,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
       final file = await TaxSummaryPdf.generate(summary);
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'INO Tax Summary — FY ${summary.year.label}',
+        subject: 'INO Tax Summary - FY ${summary.year.label}',
         sharePositionOrigin: origin,
       );
     } catch (_) {
@@ -157,7 +157,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'A personal record summary for reference while '
-                          'preparing your ITR — not a certified tax document.',
+                          'preparing your ITR - not a certified tax document.',
                           style: AppText.caption
                               .copyWith(color: palette.textFaint, height: 1.4),
                         ),

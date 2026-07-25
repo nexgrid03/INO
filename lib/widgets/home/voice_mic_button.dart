@@ -4,17 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/voice_command.dart';
+import '../../services/guest_mode.dart';
 import '../../services/voice_navigation_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
-/// A small, **highlighted** voice-assistant button — a filled brand-gradient
+/// A small, **highlighted** voice-assistant button - a filled brand-gradient
 /// circle with a white mic and a soft teal glow, meant to sit beside the
 /// notification bell so the voice action clearly stands out. It looks identical
 /// everywhere it's used (Home, Wallet, …). Tapping it opens the voice-command
 /// sheet; when a command is recognized, the matched destination navigates itself
-/// (via [VoiceCommand.navigate]) — no host wiring required.
+/// (via [VoiceCommand.navigate]) - no host wiring required.
 class VoiceMicIconButton extends StatelessWidget {
   const VoiceMicIconButton({super.key, this.size = 42});
 
@@ -27,8 +28,12 @@ class VoiceMicIconButton extends StatelessWidget {
       child: Tooltip(
         message: 'Voice assistant',
         child: GestureDetector(
-          onTap: () {
+          onTap: () async {
             HapticFeedback.mediumImpact();
+            // Voice commands act on the user's data (open wallets, create
+            // reminders…), so explore mode asks for an account first.
+            if (!await GuestMode.requireAuth(context)) return;
+            if (!context.mounted) return;
             showVoiceCommandSheet(context);
           },
           behavior: HitTestBehavior.opaque,
@@ -121,8 +126,10 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
       Future.delayed(const Duration(milliseconds: 750), () {
         if (mounted) Navigator.of(context).pop();
         if (matched != null) {
-          developer.log('[VOICE] Navigation Triggered → ${matched.route}',
-              name: 'voice');
+          developer.log(
+            '[VOICE] Navigation Triggered → ${matched.route}',
+            name: 'voice',
+          );
           matched.navigate();
         }
       });
@@ -227,7 +234,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
           _LiveField(
             palette: palette,
             label: 'MATCHED',
-            value: preview?.route ?? '—',
+            value: preview?.route ?? '-',
             accent: preview != null,
           ),
         ],

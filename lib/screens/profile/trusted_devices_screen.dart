@@ -7,7 +7,7 @@ import '../../utils/formatting.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 
-/// Trusted Devices — the devices this install has recorded, with their last
+/// Trusted Devices - the devices this install has recorded, with their last
 /// active time and a "forget" action for anything but the current device.
 class TrustedDevicesScreen extends StatefulWidget {
   const TrustedDevicesScreen({super.key});

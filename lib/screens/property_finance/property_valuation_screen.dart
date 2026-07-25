@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
+import '../../models/currency.dart';
+import '../../services/app_settings.dart';
 import '../../services/property_valuation_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -8,9 +11,11 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property/area_unit_picker.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
+import '../../widgets/property_finance/currency_selector.dart';
 
-/// Property Valuation Calculator — area × rate → market value, with an optional
-/// purchase price to show profit / loss (appreciation).
+/// Property Valuation Calculator - area × rate → market value, with an optional
+/// purchase price to show profit / loss (appreciation). Works in any currency
+/// and any supported land unit.
 class PropertyValuationScreen extends StatefulWidget {
   const PropertyValuationScreen({super.key});
 
@@ -38,13 +43,16 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
   double _num(TextEditingController c) => double.tryParse(c.text.trim()) ?? 0;
 
   Future<void> _pickUnit() async {
-    final picked =
-        await showAreaUnitPicker(context, selected: _unit, title: 'Area Unit');
+    final picked = await showAreaUnitPicker(context,
+        selected: _unit, title: AppLocalizations.of(context).t('areaUnit'));
     if (picked != null) setState(() => _unit = picked);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currency = Currencies.byCode(AppSettings.instance.currency.value);
+
     final area = _num(_area);
     final rate = _num(_rate);
     final purchase = _num(_purchase);
@@ -56,11 +64,12 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
         : ProfitLoss.zero;
 
     return CalculatorScaffold(
-      title: 'Property Valuation',
-      subtitle: 'Estimate market value & appreciation',
+      title: l10n.t('propertyValuation'),
+      subtitle: l10n.t('valuationSubtitle'),
+      trailing: CurrencySelector(onChanged: (_) => setState(() {})),
       children: [
         CalcInputCard(
-          title: 'Property Details',
+          title: l10n.t('propertyDetails'),
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +77,7 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
                 Expanded(
                   flex: 3,
                   child: CalcField(
-                    label: 'Area',
+                    label: l10n.t('area'),
                     controller: _area,
                     hint: 'e.g. 312',
                     onChanged: () => setState(() {}),
@@ -77,23 +86,27 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   flex: 2,
-                  child: _UnitSelector(unit: _unit, onTap: _pickUnit),
+                  child: _UnitSelector(
+                    unit: _unit,
+                    label: l10n.t('unit'),
+                    onTap: _pickUnit,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Rate per ${_unit.shortLabel}',
+              label: '${l10n.t('ratePer')} ${_unit.shortLabel}',
               controller: _rate,
-              prefix: '₹',
+              prefix: currency.symbol,
               hint: 'e.g. 35000',
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.sm),
             CalcField(
-              label: 'Purchase Price (optional — for profit/loss)',
+              label: l10n.t('purchasePriceOptional'),
               controller: _purchase,
-              prefix: '₹',
+              prefix: currency.symbol,
               hint: 'e.g. 5000000',
               onChanged: () => setState(() {}),
             ),
@@ -101,35 +114,35 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         if (!valid)
-          const CalcHint(
-              message:
-                  'Enter the area and rate per unit to estimate the property value.')
+          CalcHint(message: l10n.t('valuationHint'))
         else ...[
           HeroResultCard(
-            label: 'Market Value',
-            value: rupees(marketValue.round()),
-            copyText: rupees(marketValue.round()),
+            label: l10n.t('marketValue'),
+            value: money(marketValue.round(), currency),
+            copyText: money(marketValue.round(), currency),
           ),
           const SizedBox(height: AppSpacing.md),
           ResultBreakdownCard(
             rows: [
               ResultRow(
-                label: 'Calculation',
-                value:
-                    '${indianGroup(area)} × ${indianGroup(rate)}',
+                label: l10n.t('calculation'),
+                value: currency.indianGrouping
+                    ? '${indianGroup(area)} × ${indianGroup(rate)}'
+                    : '${westernGroup(area)} × ${westernGroup(rate)}',
               ),
               ResultRow(
-                  label: 'In words', value: rupeesWords(marketValue)),
+                  label: l10n.t('inWords'),
+                  value: moneyWords(marketValue, currency)),
             ],
           ),
           if (showProfit) ...[
             const SizedBox(height: AppSpacing.md),
             HeroResultCard(
               label: pnl.isProfit
-                  ? 'Profit  (+${pnl.percent.toStringAsFixed(1)}%)'
-                  : 'Loss  (${pnl.percent.toStringAsFixed(1)}%)',
-              value: rupees(pnl.amount.abs().round()),
-              copyText: rupees(pnl.amount.round()),
+                  ? '${l10n.t('profit')}  (+${pnl.percent.toStringAsFixed(1)}%)'
+                  : '${l10n.t('loss')}  (${pnl.percent.toStringAsFixed(1)}%)',
+              value: money(pnl.amount.abs().round(), currency),
+              copyText: money(pnl.amount.round(), currency),
               gradient: LinearGradient(
                 colors: pnl.isProfit
                     ? const [AppColors.primaryGreen, AppColors.secondaryGreen]
@@ -142,14 +155,14 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
             ResultBreakdownCard(
               rows: [
                 ResultRow(
-                    label: 'Purchase Price',
-                    value: rupees(purchase.round())),
+                    label: l10n.t('purchasePrice'),
+                    value: money(purchase.round(), currency)),
                 ResultRow(
-                    label: 'Current Value',
-                    value: rupees(marketValue.round())),
+                    label: l10n.t('currentValue'),
+                    value: money(marketValue.round(), currency)),
                 ResultRow(
-                  label: pnl.isProfit ? 'Profit' : 'Loss',
-                  value: rupees(pnl.amount.round()),
+                  label: pnl.isProfit ? l10n.t('profit') : l10n.t('loss'),
+                  value: money(pnl.amount.round(), currency),
                   valueColor: pnl.isProfit
                       ? AppColors.primaryGreen
                       : AppColors.critical,
@@ -164,9 +177,14 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
 }
 
 class _UnitSelector extends StatelessWidget {
-  const _UnitSelector({required this.unit, required this.onTap});
+  const _UnitSelector({
+    required this.unit,
+    required this.label,
+    required this.onTap,
+  });
 
   final AreaUnit unit;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -175,7 +193,7 @@ class _UnitSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Unit',
+        Text(label,
             style: AppText.label
                 .copyWith(color: palette.textFaint, fontSize: 11.5)),
         const SizedBox(height: 6),

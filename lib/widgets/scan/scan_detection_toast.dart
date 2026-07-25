@@ -4,7 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../screens/scan/scan_theme.dart';
 
 /// A small, premium success toast shown *transiently* the moment a document is
-/// first detected — a green checkmark + "Document Detected" on a floating green
+/// first detected - a green checkmark + "Document Detected" on a floating green
 /// card. It's mounted only briefly (the scanner fades it out after ~1.5s) and
 /// sits near the top of the viewport so it never blocks the document itself.
 ///
@@ -49,7 +49,7 @@ class ScanSuccessToast extends StatelessWidget {
   }
 }
 
-/// A subtle, glassy guidance chip shown at the bottom of the viewport — "Hold
+/// A subtle, glassy guidance chip shown at the bottom of the viewport - "Hold
 /// steady to capture" once a document locks in, or a quiet "Searching…" while
 /// framing. Tints green when [positive] so the user always knows the state.
 /// Purely informational; never intercepts touches.
