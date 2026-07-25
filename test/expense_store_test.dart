@@ -75,6 +75,97 @@ void main() {
     });
   });
 
+  group('direction (credited / debited)', () {
+    final fixed = DateTime(2026, 7, 1, 12);
+
+    test('defaults are derived from the type when unset', () {
+      // Old / unset records: income → credited, expense → debited.
+      final income = TransactionRecord(
+        id: 'i',
+        description: 'Salary',
+        amount: 1000,
+        dateTime: fixed,
+        type: TransactionType.income,
+        category: TxnCategory.salary,
+      );
+      final expense = TransactionRecord(
+        id: 'e',
+        description: 'Rent',
+        amount: 500,
+        dateTime: fixed,
+        type: TransactionType.expense,
+        category: TxnCategory.rent,
+      );
+      expect(income.direction, isNull);
+      expect(income.effectiveDirection, TransactionDirection.credited);
+      expect(income.isCredited, isTrue);
+      expect(expense.effectiveDirection, TransactionDirection.debited);
+      expect(expense.isCredited, isFalse);
+    });
+
+    test('an explicit direction overrides the type default', () {
+      // A refund: recorded as income but money went out → debited.
+      final t = store.add(
+        description: 'Refund reversal',
+        amount: 200,
+        dateTime: inFy(),
+        type: TransactionType.income,
+        category: TxnCategory.other,
+        direction: TransactionDirection.debited,
+      );
+      expect(t.direction, TransactionDirection.debited);
+      expect(t.effectiveDirection, TransactionDirection.debited);
+      expect(t.isCredited, isFalse);
+    });
+
+    test('defaultFor maps type → direction', () {
+      expect(TransactionDirectionX.defaultFor(TransactionType.income),
+          TransactionDirection.credited);
+      expect(TransactionDirectionX.defaultFor(TransactionType.expense),
+          TransactionDirection.debited);
+    });
+
+    test('row round-trip persists the resolved direction, tolerates missing',
+        () {
+      // toInsert always writes a concrete direction (even for a legacy record
+      // whose field is null).
+      final legacy = TransactionRecord(
+        id: 'x',
+        description: 'Old income',
+        amount: 1,
+        dateTime: fixed,
+        type: TransactionType.income,
+        category: TxnCategory.salary,
+      );
+      expect(legacy.toInsert()['direction'], 'credited');
+
+      // A row that predates the column (no 'direction' key) → null field, but
+      // effectiveDirection still derives it from the type.
+      final fromOldRow = TransactionRecord.fromRow({
+        'id': 'r1',
+        'title': 'Old expense',
+        'amount': 10,
+        'expense_date': fixed.toIso8601String(),
+        'type': 'expense',
+        'category': 'rent',
+      });
+      expect(fromOldRow.direction, isNull);
+      expect(fromOldRow.effectiveDirection, TransactionDirection.debited);
+
+      // A row with an explicit direction is read back faithfully.
+      final fromNewRow = TransactionRecord.fromRow({
+        'id': 'r2',
+        'title': 'Refund',
+        'amount': 10,
+        'expense_date': fixed.toIso8601String(),
+        'type': 'income',
+        'category': 'other',
+        'direction': 'debited',
+      });
+      expect(fromNewRow.direction, TransactionDirection.debited);
+    });
+  });
+
   group('search', () {
     test('matches description, transaction ID, vendor, amount and date', () {
       add('Office rent', 20000, TxnCategory.rent,

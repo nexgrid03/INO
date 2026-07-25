@@ -31,7 +31,9 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final income = txn.isIncome;
+    // Credited (money in) shows as "+₹…" in green; debited stays plain. Uses
+    // the direction (falling back to the type for older records).
+    final credited = txn.isCredited;
     final accent = txn.category.color;
     final subtitle = txn.reference?.isNotEmpty == true
         ? '${formatTxnDate(txn.dateTime)} · ${txn.reference}'
@@ -103,9 +105,10 @@ class TransactionTile extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  '${income ? '+' : ''}${rupees(txn.amount.round())}',
+                  '${credited ? '+' : ''}${rupees(txn.amount.round())}',
                   style: AppText.subtitle.copyWith(
-                    color: income ? AppColors.primaryGreen : palette.textPrimary,
+                    color:
+                        credited ? AppColors.primaryGreen : palette.textPrimary,
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
                   ),

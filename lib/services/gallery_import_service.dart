@@ -17,4 +17,17 @@ class GalleryImportService {
     );
     return file?.path;
   }
+
+  /// Opens the device camera to capture a photo and returns its path, or `null`
+  /// if the user backed out. Down-samples large captures a touch (quality 88,
+  /// max 2600px) so the receipt scan stays fast without hurting legibility.
+  Future<String?> captureFromCamera() async {
+    final XFile? file = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 88,
+      maxWidth: 2600,
+      maxHeight: 2600,
+    );
+    return file?.path;
+  }
 }

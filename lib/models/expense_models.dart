@@ -60,6 +60,30 @@ extension TransactionTypeX on TransactionType {
       : TransactionType.expense;
 }
 
+/// Money direction — whether funds left the account ([debited]) or arrived
+/// ([credited]). Stored alongside [TransactionType]; when absent on an older
+/// record it is derived from the type (income → credited, expense → debited),
+/// so pre-existing transactions keep working unchanged.
+enum TransactionDirection { debited, credited }
+
+extension TransactionDirectionX on TransactionDirection {
+  String get label =>
+      this == TransactionDirection.credited ? 'Credited' : 'Debited';
+
+  bool get isCredited => this == TransactionDirection.credited;
+
+  /// The natural default for a [TransactionType]: income is money in
+  /// (credited), an expense is money out (debited).
+  static TransactionDirection defaultFor(TransactionType type) =>
+      type.isIncome ? TransactionDirection.credited : TransactionDirection.debited;
+
+  static TransactionDirection? fromName(String? name) {
+    if (name == 'credited') return TransactionDirection.credited;
+    if (name == 'debited') return TransactionDirection.debited;
+    return null;
+  }
+}
+
 /// ITR-oriented transaction categories.
 enum TxnCategory {
   salary,
@@ -255,6 +279,7 @@ class TransactionRecord {
     this.note,
     this.receiptPath,
     this.receiptIsPdf = false,
+    this.direction,
   });
 
   final String id;
@@ -268,6 +293,10 @@ class TransactionRecord {
   final DateTime dateTime;
   final TransactionType type;
   final TxnCategory category;
+
+  /// Money direction, or null when unset (older records) — read via
+  /// [effectiveDirection], which falls back to the type-derived default.
+  final TransactionDirection? direction;
 
   /// User-entered transaction reference / Transaction ID (e.g. "TXN123456").
   final String? reference;
@@ -292,6 +321,16 @@ class TransactionRecord {
   bool get hasReceipt => receiptPath != null;
   FinancialYear get financialYear => FinancialYear.of(dateTime);
 
+  /// The money direction to display / store: the explicit [direction] when set,
+  /// otherwise the type-derived default (income → credited, expense → debited).
+  /// This is what makes records saved before the direction field keep rendering
+  /// correctly.
+  TransactionDirection get effectiveDirection =>
+      direction ?? TransactionDirectionX.defaultFor(type);
+
+  /// True when funds arrived (shown as "+₹…" in lists).
+  bool get isCredited => effectiveDirection.isCredited;
+
   TransactionRecord copyWith({
     String? description,
     double? amount,
@@ -305,6 +344,7 @@ class TransactionRecord {
     String? note,
     String? receiptPath,
     bool? receiptIsPdf,
+    TransactionDirection? direction,
   }) =>
       TransactionRecord(
         id: id,
@@ -320,6 +360,7 @@ class TransactionRecord {
         note: note ?? this.note,
         receiptPath: receiptPath ?? this.receiptPath,
         receiptIsPdf: receiptIsPdf ?? this.receiptIsPdf,
+        direction: direction ?? this.direction,
       );
 
   // ---- Supabase row mapping (public.expenses) ------------------------------
@@ -345,6 +386,9 @@ class TransactionRecord {
         note: row['notes'] as String?,
         receiptPath: row['receipt_path'] as String?,
         receiptIsPdf: (row['receipt_is_pdf'] as bool?) ?? false,
+        // Null for rows written before the column existed → effectiveDirection
+        // derives it from the type.
+        direction: TransactionDirectionX.fromName(row['direction'] as String?),
       );
 
   /// The column values for an INSERT/UPDATE (no `id` — the DB generates it on
@@ -362,6 +406,9 @@ class TransactionRecord {
         'notes': note,
         'receipt_path': receiptPath,
         'receipt_is_pdf': receiptIsPdf,
+        // Persist the resolved direction so old rows get a concrete value on
+        // their next save (and new rows are always explicit).
+        'direction': effectiveDirection.name,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
@@ -379,6 +426,7 @@ class TransactionRecord {
     required String? note,
     required String? receiptPath,
     required bool receiptIsPdf,
+    required TransactionDirection? direction,
   }) =>
       TransactionRecord(
         id: id,
@@ -394,6 +442,7 @@ class TransactionRecord {
         note: note,
         receiptPath: receiptPath,
         receiptIsPdf: receiptIsPdf,
+        direction: direction,
       );
 }
 

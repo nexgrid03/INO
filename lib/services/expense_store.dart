@@ -210,6 +210,7 @@ class ExpenseStore extends ChangeNotifier {
     String? note,
     String? receiptPath,
     bool receiptIsPdf = false,
+    TransactionDirection? direction,
   }) {
     final t = TransactionRecord(
       id: _newId('txn'),
@@ -225,6 +226,7 @@ class ExpenseStore extends ChangeNotifier {
       note: note,
       receiptPath: receiptPath,
       receiptIsPdf: receiptIsPdf,
+      direction: direction,
     );
     // Optimistically show it, then insert to Supabase and swap in the real id.
     _txns.add(t);

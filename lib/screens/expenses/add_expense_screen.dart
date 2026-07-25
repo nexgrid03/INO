@@ -7,12 +7,12 @@ import '../../models/expense_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
 import '../../services/gallery_import_service.dart';
-import '../../services/ocr_service.dart';
 import '../../services/pdf_import_service.dart';
-import '../../services/receipt_parser.dart';
+import '../../services/receipt_scan_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/expenses/direction_toggle.dart';
 import '../../widgets/pressable_scale.dart';
 
 /// Add / edit an ITR-ready transaction. Attaching a photo receipt runs OCR and
@@ -44,6 +44,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _busy = false;
   bool _scanning = false;
 
+  /// Money direction (Feature 2). Defaults from [_type]; auto-set from a scanned
+  /// receipt when detected; always user-overridable via the [DirectionToggle].
+  late TransactionDirection _direction;
+
+  /// True right after OCR auto-set the direction, so the toggle pulses once to
+  /// flag the change. Cleared as soon as the user touches anything.
+  bool _directionAutoSet = false;
+
+  /// The set of fields the last receipt scan filled (labels for the "Auto-filled
+  /// from receipt ✓" note) — empty when there's no live extraction.
+  final Set<String> _autoFilled = {};
+
+  /// A snapshot of the fields OCR may touch, taken just before auto-fill, so
+  /// "Clear" can discard the extraction and restore what the user had.
+  Map<String, String>? _preScanSnapshot;
+  DateTime? _preScanDate;
+
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -66,7 +83,27 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _payment = e.paymentMethod;
       _receiptPath = e.receiptPath;
       _receiptIsPdf = e.receiptIsPdf;
+      _direction = e.effectiveDirection; // preserve an edited record's direction
+    } else {
+      _direction = TransactionDirectionX.defaultFor(_type);
     }
+  }
+
+  /// Switching Expense/Income re-defaults the direction from context. A manual
+  /// direction tap afterwards still wins (until the type changes again).
+  void _onTypeChanged(TransactionType type) {
+    setState(() {
+      _type = type;
+      _direction = TransactionDirectionX.defaultFor(type);
+      _directionAutoSet = false;
+    });
+  }
+
+  void _onDirectionChanged(TransactionDirection d) {
+    setState(() {
+      _direction = d;
+      _directionAutoSet = false; // user override → stop the highlight
+    });
   }
 
   static String _fmt(double v) =>
@@ -120,9 +157,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             const SizedBox(height: AppSpacing.sm),
             ListTile(
               leading:
+                  const Icon(Icons.photo_camera_rounded, color: AppColors.primaryGreen),
+              title: const Text('Camera'),
+              subtitle: const Text('Snap the receipt — auto-reads details'),
+              onTap: () => Navigator.of(context).pop('camera'),
+            ),
+            ListTile(
+              leading:
                   const Icon(Icons.image_rounded, color: AppColors.primaryGreen),
-              title: const Text('Photo / Screenshot'),
-              subtitle: const Text('Auto-reads amount, date & vendor'),
+              title: const Text('Gallery'),
+              subtitle: const Text('Pick a photo or payment screenshot'),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
@@ -153,10 +197,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
     setState(() => _busy = true);
     try {
-      if (choice == 'image') {
+      if (choice == 'camera') {
+        final access = await CameraPermissionService.instance.requestCamera();
+        if (access != CameraAccess.granted) {
+          _toast(
+              access == CameraAccess.permanentlyDenied
+                  ? 'Camera access is blocked — enable it in Settings'
+                  : 'Camera access is needed to snap a receipt',
+              error: true);
+          if (access == CameraAccess.permanentlyDenied) {
+            await CameraPermissionService.instance.openSettings();
+          }
+          return;
+        }
+        final path = await GalleryImportService.instance.captureFromCamera();
+        if (path != null && mounted) {
+          setState(() {
+            _receiptPath = path;
+            _receiptIsPdf = false;
+          });
+          await _runOcr(path);
+        }
+      } else if (choice == 'image') {
         final access = await CameraPermissionService.instance.requestPhotos();
         if (access != CameraAccess.granted) {
-          _toast('Photo access is needed to attach a screenshot', error: true);
+          _toast(
+              access == CameraAccess.permanentlyDenied
+                  ? 'Photo access is blocked — enable it in Settings'
+                  : 'Photo access is needed to attach a screenshot',
+              error: true);
+          if (access == CameraAccess.permanentlyDenied) {
+            await CameraPermissionService.instance.openSettings();
+          }
           return;
         }
         final path = await GalleryImportService.instance.pickImage();
@@ -185,38 +257,128 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  /// Runs OCR on the receipt image and pre-fills empty fields only.
+  /// Runs OCR on the receipt image and auto-fills the matching form fields.
+  ///
+  /// Fields that are already empty are filled directly; if the scan found values
+  /// for fields the user has ALREADY typed into, we ask "Replace existing
+  /// values?" first. Every filled field stays editable, and a snapshot is kept
+  /// so "Clear" can discard the extraction. OCR failure is non-fatal — the form
+  /// stays fully usable.
   Future<void> _runOcr(String path) async {
     setState(() => _scanning = true);
     try {
-      final extraction = await OcrService.instance.extract(path);
-      final data = ReceiptParser.parse(extraction.rawText);
-      if (!mounted || data.isEmpty) return;
-      final filled = <String>[];
-      if (data.amount != null && _amount.text.trim().isEmpty) {
-        _amount.text = _fmt(data.amount!);
-        filled.add('amount');
+      final data = await ReceiptScanService.instance.scan(path);
+      if (!mounted || data.isEmpty) {
+        if (mounted) {
+          _toast('Couldn\'t read the receipt — fill manually', error: true);
+        }
+        return;
       }
+
+      // What can the scan offer, and does any of it collide with typed values?
+      final hasConflict = (data.amount != null && _amount.text.trim().isNotEmpty) ||
+          (data.vendorName != null && _vendor.text.trim().isNotEmpty) ||
+          (data.gstNumber != null && _reference.text.trim().isNotEmpty);
+
+      var replaceExisting = false;
+      if (hasConflict) {
+        replaceExisting = await _askReplaceExisting() ?? false;
+      }
+
+      // Snapshot the touchable fields BEFORE filling, so Clear can restore them.
+      _preScanSnapshot = {
+        'amount': _amount.text,
+        'vendor': _vendor.text,
+        'reference': _reference.text,
+      };
+      _preScanDate = _date;
+
+      final filled = <String>{};
+      void fill(String key, TextEditingController c, String value) {
+        if (c.text.trim().isEmpty || replaceExisting) {
+          c.text = value;
+          filled.add(key);
+        }
+      }
+
+      if (data.amount != null) fill('Amount', _amount, _fmt(data.amount!));
+      if (data.vendorName != null) fill('Vendor', _vendor, data.vendorName!);
+      if (data.gstNumber != null) fill('Transaction ID', _reference, data.gstNumber!);
       if (data.date != null) {
         _date = DateTime(data.date!.year, data.date!.month, data.date!.day,
             _date.hour, _date.minute);
-        filled.add('date');
+        filled.add('Date');
       }
-      if (data.vendorName != null && _vendor.text.trim().isEmpty) {
-        _vendor.text = data.vendorName!;
-        filled.add('vendor');
+
+      // Direction from the receipt (e.g. a bank/UPI screenshot) — set it and
+      // pulse the toggle so the user notices it was auto-chosen.
+      if (data.direction != null && data.direction != _direction) {
+        _direction = data.direction!;
+        _directionAutoSet = true;
+        filled.add('Direction');
       }
-      if (data.gstNumber != null && _reference.text.trim().isEmpty) {
-        _reference.text = data.gstNumber!;
-        filled.add('GSTIN');
+
+      setState(() {
+        _autoFilled
+          ..clear()
+          ..addAll(filled);
+      });
+      if (filled.isEmpty) {
+        _toast('Nothing new to fill from the receipt');
       }
-      setState(() {});
-      if (filled.isNotEmpty) _toast('Auto-filled ${filled.join(', ')} from receipt');
     } catch (_) {
-      // OCR is best-effort — silently skip if it can't read the receipt.
+      // OCR / network failure → keep the form usable.
+      if (mounted) {
+        _toast('Couldn\'t read the receipt — fill manually', error: true);
+      }
     } finally {
       if (mounted) setState(() => _scanning = false);
     }
+  }
+
+  Future<bool?> _askReplaceExisting() {
+    final palette = AppPalette.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: const Text('Replace existing values?'),
+        content: Text(
+          'The receipt has details for fields you\'ve already filled. Replace '
+          'them, or keep what you typed and only fill the empty fields?',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep mine'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Replace',
+                style: TextStyle(color: AppColors.primaryGreen)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Discards the last receipt extraction: restores the fields OCR touched to
+  /// their pre-scan values and clears the "Auto-filled" note.
+  void _clearExtraction() {
+    final snap = _preScanSnapshot;
+    setState(() {
+      if (snap != null) {
+        _amount.text = snap['amount'] ?? '';
+        _vendor.text = snap['vendor'] ?? '';
+        _reference.text = snap['reference'] ?? '';
+        if (_preScanDate != null) _date = _preScanDate!;
+      }
+      _autoFilled.clear();
+      _directionAutoSet = false;
+      _preScanSnapshot = null;
+      _preScanDate = null;
+    });
   }
 
   void _save() {
@@ -248,6 +410,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         note: note,
         receiptPath: _receiptPath,
         receiptIsPdf: _receiptIsPdf,
+        direction: _direction,
       );
     } else {
       _store.update(e.replace(
@@ -263,6 +426,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         note: note,
         receiptPath: _receiptPath,
         receiptIsPdf: _receiptIsPdf,
+        direction: _direction,
       ));
     }
     HapticFeedback.mediumImpact();
@@ -302,12 +466,39 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     _Segmented(
                       options: const ['Expense', 'Income'],
                       selectedIndex: _type == TransactionType.income ? 1 : 0,
-                      onChanged: (i) => setState(() => _type = i == 1
+                      onChanged: (i) => _onTypeChanged(i == 1
                           ? TransactionType.income
                           : TransactionType.expense),
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    // Feature 1 — upload payment proof (top of the form). Reads
+                    // amount / date / vendor / direction and auto-fills below.
+                    _UploadProof(
+                      path: _receiptPath,
+                      isPdf: _receiptIsPdf,
+                      busy: _busy,
+                      scanning: _scanning,
+                      onTap: _attach,
+                    ),
+                    if (_autoFilled.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      _AutoFilledNote(
+                        fields: _autoFilled,
+                        onClear: _clearExtraction,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
                     _AmountField(controller: _amount),
+                    const SizedBox(height: AppSpacing.md),
+                    // Feature 2 — money direction, defaulted from the type above.
+                    _Field(
+                      label: 'Direction',
+                      child: DirectionToggle(
+                        value: _direction,
+                        highlight: _directionAutoSet,
+                        onChanged: _onDirectionChanged,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     _Field(
                       label: 'Description',
@@ -377,18 +568,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       optional: true,
                       child: _input(_note, 'Anything to remember…',
                           cap: TextCapitalization.sentences, maxLines: 3),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _Field(
-                      label: 'Receipt / Screenshot',
-                      optional: true,
-                      child: _ReceiptPicker(
-                        path: _receiptPath,
-                        isPdf: _receiptIsPdf,
-                        busy: _busy,
-                        scanning: _scanning,
-                        onTap: _attach,
-                      ),
                     ),
                   ],
                 ),
@@ -588,8 +767,12 @@ class _PaymentPicker extends StatelessWidget {
   }
 }
 
-class _ReceiptPicker extends StatelessWidget {
-  const _ReceiptPicker({
+/// Feature 1 — the "Upload payment proof" area at the top of the form. A dashed
+/// card with a receipt/camera icon when empty; once a file is chosen it shows a
+/// thumbnail (or PDF chip) and a "Scanning…" state while OCR runs. Tapping opens
+/// the Camera / Gallery / PDF source sheet.
+class _UploadProof extends StatelessWidget {
+  const _UploadProof({
     required this.path,
     required this.isPdf,
     required this.busy,
@@ -606,82 +789,252 @@ class _ReceiptPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return PressableScale(
-      pressedScale: 0.99,
-      child: GestureDetector(
-        onTap: busy ? null : onTap,
-        child: Container(
-          height: path == null ? 64 : 84,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: palette.surfaceVariant,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(
-                color: path == null ? palette.border : AppColors.primaryGreen),
-          ),
-          child: busy
-              ? Row(
-                  children: [
-                    const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4)),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(scanning ? 'Reading receipt…' : 'Attaching…',
-                        style:
-                            AppText.body.copyWith(color: palette.textSecondary)),
-                  ],
-                )
-              : path == null
+    final empty = path == null;
+    return Semantics(
+      button: true,
+      label: empty ? 'Upload payment proof' : 'Change payment proof',
+      child: PressableScale(
+        pressedScale: 0.99,
+        child: GestureDetector(
+          onTap: busy ? null : onTap,
+          child: _DashedBorder(
+            active: !empty,
+            dashed: empty,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: busy
                   ? Row(
                       children: [
-                        const Icon(Icons.upload_file_rounded,
-                            color: AppColors.primaryGreen),
+                        const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2.4)),
                         const SizedBox(width: AppSpacing.sm),
-                        Text('Attach receipt (auto-reads details)',
+                        Text(scanning ? 'Scanning…' : 'Attaching…',
                             style: AppText.body
                                 .copyWith(color: palette.textSecondary)),
                       ],
                     )
-                  : Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.chip),
-                          child: isPdf
-                              ? Container(
-                                  width: 60,
-                                  height: 60,
-                                  color:
-                                      AppColors.lightBlue.withValues(alpha: 0.14),
-                                  child: const Icon(Icons.picture_as_pdf_rounded,
-                                      color: AppColors.lightBlue, size: 28),
-                                )
-                              : Image.file(File(path!),
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                        width: 60,
-                                        height: 60,
-                                        color: palette.surface,
-                                        child: Icon(Icons.image_rounded,
-                                            color: palette.textFaint),
-                                      )),
+                  : empty
+                      ? Row(
+                          children: [
+                            Container(
+                              width: AppSizes.iconContainerSm,
+                              height: AppSizes.iconContainerSm,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryGreen
+                                    .withValues(alpha: 0.12),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.chip),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded,
+                                  color: AppColors.primaryGreen, size: 22),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Upload payment proof',
+                                      style: AppText.subtitle.copyWith(
+                                          color: palette.textPrimary,
+                                          fontSize: 14)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      'Upload receipt or payment screenshot to '
+                                      'auto-fill',
+                                      style: AppText.caption.copyWith(
+                                          color: palette.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.photo_camera_rounded,
+                                color: AppColors.primaryGreen, size: 20),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.chip),
+                              child: isPdf
+                                  ? Container(
+                                      width: 56,
+                                      height: 56,
+                                      color: AppColors.lightBlue
+                                          .withValues(alpha: 0.14),
+                                      child: const Icon(
+                                          Icons.picture_as_pdf_rounded,
+                                          color: AppColors.lightBlue,
+                                          size: 26),
+                                    )
+                                  : Image.file(File(path!),
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => Container(
+                                            width: 56,
+                                            height: 56,
+                                            color: palette.surface,
+                                            child: Icon(Icons.image_rounded,
+                                                color: palette.textFaint),
+                                          )),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                  isPdf
+                                      ? 'PDF attached · tap to change'
+                                      : 'Attached · tap to change',
+                                  style: AppText.body
+                                      .copyWith(color: palette.textPrimary)),
+                            ),
+                            Icon(Icons.edit_rounded,
+                                size: 18, color: palette.textFaint),
+                          ],
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                              isPdf
-                                  ? 'PDF attached'
-                                  : 'Image attached · tap to change',
-                              style: AppText.body
-                                  .copyWith(color: palette.textPrimary)),
-                        ),
-                        Icon(Icons.edit_rounded,
-                            size: 18, color: palette.textFaint),
-                      ],
-                    ),
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// A rounded container that draws a dashed border when [dashed] (empty upload
+/// state), or a solid teal border once a file is attached ([active]).
+class _DashedBorder extends StatelessWidget {
+  const _DashedBorder({
+    required this.child,
+    required this.dashed,
+    required this.active,
+  });
+
+  final Widget child;
+  final bool dashed;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final color = active ? AppColors.primaryGreen : palette.border;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: CustomPaint(
+        painter: dashed
+            ? _DashedRectPainter(
+                color: color, radius: AppRadius.card)
+            : null,
+        foregroundPainter: dashed
+            ? null
+            : _SolidRectPainter(color: color, radius: AppRadius.card),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _DashedRectPainter extends CustomPainter {
+  _DashedRectPainter({required this.color, required this.radius});
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    final rrect = RRect.fromRectAndRadius(
+        Offset.zero & size, Radius.circular(radius));
+    final path = Path()..addRRect(rrect);
+    const dash = 6.0;
+    const gap = 4.0;
+    for (final metric in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(
+            metric.extractPath(d, d + dash), paint);
+        d += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedRectPainter old) => old.color != color;
+}
+
+class _SolidRectPainter extends CustomPainter {
+  _SolidRectPainter({required this.color, required this.radius});
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Offset.zero & size, Radius.circular(radius)),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SolidRectPainter old) => old.color != color;
+}
+
+/// The "Auto-filled from receipt ✓" note with a Clear action to discard the
+/// extraction.
+class _AutoFilledNote extends StatelessWidget {
+  const _AutoFilledNote({required this.fields, required this.onClear});
+
+  final Set<String> fields;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded,
+              color: AppColors.primaryGreen, size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Auto-filled from receipt',
+              style: AppText.caption.copyWith(
+                  color: AppColors.darkGreen, fontWeight: FontWeight.w700),
+            ),
+          ),
+          PressableScale(
+            pressedScale: 0.9,
+            child: GestureDetector(
+              onTap: onClear,
+              behavior: HitTestBehavior.opaque,
+              child: Semantics(
+                button: true,
+                label: 'Clear auto-filled values',
+                child: Text('Clear',
+                    style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

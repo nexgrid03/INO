@@ -74,7 +74,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                     style: AppText.body.copyWith(color: palette.textSecondary)),
               );
             }
-            final income = t.isIncome;
+            final credited = t.isCredited;
             return Column(
               children: [
                 _Header(
@@ -113,6 +113,8 @@ class TransactionDetailsScreen extends StatelessWidget {
                               Row(children: [
                                 _pill(t.type.label),
                                 const SizedBox(width: 6),
+                                _pill(t.effectiveDirection.label),
+                                const SizedBox(width: 6),
                                 _pill(t.category.label),
                               ]),
                               const SizedBox(height: AppSpacing.sm),
@@ -125,7 +127,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                    '${income ? '+' : ''}${rupees(t.amount.round())}',
+                                    '${credited ? '+' : ''}${rupees(t.amount.round())}',
                                     style: AppText.bigNumber
                                         .copyWith(color: Colors.white)),
                               ),
