@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -118,7 +120,11 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
       // sheet and let the destination navigate itself (works from anywhere).
       Future.delayed(const Duration(milliseconds: 750), () {
         if (mounted) Navigator.of(context).pop();
-        matched?.navigate();
+        if (matched != null) {
+          developer.log('[VOICE] Navigation Triggered → ${matched.route}',
+              name: 'voice');
+          matched.navigate();
+        }
       });
     }
   }

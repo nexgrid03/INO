@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 
-import 'tts_engine.dart';
+import 'voice_manager.dart';
 
 void _log(String message) => developer.log(message, name: 'greeting');
 
@@ -15,7 +15,7 @@ void _log(String message) => developer.log(message, name: 'greeting');
 ///  1. [_greeted] is flipped SYNCHRONOUSLY before any async work, so no two
 ///     callers — shell rebuilds, navigation back, provider refreshes, a second
 ///     shell mount during the auth handoff — can both pass the guard;
-///  2. speech goes through the app-wide shared [TtsEngine], which is warmed up
+///  2. speech goes through the app-wide shared [VoiceManager], which is warmed up
 ///     at app start (the native cold-start re-queue race that could replay the
 ///     first utterance can no longer occur) and which drops a duplicate
 ///     request for an utterance that is still being spoken.
@@ -46,7 +46,7 @@ class VoiceGreetingService {
     final text = _greetingFor(DateTime.now().hour, userName);
     _log('Greeting triggered: "$text"');
     debugPrint('Greeting triggered: "$text"');
-    await TtsEngine.instance.speak(text);
+    await VoiceManager.instance.speak(text);
   }
 
   /// Builds the phrase for [hour] (0–23):

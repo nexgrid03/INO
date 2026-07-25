@@ -5,6 +5,20 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+/// The copy style a scanned page can be saved in (the WhatsApp / Adobe Scan
+/// filter set). [ImageEnhancer.applyColorMode] renders each of these.
+enum ScanColorMode { original, enhanced, blackWhite, grayscale }
+
+extension ScanColorModeX on ScanColorMode {
+  /// Localization key for the mode's chip label.
+  String get labelKey => switch (this) {
+        ScanColorMode.original => 'original',
+        ScanColorMode.enhanced => 'enhance',
+        ScanColorMode.blackWhite => 'blackWhite',
+        ScanColorMode.grayscale => 'grayscale',
+      };
+}
+
 /// The result of a preprocessing step: the output file path plus the produced
 /// image's pixel dimensions and encoded file size — surfaced so the caller can
 /// log exactly what each step produced (useful for diagnosing memory issues).
@@ -65,6 +79,72 @@ class ImageEnhancer {
       var out = img.grayscale(im);
       out = img.adjustColor(out, contrast: 1.18, brightness: 1.04);
       return _writeJpg(path, out, 'enhanced', 90);
+    } catch (_) {
+      return path;
+    }
+  }
+
+  /// Renders [path] in the given copy [mode] — the document-grade processing
+  /// set shared with the share pipeline (see [DocumentProcessor]):
+  ///
+  ///  • **original**   — untouched, returns [path] as-is;
+  ///  • **enhanced**   — colour kept: tonal normalization (auto brightness /
+  ///    contrast / shadow lift) + a gentle sharpen;
+  ///  • **grayscale**  — photocopy-clean grayscale (normalize + small lift);
+  ///  • **blackWhite** — crisp scanner-style B&W via contrast normalization,
+  ///    brightness balancing, denoise and a LOCAL (Bradley–Roth) adaptive
+  ///    threshold, so shadows never crush text into black blobs.
+  ///
+  /// Runs in a background isolate. Returns a sibling file path, or the
+  /// original path on any failure.
+  static Future<String> applyColorMode(String path, ScanColorMode mode) {
+    if (mode == ScanColorMode.original) return Future.value(path);
+    return Isolate.run(() => _applyColorModeSync(path, mode.index));
+  }
+
+  static Future<String> _applyColorModeSync(String path, int modeIdx) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      var im = img.decodeImage(bytes);
+      if (im == null) return path;
+      im = _capLongestSide(im, _kMaxDim);
+      final img.Image out;
+      if (modeIdx == ScanColorMode.blackWhite.index) {
+        out = scanBinarize(im);
+      } else if (modeIdx == ScanColorMode.grayscale.index) {
+        out = documentGrayscale(im);
+      } else {
+        // Enhanced: keep colour; normalize tone, lift shadows, light sharpen.
+        var e = img.normalize(im, min: 0, max: 255);
+        e = img.adjustColor(e, contrast: 1.10, brightness: 1.04);
+        e = img.convolution(
+          e,
+          filter: const [0, -1, 0, -1, 6, -1, 0, -1, 0], // gentle unsharp
+          div: 2,
+        );
+        out = e;
+      }
+      return _writeJpg(
+          path, out, ScanColorMode.values[modeIdx].name, 90);
+    } catch (_) {
+      return path;
+    }
+  }
+
+  /// Downscales (≤[_kMaxDim]) and re-encodes [path] as a compact JPEG suitable
+  /// for embedding in a PDF page. Returns the optimized sibling path, or the
+  /// original on failure. Runs in a background isolate.
+  static Future<String> optimizeForPdf(String path) =>
+      Isolate.run(() => _optimizeForPdfSync(path));
+
+  static Future<String> _optimizeForPdfSync(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      var im = img.decodeImage(bytes);
+      if (im == null) return path;
+      im = img.bakeOrientation(im);
+      im = _capLongestSide(im, _kMaxDim);
+      return _writeJpg(path, im, 'pdfpage', 86);
     } catch (_) {
       return path;
     }
@@ -200,6 +280,49 @@ class ImageEnhancer {
     final encoded = img.encodeJpg(out, quality: 90);
     await File(path).writeAsBytes(encoded);
     return (path, out.width, out.height, encoded.length);
+  }
+
+  // ───────────────────── Document-grade colour modes (shared) ─────────────────────
+  // These are the single source of truth for "scan look" processing, used by
+  // BOTH the scan review copy modes and the share pipeline (DocumentProcessor).
+
+  /// A clean, readable grayscale scan: normalize contrast + a small brightness
+  /// lift so the page reads like a photocopy rather than a dim photo.
+  static img.Image documentGrayscale(img.Image src) {
+    var im = img.grayscale(src);
+    im = img.normalize(im, min: 0, max: 255);
+    return img.adjustColor(im, contrast: 1.08, brightness: 1.03);
+  }
+
+  /// Turns a photo of a document into a crisp, printer-friendly "scan" — the
+  /// look Adobe Scan / Microsoft Lens / CamScanner produce — instead of a harsh
+  /// global threshold that crushes shadows into black blobs and drops faint
+  /// text.
+  ///
+  /// Pipeline: grayscale → contrast normalization + brightness balance → light
+  /// Gaussian denoise → LOCAL (Bradley–Roth) adaptive threshold whose window
+  /// scales with the image. The adaptive step compares each pixel to the mean
+  /// of its neighbourhood, so uneven lighting and shadows no longer swallow the
+  /// text — edges stay sharp and small print stays legible.
+  static img.Image scanBinarize(img.Image src) {
+    var im = img.grayscale(src);
+    // Stretch the tonal range, then a gentle contrast/brightness lift so faint
+    // ink separates cleanly from the paper before thresholding.
+    im = img.normalize(im, min: 0, max: 255);
+    im = img.adjustColor(im, contrast: 1.15, brightness: 1.05);
+    // Light denoise so paper grain / JPEG noise doesn't speckle the result.
+    im = img.gaussianBlur(im, radius: 1);
+    return adaptiveThresholdScaled(im);
+  }
+
+  /// Bradley–Roth adaptive threshold with an image-scaled window: ~8% of the
+  /// shorter side (odd, clamped 15–51) — big enough to span a glyph's
+  /// neighbourhood, small enough to track local lighting.
+  static img.Image adaptiveThresholdScaled(img.Image src, {double t = 0.15}) {
+    var window = (math.min(src.width, src.height) * 0.08).round();
+    if (window < 15) window = 15;
+    if (window > 51) window = 51;
+    return _adaptiveThreshold(src, window: window, t: t);
   }
 
   /// Bradley–Roth adaptive threshold. Uses a `Uint8List` luminance buffer

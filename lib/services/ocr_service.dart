@@ -40,8 +40,37 @@ class OcrService {
   final TextRecognizer _recognizer =
       TextRecognizer(script: TextRecognitionScript.latin);
 
+  /// Completed extractions, keyed by the source file's identity
+  /// (`path|size|mtime`). Re-running OCR on the SAME unchanged file — going
+  /// back and forth in the scan flow, re-opening the result — returns
+  /// instantly instead of paying for the whole pipeline again.
+  static const int _cacheCap = 8;
+  final Map<String, OcrExtraction> _cache = {};
+
+  String? _cacheKey(String path) {
+    try {
+      final stat = File(path).statSync();
+      return '$path|${stat.size}|${stat.modified.millisecondsSinceEpoch}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _cachePut(String? key, OcrExtraction value) {
+    if (key == null) return;
+    if (_cache.length >= _cacheCap && !_cache.containsKey(key)) {
+      _cache.remove(_cache.keys.first); // drop the oldest entry
+    }
+    _cache[key] = value;
+  }
+
   /// Runs the multi-pass OCR pipeline on the image at [imagePath] and returns
   /// the best structured extraction.
+  ///
+  /// [assumeClean] marks a capture that is already upright, cropped and
+  /// perspective-corrected (ML Kit document-scanner output): the orientation/
+  /// resolution bake is skipped and the probe reads the file directly — on
+  /// clean scans this collapses the pipeline to a single recognition pass.
   ///
   /// Every heavy image step happens in a background isolate (see [ImageEnhancer])
   /// and is bracketed with START/END logs (dimensions, file size, elapsed time),
@@ -49,29 +78,49 @@ class OcrService {
   /// `finally` block. Any unexpected error is logged with its stack and converted
   /// to an [OcrException] so the flow degrades to manual entry instead of
   /// crashing — the pipeline never suppresses a failure silently.
-  Future<OcrExtraction> extract(String imagePath) async {
+  Future<OcrExtraction> extract(String imagePath,
+      {bool assumeClean = false}) async {
     final sw = Stopwatch()..start();
     final temps = <String>{};
     _step('START extract | ${_fileKB(imagePath)}KB | $imagePath', sw: sw);
 
+    // Result cache — the same unchanged file never pays for OCR twice.
+    final cacheKey = _cacheKey(imagePath);
+    final cached = cacheKey == null ? null : _cache[cacheKey];
+    if (cached != null) {
+      _step('END extract OK (cache hit)', sw: sw);
+      return cached;
+    }
+
     try {
       // 0. Bake orientation + cap resolution → canonical upright base.
-      _step('START bakeBase', sw: sw);
+      //    Skipped for ML Kit scanner output, which is already upright and
+      //    capped — saving a full decode + re-encode of the capture.
       ProcessedImage base;
-      try {
-        base = await ImageEnhancer.bakeBase(imagePath);
-      } catch (e, st) {
-        // Isolate failed (e.g. OOM contained to the worker) — fall back to the
-        // original capture rather than aborting the whole extraction.
-        _error('bakeBase', e, st, sw);
+      if (assumeClean) {
+        _step('SKIP bakeBase (clean capture)', sw: sw);
         base = ProcessedImage(
             path: imagePath,
             width: 0,
             height: 0,
             fileBytes: _fileBytes(imagePath));
+      } else {
+        _step('START bakeBase', sw: sw);
+        try {
+          base = await ImageEnhancer.bakeBase(imagePath);
+        } catch (e, st) {
+          // Isolate failed (e.g. OOM contained to the worker) — fall back to
+          // the original capture rather than aborting the whole extraction.
+          _error('bakeBase', e, st, sw);
+          base = ProcessedImage(
+              path: imagePath,
+              width: 0,
+              height: 0,
+              fileBytes: _fileBytes(imagePath));
+        }
+        if (base.path != imagePath) temps.add(base.path);
+        _step('END bakeBase', img: base, sw: sw);
       }
-      if (base.path != imagePath) temps.add(base.path);
-      _step('END bakeBase', img: base, sw: sw);
 
       // 1. Probe pass — baseline read + text region (crop) + skew (deskew).
       _step('START OCR original', sw: sw);
@@ -91,12 +140,14 @@ class OcrService {
         _logPasses([probePass], probePass);
         _step('END extract OK (fast path) type=${probePass.detection.type.label}',
             sw: sw);
-        return OcrExtraction(
+        final fast = OcrExtraction(
           type: probePass.detection.type,
           typeConfidence: probePass.detection.confidence,
           fields: probePass.fields,
           rawText: probePass.text,
         );
+        _cachePut(cacheKey, fast);
+        return fast;
       }
 
       final region = _textRegion(probe.result);
@@ -163,12 +214,14 @@ class OcrService {
       }
 
       _step('END extract OK', sw: sw);
-      return OcrExtraction(
+      final extraction = OcrExtraction(
         type: best.detection.type,
         typeConfidence: best.detection.confidence,
         fields: best.fields,
         rawText: best.text,
       );
+      _cachePut(cacheKey, extraction);
+      return extraction;
     } on OcrException {
       rethrow; // expected outcome — the screen shows manual entry.
     } catch (e, st) {

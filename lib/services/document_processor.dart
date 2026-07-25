@@ -134,94 +134,17 @@ class DocumentProcessor {
     }
 
     // 2) Colour mode. (index: 0 original, 1 b&w, 2 grayscale, 3 compressedPdf)
+    // Both looks come from the SHARED document-grade implementations in
+    // [ImageEnhancer] — the same pixels the scan review's copy modes produce.
     if (colorIdx == ShareColorMode.grayscale.index ||
         colorIdx == ShareColorMode.compressedPdf.index) {
-      // A clean, readable grayscale scan: normalize contrast + a small
-      // brightness lift so the page reads like a photocopy rather than a dim
-      // photo.
-      im = img.grayscale(im);
-      im = img.normalize(im, min: 0, max: 255);
-      im = img.adjustColor(im, contrast: 1.08, brightness: 1.03);
+      im = ImageEnhancer.documentGrayscale(im);
     } else if (colorIdx == ShareColorMode.blackWhite.index) {
-      im = _scanBinarize(im);
+      im = ImageEnhancer.scanBinarize(im);
     }
 
     final quality = compress ? 42 : 88;
     return img.encodeJpg(im, quality: quality);
-  }
-
-  // ---- Document-grade black & white ----------------------------------------
-
-  /// Turns a photo of a document into a crisp, printer-friendly "scan" — the
-  /// look Adobe Scan / Microsoft Lens / CamScanner produce — instead of a harsh
-  /// global threshold that crushes shadows into black blobs and drops faint text.
-  ///
-  /// Pipeline: grayscale → contrast normalization + brightness balance → light
-  /// Gaussian denoise → LOCAL adaptive threshold. The adaptive step compares each
-  /// pixel to the mean of its neighbourhood, so uneven lighting and shadows no
-  /// longer swallow the text — edges stay sharp and small print stays legible.
-  static img.Image _scanBinarize(img.Image src) {
-    var im = img.grayscale(src);
-    // Stretch the tonal range, then a gentle contrast/brightness lift so faint
-    // ink separates cleanly from the paper before thresholding.
-    im = img.normalize(im, min: 0, max: 255);
-    im = img.adjustColor(im, contrast: 1.15, brightness: 1.05);
-    // Light denoise so paper grain / JPEG noise doesn't speckle the result.
-    im = img.gaussianBlur(im, radius: 1);
-    return _adaptiveThreshold(im);
-  }
-
-  /// Bradley–Roth adaptive (local mean) threshold. Uses a `Uint8List` luminance
-  /// buffer + an `Int32List` integral image (≈6–8× less memory than 64-bit
-  /// lists; overflow-safe at the ≤2000 px cap). The window scales with the image
-  /// so the neighbourhood is document-appropriate at any resolution.
-  static img.Image _adaptiveThreshold(img.Image src, {double t = 0.15}) {
-    final w = src.width;
-    final h = src.height;
-    if (w < 3 || h < 3) return src;
-    final n = w * h;
-
-    final lum = Uint8List(n);
-    for (final p in src) {
-      lum[p.y * w + p.x] = p.luminance.round().clamp(0, 255);
-    }
-
-    final integral = Int32List(n);
-    for (var x = 0; x < w; x++) {
-      var colSum = 0;
-      for (var y = 0; y < h; y++) {
-        colSum += lum[y * w + x];
-        integral[y * w + x] = (x == 0 ? 0 : integral[y * w + x - 1]) + colSum;
-      }
-    }
-
-    // ~8% of the shorter side (odd, clamped) — big enough to span a glyph's
-    // neighbourhood, small enough to track local lighting.
-    var window = (math.min(w, h) * 0.08).round();
-    if (window < 15) window = 15;
-    if (window > 51) window = 51;
-    final half = window ~/ 2;
-
-    for (final p in src) {
-      final x = p.x;
-      final y = p.y;
-      final x1 = math.max(0, x - half);
-      final y1 = math.max(0, y - half);
-      final x2 = math.min(w - 1, x + half);
-      final y2 = math.min(h - 1, y + half);
-      final count = (x2 - x1 + 1) * (y2 - y1 + 1);
-      final sum = integral[y2 * w + x2] -
-          (x1 > 0 ? integral[y2 * w + x1 - 1] : 0) -
-          (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0) +
-          (x1 > 0 && y1 > 0 ? integral[(y1 - 1) * w + x1 - 1] : 0);
-      final threshold = (sum / count) * (1.0 - t);
-      final v = lum[y * w + x] < threshold ? 0 : 255;
-      p
-        ..r = v
-        ..g = v
-        ..b = v;
-    }
-    return src;
   }
 
   // ---- PDF wrap -------------------------------------------------------------

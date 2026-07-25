@@ -17,8 +17,10 @@ class OcrException implements Exception {
 /// swap in [SampleScanRepository].
 abstract class ScanRepository {
   /// Runs OCR on the captured/imported image at [imagePath] (when available)
-  /// and returns the structured result.
-  Future<OcrResult> extract({String? imagePath});
+  /// and returns the structured result. [assumeClean] marks a capture that is
+  /// already upright/cropped/rectified (ML Kit scanner output), letting the
+  /// pipeline skip its normalization bake for a much faster read.
+  Future<OcrResult> extract({String? imagePath, bool assumeClean = false});
 
   static ScanRepository instance = MlKitScanRepository();
 }
@@ -26,11 +28,13 @@ abstract class ScanRepository {
 /// The production implementation: real on-device OCR via [OcrService].
 class MlKitScanRepository implements ScanRepository {
   @override
-  Future<OcrResult> extract({String? imagePath}) async {
+  Future<OcrResult> extract(
+      {String? imagePath, bool assumeClean = false}) async {
     if (imagePath == null || imagePath.isEmpty) {
       throw const OcrException('No image to analyse.');
     }
-    final extraction = await OcrService.instance.extract(imagePath);
+    final extraction = await OcrService.instance
+        .extract(imagePath, assumeClean: assumeClean);
     return extraction.toOcrResult();
   }
 }
@@ -41,7 +45,8 @@ class SampleScanRepository implements ScanRepository {
   bool failNext = false;
 
   @override
-  Future<OcrResult> extract({String? imagePath}) async {
+  Future<OcrResult> extract(
+      {String? imagePath, bool assumeClean = false}) async {
     // Simulates on-device OCR latency.
     await Future<void>.delayed(const Duration(milliseconds: 2200));
     if (failNext) {

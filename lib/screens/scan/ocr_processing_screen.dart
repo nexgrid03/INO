@@ -18,12 +18,19 @@ class OcrProcessingScreen extends StatefulWidget {
   const OcrProcessingScreen({
     super.key,
     required this.imagePath,
+    this.assumeClean = false,
     required this.onResult,
     required this.onFailed,
   });
 
   /// The captured/imported image to run OCR against (null in manual contexts).
   final String? imagePath;
+
+  /// True when the capture is already upright/cropped/rectified (ML Kit
+  /// scanner output) so OCR can skip its normalization bake — see
+  /// [ScanRepository.extract].
+  final bool assumeClean;
+
   final ValueChanged<OcrResult> onResult;
   final VoidCallback onFailed;
 
@@ -55,8 +62,10 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
 
   Future<void> _run() async {
     try {
-      final result =
-          await ScanRepository.instance.extract(imagePath: widget.imagePath);
+      final result = await ScanRepository.instance.extract(
+        imagePath: widget.imagePath,
+        assumeClean: widget.assumeClean,
+      );
       if (!mounted) return;
       widget.onResult(result);
     } on OcrException catch (e) {
@@ -161,9 +170,13 @@ class _ProgressRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    // Scale the ring to the screen (phones → ~132, small screens shrink,
+    // tablets don't balloon) instead of a hard-coded box.
+    final side =
+        (MediaQuery.sizeOf(context).shortestSide * 0.36).clamp(104.0, 150.0);
     return SizedBox(
-      width: 132,
-      height: 132,
+      width: side,
+      height: side,
       child: CustomPaint(
         painter: _RingPainter(
           progress: progress,

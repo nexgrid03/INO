@@ -18,27 +18,48 @@ const AppPalette _chrome = AppPalette.dark;
 
 /// Screen 2 — review the capture.
 ///
-/// Shows the captured page large inside a dark viewport with edge-detection
-/// corner anchors, and offers the four standard adjustments
-/// (Crop · Rotate · Enhance · Retake) in a floating control sheet before
-/// committing to OCR. Deliberately minimal — a preview, a row of tools, and
-/// one clear Continue.
+/// Shows the captured page(s) large inside a dark viewport and offers the
+/// standard adjustments before committing to OCR:
+///
+///  • **copy modes** — Original · Enhanced · B&W · Grayscale, the WhatsApp /
+///    Adobe Scan filter set, rendered by the shared document-grade pipeline
+///    ([ImageEnhancer.applyColorMode], Bradley–Roth adaptive B&W);
+///  • **Crop / Rotate / Retake** tools (single-page captures; multi-page scans
+///    arrive pre-cropped + perspective-corrected by the ML Kit scanner, whose
+///    own UI already offered per-page adjustment).
+///
+/// Multi-page scans render as a swipeable page carousel with a page badge; the
+/// selected copy mode applies to EVERY page on Continue.
 class ScanReviewScreen extends StatefulWidget {
   const ScanReviewScreen({
     super.key,
     required this.imagePath,
+    this.pages,
     required this.onRetake,
     required this.onContinue,
+    this.onContinueAll,
     required this.onClose,
   });
 
   /// Path to the captured/imported page, or null (renders a placeholder).
+  /// Ignored when [pages] holds more than one page.
   final String? imagePath;
+
+  /// All scanned pages (ML Kit multi-page path). When it has 2+ entries the
+  /// review runs in multi-page mode: carousel preview, geometry tools hidden,
+  /// [onContinueAll] invoked with every processed page.
+  final List<String>? pages;
+
   final VoidCallback onRetake;
 
-  /// Called with the *edited* image path (crop / rotate / enhance baked in) so
-  /// OCR and the saved document use exactly what the user sees.
+  /// Called with the *edited* image path (crop / rotate / copy mode baked in)
+  /// so OCR and the saved document use exactly what the user sees.
   final ValueChanged<String?> onContinue;
+
+  /// Multi-page continue: every page with the selected copy mode applied, in
+  /// scan order. Required when [pages] has 2+ entries.
+  final ValueChanged<List<String>>? onContinueAll;
+
   final VoidCallback onClose;
 
   @override
@@ -46,29 +67,93 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  /// The committed edited image (crop / rotate baked in). Starts as the capture.
+  /// The committed edited image in single-page mode (crop / rotate baked in).
   String? _workingPath;
 
-  /// The enhanced variant of [_workingPath], shown while [_enhanced] is on.
-  String? _enhancedPath;
-  bool _enhanced = false;
-  bool _enhancing = false;
-  bool _processing = false; // crop/rotate baking in progress
+  /// Multi-page sources (geometry final — ML Kit already cropped/rectified).
+  late final List<String> _pages =
+      (widget.pages != null && widget.pages!.isNotEmpty)
+          ? List<String>.from(widget.pages!)
+          : [if (widget.imagePath != null) widget.imagePath!];
+
+  bool get _isMulti => _pages.length > 1;
+
+  int _previewIndex = 0;
+  final PageController _pageController = PageController();
+
+  /// The selected copy mode, applied to the preview live and to every page on
+  /// Continue.
+  ScanColorMode _mode = ScanColorMode.original;
+
+  /// Rendered variants, keyed `'<sourcePath>|<mode>'` so switching modes (or
+  /// pages) back and forth never recomputes.
+  final Map<String, String> _modeCache = {};
+
+  bool _busy = false; // mode render / crop / rotate / continue in progress
 
   @override
   void initState() {
     super.initState();
-    _workingPath = widget.imagePath;
+    _workingPath = widget.imagePath ?? (_pages.isNotEmpty ? _pages.first : null);
   }
 
-  /// The path currently shown and used for OCR: the enhanced variant when the
-  /// toggle is on, otherwise the committed working image.
-  String? get _effectivePath =>
-      _enhanced ? (_enhancedPath ?? _workingPath) : _workingPath;
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
-  /// Opens the 4-corner crop editor and commits the perspective-corrected result.
+  String? _sourceAt(int index) {
+    if (_isMulti) return index < _pages.length ? _pages[index] : null;
+    return _workingPath;
+  }
+
+  /// The path shown for [index] right now: the mode-rendered variant when
+  /// available, else the source (render may still be in flight).
+  String? _shownAt(int index) {
+    final src = _sourceAt(index);
+    if (src == null || _mode == ScanColorMode.original) return src;
+    return _modeCache['$src|${_mode.name}'] ?? src;
+  }
+
+  /// The single-page path OCR + save should use.
+  String? get _effectivePath => _shownAt(_previewIndex);
+
+  /// Renders [mode] for the page at [index] (cached).
+  Future<void> _renderMode(int index, ScanColorMode mode) async {
+    final src = _sourceAt(index);
+    if (src == null || mode == ScanColorMode.original) return;
+    final key = '$src|${mode.name}';
+    if (_modeCache.containsKey(key)) return;
+    final out = await ImageEnhancer.applyColorMode(src, mode);
+    _modeCache[key] = out;
+  }
+
+  Future<void> _selectMode(ScanColorMode mode) async {
+    if (_busy || mode == _mode) return;
+    setState(() {
+      _mode = mode;
+      _busy = mode != ScanColorMode.original;
+    });
+    if (mode != ScanColorMode.original) {
+      await _renderMode(_previewIndex, mode);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  /// Swiping to a page renders the current mode for it on demand.
+  Future<void> _onPageChanged(int index) async {
+    setState(() => _previewIndex = index);
+    if (_mode == ScanColorMode.original) return;
+    setState(() => _busy = true);
+    await _renderMode(index, _mode);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  /// Opens the 4-corner crop editor and commits the perspective-corrected
+  /// result (single-page mode only — ML Kit pages are already rectified).
   Future<void> _openCrop() async {
-    final base = _effectivePath;
+    final base = _workingPath;
     if (base == null || !File(base).existsSync()) {
       _toast(AppLocalizations.of(context).t('addCaptureBeforeCrop'));
       return;
@@ -79,45 +164,55 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     if (cropped == null || !mounted) return;
     setState(() {
       _workingPath = cropped;
-      _enhanced = false; // enhance is now baked into history
-      _enhancedPath = null;
+      _pages[0] = cropped;
+      _modeCache.clear(); // geometry changed → mode variants are stale
     });
-    _toast(AppLocalizations.of(context).t('cropApplied'));
+    if (_mode != ScanColorMode.original) {
+      setState(() => _busy = true);
+      await _renderMode(0, _mode);
+      if (mounted) setState(() => _busy = false);
+    }
+    if (mounted) _toast(AppLocalizations.of(context).t('cropApplied'));
   }
 
-  /// Bakes a real 90° rotation into the working image.
+  /// Bakes a real 90° rotation into the working image (single-page mode).
   Future<void> _rotate() async {
-    final base = _effectivePath;
+    final base = _workingPath;
     if (base == null || !File(base).existsSync()) return;
-    setState(() => _processing = true);
+    setState(() => _busy = true);
     final rotated = await ImageEnhancer.rotate90(base);
     if (!mounted) return;
     setState(() {
       _workingPath = rotated;
-      _enhanced = false;
-      _enhancedPath = null;
-      _processing = false;
+      _pages[0] = rotated;
+      _modeCache.clear();
     });
+    if (_mode != ScanColorMode.original) await _renderMode(0, _mode);
+    if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _toggleEnhance() async {
-    if (_enhanced) {
-      setState(() => _enhanced = false);
+  /// Continue: single-page hands the effective path on; multi-page renders the
+  /// selected mode for EVERY page first, then hands the whole set on.
+  Future<void> _continue() async {
+    if (_busy) return;
+    if (!_isMulti) {
+      widget.onContinue(_effectivePath);
       return;
     }
-    final base = _workingPath;
-    if (base == null) {
-      setState(() => _enhanced = true); // placeholder mode (no real file)
-      return;
+    setState(() => _busy = true);
+    final out = <String>[];
+    for (var i = 0; i < _pages.length; i++) {
+      await _renderMode(i, _mode);
+      out.add(_shownAt(i) ?? _pages[i]);
     }
-    setState(() => _enhancing = true);
-    final result = await ImageEnhancer.enhance(base);
     if (!mounted) return;
-    setState(() {
-      _enhancedPath = result;
-      _enhanced = true;
-      _enhancing = false;
-    });
+    setState(() => _busy = false);
+    final onAll = widget.onContinueAll;
+    if (onAll != null) {
+      onAll(out);
+    } else {
+      widget.onContinue(out.isNotEmpty ? out.first : null);
+    }
   }
 
   void _toast(String message) {
@@ -149,40 +244,38 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 child: Center(
                   child: FadeSlideIn(
                     delay: const Duration(milliseconds: 60),
-                    child: _CapturePreview(
-                      imagePath: _effectivePath,
-                      enhanced: _enhanced,
-                      enhancing: _enhancing || _processing,
-                    ),
+                    child: _isMulti ? _pagedPreview() : _singlePreview(),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            // Floating control sheet: adjustment tools + the Continue action.
+            // Floating control sheet: copy modes + tools + Continue.
             FadeSlideIn(
               delay: const Duration(milliseconds: 120),
               child: _ControlSheet(
                 children: [
+                  _ModeSelector(
+                    mode: _mode,
+                    enabled: !_busy,
+                    onSelect: _selectMode,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _Tool(
-                        icon: Icons.crop_rounded,
-                        label: l10n.t('crop'),
-                        onTap: _openCrop,
-                      ),
-                      _Tool(
-                        icon: Icons.rotate_90_degrees_cw_rounded,
-                        label: l10n.t('rotate'),
-                        onTap: _rotate,
-                      ),
-                      _Tool(
-                        icon: Icons.auto_fix_high_rounded,
-                        label: l10n.t('enhance'),
-                        active: _enhanced,
-                        onTap: _toggleEnhance,
-                      ),
+                      if (!_isMulti) ...[
+                        _Tool(
+                          icon: Icons.crop_rounded,
+                          label: l10n.t('crop'),
+                          onTap: _openCrop,
+                        ),
+                        _Tool(
+                          icon: Icons.rotate_90_degrees_cw_rounded,
+                          label: l10n.t('rotate'),
+                          onTap: _rotate,
+                        ),
+                      ],
                       _Tool(
                         icon: Icons.refresh_rounded,
                         label: l10n.t('retake'),
@@ -191,13 +284,139 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  _ContinueButton(
-                      onContinue: () => widget.onContinue(_effectivePath)),
+                  _ContinueButton(onContinue: _continue),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _singlePreview() {
+    return _CapturePreview(
+      imagePath: _effectivePath,
+      accent: _mode != ScanColorMode.original,
+      busy: _busy,
+    );
+  }
+
+  /// Multi-page: swipeable carousel + "current / total" page badge + dots.
+  Widget _pagedPreview() {
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: _pages.length,
+            onPageChanged: _onPageChanged,
+            itemBuilder: (context, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Center(
+                child: _CapturePreview(
+                  imagePath: _shownAt(i),
+                  accent: _mode != ScanColorMode.original,
+                  busy: _busy && i == _previewIndex,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _chrome.surfaceVariant,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: _chrome.border),
+              ),
+              child: Text(
+                '${_previewIndex + 1} / ${_pages.length}',
+                style: AppText.caption.copyWith(
+                  color: _chrome.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            for (var i = 0; i < _pages.length && i < 8; i++)
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == _previewIndex
+                      ? AppColors.primaryGreen
+                      : _chrome.border,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The copy-mode selector: Original · Enhanced · B&W · Grayscale chips — the
+/// WhatsApp / Adobe Scan filter row.
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({
+    required this.mode,
+    required this.enabled,
+    required this.onSelect,
+  });
+
+  final ScanColorMode mode;
+  final bool enabled;
+  final ValueChanged<ScanColorMode> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final m in ScanColorMode.values) ...[
+            PressableScale(
+              pressedScale: 0.95,
+              child: GestureDetector(
+                onTap: enabled ? () => onSelect(m) : null,
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: m == mode
+                        ? AppColors.primaryGreen.withValues(alpha: 0.16)
+                        : _chrome.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(
+                      color:
+                          m == mode ? AppColors.primaryGreen : _chrome.border,
+                    ),
+                  ),
+                  child: Text(
+                    l10n.t(m.labelKey),
+                    style: AppText.caption.copyWith(
+                      color: m == mode
+                          ? AppColors.primaryGreen
+                          : _chrome.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+          ],
+        ],
       ),
     );
   }
@@ -257,84 +476,96 @@ class _Header extends StatelessWidget {
 /// The captured page preview inside the dark viewport. Renders the real
 /// captured/imported image when a path is available, otherwise a styled
 /// placeholder (no-path / test contexts). Four glowing corner anchors echo the
-/// scanner's edge-detection language.
+/// scanner's edge-detection language. The frame adapts to the available space
+/// (portrait-page proportions upright, wider in landscape) instead of a fixed
+/// aspect.
 class _CapturePreview extends StatelessWidget {
   const _CapturePreview({
     required this.imagePath,
-    required this.enhanced,
-    required this.enhancing,
+    required this.accent,
+    required this.busy,
   });
 
   final String? imagePath;
-  final bool enhanced;
-  final bool enhancing;
+  final bool accent;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 0.7,
-      child: Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F2F0),
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(
-                color: AppColors.primaryGreen
-                    .withValues(alpha: enhanced ? 0.7 : 0.35),
-                width: enhanced ? 2 : 1.4,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
-                ),
-                // Teal ambient halo lifting the page off the dark viewport.
-                BoxShadow(
-                  color: _chrome.ambient.withValues(alpha: 0.10),
-                  blurRadius: 34,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (imagePath != null)
-                  Image.file(
-                    File(imagePath!),
-                    key: ValueKey(imagePath),
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => const _PlaceholderPage(),
-                  )
-                else
-                  const _PlaceholderPage(),
-                if (enhancing)
-                  ColoredBox(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryGreen),
-                      ),
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Portrait-document proportions when tall space is available; relax
+        // toward the available shape in landscape / short viewports.
+        final available = constraints.maxHeight > 0 && constraints.maxWidth > 0
+            ? constraints.maxWidth / constraints.maxHeight
+            : 0.7;
+        final aspect = available.clamp(0.62, 1.45).toDouble();
+        return AspectRatio(
+          aspectRatio: aspect < 1 ? 0.7 : aspect,
+          child: Stack(
+            clipBehavior: Clip.none,
+            fit: StackFit.expand,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F2F0),
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                  border: Border.all(
+                    color: AppColors.primaryGreen
+                        .withValues(alpha: accent ? 0.7 : 0.35),
+                    width: accent ? 2 : 1.4,
                   ),
-              ],
-            ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      offset: const Offset(0, 14),
+                    ),
+                    // Teal ambient halo lifting the page off the dark viewport.
+                    BoxShadow(
+                      color: _chrome.ambient.withValues(alpha: 0.10),
+                      blurRadius: 34,
+                      spreadRadius: -2,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (imagePath != null)
+                      Image.file(
+                        File(imagePath!),
+                        key: ValueKey(imagePath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const _PlaceholderPage(),
+                      )
+                    else
+                      const _PlaceholderPage(),
+                    if (busy)
+                      ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primaryGreen),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Edge-detection corner anchors (Stitch scanner pins).
+              const Positioned(top: -5, left: -5, child: _CornerPin()),
+              const Positioned(top: -5, right: -5, child: _CornerPin()),
+              const Positioned(bottom: -5, left: -5, child: _CornerPin()),
+              const Positioned(bottom: -5, right: -5, child: _CornerPin()),
+            ],
           ),
-          // Edge-detection corner anchors (Stitch scanner pins).
-          const Positioned(top: -5, left: -5, child: _CornerPin()),
-          const Positioned(top: -5, right: -5, child: _CornerPin()),
-          const Positioned(bottom: -5, left: -5, child: _CornerPin()),
-          const Positioned(bottom: -5, right: -5, child: _CornerPin()),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -441,17 +672,16 @@ class _Tool extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.active = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.primaryGreen : _chrome.textPrimary;
+    // Tools no longer carry a persistent "active" state — the copy-mode chips
+    // above communicate the selected filter.
     return PressableScale(
       pressedScale: 0.9,
       child: GestureDetector(
@@ -465,18 +695,11 @@ class _Tool extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: active
-                    ? AppColors.primaryGreen.withValues(alpha: 0.16)
-                    : _chrome.surfaceVariant,
+                color: _chrome.surfaceVariant,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: active ? AppColors.primaryGreen : _chrome.border,
-                ),
-                boxShadow: active
-                    ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.25)
-                    : null,
+                border: Border.all(color: _chrome.border),
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: _chrome.textPrimary, size: 22),
             ),
             const SizedBox(height: 7),
             Text(label,

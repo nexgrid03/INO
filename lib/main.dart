@@ -18,8 +18,8 @@ import 'services/deep_link_service.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/trusted_device_service.dart';
-import 'services/tts_engine.dart';
 import 'services/vault_guard.dart';
+import 'services/voice_manager.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -58,10 +58,10 @@ Future<void> main() async {
   // Warm the notification feed so the bell badge is accurate on first paint.
   unawaited(NotificationCenter.instance.load());
 
-  // Warm the shared TTS engine so the native TextToSpeech service is already
-  // bound (and past its cold-start races) before the voice greeting fires —
-  // part of the "greeting plays twice" fix (see services/tts_engine.dart).
-  TtsEngine.instance.warmUp();
+  // Warm the centralized voice manager so the native TextToSpeech service is
+  // already bound (and past its cold-start races) before the voice greeting
+  // fires — part of the duplicate-speech fix (see services/voice_manager.dart).
+  VoiceManager.instance.warmUp();
 
   // Capture a share deep link the app may have been cold-launched from, BEFORE
   // the first frame — so the app root can show the shared documents directly
@@ -111,7 +111,7 @@ class _InoAppState extends State<InoApp> {
   void dispose() {
     DeepLinkService.instance.dispose();
     // Release the native text-to-speech engine with the app root.
-    TtsEngine.instance.dispose();
+    VoiceManager.instance.dispose();
     super.dispose();
   }
 

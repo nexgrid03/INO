@@ -4,35 +4,47 @@ import 'dart:developer' as developer;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-void _log(String message) => developer.log(message, name: 'tts');
+void _log(String message) => developer.log(message, name: 'voice');
 
-/// The app's single shared text-to-speech engine.
+/// The app's centralized voice output manager — the ONE owner of the ONE
+/// [FlutterTts] instance. Every spoken phrase (welcome greeting, "Opening …"
+/// navigation confirmations) goes through [speak]; no screen or service may
+/// construct its own FlutterTts.
 ///
-/// WHY THIS EXISTS — the "greeting plays twice" bug. The app used to hold TWO
-/// separate [FlutterTts] instances (voice greeting + voice navigation), and the
-/// greeting spoke on the very first frame of the shell, while the native
-/// Android TextToSpeech service was still binding. In that cold-start window
-/// the flutter_tts Android plugin suspends the method call and, if the engine
-/// connection isn't usable yet, re-creates the engine and RE-QUEUES the whole
-/// `speak` call to run again after init (see FlutterTtsPlugin.onMethodCall →
-/// `pendingMethodCalls`) — so an utterance the engine had already accepted
-/// could be replayed, and the user heard "Good Morning, …" twice.
+/// WHY THIS EXISTS — duplicate speech. Two bugs shared the same shape:
 ///
-/// This engine removes that window:
-///  • ONE FlutterTts instance for the whole app (greeting + navigation),
-///  • it is warmed up at app start ([warmUp] from `main()`), so by the time
-///    anything speaks, the native engine is initialized and stable,
-///  • `speak` always waits for initialization before dispatching,
-///  • an in-flight guard drops a duplicate request for the SAME utterance
-///    while it is still being spoken — the same text can never double-play,
+///  1. The greeting double-play: two separate FlutterTts instances + speaking
+///     on the shell's very first frame, while the native Android TextToSpeech
+///     service was still binding. In that cold-start window the flutter_tts
+///     Android plugin suspends the call and, if the engine connection isn't
+///     usable, re-creates the engine and RE-QUEUES the whole `speak` to run
+///     again after init (FlutterTtsPlugin.onMethodCall → `pendingMethodCalls`)
+///     — an utterance the engine had already accepted could replay.
+///
+///  2. The "Opening …" double-play: a stale speech-recognizer callback
+///     re-triggering the confirmation after the voice session was already
+///     resolved (fixed at the source in VoiceNavigationService, with the
+///     guards here as the last line of defense).
+///
+/// Protections, in order:
+///  • warmed up at app start ([warmUp] from `main()`), so the native engine is
+///    initialized and stable before anything speaks;
+///  • [speak] always waits for initialization before dispatching;
+///  • a repeat of the SAME text inside [_dedupeWindow] is dropped — even
+///    across separate speak() calls ("[VOICE] Duplicate Ignored");
+///  • an in-flight guard ([isSpeaking] + [_speakingText]) drops a duplicate
+///    request for the utterance currently being spoken;
 ///  • `awaitSpeakCompletion` is enabled so the engine knows exactly when an
-///    utterance finishes (no overlapping speech requests).
+///    utterance finishes (no overlapping speech requests);
+///  • flush queue mode: a new utterance replaces the current one instead of
+///    being appended (also lets us avoid the stop()+speak() pair — a known
+///    trigger for the Android engine playing a single utterance twice).
 ///
 /// Lifecycle: speech stops when the app goes to background and the native
 /// engine is released when the app is detached (proper resource disposal).
-class TtsEngine with WidgetsBindingObserver {
-  TtsEngine._();
-  static final TtsEngine instance = TtsEngine._();
+class VoiceManager with WidgetsBindingObserver {
+  VoiceManager._();
+  static final VoiceManager instance = VoiceManager._();
 
   FlutterTts? _tts;
   Future<bool>? _initFuture;
@@ -42,6 +54,9 @@ class TtsEngine with WidgetsBindingObserver {
   /// The utterance currently being spoken (null when idle). Used to drop
   /// duplicate speak requests for the same text.
   String? _speakingText;
+
+  /// True while an utterance is being spoken (speak() in flight).
+  bool get isSpeaking => _speakingText != null;
 
   /// The last utterance dispatched and when. A repeat of the SAME text inside
   /// [_dedupeWindow] is dropped even if the first has already finished — this
@@ -82,20 +97,20 @@ class TtsEngine with WidgetsBindingObserver {
         _observing = true;
         WidgetsBinding.instance.addObserver(this);
       }
-      _log('TTS initialized');
-      debugPrint('TTS initialized');
+      _log('[VOICE] TTS initialized');
+      debugPrint('[VOICE] TTS initialized');
       return true;
     } catch (e) {
       // Non-fatal — a device without TTS should never break the app.
-      _log('TTS initialization failed (non-fatal): $e');
+      _log('[VOICE] TTS initialization failed (non-fatal): $e');
       _initFuture = null; // allow a later retry
       return false;
     }
   }
 
   /// Speaks [text], replacing any different utterance in progress. A request
-  /// for the SAME text that is currently being spoken is dropped — this is the
-  /// belt-and-suspenders guarantee that no phrase can ever double-play.
+  /// for the SAME text that is currently being spoken — or dispatched within
+  /// the last [_dedupeWindow] — is ignored, so no phrase can ever double-play.
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
 
@@ -105,8 +120,8 @@ class TtsEngine with WidgetsBindingObserver {
     if (_lastText == text &&
         _lastAt != null &&
         now.difference(_lastAt!) < _dedupeWindow) {
-      _log('Duplicate speech request within window skipped: "$text"');
-      debugPrint('Duplicate speech request within window skipped: "$text"');
+      _log('[VOICE] Duplicate Ignored (within window): "$text"');
+      debugPrint('[VOICE] Duplicate Ignored (within window): "$text"');
       return;
     }
     _lastText = text;
@@ -117,8 +132,8 @@ class TtsEngine with WidgetsBindingObserver {
     if (tts == null) return;
 
     if (_speakingText == text) {
-      _log('Duplicate speech request skipped: "$text"');
-      debugPrint('Duplicate speech request skipped: "$text"');
+      _log('[VOICE] Duplicate Ignored (already speaking): "$text"');
+      debugPrint('[VOICE] Duplicate Ignored (already speaking): "$text"');
       return;
     }
 
@@ -127,10 +142,13 @@ class TtsEngine with WidgetsBindingObserver {
       // No stop() here on purpose: with flush queue mode, speak() already
       // replaces any current utterance, and a stop()+speak() pair can make the
       // Android engine speak the same text twice.
-      _log('Speaking: "$text"');
+      _log('[VOICE] Speaking Started: "$text"');
+      debugPrint('[VOICE] Speaking Started: "$text"');
       await tts.speak(text); // resolves on completion (awaitSpeakCompletion)
+      _log('[VOICE] Speaking Completed: "$text"');
+      debugPrint('[VOICE] Speaking Completed: "$text"');
     } catch (e) {
-      _log('TTS speak failed (non-fatal): $e');
+      _log('[VOICE] TTS speak failed (non-fatal): $e');
     } finally {
       if (_speakingText == text) _speakingText = null;
     }
@@ -156,8 +174,8 @@ class TtsEngine with WidgetsBindingObserver {
     }
     _tts = null;
     _initFuture = null;
-    _log('TTS disposed');
-    debugPrint('TTS disposed');
+    _log('[VOICE] TTS disposed');
+    debugPrint('[VOICE] TTS disposed');
   }
 
   @override

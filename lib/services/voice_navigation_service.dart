@@ -7,7 +7,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../models/voice_command.dart';
-import 'tts_engine.dart';
+import 'voice_manager.dart';
 
 void _log(String message) => developer.log(message, name: 'voice');
 
@@ -56,6 +56,25 @@ class VoiceNavigationService extends ChangeNotifier {
 
   int _langRetry = 0;
 
+  /// True from [start] until the session is RESOLVED (a command matched) or
+  /// CANCELLED (sheet closed). The recognizer's callbacks are persistent and
+  /// Android routinely delivers one last result/error AFTER `stop()`/`cancel()`
+  /// — without this flag such a stale callback lands after [cancel] has reset
+  /// [_status] to idle (re-arming the `_status == matched` guards) and re-runs
+  /// the whole resolve → speak pipeline. That was the root cause of the
+  /// "Opening …" confirmation being spoken twice while navigation (driven by
+  /// the sheet, already disposed by then) stayed single.
+  ///
+  /// A no-match outcome deliberately KEEPS the session active: the recognizer
+  /// often finalizes richer text a beat after `notListening`, and that late
+  /// upgrade (noMatch → matched while the sheet is still open) is a feature.
+  bool _sessionActive = false;
+
+  /// True once the "Opening …" confirmation for THIS session has been
+  /// dispatched — a second dispatch attempt is ignored, so the confirmation
+  /// can be spoken at most once per listening session.
+  bool _confirmationSpoken = false;
+
   void _set(VoiceStatus s) {
     _status = s;
     notifyListeners();
@@ -77,6 +96,8 @@ class VoiceNavigationService extends ChangeNotifier {
     _match = null;
     _permanentlyDenied = false;
     _langRetry = 0;
+    _sessionActive = true;
+    _confirmationSpoken = false;
     _set(VoiceStatus.initializing);
     _log('start() languageCode=$languageCode preferOffline=$preferOffline');
 
@@ -170,6 +191,13 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   void _onResult(SpeechRecognitionResult result) {
+    // Stale callback from a session that was already resolved or cancelled —
+    // must never re-enter the resolve → speak pipeline (the double-speech bug).
+    if (!_sessionActive) {
+      _log('[VOICE] Stale result ignored (session closed): '
+          '"${result.recognizedWords}"');
+      return;
+    }
     _recognized = result.recognizedWords;
     _log('Recognized Text: "${result.recognizedWords}" '
         'final=${result.finalResult} confidence=${result.confidence}');
@@ -183,6 +211,7 @@ class VoiceNavigationService extends ChangeNotifier {
 
   void _onStatus(String status) {
     _log('Speech Status: $status');
+    if (!_sessionActive) return; // stale event from a closed session
     if (_status == VoiceStatus.matched) return;
     // The recognizer stopped on its own (end of speech / timeout). Resolve
     // whatever we heard — only meaningful once we've actually started listening.
@@ -194,6 +223,7 @@ class VoiceNavigationService extends ChangeNotifier {
 
   void _onError(SpeechRecognitionError error) {
     _log('Speech Error: ${error.errorMsg} permanent=${error.permanent}');
+    if (!_sessionActive) return; // stale event from a closed session
     if (_status == VoiceStatus.matched) return;
     final msg = error.errorMsg.toLowerCase();
 
@@ -219,27 +249,41 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   void _resolveFromRecognized() {
+    _log('[VOICE] Command Received: "$_recognized"');
     final m = matchVoiceCommand(_recognized);
     _match = m;
     if (m != null) {
       _log('Matched Route: ${m.route}  (command=${m.id}, '
           'from "$_recognized")');
+      // A match RESOLVES the session: close it BEFORE speaking so any late
+      // recognizer callback (Android delivers one after stop()) can never
+      // re-run this method and speak the confirmation a second time.
+      _sessionActive = false;
       _set(VoiceStatus.matched);
       _stopSpeech();
       speakConfirmation(m);
     } else {
       _log('Matched Route: none  (recognized="$_recognized")');
+      // No match keeps the session active — a late, richer final result may
+      // still upgrade this to a match while the sheet is open.
       _set(VoiceStatus.noMatch);
       _stopSpeech();
     }
   }
 
   /// Speaks the "Opening …" confirmation for [command] via the app's single
-  /// shared [TtsEngine] (one native engine for greeting + navigation — see
-  /// tts_engine.dart for why two instances caused double speech).
+  /// centralized [VoiceManager] (one native TTS engine for the whole app —
+  /// see voice_manager.dart for why multiple instances caused double speech).
+  /// Guaranteed to dispatch at most ONCE per listening session.
   Future<void> speakConfirmation(VoiceCommand command) async {
+    if (_confirmationSpoken) {
+      _log('[VOICE] Duplicate Ignored (confirmation already spoken '
+          'this session): "Opening ${command.spokenLabel}"');
+      return;
+    }
+    _confirmationSpoken = true;
     try {
-      await TtsEngine.instance.speak('Opening ${command.spokenLabel}');
+      await VoiceManager.instance.speak('Opening ${command.spokenLabel}');
     } catch (e) {
       _log('TTS failed (non-fatal): $e');
     }
@@ -258,12 +302,21 @@ class VoiceNavigationService extends ChangeNotifier {
   /// Cancels any in-flight session and resets to idle (called when the sheet
   /// closes).
   Future<void> cancel() async {
+    // Whether this cancel follows a successful match (the sheet auto-closes
+    // 750 ms into the confirmation). In that case the "Opening …" utterance
+    // must be allowed to FINISH — stopping it mid-word both sounded broken and
+    // made the follow-up stale-callback replay audible as a "second" playback.
+    final wasMatched = _status == VoiceStatus.matched;
+    _sessionActive = false; // close the session FIRST — late callbacks are dead
     try {
       await _speech.cancel();
     } catch (_) {}
-    try {
-      await TtsEngine.instance.stop();
-    } catch (_) {}
+    if (!wasMatched) {
+      // Only silence the engine when nothing meaningful was being confirmed.
+      try {
+        await VoiceManager.instance.stop();
+      } catch (_) {}
+    }
     _recognized = '';
     _match = null;
     _status = VoiceStatus.idle;
