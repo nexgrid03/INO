@@ -255,6 +255,47 @@ Thank you
       final r = ReceiptParser.parse('....\n----\n');
       expect(r.isEmpty, isTrue);
     });
+
+    test('PhonePe screenshot: Transaction ID never becomes the amount', () {
+      // The exact regression: a 16-digit txn id must NOT land in amount.
+      const text = '''
+Paid to SWIGGY
+₹30
+Completed
+Transaction ID T2607251037436024
+UTR 452312091847
+25 Jul 2026, 10:37 AM
+Debited from XX1234
+''';
+      final r = ReceiptParser.parse(text);
+      expect(r.amount, 30); // ₹30, NOT 2607251037436024 / 2.60725e15
+      expect(r.transactionId, 'T2607251037436024'); // kept verbatim, as a string
+      expect(r.date, DateTime(2026, 7, 25));
+    });
+
+    test('parseAmount accepts real amounts and rejects IDs / junk', () {
+      // Valid amounts.
+      expect(ReceiptParser.parseAmount('30'), 30);
+      expect(ReceiptParser.parseAmount('₹1,250.50'), 1250.50);
+      expect(ReceiptParser.parseAmount('Rs 999999999'), 999999999); // 9 digits ok
+      // IDs / junk → null (never an amount).
+      expect(ReceiptParser.parseAmount('2607251037436024'), isNull); // 16 digits
+      expect(ReceiptParser.parseAmount('T2607251037436024'), isNull); // has a letter
+      expect(ReceiptParser.parseAmount('2.6072510374360024'), isNull); // >2 decimals
+      expect(ReceiptParser.parseAmount('1000000000'), isNull); // ≥ 100 crore
+      expect(ReceiptParser.parseAmount('0'), isNull);
+      expect(ReceiptParser.parseAmount('-30'), isNull);
+      expect(ReceiptParser.parseAmount(''), isNull);
+      expect(ReceiptParser.parseAmount(null), isNull);
+    });
+
+    test('a bare long number with no amount context is not taken as amount', () {
+      // Only an order id present, no ₹ / amount label → amount stays null.
+      const text = 'Order ID 998877665544332211\nThanks for shopping';
+      final r = ReceiptParser.parse(text);
+      expect(r.amount, isNull);
+      expect(r.transactionId, '998877665544332211');
+    });
   });
 
   test('clear empties the vault', () {

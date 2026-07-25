@@ -61,6 +61,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Map<String, String>? _preScanSnapshot;
   DateTime? _preScanDate;
 
+  /// True when the last scan couldn't confidently read the amount and the field
+  /// is empty — the amount field shows a "enter manually" hint (FIX 4). Filling
+  /// nothing beats filling a wrong value.
+  bool _amountUnread = false;
+
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -87,6 +92,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     } else {
       _direction = TransactionDirectionX.defaultFor(_type);
     }
+    // Once the user types an amount, the "couldn't read amount" hint clears.
+    _amount.addListener(_onAmountChanged);
+  }
+
+  void _onAmountChanged() {
+    if (_amountUnread && _amount.text.trim().isNotEmpty) {
+      setState(() => _amountUnread = false);
+    }
   }
 
   /// Switching Expense/Income re-defaults the direction from context. A manual
@@ -111,6 +124,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _amount.removeListener(_onAmountChanged);
     _description.dispose();
     _amount.dispose();
     _reference.dispose();
@@ -275,10 +289,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         return;
       }
 
+      // The Transaction ID field is fed by the parsed reference code first,
+      // then a GSTIN as a weak fallback — never by a numeric amount.
+      final referenceValue = data.transactionId ?? data.gstNumber;
+
       // What can the scan offer, and does any of it collide with typed values?
       final hasConflict = (data.amount != null && _amount.text.trim().isNotEmpty) ||
           (data.vendorName != null && _vendor.text.trim().isNotEmpty) ||
-          (data.gstNumber != null && _reference.text.trim().isNotEmpty);
+          (referenceValue != null && _reference.text.trim().isNotEmpty);
 
       var replaceExisting = false;
       if (hasConflict) {
@@ -301,9 +319,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         }
       }
 
-      if (data.amount != null) fill('Amount', _amount, _fmt(data.amount!));
+      // Amount is only ever filled from a VALIDATED value (parseAmount); an ID
+      // can never reach it. If none was read and the field is still empty, show
+      // the "enter manually" hint instead of guessing a wrong number.
+      if (data.amount != null) {
+        fill('Amount', _amount, _fmt(data.amount!));
+      }
+      final amountUnread = data.amount == null && _amount.text.trim().isEmpty;
+
+      // Transaction ID lands in its OWN field, verbatim as a string.
+      if (referenceValue != null) {
+        fill('Transaction ID', _reference, referenceValue);
+      }
       if (data.vendorName != null) fill('Vendor', _vendor, data.vendorName!);
-      if (data.gstNumber != null) fill('Transaction ID', _reference, data.gstNumber!);
       if (data.date != null) {
         _date = DateTime(data.date!.year, data.date!.month, data.date!.day,
             _date.hour, _date.minute);
@@ -319,11 +347,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
 
       setState(() {
+        _amountUnread = amountUnread;
         _autoFilled
           ..clear()
           ..addAll(filled);
       });
-      if (filled.isEmpty) {
+      if (amountUnread) {
+        _toast('Couldn\'t read amount — enter it manually', error: true);
+      } else if (filled.isEmpty) {
         _toast('Nothing new to fill from the receipt');
       }
     } catch (_) {
@@ -376,6 +407,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
       _autoFilled.clear();
       _directionAutoSet = false;
+      _amountUnread = false;
       _preScanSnapshot = null;
       _preScanDate = null;
     });
@@ -489,6 +521,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ],
                     const SizedBox(height: AppSpacing.md),
                     _AmountField(controller: _amount),
+                    if (_amountUnread) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 14, color: AppColors.critical),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Couldn\'t read amount — enter it manually',
+                              style: AppText.caption
+                                  .copyWith(color: AppColors.critical),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     // Feature 2 — money direction, defaulted from the type above.
                     _Field(

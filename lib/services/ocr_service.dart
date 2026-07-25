@@ -64,6 +64,27 @@ class OcrService {
     _cache[key] = value;
   }
 
+  /// Minimum recognised characters for the textOnly path to accept the plain
+  /// probe read and skip the (expensive) enhanced/binarized passes.
+  static const int _kTextMinChars = 8;
+
+  /// A raw-text-only extraction (receipt / plain-text mode): no ID-document type
+  /// detection or field parsing — the receipt flow re-parses [rawText] itself.
+  OcrExtraction _textExtraction(String text) => OcrExtraction(
+        type: IdDocumentType.unknown,
+        typeConfidence: 0,
+        fields: const {},
+        rawText: text,
+      );
+
+  /// Emits the single per-stage timing summary line the diagnosis reads from.
+  /// Always logged (not just in debug) so a profile/release device run can be
+  /// measured. Keys: bake / probe / enhBuild / enhOcr / binBuild / binOcr.
+  void _logTimings(Map<String, int> t, int totalMs) {
+    final parts = t.entries.map((e) => '${e.key}=${e.value}ms').join(' ');
+    developer.log('TIMINGS $parts total=${totalMs}ms', name: 'ocr');
+  }
+
   /// Runs the multi-pass OCR pipeline on the image at [imagePath] and returns
   /// the best structured extraction.
   ///
@@ -79,24 +100,40 @@ class OcrService {
   /// to an [OcrException] so the flow degrades to manual entry instead of
   /// crashing — the pipeline never suppresses a failure silently.
   Future<OcrExtraction> extract(String imagePath,
-      {bool assumeClean = false}) async {
+      {bool assumeClean = false, bool textOnly = false}) async {
     final sw = Stopwatch()..start();
     final temps = <String>{};
-    _step('START extract | ${_fileKB(imagePath)}KB | $imagePath', sw: sw);
+    // Per-stage timing summary (STEP 1 — MEASURE). Each awaited stage records a
+    // lap; a single `TIMINGS …` line is emitted before every return so a real
+    // device run reports exactly where the milliseconds go.
+    final timings = <String, int>{};
+    var mark = sw.elapsedMilliseconds;
+    int lap() {
+      final now = sw.elapsedMilliseconds;
+      final d = now - mark;
+      mark = now;
+      return d;
+    }
+
+    _step('START extract | ${_fileKB(imagePath)}KB | $imagePath | '
+        'textOnly=$textOnly assumeClean=$assumeClean', sw: sw);
 
     // Result cache — the same unchanged file never pays for OCR twice.
     final cacheKey = _cacheKey(imagePath);
     final cached = cacheKey == null ? null : _cache[cacheKey];
     if (cached != null) {
+      _logTimings({'cacheHit': 0}, sw.elapsedMilliseconds);
       _step('END extract OK (cache hit)', sw: sw);
       return cached;
     }
 
     try {
       // 0. Bake orientation + cap resolution → canonical upright base.
-      //    Skipped for ML Kit scanner output, which is already upright and
-      //    capped — saving a full decode + re-encode of the capture.
+      //    - assumeClean: ML Kit scanner output is already upright/capped → skip.
+      //    - textOnly (receipts): a smaller, more compressed base (1600px/q70)
+      //      decodes faster here AND makes the single ML Kit pass faster.
       ProcessedImage base;
+      mark = sw.elapsedMilliseconds;
       if (assumeClean) {
         _step('SKIP bakeBase (clean capture)', sw: sw);
         base = ProcessedImage(
@@ -107,7 +144,11 @@ class OcrService {
       } else {
         _step('START bakeBase', sw: sw);
         try {
-          base = await ImageEnhancer.bakeBase(imagePath);
+          base = textOnly
+              ? await ImageEnhancer.bakeBase(imagePath,
+                  maxDim: ImageEnhancer.kTextMaxDim,
+                  quality: ImageEnhancer.kTextQuality)
+              : await ImageEnhancer.bakeBase(imagePath);
         } catch (e, st) {
           // Isolate failed (e.g. OOM contained to the worker) — fall back to
           // the original capture rather than aborting the whole extraction.
@@ -121,14 +162,60 @@ class OcrService {
         if (base.path != imagePath) temps.add(base.path);
         _step('END bakeBase', img: base, sw: sw);
       }
+      timings['bake'] = lap();
 
       // 1. Probe pass — baseline read + text region (crop) + skew (deskew).
       _step('START OCR original', sw: sw);
       final probe = await _recognize(base.path, 'original');
+      timings['probe'] = lap();
       _step('END OCR original', sw: sw);
       if (probe == null) {
         throw const OcrException(
             'Could not read the image. Please try a clearer, well-lit photo.');
+      }
+
+      // ── Receipt / plain-text fast mode ──────────────────────────────────
+      // The receipt flow only needs the raw text (ReceiptParser re-parses it);
+      // it does NOT need the ID-document structured extraction, and its
+      // structure score can never trip the ID fast-path below. So for textOnly
+      // we return the probe's text immediately and SKIP the enhanced +
+      // binarized image passes — the measured ~9–10s-each bottleneck. Only when
+      // the plain pass read almost nothing do we pay for ONE enhanced pass.
+      if (textOnly) {
+        final probeText = probe.result.text.trim();
+        if (probeText.length >= _kTextMinChars) {
+          _logTimings(timings, sw.elapsedMilliseconds);
+          _step('END extract OK (textOnly fast path)', sw: sw);
+          final result = _textExtraction(probeText);
+          _cachePut(cacheKey, result);
+          return result;
+        }
+        // Weak read → a single enhanced rescue pass (still no binarized pass).
+        _step('START buildCandidate enhanced (textOnly rescue)', sw: sw);
+        final enhImg = await _buildCandidateSafe(
+          base.path,
+          skew: _medianSkew(probe.result),
+          region: _textRegion(probe.result),
+          binarize: false,
+          sw: sw,
+        );
+        if (enhImg != null && enhImg.path != base.path) temps.add(enhImg.path);
+        timings['enhBuild'] = lap();
+        var text = probeText;
+        if (enhImg != null) {
+          final enh = await _recognize(enhImg.path, 'enhanced');
+          timings['enhOcr'] = lap();
+          final enhText = enh?.result.text.trim() ?? '';
+          if (enhText.length > text.length) text = enhText;
+        }
+        _logTimings(timings, sw.elapsedMilliseconds);
+        _step('END extract OK (textOnly rescue)', sw: sw);
+        if (text.isEmpty) {
+          throw const OcrException('No readable text found in the capture.');
+        }
+        final result = _textExtraction(text);
+        _cachePut(cacheKey, result);
+        return result;
       }
 
       // Fast path: if the upright original already parses into a complete,
@@ -138,6 +225,7 @@ class OcrService {
       final probePass = _score(probe);
       if (probePass.structure >= 6 && probePass.text.trim().isNotEmpty) {
         _logPasses([probePass], probePass);
+        _logTimings(timings, sw.elapsedMilliseconds);
         _step('END extract OK (fast path) type=${probePass.detection.type.label}',
             sw: sw);
         final fast = OcrExtraction(
@@ -165,12 +253,14 @@ class OcrService {
       if (enhancedImg != null && enhancedImg.path != base.path) {
         temps.add(enhancedImg.path);
       }
+      timings['enhBuild'] = lap();
       _step('END buildCandidate enhanced', img: enhancedImg, sw: sw);
 
       _Recognized? enhanced;
       if (enhancedImg != null) {
         _step('START OCR enhanced', sw: sw);
         enhanced = await _recognize(enhancedImg.path, 'enhanced');
+        timings['enhOcr'] = lap();
         _step('END OCR enhanced', sw: sw);
       }
 
@@ -192,11 +282,13 @@ class OcrService {
           sw: sw,
         );
         if (binImg != null && binImg.path != base.path) temps.add(binImg.path);
+        timings['binBuild'] = lap();
         _step('END buildCandidate binarized', img: binImg, sw: sw);
 
         if (binImg != null) {
           _step('START OCR binarized', sw: sw);
           final binary = await _recognize(binImg.path, 'binarized');
+          timings['binOcr'] = lap();
           _step('END OCR binarized', sw: sw);
           if (binary != null) {
             passes.add(_score(binary));
@@ -206,6 +298,7 @@ class OcrService {
       }
 
       _logPasses(passes, best);
+      _logTimings(timings, sw.elapsedMilliseconds);
       _step('END parsing | chosen=${best.label} type=${best.detection.type.label}',
           sw: sw);
 

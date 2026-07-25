@@ -174,21 +174,38 @@ class ImageEnhancer {
 
   /// Bakes EXIF orientation and caps the resolution, producing the canonical
   /// upright base every OCR pass is built from. Runs in a background isolate.
-  static Future<ProcessedImage> bakeBase(String path) async {
-    final r = await Isolate.run(() => _bakeBaseSync(path));
+  ///
+  /// [maxDim] / [quality] default to the ID-document settings (2000 px, q90).
+  /// The receipt/plain-text path passes a smaller, more compressed target
+  /// ([kTextMaxDim] / [kTextQuality]) — a receipt only needs enough pixels for
+  /// the recognizer, so a smaller JPEG means a faster decode here AND a faster
+  /// ML Kit pass downstream (the single biggest OCR win).
+  static Future<ProcessedImage> bakeBase(
+    String path, {
+    int maxDim = _kMaxDim,
+    int quality = 90,
+  }) async {
+    final r = await Isolate.run(() => _bakeBaseSync(path, maxDim, quality));
     return ProcessedImage(
         path: r.$1, width: r.$2, height: r.$3, fileBytes: r.$4);
   }
 
+  /// Downscale target for the receipt/plain-text OCR path (max longest side).
+  static const int kTextMaxDim = 1600;
+
+  /// JPEG quality for the receipt/plain-text OCR path.
+  static const int kTextQuality = 70;
+
   /// (path, width, height, fileBytes)
-  static Future<(String, int, int, int)> _bakeBaseSync(String path) async {
+  static Future<(String, int, int, int)> _bakeBaseSync(
+      String path, int maxDim, int quality) async {
     final bytes = await File(path).readAsBytes();
     var im = img.decodeImage(bytes);
     if (im == null) return (path, 0, 0, bytes.length);
     im = img.bakeOrientation(im); // EXIF rotation correction
-    im = _capLongestSide(im, _kMaxDim); // caps *longest* side, not just width
+    im = _capLongestSide(im, maxDim); // caps *longest* side, not just width
     final out = _outPath(path, 'base');
-    final encoded = img.encodeJpg(im, quality: 90);
+    final encoded = img.encodeJpg(im, quality: quality);
     await File(out).writeAsBytes(encoded);
     return (out, im.width, im.height, encoded.length);
   }
