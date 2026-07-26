@@ -15,8 +15,10 @@ import '../../services/net_worth_service.dart';
 import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/shiny_border.dart';
 import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/section_header.dart';
@@ -163,7 +165,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refresh() async {
     final data = _load();
-    setState(() => _future = data);
+    // Block body: an arrow hands setState the assigned Future, which it rejects.
+    setState(() {
+      _future = data;
+    });
     await NotificationCenter.instance.refresh();
     await data;
   }
@@ -574,56 +579,77 @@ class _ToolTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final themeStyle = InoStyle.of(context);
+    final bold = themeStyle == ThemeStyle.bold;
+    final soft = themeStyle == ThemeStyle.soft;
+
     // The tile's own accent wash, so the fill can never drift from the icon the
     // way the hardcoded pastels had (the tax tile was green behind a teal glyph).
-    final fill = Color.alphaBlend(
-      color.withValues(alpha: palette.isDark ? 0.16 : 0.09),
-      palette.surface,
+    // Bold floods the tile with the accent that used to sit on the icon badge -
+    // exactly the Today's Overview treatment: dark fill, dark edge, bare white
+    // glyph (no badge border) and a bigger label.
+    final fill = bold
+        ? InoStyle.boldFill(color)
+        : Color.alphaBlend(
+            color.withValues(alpha: palette.isDark ? 0.16 : 0.09),
+            palette.surface,
+          );
+    final edge = bold ? InoStyle.boldBorder(color) : color;
+
+    final tile = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(16),
+        // A thick, solid accent edge in the same colour the icon badge is
+        // filled with - matching the Today's Overview tiles.
+        border: Border.all(color: edge, width: 2),
+      ),
+      // FittedBox around the whole stack: if a tile ever ends up a hair
+      // shorter than its content (tight grid aspect ratios on odd widths),
+      // the content scales down imperceptibly instead of overflowing red.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // A filled accent badge: white glyph on the tile's own colour, so
+            // the icon carries the same accent the border does. In bold the
+            // badge body drops away and the bare glyph grows into the slot.
+            bold
+                ? SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(icon, color: Colors.white, size: 26),
+                  )
+                : ShinyIcon(
+                    icon: icon,
+                    color: color,
+                    size: 32,
+                    iconSize: 18,
+                    radius: 10,
+                    style: ShinyIconStyle.filled,
+                  ),
+            const SizedBox(height: 3),
+            Text(
+              title,
+              maxLines: 1,
+              style: TextStyle(
+                color: bold ? Colors.white : palette.textPrimary,
+                fontSize: bold ? 14 : 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: fill,
-          borderRadius: BorderRadius.circular(16),
-          // A thick, solid accent edge in the same colour the icon badge is
-          // filled with - matching the Today's Overview tiles.
-          border: Border.all(color: color, width: 2),
-        ),
-        // FittedBox around the whole stack: if a tile ever ends up a hair
-        // shorter than its content (tight grid aspect ratios on odd widths),
-        // the content scales down imperceptibly instead of overflowing red.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // A filled accent badge: white glyph on the tile's own colour, so
-              // the icon carries the same accent the border does.
-              ShinyIcon(
-                icon: icon,
-                color: color,
-                size: 32,
-                iconSize: 18,
-                radius: 10,
-                style: ShinyIconStyle.filled,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                title,
-                maxLines: 1,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      // Soft: the classic accent border picks up the glass sheen.
+      child: ShinyBorder(radius: 16, width: 2, enabled: soft, child: tile),
     );
   }
 }

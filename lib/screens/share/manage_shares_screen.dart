@@ -44,7 +44,10 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
 
   void _reload() {
     if (!mounted) return;
-    setState(() => _future = ShareRepository.instance.listMyShares());
+    // Block body: an arrow hands setState the assigned Future, which it rejects.
+    setState(() {
+      _future = ShareRepository.instance.listMyShares();
+    });
   }
 
   @override

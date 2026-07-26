@@ -6,6 +6,7 @@ import '../../models/area_unit.dart';
 import '../../services/area_conversion_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 import 'area_unit_picker.dart';
@@ -172,7 +173,8 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
-              gradient: AppColors.insightGradient,
+              // Deeper in the bold theme, lighter in soft.
+              gradient: InoStyle.gradient(context, AppColors.insightGradient),
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
             child: Column(

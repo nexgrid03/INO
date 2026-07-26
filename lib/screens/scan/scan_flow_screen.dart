@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -11,11 +12,12 @@ import '../documents/add_document_screen.dart';
 import 'ocr_processing_screen.dart';
 import 'ocr_result_screen.dart';
 import 'scan_review_screen.dart';
+import 'scan_wallet_screen.dart';
 import 'scanner_screen.dart';
 
 /// The outcome handed back to whoever launched the scan flow.
 class ScanFlowResult {
-  const ScanFlowResult({this.imagePath, this.ocr});
+  const ScanFlowResult({this.imagePath, this.ocr, this.wallet});
 
   /// Local path of the captured/imported file, so the caller can upload the
   /// actual file (null when the flow produced no file). A multi-page scan
@@ -25,11 +27,16 @@ class ScanFlowResult {
   /// The confirmed OCR extraction, used to auto-fill Add Document (null when OCR
   /// produced nothing usable and the user chose to enter details manually).
   final OcrResult? ocr;
+
+  /// The wallet the user picked in the "Choose Wallet" step (null when the flow
+  /// was launched from a wallet that had already answered the question).
+  final String? wallet;
 }
 
-enum _Stage { mlkit, scanner, review, processing, result }
+enum _Stage { mlkit, scanner, review, processing, result, wallet }
 
-/// Orchestrates the Scan flow: capture → review → OCR → confirm → continue.
+/// Orchestrates the Scan flow: capture → review → OCR → confirm → wallet →
+/// continue.
 ///
 /// **Capture is WhatsApp-style by default**: on Android the flow opens Google
 /// ML Kit's native document scanner ([DocumentScannerService]) - live document
@@ -41,8 +48,16 @@ enum _Stage { mlkit, scanner, review, processing, result }
 /// Multi-page scans are reviewed as a carousel (copy modes apply to every
 /// page), OCR runs on the FIRST page, and the pages are assembled into a
 /// single PDF that Add Document saves to the vault.
+///
+/// After the details are confirmed the flow asks **which wallet** the document
+/// belongs in ([ScanWalletScreen]) - unless [initialWallet] already answers it
+/// (a scan started from inside a wallet).
 class ScanFlowScreen extends StatefulWidget {
-  const ScanFlowScreen({super.key});
+  const ScanFlowScreen({super.key, this.initialWallet});
+
+  /// The wallet this scan is already destined for (set when launched from a
+  /// wallet's detail screen). When null the flow shows the wallet-choice step.
+  final String? initialWallet;
 
   @override
   State<ScanFlowScreen> createState() => _ScanFlowScreenState();
@@ -98,8 +113,9 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       });
     } catch (e) {
       developer.log(
-          'ML Kit scanner failed, falling back to in-app camera: $e',
-          name: 'scan');
+        'ML Kit scanner failed, falling back to in-app camera: $e',
+        name: 'scan',
+      );
       if (mounted) {
         setState(() {
           _usedMlKit = false;
@@ -133,22 +149,45 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.processing:
       case _Stage.result:
         _go(_Stage.review);
+      case _Stage.wallet:
+        _go(_Stage.result);
     }
   }
 
   /// A minimal, low-confidence result so the user can still file the document
   /// manually when OCR fails or the document is unsupported.
   OcrResult get _manualFallback => const OcrResult(
-        documentName: '',
-        detectedType: 'Document',
-        suggestedWallet: 'Document Wallet',
-        category: 'Other',
-        confidence: DetectionConfidence.low,
-      );
+    documentName: '',
+    detectedType: 'Document',
+    suggestedWallet: 'Document Wallet',
+    category: 'Other',
+    confidence: DetectionConfidence.low,
+  );
+
+  /// Details confirmed. When the launcher didn't already name a wallet, ask
+  /// which one before saving; otherwise go straight to the finish.
+  void _detailsConfirmed(OcrResult confirmed) {
+    _ocr = confirmed;
+    if (widget.initialWallet != null) {
+      unawaited(_finish(confirmed));
+      return;
+    }
+    _go(_Stage.wallet);
+  }
+
+  /// The user picked a wallet: it becomes the document's destination, overriding
+  /// whatever OCR suggested.
+  Future<void> _walletChosen(String wallet) async {
+    final confirmed = (_ocr ?? _manualFallback).copyWith(
+      suggestedWallet: wallet,
+    );
+    _ocr = confirmed;
+    await _finish(confirmed, wallet: wallet);
+  }
 
   /// Final continue: multi-page scans are assembled into ONE PDF (falling back
   /// to the first page's JPEG if assembly fails); single pages pass through.
-  Future<void> _finish(OcrResult confirmed) async {
+  Future<void> _finish(OcrResult confirmed, {String? wallet}) async {
     if (_building) return;
     var filePath = _capturePath;
     if (_isMulti) {
@@ -156,14 +195,16 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       try {
         filePath = await ScanPdfService.instance.buildPdf(_pages!);
       } catch (e) {
-        developer.log('PDF assembly failed, saving first page: $e',
-            name: 'scan');
+        developer.log(
+          'PDF assembly failed, saving first page: $e',
+          name: 'scan',
+        );
         filePath = _pages!.first;
       }
       if (!mounted) return;
       setState(() => _building = false);
     }
-    _exit(ScanFlowResult(imagePath: filePath, ocr: confirmed));
+    _exit(ScanFlowResult(imagePath: filePath, ocr: confirmed, wallet: wallet));
   }
 
   @override
@@ -239,9 +280,16 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.result:
         return OcrResultScreen(
           result: _ocr ?? _manualFallback,
+          destinationWallet: widget.initialWallet,
           onClose: () => _go(_Stage.review),
           onRetake: _recapture,
-          onContinue: _finish,
+          onContinue: _detailsConfirmed,
+        );
+      case _Stage.wallet:
+        return ScanWalletScreen(
+          suggestedWallet: (_ocr ?? _manualFallback).suggestedWallet,
+          onBack: () => _go(_Stage.result),
+          onSelected: (wallet) => unawaited(_walletChosen(wallet)),
         );
     }
   }
@@ -279,8 +327,7 @@ class _BuildingPdf extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
             ),
             const SizedBox(height: 16),
             Text(
@@ -307,7 +354,7 @@ Future<void> launchScanFlow(
     PageRouteBuilder<ScanFlowResult>(
       transitionDuration: const Duration(milliseconds: 350),
       reverseTransitionDuration: const Duration(milliseconds: 280),
-      pageBuilder: (_, _, _) => const ScanFlowScreen(),
+      pageBuilder: (_, _, _) => ScanFlowScreen(initialWallet: initialWallet),
       transitionsBuilder: (_, animation, _, child) {
         final curved = CurvedAnimation(
           parent: animation,
@@ -329,7 +376,9 @@ Future<void> launchScanFlow(
   await Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => AddDocumentScreen(
-        initialWallet: initialWallet,
+        // The wallet the user chose in the flow wins; otherwise the wallet the
+        // scan was launched from.
+        initialWallet: result.wallet ?? initialWallet,
         initialFilePath: result.imagePath,
         prefill: result.ocr,
       ),

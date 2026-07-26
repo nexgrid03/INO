@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_background.dart';
 import '../pressable_scale.dart';
 
@@ -116,7 +117,7 @@ class SettingsPrimaryButton extends StatelessWidget {
           child: Container(
             height: 54,
             decoration: BoxDecoration(
-              gradient: danger ? null : AppColors.brandGradient,
+              gradient: danger ? null : InoStyle.gradient(context, AppColors.brandGradient),
               color: danger ? AppColors.critical : null,
               borderRadius: BorderRadius.circular(AppRadius.button),
               boxShadow: [

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 
 /// How the badge body is filled.
 enum ShinyIconStyle {
@@ -70,7 +71,19 @@ class ShinyIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final filled = style == ShinyIconStyle.filled;
+
+    // The picked app theme re-skins every badge from this one place:
+    //  • bold - the accent runs deeper (badges darken with the rest of the UI),
+    //  • soft - badges go glass, so the glyph shows in its own colour instead
+    //    of white.
+    final themeStyle = InoStyle.of(context);
+    final effectiveStyle = themeStyle == ThemeStyle.soft
+        ? ShinyIconStyle.glass
+        : style;
+    final effectiveColor = themeStyle == ThemeStyle.bold
+        ? InoStyle.deepen(color, 0.12)
+        : color;
+    final filled = effectiveStyle == ShinyIconStyle.filled;
 
     final glyph =
         child ??
@@ -82,7 +95,7 @@ class ShinyIcon extends StatelessWidget {
               // A touch deeper than the raw accent so the glyph reads firmly
               // against the glass - but only a touch; shading it hard made the
               // whole badge feel heavy.
-              : shinyGlyphColor(color, isDark: palette.isDark),
+              : shinyGlyphColor(effectiveColor, isDark: palette.isDark),
         );
 
     return SizedBox(
@@ -90,11 +103,14 @@ class ShinyIcon extends StatelessWidget {
       height: size,
       child: CustomPaint(
         painter: _ShinyBadgePainter(
-          accent: color,
-          style: style,
+          accent: effectiveColor,
+          style: effectiveStyle,
           radius: radius,
           isDark: palette.isDark,
           surface: palette.surface,
+          // The soft theme's signature: a pronounced glass shine riding on
+          // every badge ring, matching the containers' ShinyBorder sheen.
+          shine: themeStyle == ThemeStyle.soft,
         ),
         // `painter` draws behind `child`, so the glyph rides on top of the
         // glass - including on top of the gloss, which keeps it legible.
@@ -145,6 +161,7 @@ class _ShinyBadgePainter extends CustomPainter {
     required this.radius,
     required this.isDark,
     required this.surface,
+    this.shine = false,
   });
 
   final Color accent;
@@ -152,6 +169,9 @@ class _ShinyBadgePainter extends CustomPainter {
   final double? radius;
   final bool isDark;
   final Color surface;
+
+  /// Paints the extra glass shine on the ring (the soft theme).
+  final bool shine;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -213,7 +233,9 @@ class _ShinyBadgePainter extends CustomPainter {
           center: const Alignment(-0.55, -0.70),
           radius: 1.0,
           colors: [
-            Colors.white.withValues(alpha: filled ? 0.46 : (isDark ? 0.30 : 0.85)),
+            Colors.white.withValues(
+              alpha: filled ? 0.46 : (isDark ? 0.30 : 0.85),
+            ),
             Colors.white.withValues(alpha: 0),
           ],
           stops: const [0.0, 0.85],
@@ -250,10 +272,34 @@ class _ShinyBadgePainter extends CustomPainter {
         ).createShader(rect),
     );
 
+    // 4b - The soft theme's glass shine, painted ON the ring: a white-hot
+    // light-catch arc at the top-left and a softer echo bottom-right, the same
+    // sheen the containers' [ShinyBorder] carries - so badges and container
+    // borders read as one glassy system.
+    if (shine) {
+      canvas.drawRRect(
+        body.deflate(ringW / 2),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ringW
+          ..shader = SweepGradient(
+            transform: const GradientRotation(-math.pi),
+            colors: [
+              Colors.white.withValues(alpha: 0),
+              Colors.white.withValues(alpha: 0.92), // top-left light catch
+              Colors.white.withValues(alpha: 0),
+              Colors.white.withValues(alpha: 0.38), // bottom-right echo
+              Colors.white.withValues(alpha: 0),
+            ],
+            stops: const [0.0, 0.12, 0.34, 0.62, 0.86],
+          ).createShader(rect),
+      );
+    }
+
     // 4 - Inner rim light: the crisp glass edge, brightest at the top-left.
     // Kept modest so it reads as a highlight *inside* the border rather than
     // competing with it.
-    final rimW = math.max(0.8, s * 0.022);
+    final rimW = math.max(0.8, s * (shine ? 0.032 : 0.022));
     final rimInset = ringW + rimW / 2;
     if (s > rimInset * 2 + 2) {
       canvas.drawRRect(
@@ -265,7 +311,9 @@ class _ShinyBadgePainter extends CustomPainter {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white.withValues(alpha: filled ? 0.66 : 0.82),
+              Colors.white.withValues(
+                alpha: shine ? 0.95 : (filled ? 0.66 : 0.82),
+              ),
               Colors.white.withValues(alpha: 0),
             ],
             stops: const [0.0, 0.55],
@@ -280,5 +328,6 @@ class _ShinyBadgePainter extends CustomPainter {
       old.style != style ||
       old.radius != radius ||
       old.isDark != isDark ||
-      old.surface != surface;
+      old.surface != surface ||
+      old.shine != shine;
 }

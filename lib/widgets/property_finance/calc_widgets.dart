@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
@@ -251,7 +252,8 @@ class HeroResultCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.internal),
       decoration: BoxDecoration(
-        gradient: gradient,
+        // Deeper in the bold theme, lighter in soft.
+        gradient: InoStyle.gradient(context, gradient),
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: [
           BoxShadow(
@@ -458,7 +460,8 @@ class CalcSegmented<T> extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           gradient: o == selected
-                              ? AppColors.brandGradient
+                              ? InoStyle.gradient(
+                                  context, AppColors.brandGradient)
                               : null,
                           borderRadius:
                               BorderRadius.circular(AppRadius.chip - 4),

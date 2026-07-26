@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_models.dart' show QuickAction, SmartInsight;
 import '../models/document.dart';
 import '../models/wallet_models.dart';
 import '../repositories/document_repository.dart';
+import '../services/card_store.dart';
+import '../services/investment_store.dart';
+import '../services/password_store.dart';
+import '../services/property_store.dart';
+import '../services/wallet_store.dart';
 import '../theme/app_theme.dart';
 
 /// Aggregate read model for the Wallet Hub - fetched once, fanned out to the
@@ -105,13 +112,22 @@ class SupabaseWalletRepository implements WalletRepository {
     ),
   ];
 
-  /// The wallet categories the app offers (app structure, not stored data).
-  static const List<WalletCategory> categories = _categories;
+  /// The eight wallets the app ships with (never deletable).
+  static const List<WalletCategory> builtIns = _categories;
+
+  /// Every wallet the user has: the built-ins followed by the wallets they
+  /// created themselves ([CustomWalletStore]). Every picker, filter and the hub
+  /// grid read this, so a new wallet shows up everywhere at once.
+  static List<WalletCategory> get categories =>
+      [..._categories, ...CustomWalletStore.instance.categories];
 
   /// Finds a wallet category by its full name (e.g. "Insurance Wallet").
+  /// Case-insensitive so a custom wallet still resolves if a document row
+  /// stored it with different casing.
   static WalletCategory? categoryFor(String name) {
-    for (final c in _categories) {
-      if (c.name == name) return c;
+    final id = name.trim().toLowerCase();
+    for (final c in categories) {
+      if (c.name.toLowerCase() == id) return c;
     }
     return null;
   }
@@ -131,16 +147,29 @@ class SupabaseWalletRepository implements WalletRepository {
       counts[d.wallet] = (counts[d.wallet] ?? 0) + 1;
     }
 
+    // The four data wallets count their own records rather than documents -
+    // a Property Wallet holding three properties should say so, not "0 files".
+    // Hydration is kicked off but never awaited: the stores are already loaded
+    // by `main()` in the real app, and blocking the whole hub on four
+    // `shared_preferences` reads would delay every other wallet's card.
+    unawaited(PropertyStore.instance.ensureLoaded());
+    unawaited(InvestmentStore.instance.ensureLoaded());
+    unawaited(CardStore.instance.ensureLoaded());
+    unawaited(PasswordStore.instance.ensureLoaded());
+
     int totalRecords = 0;
-    final updatedCategories = _categories.map((c) {
-      final count = counts[c.name] ?? 0;
+    // Built-ins + the user's own wallets, each carrying its live record count.
+    final all = categories;
+    final updatedCategories = all.map((c) {
+      final module = _moduleCountFor(c.name);
+      final count = module?.$1 ?? (counts[c.name] ?? 0);
       totalRecords += count;
       return WalletCategory(
         name: c.name,
         icon: c.icon,
         contents: c.contents,
         metric: '$count',
-        metricLabel: c.metricLabel,
+        metricLabel: module?.$2 ?? c.metricLabel,
         gradient: c.gradient,
       );
     }).toList();
@@ -163,7 +192,7 @@ class SupabaseWalletRepository implements WalletRepository {
 
     return WalletHubData(
       overview: WalletOverview(
-        totalWallets: _categories.length,
+        totalWallets: all.length,
         totalRecords: totalRecords,
         protectedItems: totalRecords,
         lastBackup: totalRecords == 0 ? 'No documents yet' : 'Synced',
@@ -209,6 +238,23 @@ class SupabaseWalletRepository implements WalletRepository {
     );
   }
 
+  /// The (count, label) a data wallet reports on its hub card, or null for the
+  /// document wallets - which keep counting documents.
+  (int, String)? _moduleCountFor(String walletName) {
+    switch (walletName) {
+      case 'Property Wallet':
+        return (PropertyStore.instance.count, 'properties');
+      case 'Investment Wallet':
+        return (InvestmentStore.instance.count, 'holdings');
+      case 'Banking Wallet':
+        return (CardStore.instance.count, 'cards');
+      case 'Password Vault':
+        return (PasswordStore.instance.count, 'passwords');
+      default:
+        return null;
+    }
+  }
+
   IconData _iconFor(String? category) {
     switch (category) {
       case 'Identity':
@@ -226,12 +272,8 @@ class SupabaseWalletRepository implements WalletRepository {
     }
   }
 
-  Color _colorFor(String wallet) {
-    for (final c in _categories) {
-      if (c.name == wallet) return c.gradient.first;
-    }
-    return AppColors.primaryGreen;
-  }
+  Color _colorFor(String wallet) =>
+      categoryFor(wallet)?.gradient.first ?? AppColors.primaryGreen;
 
   String _relativeTime(DateTime t) {
     final diff = DateTime.now().difference(t);

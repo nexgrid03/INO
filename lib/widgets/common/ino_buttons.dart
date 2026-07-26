@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// The primary CTA of the design system: a 56dp, radius-18 pill filled with the
@@ -33,7 +34,8 @@ class PrimaryButton extends StatelessWidget {
       height: AppSizes.button,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        gradient: AppGradients.primary,
+        // Deeper in the bold theme, lighter in soft.
+        gradient: InoStyle.gradient(context, AppGradients.primary),
         borderRadius: BorderRadius.circular(AppRadius.button),
         boxShadow: enabled ? AppShadows.glow(AppColors.primaryGreen) : null,
       ),

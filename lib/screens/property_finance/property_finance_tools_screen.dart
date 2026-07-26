@@ -21,6 +21,7 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
         'emi' => l10n.t('emiCalculator'),
         'sip' => l10n.t('sipCalculator'),
         'gold' => l10n.t('goldCalculator'),
+        'fx' => l10n.t('currencyCalculator'),
         _ => t.title,
       };
 
@@ -31,6 +32,7 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
         'emi' => l10n.t('emiSubtitle'),
         'sip' => l10n.t('sipSubtitle'),
         'gold' => l10n.t('goldSubtitle'),
+        'fx' => l10n.t('currencySubtitle'),
         _ => t.subtitle,
       };
 

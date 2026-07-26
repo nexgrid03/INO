@@ -4,6 +4,7 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
@@ -11,8 +12,13 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/wallet/create_wallet_sheet.dart';
 import '../../widgets/wallet/wallet_grid.dart';
+import '../cards/cards_wallet_screen.dart';
+import '../investments/investment_wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../passwords/password_vault_screen.dart';
+import '../property/property_wallet_screen.dart';
 import 'document_search_delegate.dart';
 import 'wallet_detail_screen.dart';
 
@@ -44,6 +50,66 @@ class _WalletScreenState extends State<WalletScreen> {
     _future = WalletRepository.instance.load();
   }
 
+  /// Re-reads the hub so a freshly added / removed wallet shows up with its
+  /// live record count.
+  void _reload() {
+    // Block body on purpose: an arrow would hand setState the assigned Future
+    // as its return value, which Flutter rejects.
+    setState(() {
+      _future = WalletRepository.instance.load();
+    });
+  }
+
+  /// Create Wallet - the user's own vault, alongside the eight built-ins.
+  Future<void> _addWallet() async {
+    final created = await showCreateWalletSheet(context);
+    if (created == null || !mounted) return;
+    _reload();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)
+              .t('walletCreated')
+              .replaceAll('{name}', created.name),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Long-press on a wallet. Built-ins are permanent; the user's own wallets
+  /// offer a delete (documents filed under them are kept, never deleted).
+  Future<void> _onLongPress(WalletCategory category) async {
+    if (!CustomWalletStore.instance.isCustom(category.name)) return;
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.t('deleteWallet')),
+        content: Text(
+          l10n.t('deleteWalletBody').replaceAll('{name}', category.name),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              l10n.t('delete'),
+              style: const TextStyle(color: AppColors.critical),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await CustomWalletStore.instance.remove(category.name);
+    if (!mounted) return;
+    _reload();
+  }
+
   /// Opens a real global search across every document in the vault.
   void _searchDocuments() {
     showSearch<void>(context: context, delegate: DocumentSearchDelegate());
@@ -68,13 +134,32 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  /// Opens the reusable Wallet Detail screen with a premium slide + fade.
-  void _openWallet(WalletCategory category) {
-    Navigator.of(context).push(
+  /// The four wallets that are data modules rather than document folders. Each
+  /// opens its own experience; the wallet's *documents* are still one tap away
+  /// inside it, so nothing that worked before has moved out of reach.
+  Widget _screenFor(WalletCategory category) {
+    switch (category.name) {
+      case 'Property Wallet':
+        return PropertyWalletScreen(category: category);
+      case 'Investment Wallet':
+        return InvestmentWalletScreen(category: category);
+      case 'Banking Wallet':
+        return CardsWalletScreen(category: category);
+      case 'Password Vault':
+        return PasswordVaultScreen(category: category);
+      default:
+        return WalletDetailScreen(category: category);
+    }
+  }
+
+  /// Opens a wallet with a premium slide + fade, then refreshes the hub - a
+  /// property or card added inside a module changes that wallet's count.
+  Future<void> _openWallet(WalletCategory category) async {
+    await Navigator.of(context).push(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 360),
         reverseTransitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, _, _) => WalletDetailScreen(category: category),
+        pageBuilder: (_, _, _) => _screenFor(category),
         transitionsBuilder: (_, animation, _, child) {
           final curved = CurvedAnimation(
             parent: animation,
@@ -93,6 +178,8 @@ class _WalletScreenState extends State<WalletScreen> {
         },
       ),
     );
+    if (!mounted) return;
+    _reload();
   }
 
   @override
@@ -102,66 +189,76 @@ class _WalletScreenState extends State<WalletScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       body: _WalletBackdrop(
-        // A static, non-scrolling page: the header, search and full wallet grid
-        // are laid out in a plain Column so the content never scrolls and never
-        // stretches/zooms on an overscroll bounce. Everything fits on one screen.
+        // The eight built-ins still fit on one screen, but the user can now add
+        // wallets of their own - so the page scrolls once the grid outgrows the
+        // viewport. Clamping physics keeps the old feel: no overscroll bounce,
+        // no stretch/zoom on the backdrop.
         child: SafeArea(
           bottom: false,
           child: FutureBuilder<WalletHubData>(
             future: _future,
             builder: (context, snapshot) {
               final data = snapshot.data;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header - avatar · "My Wallets" · notification bell.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: FadeSlideIn(
-                      offset: 14,
-                      child: _HubHeader(
-                        fullName: widget.profile.fullName,
-                        notificationCount: data?.insights.length ?? 0,
-                        onNotifications: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen(),
+              return SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header - avatar · "My Wallets" · notification bell.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: FadeSlideIn(
+                        offset: 14,
+                        child: _HubHeader(
+                          fullName: widget.profile.fullName,
+                          notificationCount: data?.insights.length ?? 0,
+                          onNotifications: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  // Compact hero search - the hub's primary affordance.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: FadeSlideIn(
-                      delay: const Duration(milliseconds: 60),
-                      offset: 14,
-                      child: FloatingSearchBar(
-                        hint: l10n.t('searchWallets'),
-                        height: 46,
-                        onTap: _searchDocuments,
-                        // Its own tap target: taps on the filter icon open the
-                        // filter panel, not the search (the inner GestureDetector
-                        // wins the tap over the bar's outer one).
-                        trailing: _FilterButton(
-                          onTap: data == null
-                              ? null
-                              : () => _openFilters(data.categories),
+                    // Compact hero search - the hub's primary affordance.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                      child: FadeSlideIn(
+                        delay: const Duration(milliseconds: 60),
+                        offset: 14,
+                        child: FloatingSearchBar(
+                          hint: l10n.t('searchWallets'),
+                          height: 46,
+                          onTap: _searchDocuments,
+                          // Its own tap target: taps on the filter icon open the
+                          // filter panel, not the search (the inner
+                          // GestureDetector wins the tap over the bar's outer one).
+                          trailing: _FilterButton(
+                            onTap: data == null
+                                ? null
+                                : () => _openFilters(data.categories),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Launcher grid - fixed-height cards, all wallets visible.
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: data == null
-                        ? const _LoadingState()
-                        : WalletGrid(
-                            categories: data.categories,
-                            onOpen: _openWallet,
-                          ),
-                  ),
-                ],
+                    // Launcher grid - fixed-height cards, every wallet plus the
+                    // trailing "New Wallet" slot.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: data == null
+                          ? const _LoadingState()
+                          : WalletGrid(
+                              categories: data.categories,
+                              onOpen: _openWallet,
+                              onAdd: _addWallet,
+                              onLongPress: _onLongPress,
+                            ),
+                    ),
+                    // Clear the floating bottom nav (the shell extends the body
+                    // behind it).
+                    const SizedBox(height: 120),
+                  ],
+                ),
               );
             },
           ),

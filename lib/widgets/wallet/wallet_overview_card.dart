@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// Section 2 - Wallet Overview hero card.
@@ -16,11 +17,37 @@ class WalletOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The hero gradient follows the picked app theme: deeper in bold (the
+    // user-sanctioned "darker" theme), a touch lighter in soft.
+    final themeStyle = InoStyle.of(context);
+    final Gradient heroGradient;
+    switch (themeStyle) {
+      case ThemeStyle.bold:
+        heroGradient = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            InoStyle.deepen(AppColors.primaryGreen, 0.10),
+            InoStyle.deepen(AppColors.secondaryGreen, 0.12),
+          ],
+        );
+      case ThemeStyle.soft:
+        heroGradient = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            InoStyle.soften(AppColors.primaryGreen, 0.06),
+            InoStyle.soften(AppColors.secondaryGreen, 0.06),
+          ],
+        );
+      case ThemeStyle.classic:
+        heroGradient = AppColors.brandGradient;
+    }
     return PressableScale(
       pressedScale: 0.985,
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
+          gradient: heroGradient,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(

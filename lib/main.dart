@@ -13,15 +13,21 @@ import 'screens/splash/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
+import 'services/card_store.dart';
 import 'services/category_store.dart';
 import 'services/deep_link_service.dart';
+import 'services/investment_store.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
+import 'services/password_store.dart';
+import 'services/property_store.dart';
 import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
 import 'services/voice_manager.dart';
+import 'services/wallet_store.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
+import 'theme/theme_style.dart';
 
 Future<void> main() async {
   // Flutter needs this before any async work runs before runApp().
@@ -48,6 +54,19 @@ Future<void> main() async {
   // Custom document categories (name / icon / colour), so they're available to
   // pickers and filters on first paint.
   await CategoryStore.instance.load();
+
+  // Wallets the user created themselves, so the hub grid and every wallet
+  // picker list them on first paint.
+  await CustomWalletStore.instance.load();
+
+  // The four data wallets' device-local records, so the hub shows real counts
+  // ("3 properties") on the very first frame instead of zeros that then jump.
+  await Future.wait([
+    PropertyStore.instance.ensureLoaded(),
+    InvestmentStore.instance.ensureLoaded(),
+    CardStore.instance.ensureLoaded(),
+    PasswordStore.instance.ensureLoaded(),
+  ]);
 
   // Record this device in the local trusted-devices registry (non-blocking).
   unawaited(TrustedDeviceService.instance.registerCurrent());
@@ -126,35 +145,45 @@ class _InoAppState extends State<InoApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, mode, _) {
-        // The language notifier is persisted (AppSettings) and drives the app
-        // locale, so selecting a language rebuilds every Localizations dependant
-        // instantly - no restart required.
-        return ValueListenableBuilder<String>(
-          valueListenable: AppSettings.instance.language,
-          builder: (context, langCode, _) {
-            return MaterialApp(
-              title: 'INO',
-              debugShowCheckedModeBanner: false,
-              navigatorKey: InoApp.navigatorKey,
-              scaffoldMessengerKey: InoApp.messengerKey,
-              theme: AppTheme.light,
-              darkTheme: AppTheme.dark,
-              themeMode: mode,
-              locale: _localeForCode(langCode),
-              supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              // Wrap every route in the biometric app-lock gate. It's inert
-              // unless the user has enabled the lock, in which case it covers the
-              // app on cold start and each return from the background.
-              builder: (context, child) => InoResponsiveInit(
-                child: AppLock(child: child ?? const SizedBox.shrink()),
-              ),
-              home: _home,
+        // The visual style (classic / bold / soft) rebuilds the app the same
+        // way the light/dark mode does - picked in Profile → App theme.
+        return ValueListenableBuilder<ThemeStyle>(
+          valueListenable: ThemeController.style,
+          builder: (context, style, _) {
+            // The language notifier is persisted (AppSettings) and drives the
+            // app locale, so selecting a language rebuilds every Localizations
+            // dependant instantly - no restart required.
+            return ValueListenableBuilder<String>(
+              valueListenable: AppSettings.instance.language,
+              builder: (context, langCode, _) {
+                return MaterialApp(
+                  title: 'INO',
+                  debugShowCheckedModeBanner: false,
+                  navigatorKey: InoApp.navigatorKey,
+                  scaffoldMessengerKey: InoApp.messengerKey,
+                  theme: AppTheme.lightFor(style),
+                  darkTheme: AppTheme.darkFor(style),
+                  themeMode: mode,
+                  locale: _localeForCode(langCode),
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  // Wrap every route in the biometric app-lock gate (inert
+                  // unless enabled) and the InoStyleScope, so every route -
+                  // dialogs and sheets included - sees the active style.
+                  builder: (context, child) => InoResponsiveInit(
+                    child: InoStyleScope(
+                      style: style,
+                      child: AppLock(child: child ?? const SizedBox.shrink()),
+                    ),
+                  ),
+                  home: _home,
+                );
+              },
             );
           },
         );

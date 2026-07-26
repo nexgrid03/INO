@@ -12,18 +12,6 @@ import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/scan/detection_badge.dart';
 import '../../widgets/scan/ocr_field_tile.dart';
-import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
-
-const _wallets = <(String, IconData)>[
-  ('Identity Wallet', Icons.badge_rounded),
-  ('Document Wallet', Icons.folder_shared_rounded),
-  ('Property Wallet', Icons.home_work_rounded),
-  ('Insurance Wallet', Icons.shield_rounded),
-  ('Health Wallet', Icons.favorite_rounded),
-  ('Investment Wallet', Icons.trending_up_rounded),
-  ('Banking Wallet', Icons.account_balance_rounded),
-  ('Password Vault', Icons.lock_rounded),
-];
 
 /// Label used for the "create a new category" entry in the category picker.
 const String _kCreateCategory = 'Create new category';
@@ -39,6 +27,9 @@ String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 ///
 /// Auto-detection badge on top, then clean editable cards for every field. The
 /// user corrects anything OCR got wrong, then Continues to save (or retakes).
+///
+/// Deliberately NOT where the wallet is chosen: that's the next step
+/// ([ScanWalletScreen]), so the question is asked once, in one place.
 class OcrResultScreen extends StatefulWidget {
   const OcrResultScreen({
     super.key,
@@ -46,9 +37,16 @@ class OcrResultScreen extends StatefulWidget {
     required this.onRetake,
     required this.onContinue,
     required this.onClose,
+    this.destinationWallet,
   });
 
   final OcrResult result;
+
+  /// The wallet this scan is already headed for (a scan launched from inside a
+  /// wallet). Shown in the detection badge instead of the OCR suggestion, and
+  /// carried through on Continue - so the badge never promises a destination
+  /// the document isn't going to.
+  final String? destinationWallet;
   final VoidCallback onRetake;
   final ValueChanged<OcrResult> onContinue;
   final VoidCallback onClose;
@@ -96,7 +94,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     _dob = TextEditingController(text: r.dob ?? '');
     _gender = TextEditingController(text: r.gender ?? '');
     _fatherName = TextEditingController(text: r.fatherName ?? '');
-    _wallet = r.suggestedWallet;
+    _wallet = widget.destinationWallet ?? r.suggestedWallet;
     _category = r.category;
     _issueDate = r.issueDate;
     _expiryDate = r.expiryDate;
@@ -126,17 +124,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     if (picked != null) {
       setState(() => issue ? _issueDate = picked : _expiryDate = picked);
     }
-  }
-
-  Future<void> _pickWallet() async {
-    final l10n = AppLocalizations.of(context);
-    final picked = await _showOptions(
-      title: l10n.t('selectWallet'),
-      options: _wallets,
-      selected: _wallet,
-      labelBuilder: (v) => localizedWalletName(l10n, v),
-    );
-    if (picked != null) setState(() => _wallet = picked);
   }
 
   Future<void> _pickCategory() async {
@@ -203,8 +190,12 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                 key: _formKey,
                 child: ListView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                      AppSpacing.screen, AppSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    0,
+                    AppSpacing.screen,
+                    AppSpacing.lg,
+                  ),
                   children: [
                     FadeSlideIn(
                       child: DetectionBadge(
@@ -291,8 +282,9 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                           label: l10n.t('issueDate'),
                           optional: true,
                           child: OcrSelector(
-                            value:
-                                _issueDate == null ? null : _fmtDate(_issueDate!),
+                            value: _issueDate == null
+                                ? null
+                                : _fmtDate(_issueDate!),
                             placeholder: l10n.t('notDetected'),
                             leading: Icons.event_available_rounded,
                             trailing: Icons.calendar_today_rounded,
@@ -328,15 +320,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                             placeholder: l10n.t('chooseCategory'),
                             leading: Icons.label_rounded,
                             onTap: _pickCategory,
-                          ),
-                        ),
-                        OcrField(
-                          label: l10n.t('wallet'),
-                          child: OcrSelector(
-                            value: localizedWalletName(l10n, _wallet),
-                            placeholder: l10n.t('chooseWallet'),
-                            leading: Icons.account_balance_wallet_rounded,
-                            onTap: _pickWallet,
                           ),
                         ),
                         OcrField(
@@ -382,8 +365,9 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -399,14 +383,20 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(title,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              title,
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs,
-                    AppSpacing.md, AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
                 children: [
                   for (final o in options)
                     Material(
@@ -416,36 +406,48 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                         onTap: () => Navigator.of(context).pop(o.$1),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+                            horizontal: AppSpacing.xs,
+                            vertical: AppSpacing.sm,
+                          ),
                           child: Row(
                             children: [
                               Container(
                                 width: AppSizes.iconContainerSm,
                                 height: AppSizes.iconContainerSm,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryGreen
-                                      .withValues(alpha: 0.10),
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadius.chip),
+                                  color: AppColors.primaryGreen.withValues(
+                                    alpha: 0.10,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.chip,
+                                  ),
                                 ),
-                                child: Icon(o.$2,
-                                    color: AppColors.primaryGreen, size: 21),
+                                child: Icon(
+                                  o.$2,
+                                  color: AppColors.primaryGreen,
+                                  size: 21,
+                                ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
-                                    labelBuilder != null
-                                        ? labelBuilder(o.$1)
-                                        : o.$1,
-                                    style: AppText.subtitle.copyWith(
-                                        color: palette.textPrimary,
-                                        fontWeight: o.$1 == selected
-                                            ? FontWeight.w700
-                                            : FontWeight.w600)),
+                                  labelBuilder != null
+                                      ? labelBuilder(o.$1)
+                                      : o.$1,
+                                  style: AppText.subtitle.copyWith(
+                                    color: palette.textPrimary,
+                                    fontWeight: o.$1 == selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                  ),
+                                ),
                               ),
                               if (o.$1 == selected)
-                                const Icon(Icons.check_circle_rounded,
-                                    color: AppColors.primaryGreen, size: 22),
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primaryGreen,
+                                  size: 22,
+                                ),
                             ],
                           ),
                         ),
@@ -472,7 +474,11 @@ class _Header extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Row(
         children: [
           PressableScale(
@@ -489,8 +495,11 @@ class _Header extends StatelessWidget {
                 child: SizedBox(
                   width: AppSizes.iconContainerSm,
                   height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    size: 21,
+                    color: palette.textPrimary,
+                  ),
                 ),
               ),
             ),
@@ -500,13 +509,18 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.t('confirmDetails'),
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
+                Text(
+                  l10n.t('confirmDetails'),
+                  style: AppText.headline.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 21,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(l10n.t('confirmDetailsSubtitle'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
+                Text(
+                  l10n.t('confirmDetailsSubtitle'),
+                  style: AppText.caption.copyWith(color: palette.textSecondary),
+                ),
               ],
             ),
           ),
@@ -555,15 +569,18 @@ class _CardSection extends StatelessWidget {
                       color: AppColors.primaryGreen.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(AppRadius.chip - 4),
                     ),
-                    child: Icon(icon,
-                        size: 16, color: AppColors.primaryGreen),
+                    child: Icon(icon, size: 16, color: AppColors.primaryGreen),
                   ),
                   const SizedBox(width: AppSpacing.xs),
                 ],
                 Expanded(
-                  child: Text(title.toUpperCase(),
-                      style: AppText.label.copyWith(
-                          color: palette.textFaint, letterSpacing: 1.4)),
+                  child: Text(
+                    title.toUpperCase(),
+                    style: AppText.label.copyWith(
+                      color: palette.textFaint,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -597,8 +614,12 @@ class _ActionBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-              AppSpacing.screen, AppSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            AppSpacing.sm,
+            AppSpacing.screen,
+            AppSpacing.sm,
+          ),
           child: Row(
             children: [
               PressableScale(
@@ -615,9 +636,12 @@ class _ActionBar extends StatelessWidget {
                       height: AppSizes.button,
                       width: 104,
                       child: Center(
-                        child: Text(l10n.t('retake'),
-                            style: AppText.subtitle
-                                .copyWith(color: palette.textSecondary)),
+                        child: Text(
+                          l10n.t('retake'),
+                          style: AppText.subtitle.copyWith(
+                            color: palette.textSecondary,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -648,13 +672,19 @@ class _ActionBar extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(l10n.t('continue'),
-                                  style: AppText.subtitle.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700)),
+                              Text(
+                                l10n.t('continue'),
+                                style: AppText.subtitle.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.arrow_forward_rounded,
-                                  color: Colors.white, size: 20),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),

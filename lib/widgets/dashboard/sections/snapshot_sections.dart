@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/theme_style.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 
@@ -228,7 +229,9 @@ class _StatCell extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 20, color: color),
+          // Deeper in bold, lighter in soft - keeps the stat rows in step with
+          // the picked app theme.
+          Icon(icon, size: 20, color: InoStyle.accent(context, color)),
           const SizedBox(height: 6),
           FittedBox(
             child: Text(

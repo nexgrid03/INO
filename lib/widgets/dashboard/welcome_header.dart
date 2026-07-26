@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
@@ -138,9 +139,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                   child: Container(
                     width: 48,
                     height: 48,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: AppColors.brandGradient,
+                      gradient: InoStyle.gradient(context, AppColors.brandGradient),
                     ),
                     alignment: Alignment.center,
                     clipBehavior: Clip.antiAlias,

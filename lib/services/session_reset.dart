@@ -3,13 +3,18 @@ import 'dart:developer' as developer;
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
 import 'app_settings.dart';
+import 'card_store.dart';
 import 'category_store.dart';
 import 'document_protection_store.dart';
 import 'expense_store.dart';
 import 'global_search_service.dart';
+import 'investment_store.dart';
 import 'notes_store.dart';
 import 'notification_center.dart';
+import 'password_store.dart';
+import 'property_store.dart';
 import 'voice_greeting_service.dart';
+import 'wallet_store.dart';
 
 /// Clears every piece of **user-scoped in-memory / local state** so that when
 /// one account signs out and another signs in on the same device, the new
@@ -46,6 +51,18 @@ class SessionReset {
 
     // User-created custom document categories (persisted global key).
     await _guard('categories', () => CategoryStore.instance.clear());
+
+    // User-created wallets (persisted global key) - same reasoning as
+    // categories: the next account must start from just the eight built-ins.
+    await _guard('wallets', () => CustomWalletStore.instance.clear());
+
+    // The four data wallets' device-local records (properties, investments,
+    // saved cards, vault credentials). These are user-created content under
+    // per-account keys and MUST NOT survive into the next account's session.
+    await _guard('properties', () => PropertyStore.instance.clear());
+    await _guard('investments', () => InvestmentStore.instance.clear());
+    await _guard('cards', () => CardStore.instance.clear());
+    await _guard('passwords', () => PasswordStore.instance.clear());
 
     // Per-document biometric-protection flags (persisted global key).
     await _guard('protection', () => DocumentProtectionStore.instance.clear());

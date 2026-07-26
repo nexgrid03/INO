@@ -1,9 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inoapp/services/app_settings.dart';
 import 'package:inoapp/services/voice_greeting_service.dart';
-import 'package:inoapp/widgets/home/welcome_sound_pill.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -84,68 +82,18 @@ void main() {
       expect(AppSettings.instance.welcomeSound.value, isFalse);
     });
 
-    test('muteNow silences and persists welcomeSound=false', () async {
-      svc.speaking.value = true; // simulate a greeting mid-utterance
-      await svc.muteNow();
-
-      expect(svc.speaking.value, isFalse);
-      expect(AppSettings.instance.welcomeSound.value, isFalse);
+    test('turning the setting on from Settings persists the opt-in', () async {
+      await AppSettings.instance.setWelcomeSound(true);
+      expect(AppSettings.instance.welcomeSound.value, isTrue);
       // Persisted - survives an app restart.
       final p = await SharedPreferences.getInstance();
-      expect(p.getBool('pref_welcome_sound_enabled'), isFalse);
+      expect(p.getBool('pref_welcome_sound_enabled'), isTrue);
     });
-  });
 
-  group('WelcomeSoundPill', () {
-    // The pill's OWN IgnorePointer is the outermost widget it builds; several
-    // framework widgets also contain IgnorePointers, so scope + take first.
-    IgnorePointer pillGate(WidgetTester tester) => tester.widget<IgnorePointer>(
-          find
-              .descendant(
-                of: find.byType(WelcomeSoundPill),
-                matching: find.byType(IgnorePointer),
-              )
-              .first,
-        );
-
-    testWidgets('hidden while nothing plays, mutes on tap', (tester) async {
-      await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: WelcomeSoundPill()),
-      ));
-
-      // Not speaking → non-interactive (invisible to touch).
-      expect(pillGate(tester).ignoring, isTrue);
-
-      // Greeting starts → the pill appears and is tappable.
-      svc.speaking.value = true;
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(pillGate(tester).ignoring, isFalse);
-      expect(find.text('Mute greeting'), findsOneWidget);
-
-      // Tap → immediate silence + persisted opt-out, pill hides.
-      await tester.tap(find.text('Mute greeting'));
-      await tester.pump();
+    test('muted by default - a fresh install never speaks', () async {
+      SharedPreferences.setMockInitialValues({});
+      await AppSettings.instance.load();
       expect(AppSettings.instance.welcomeSound.value, isFalse);
-      expect(svc.speaking.value, isFalse);
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(pillGate(tester).ignoring, isTrue);
-    });
-
-    testWidgets('auto-dismisses after 3 seconds', (tester) async {
-      await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: WelcomeSoundPill()),
-      ));
-
-      svc.speaking.value = true;
-      await tester.pump();
-      expect(pillGate(tester).ignoring, isFalse);
-
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(pillGate(tester).ignoring, isTrue);
-
-      svc.speaking.value = false; // tidy up the shared notifier
     });
   });
 }

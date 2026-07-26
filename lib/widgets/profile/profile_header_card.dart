@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// The compact identity header at the top of the Profile settings page.
@@ -108,7 +109,7 @@ class _Avatar extends StatelessWidget {
       height: 54,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: AppColors.brandGradient,
+        gradient: InoStyle.gradient(context, AppColors.brandGradient),
         boxShadow: [
           BoxShadow(
             color: AppColors.primaryGreen.withValues(alpha: 0.26),
@@ -139,7 +140,7 @@ class _InitialsFill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+      decoration: BoxDecoration(gradient: InoStyle.gradient(context, AppColors.brandGradient)),
       child: Center(
         child: Text(
           initials,

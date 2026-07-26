@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../property/area_converter_screen.dart';
+import 'currency_calculator_screen.dart';
 import 'emi_calculator_screen.dart';
 import 'gold_calculator_screen.dart';
 import 'property_valuation_screen.dart';
@@ -74,6 +75,15 @@ final List<FinanceTool> financeTools = [
     icon: Icons.trending_up_rounded,
     color: const Color(0xFF8B6CEF),
     builder: (_) => const SipCalculatorScreen(),
+  ),
+  FinanceTool(
+    id: 'fx',
+    title: 'Currency Converter',
+    shortTitle: 'Currency',
+    subtitle: 'Rupee → dollar, pound & 60 more',
+    icon: Icons.currency_exchange_rounded,
+    color: AppColors.skyBlue,
+    builder: (_) => const CurrencyCalculatorScreen(),
   ),
   FinanceTool(
     id: 'gold',

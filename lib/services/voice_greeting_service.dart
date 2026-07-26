@@ -28,8 +28,8 @@ class VoiceGreetingService {
   VoiceGreetingService._() {
     // Flipping the startup-greeting setting OFF must silence an in-flight
     // greeting IMMEDIATELY, no matter which surface flipped it (the Settings
-    // switch, the mute pill, or any future control). Listening to the setting
-    // itself keeps that guarantee in one place.
+    // switch, or any future control). Listening to the setting itself keeps
+    // that guarantee in one place.
     AppSettings.instance.welcomeSound.addListener(_onSettingChanged);
   }
   static final VoiceGreetingService instance = VoiceGreetingService._();
@@ -45,16 +45,15 @@ class VoiceGreetingService {
   /// True once we've greeted this session, so the greeting plays only once.
   bool _greeted = false;
 
-  /// True while the greeting is actually being spoken. The "Mute greeting"
-  /// pill ([WelcomeSoundPill]) shows exactly while this is true and hides the
-  /// moment the utterance finishes or is muted.
+  /// True while the greeting is actually being spoken - so muting from
+  /// Settings mid-utterance can stop playback (see [_onSettingChanged]).
   final ValueNotifier<bool> speaking = ValueNotifier<bool>(false);
 
   /// Speaks the greeting once. Subsequent calls in the same session are no-ops.
   ///
-  /// Respects the persisted "Welcome sound" preference
-  /// ([AppSettings.welcomeSound]) - read BEFORE any audio work, so when the
-  /// user has muted the greeting nothing is loaded or spoken at all (never
+  /// Respects the persisted "Startup greeting" preference
+  /// ([AppSettings.welcomeSound], off by default) - read BEFORE any audio work,
+  /// so while the greeting is muted nothing is loaded or spoken at all (never
   /// load-then-stop).
   ///
   /// [userName] is the signed-in user's name; when blank the greeting omits it
@@ -85,21 +84,6 @@ class VoiceGreetingService {
       await VoiceManager.instance.speak(text);
     } finally {
       speaking.value = false;
-    }
-  }
-
-  /// The in-the-moment mute: immediately stops the greeting mid-utterance AND
-  /// persists `welcomeSound = false` so it won't play on the next launch
-  /// either. No confirmation - the silence intent is honoured instantly.
-  Future<void> muteNow() async {
-    _log('Greeting muted by the user - disabling the welcome sound');
-    debugPrint('Greeting muted by the user - disabling the welcome sound');
-    speaking.value = false;
-    await AppSettings.instance.setWelcomeSound(false);
-    try {
-      await VoiceManager.instance.stop();
-    } catch (_) {
-      // Stopping is best-effort; the preference is already persisted.
     }
   }
 

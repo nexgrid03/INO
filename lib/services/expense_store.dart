@@ -164,6 +164,18 @@ class ExpenseStore extends ChangeNotifier {
   double totalForYear([FinancialYear? fy]) =>
       transactionsForYear(fy).fold(0.0, (s, t) => s + t.amount);
 
+  /// Money-in total for [fy] - sums every record whose resolved direction is
+  /// credited, so records saved before the direction field still count via the
+  /// type-derived fallback.
+  double creditedForYear([FinancialYear? fy]) => transactionsForYear(fy)
+      .where((t) => t.effectiveDirection.isCredited)
+      .fold(0.0, (s, t) => s + t.amount);
+
+  /// Money-out total for [fy] - the debited counterpart of [creditedForYear].
+  double debitedForYear([FinancialYear? fy]) => transactionsForYear(fy)
+      .where((t) => !t.effectiveDirection.isCredited)
+      .fold(0.0, (s, t) => s + t.amount);
+
   // ---- Analytics -----------------------------------------------------------
 
   /// Total spent (or received, with [type]) in calendar month [month]/[year].

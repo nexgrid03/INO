@@ -6,6 +6,8 @@ import '../../core/responsive/responsive_extensions.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
+import '../common/shiny_border.dart';
 import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
@@ -74,13 +76,38 @@ class _DashboardCardState extends State<DashboardCard>
 
   @override
   Widget build(BuildContext context) {
+    // The picked app theme re-tones the whole teal section: bold runs the
+    // gradient deeper (the user-sanctioned "darker" theme), soft lifts it a
+    // touch lighter. Classic keeps the primary-only, never-darker ladder.
+    final themeStyle = InoStyle.of(context);
+    final List<Color> backdrop;
+    switch (themeStyle) {
+      case ThemeStyle.bold:
+        backdrop = [
+          InoStyle.deepen(const Color(0xFF4FBEC4), 0.10),
+          InoStyle.deepen(AppColors.primaryGreen, 0.10),
+          InoStyle.deepen(const Color(0xFF3BB6BC), 0.10),
+        ];
+      case ThemeStyle.soft:
+        backdrop = [
+          InoStyle.soften(const Color(0xFF4FBEC4), 0.06),
+          InoStyle.soften(AppColors.primaryGreen, 0.06),
+          InoStyle.soften(const Color(0xFF3BB6BC), 0.06),
+        ];
+      case ThemeStyle.classic:
+        backdrop = const [
+          Color(0xFF4FBEC4), // lighter tint highlight
+          AppColors.primaryGreen, // #30ACB3 anchor
+          Color(0xFF3BB6BC), // gentle lighter base
+        ];
+    }
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.large),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.28),
+            color: backdrop[1].withValues(alpha: 0.28),
             blurRadius: 26,
             offset: const Offset(0, 12),
           ),
@@ -103,13 +130,7 @@ class _DashboardCardState extends State<DashboardCard>
                         // primary gradient alive without changing its hue.
                         begin: Alignment(-1 + t * 0.4, -1),
                         end: Alignment(1, 1 - t * 0.4),
-                        // Primary-only: a lighter tint highlight easing into
-                        // the anchor - never darker than #30ACB3 (brand rule).
-                        colors: const [
-                          Color(0xFF4FBEC4), // lighter tint highlight
-                          AppColors.primaryGreen, // #30ACB3 anchor
-                          Color(0xFF3BB6BC), // gentle lighter base
-                        ],
+                        colors: backdrop,
                         stops: const [0.0, 0.58, 1.0],
                       ),
                     ),
@@ -492,18 +513,38 @@ class _OverviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSmall = context.isMobileSmall;
+    final themeStyle = InoStyle.of(context);
+    final bold = themeStyle == ThemeStyle.bold;
+    final soft = themeStyle == ThemeStyle.soft;
+
+    // Bold: the colour that used to live on the small inner icon badge floods
+    // the whole tile (run deeper), and the glyph stays in place in plain
+    // white. Soft: the pastel fill lifts lighter and the badge goes glass, so
+    // the glyph shows in its own colour (handled inside ShinyIcon); the border
+    // keeps the classic accent and gains a glass sheen (ShinyBorder below).
+    final Color tileFill = bold
+        ? InoStyle.boldFill(accent)
+        : soft
+        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.45), fill)
+        : fill;
+    final Color edge = bold ? InoStyle.boldBorder(accent) : accent;
+    final badgeSize = isSmall ? 34.0 : 38.0;
+    // With the badge body gone in bold the bare glyph reads small - let it
+    // grow into the freed slot.
+    final glyphSize = bold ? (isSmall ? 26.0 : 30.0) : (isSmall ? 18.0 : 20.0);
+
     final tile = Container(
       padding: EdgeInsets.all(isSmall ? 11 : 13),
       decoration: BoxDecoration(
-        color: fill,
+        color: tileFill,
         borderRadius: BorderRadius.circular(20),
         // A thick, solid accent edge - the same colour the icon badge is
         // filled with, so the tile reads as one coloured object rather than a
         // pastel card with a hairline around it.
-        border: Border.all(color: accent, width: 2.5),
+        border: Border.all(color: edge, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: accent.withValues(alpha: 0.10),
+            color: accent.withValues(alpha: bold ? 0.24 : 0.10),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -524,7 +565,7 @@ class _OverviewTile extends StatelessWidget {
                   child: Text(
                     value,
                     style: TextStyle(
-                      color: AppColors.textDark,
+                      color: bold ? Colors.white : AppColors.textDark,
                       fontSize: isSmall ? 22.rsp : 25.rsp,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.6,
@@ -533,15 +574,24 @@ class _OverviewTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              ShinyIcon(
-                icon: icon,
-                color: accent,
-                size: isSmall ? 34 : 38,
-                iconSize: isSmall ? 18 : 20,
-                radius: 12,
-                // Saturated accent body + white glyph, matching the border.
-                style: ShinyIconStyle.filled,
-              ),
+              // Bold keeps the glyph in exactly the same slot but drops the
+              // badge body - the tile itself is now the coloured container.
+              bold
+                  ? SizedBox(
+                      width: badgeSize,
+                      height: badgeSize,
+                      child: Icon(icon, color: Colors.white, size: glyphSize),
+                    )
+                  : ShinyIcon(
+                      icon: icon,
+                      color: accent,
+                      size: badgeSize,
+                      iconSize: glyphSize,
+                      radius: 12,
+                      // Saturated accent body + white glyph, matching the
+                      // border (glass + colourful glyph in the soft theme).
+                      style: ShinyIconStyle.filled,
+                    ),
             ],
           ),
           const SizedBox(height: 8),
@@ -551,7 +601,7 @@ class _OverviewTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.textMuted,
+              color: bold ? InoStyle.boldTextSecondary : AppColors.textMuted,
               fontSize: isSmall ? 11 : 12,
               fontWeight: FontWeight.w600,
             ),
@@ -560,18 +610,25 @@ class _OverviewTile extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return tile;
+    // Soft: the classic accent border picks up a glass sheen.
+    final styled = ShinyBorder(
+      radius: 20,
+      width: 2.5,
+      enabled: soft,
+      child: tile,
+    );
+
+    if (onTap == null) return styled;
     return PressableScale(
       pressedScale: 0.96,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: tile,
+        child: styled,
       ),
     );
   }
 }
-
 
 /// Paints the drifting abstract graphics over the teal gradient: soft white
 /// blobs, a gentle wave band and thin geometric ring accents. Everything moves

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
+import '../common/shiny_border.dart';
 import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
@@ -37,6 +39,7 @@ String localizedMetricLabel(AppLocalizations l10n, String label) {
     'holdings': 'metricHoldings',
     'accounts': 'metricAccounts',
     'passwords': 'metricPasswords',
+    'cards': 'metricCards',
   };
   final key = map[label];
   return key == null ? label : l10n.t(key);
@@ -52,10 +55,23 @@ String localizedMetricLabel(AppLocalizations l10n, String label) {
 /// squish on press; a single shared controller drifts the blobs so the grid
 /// feels alive without a controller per card.
 class WalletGrid extends StatefulWidget {
-  const WalletGrid({super.key, required this.categories, this.onOpen});
+  const WalletGrid({
+    super.key,
+    required this.categories,
+    this.onOpen,
+    this.onAdd,
+    this.onLongPress,
+  });
 
   final List<WalletCategory> categories;
   final void Function(WalletCategory category)? onOpen;
+
+  /// When set, a dashed "New Wallet" tile is appended after the last wallet.
+  final VoidCallback? onAdd;
+
+  /// Long-press on a wallet card. The hub uses it to offer "delete" on the
+  /// user's own wallets (the grid itself doesn't know which those are).
+  final void Function(WalletCategory category)? onLongPress;
 
   static const double _gap = 12;
   static const double _cardHeight = 122;
@@ -80,8 +96,16 @@ class WalletGrid extends StatefulWidget {
     'Password Vault': Color(0xFFF2B33D), // amber
   };
 
-  /// The pastel accent for a given wallet name (falls back to [uniformAccent]).
+  /// The pastel accent for a built-in wallet name (falls back to
+  /// [uniformAccent]). Custom wallets carry their own accent - use
+  /// [accentForCategory].
   static Color accentFor(String name) => _accents[name] ?? uniformAccent;
+
+  /// The accent a card should wear: the curated one for a built-in wallet, or
+  /// the colour the user picked when they created their own.
+  static Color accentForCategory(WalletCategory category) =>
+      _accents[category.name] ??
+      (category.gradient.isEmpty ? uniformAccent : category.gradient.first);
 
   @override
   State<WalletGrid> createState() => _WalletGridState();
@@ -122,11 +146,29 @@ class _WalletGridState extends State<WalletGrid>
                   offset: 14,
                   child: _WalletCard(
                     category: widget.categories[i],
-                    accent: WalletGrid.accentFor(widget.categories[i].name),
+                    accent:
+                        WalletGrid.accentForCategory(widget.categories[i]),
                     drift: _drift,
                     phase: i * 0.8,
                     onTap: () => widget.onOpen?.call(widget.categories[i]),
+                    onLongPress: widget.onLongPress == null
+                        ? null
+                        : () => widget.onLongPress!(widget.categories[i]),
                   ),
+                ),
+              ),
+            // "New Wallet" - always the last tile, so adding a vault is exactly
+            // as reachable as opening one.
+            if (widget.onAdd != null)
+              SizedBox(
+                width: cardW,
+                height: WalletGrid._cardHeight,
+                child: FadeSlideIn(
+                  delay: Duration(
+                    milliseconds: (widget.categories.length * 45).clamp(0, 360),
+                  ),
+                  offset: 14,
+                  child: _AddWalletCard(onTap: widget.onAdd!),
                 ),
               ),
           ],
@@ -143,6 +185,7 @@ class _WalletCard extends StatelessWidget {
     required this.drift,
     required this.phase,
     required this.onTap,
+    this.onLongPress,
   });
 
   final WalletCategory category;
@@ -150,137 +193,306 @@ class _WalletCard extends StatelessWidget {
   final Animation<double> drift;
   final double phase;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final themeStyle = InoStyle.of(context);
+    final bold = themeStyle == ThemeStyle.bold;
+    final soft = themeStyle == ThemeStyle.soft;
 
-    // A soft, light wash of the card's own accent - premium and airy.
-    final fill = Color.alphaBlend(
-      accent.withValues(alpha: palette.isDark ? 0.18 : 0.10),
-      palette.surface,
-    );
+    // Classic: a soft, light wash of the card's own accent - premium and airy.
+    // Bold: the accent that used to sit on the icon chip floods the whole card
+    // (run deeper), texts flip white. Soft: an even lighter wash, glass chip.
+    final fill = bold
+        ? InoStyle.boldFill(accent)
+        : Color.alphaBlend(
+            accent.withValues(
+              alpha: palette.isDark ? 0.18 : (soft ? 0.07 : 0.10),
+            ),
+            palette.surface,
+          );
+    // Soft keeps the classic accent edge - the glass sheen comes from the
+    // ShinyBorder overlay below.
+    final edge = bold ? InoStyle.boldBorder(accent) : accent;
+    final titleColor = bold ? Colors.white : palette.textPrimary;
+    final metricColor = bold
+        ? InoStyle.boldTextSecondary
+        : palette.textSecondary;
     return PressableScale(
       pressedScale: 0.97,
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(20),
-            // A thick, solid accent edge - the same treatment the Home
-            // screen's Today's Overview tiles carry, so the card reads as one
-            // coloured object rather than a pastel wash with a hairline.
-            border: Border.all(color: accent, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.12),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Decorative drifting blob - the "graphic" that gives each card
-              // depth. Isolated in its own AnimatedBuilder so only it repaints.
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: RepaintBoundary(
-                    child: AnimatedBuilder(
-                      animation: drift,
-                      builder: (context, _) {
-                        final t = math.sin(drift.value * math.pi * 2 + phase);
-                        return Stack(
-                          children: [
-                            Positioned(
-                              top: -24 + t * 5,
-                              right: -20,
-                              child: _Blob(
-                                color: accent,
-                                size: 92,
-                                opacity: 0.20,
+        // Soft: the classic accent border picks up a glass sheen.
+        child: ShinyBorder(
+          radius: 20,
+          width: 2.5,
+          enabled: soft,
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(20),
+              // A thick, solid accent edge - the same treatment the Home
+              // screen's Today's Overview tiles carry, so the card reads as one
+              // coloured object rather than a pastel wash with a hairline.
+              border: Border.all(color: edge, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: bold ? 0.24 : 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Decorative drifting blob - the "graphic" that gives each card
+                // depth. Isolated in its own AnimatedBuilder so only it repaints.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: drift,
+                        builder: (context, _) {
+                          final t = math.sin(drift.value * math.pi * 2 + phase);
+                          return Stack(
+                            children: [
+                              Positioned(
+                                top: -24 + t * 5,
+                                right: -20,
+                                child: _Blob(
+                                  // Over the bold accent fill the accent blob
+                                  // vanishes - drift soft light instead.
+                                  color: bold ? Colors.white : accent,
+                                  size: 92,
+                                  opacity: 0.20,
+                                ),
                               ),
-                            ),
-                            Positioned(
-                              bottom: -28 - t * 4,
-                              left: -22,
-                              child: _Blob(
-                                color: accent,
-                                size: 64,
-                                opacity: 0.12,
+                              Positioned(
+                                bottom: -28 - t * 4,
+                                left: -22,
+                                child: _Blob(
+                                  color: bold ? Colors.white : accent,
+                                  size: 64,
+                                  opacity: 0.12,
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              // Card content.
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: 1.25,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          ShinyIcon(
-                            icon: category.icon,
-                            color: accent,
-                            size: 38,
-                            iconSize: 20,
-                            radius: 12,
-                          ),
-                          const Spacer(),
-                          Icon(
-                            Icons.arrow_outward_rounded,
-                            color: accent.withValues(alpha: 0.6),
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 9),
-                      Text(
-                        localizedWalletName(l10n, category.name),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: palette.textPrimary,
-                          letterSpacing: -0.2,
+                // Card content.
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.25,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            // Bold keeps the glyph in the same slot, plain
+                            // white - the card itself is the coloured chip now.
+                            bold
+                                ? SizedBox(
+                                    width: 38,
+                                    height: 38,
+                                    // Bigger than the old badge glyph - with the
+                                    // badge body gone it can fill the slot.
+                                    child: Icon(
+                                      category.icon,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  )
+                                : ShinyIcon(
+                                    icon: category.icon,
+                                    color: accent,
+                                    size: 38,
+                                    iconSize: 20,
+                                    radius: 12,
+                                  ),
+                            const Spacer(),
+                            Icon(
+                              Icons.arrow_outward_rounded,
+                              color: bold
+                                  ? Colors.white.withValues(alpha: 0.85)
+                                  : accent.withValues(alpha: 0.6),
+                              size: 18,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${category.metric} ${localizedMetricLabel(l10n, category.metricLabel)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: palette.textSecondary,
+                        const SizedBox(height: 9),
+                        Text(
+                          localizedWalletName(l10n, category.name),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: titleColor,
+                            letterSpacing: -0.2,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          '${category.metric} ${localizedMetricLabel(l10n, category.metricLabel)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: metricColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The trailing "New Wallet" tile - same footprint as a wallet card but drawn
+/// as an empty slot: a dashed brand edge over a faint wash, with a plus chip.
+/// Reads as "there's room for one more" rather than as another vault.
+class _AddWalletCard extends StatelessWidget {
+  const _AddWalletCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final bold = InoStyle.of(context) == ThemeStyle.bold;
+    const accent = AppColors.primaryGreen;
+    final edge = bold ? InoStyle.boldBorder(accent) : accent;
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: CustomPaint(
+          painter: _DashedBorderPainter(
+            color: edge.withValues(alpha: 0.75),
+            radius: 20,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                accent.withValues(alpha: palette.isDark ? 0.12 : 0.06),
+                palette.surface,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.25,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: InoStyle.gradient(
+                        context,
+                        AppColors.brandGradient,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppShadows.glow(accent, opacity: 0.26),
+                    ),
+                    child: const Icon(
+                      Icons.add_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    l10n.t('newWallet'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.t('addWalletHint'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Draws the rounded dashed edge of the "New Wallet" slot.
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          Radius.circular(radius),
+        ).deflate(1),
+      );
+    const dash = 7.0;
+    const gap = 6.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end =
+            distance + dash < metric.length ? distance + dash : metric.length;
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }
 
 /// A soft radial-gradient circle used as decorative depth inside a card.

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/theme_style.dart';
+import '../../common/shiny_border.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
@@ -13,11 +15,7 @@ import '../../pressable_scale.dart';
 /// in a single surface. Tiles use large touch targets (≥64px) so they remain
 /// comfortable for senior users, and reflow by available width.
 class QuickActionsSection extends StatelessWidget {
-  const QuickActionsSection({
-    super.key,
-    required this.actions,
-    this.onAction,
-  });
+  const QuickActionsSection({super.key, required this.actions, this.onAction});
 
   final List<QuickAction> actions;
   final void Function(QuickAction action)? onAction;
@@ -74,6 +72,23 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final themeStyle = InoStyle.of(context);
+    final bold = themeStyle == ThemeStyle.bold;
+    final soft = themeStyle == ThemeStyle.soft;
+
+    // These are the "small badge" tiles: they keep their shape in every theme.
+    // Bold simply runs the colour deeper (white glyph stays); soft lifts the
+    // body to a light wash so the glyph can show in its own colour.
+    final Color body = bold
+        ? InoStyle.deepen(action.color, 0.14)
+        : soft
+        ? Color.alphaBlend(
+            action.color.withValues(alpha: 0.16),
+            palette.surface,
+          )
+        : action.color;
+    final Color glyph = soft ? action.color : Colors.white;
+
     return PressableScale(
       pressedScale: 0.92,
       child: Column(
@@ -84,24 +99,34 @@ class _ActionTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: action.color.withValues(alpha: 0.30),
+                  color: action.color.withValues(alpha: soft ? 0.18 : 0.30),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Material(
-              color: action.color,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onTap,
-                child: SizedBox(
-                  width: 54,
-                  height: 54,
-                  child: Icon(action.icon, color: Colors.white, size: 24),
+            // Soft: a full accent edge (as the coloured tiles carry in
+            // classic) with the glass sheen riding on it.
+            child: ShinyBorder(
+              radius: 18,
+              width: 1.6,
+              enabled: soft,
+              child: Material(
+                color: body,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: soft
+                      ? BorderSide(color: action.color, width: 1.6)
+                      : BorderSide.none,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onTap,
+                  child: SizedBox(
+                    width: 54,
+                    height: 54,
+                    child: Icon(action.icon, color: glyph, size: 24),
+                  ),
                 ),
               ),
             ),

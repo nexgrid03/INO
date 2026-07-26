@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'theme_style.dart';
+
 /// App-wide theme-mode state, exposed as a single [ValueNotifier], and
 /// **persisted** so the choice survives an app restart.
 ///
@@ -14,19 +16,28 @@ class ThemeController {
   ThemeController._();
 
   static const _kThemeMode = 'pref_theme_mode';
+  static const _kThemeStyle = 'pref_theme_style';
 
   // Light is the primary theme; users can switch to dark via the header toggle.
   static final ValueNotifier<ThemeMode> mode =
       ValueNotifier<ThemeMode>(ThemeMode.light);
 
-  /// Reads the persisted theme choice into [mode]. Call once at startup, before
-  /// the first frame, so there's no light→dark flash.
+  /// The visual style (classic / bold / soft) picked in Profile → App theme.
+  static final ValueNotifier<ThemeStyle> style =
+      ValueNotifier<ThemeStyle>(ThemeStyle.classic);
+
+  /// Reads the persisted theme choices into [mode] and [style]. Call once at
+  /// startup, before the first frame, so there's no flash of the wrong theme.
   static Future<void> load() async {
     try {
       final p = await SharedPreferences.getInstance();
       final stored = p.getString(_kThemeMode);
       mode.value = _decode(stored);
-      developer.log('loaded theme=${mode.value}', name: 'theme');
+      style.value = _decodeStyle(p.getString(_kThemeStyle));
+      developer.log(
+        'loaded theme=${mode.value} style=${style.value}',
+        name: 'theme',
+      );
     } catch (e) {
       developer.log('load failed: $e', name: 'theme');
     }
@@ -46,6 +57,34 @@ class ThemeController {
   static void setMode(ThemeMode next) {
     mode.value = next;
     _persist(next);
+  }
+
+  /// Sets and persists the visual style.
+  static void setStyle(ThemeStyle next) {
+    style.value = next;
+    _persistStyle(next);
+  }
+
+  static Future<void> _persistStyle(ThemeStyle next) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kThemeStyle, next.name);
+      developer.log('saved style=$next', name: 'theme');
+    } catch (e) {
+      developer.log('persist style failed: $e', name: 'theme');
+    }
+  }
+
+  static ThemeStyle _decodeStyle(String? name) {
+    switch (name) {
+      case 'bold':
+        return ThemeStyle.bold;
+      case 'soft':
+        return ThemeStyle.soft;
+      case 'classic':
+      default:
+        return ThemeStyle.classic;
+    }
   }
 
   static Future<void> _persist(ThemeMode next) async {

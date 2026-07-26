@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// The Reminders Dashboard header: gradient profile avatar, page title +
@@ -37,9 +38,9 @@ class RemindersHeader extends StatelessWidget {
         Container(
           width: 48,
           height: 48,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: AppColors.brandGradient,
+            gradient: InoStyle.gradient(context, AppColors.brandGradient),
           ),
           alignment: Alignment.center,
           child: Text(

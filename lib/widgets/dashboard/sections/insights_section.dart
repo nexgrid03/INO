@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/theme_style.dart';
 import '../../common/shiny_icon.dart';
 import '../../pressable_scale.dart';
 
@@ -42,7 +43,7 @@ class InsightsSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  gradient: InoStyle.gradient(context, AppColors.brandGradient),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(

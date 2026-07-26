@@ -12,6 +12,7 @@ import '../../utils/share_origin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException, AuthException;
 
 import '../../data/wallet_detail_repository.dart';
+import '../../data/wallet_repository.dart' show SupabaseWalletRepository;
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
@@ -550,16 +551,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   Future<void> _move() async {
-    const wallets = [
-      'Identity Wallet',
-      'Document Wallet',
-      'Property Wallet',
-      'Insurance Wallet',
-      'Health Wallet',
-      'Investment Wallet',
-      'Banking Wallet',
-      'Password Vault',
-    ];
+    // Built-ins + the user's own wallets, so a document can be moved into a
+    // wallet they created in the hub.
+    final wallets = SupabaseWalletRepository.categories;
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final target = await showModalBottomSheet<String>(
@@ -569,32 +563,35 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.border,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+        // The list grows with every wallet the user adds - scroll rather than
+        // overflow once it outgrows the sheet.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(l10n.t('moveToWallet'),
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: AppSpacing.xs),
-            for (final w in wallets.where((w) => w != widget.walletName))
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet_rounded,
-                    color: AppColors.primaryGreen),
-                title: Text(localizedWalletName(l10n, w),
-                    style: TextStyle(color: palette.textPrimary)),
-                onTap: () => Navigator.of(context).pop(w),
-              ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(l10n.t('moveToWallet'),
+                  style: AppText.title.copyWith(color: palette.textPrimary)),
+              const SizedBox(height: AppSpacing.xs),
+              for (final w in wallets.where((w) => w.name != widget.walletName))
+                ListTile(
+                  leading: Icon(w.icon, color: AppColors.primaryGreen),
+                  title: Text(localizedWalletName(l10n, w.name),
+                      style: TextStyle(color: palette.textPrimary)),
+                  onTap: () => Navigator.of(context).pop(w.name),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ),
         ),
       ),
     );

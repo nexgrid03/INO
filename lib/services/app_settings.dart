@@ -29,11 +29,12 @@ class AppSettings {
   /// Push / reminder notifications. Default on.
   final ValueNotifier<bool> notifications = ValueNotifier<bool>(true);
 
-  /// The spoken welcome greeting on app open. Default on. The single source of
-  /// truth read by [VoiceGreetingService] BEFORE any audio work happens, and
-  /// written by both the Settings toggle and the in-the-moment "Mute greeting"
-  /// pill.
-  final ValueNotifier<bool> welcomeSound = ValueNotifier<bool>(true);
+  /// The spoken welcome greeting on app open. Default OFF (muted): the app
+  /// stays silent unless the user asks for the greeting from
+  /// Settings › Preferences › "Startup greeting", which is the only surface
+  /// that writes this. The single source of truth read by
+  /// [VoiceGreetingService] BEFORE any audio work happens.
+  final ValueNotifier<bool> welcomeSound = ValueNotifier<bool>(false);
 
   /// Automatically back new documents up to the cloud after upload. Default off.
   final ValueNotifier<bool> autoBackup = ValueNotifier<bool>(false);
@@ -70,7 +71,7 @@ class AppSettings {
     try {
       final p = await SharedPreferences.getInstance();
       notifications.value = p.getBool(_kNotifications) ?? true;
-      welcomeSound.value = p.getBool(_kWelcomeSound) ?? true;
+      welcomeSound.value = p.getBool(_kWelcomeSound) ?? false;
       autoBackup.value = p.getBool(_kAutoBackup) ?? false;
       twoFactor.value = p.getBool(_kTwoFactor) ?? false;
       language.value = p.getString(_kLanguage) ?? 'en';

@@ -6,7 +6,6 @@ import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
 import '../../services/guest_mode.dart';
 import '../../services/voice_greeting_service.dart';
-import '../../widgets/home/welcome_sound_pill.dart';
 import '../../widgets/shell/feature_tour.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/shell/quick_actions.dart';
@@ -275,41 +274,26 @@ class _MainShellState extends State<MainShell>
       resizeToAvoidBottomInset: false,
       // The voice assistant now lives as a small icon in each page's top bar
       // (beside the notification bell), so there's no floating mic here anymore.
-      body: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _pageAnim,
-            builder: (context, child) {
-              final v = Curves.easeOutCubic.transform(_pageAnim.value);
-              return Opacity(
-                // Ramp from a soft 0.35 (never a harsh blank) up to fully opaque.
-                opacity: 0.35 + 0.65 * v,
-                child: FractionalTranslation(
-                  translation: Offset(
-                    0.06 * (1 - v),
-                    0,
-                  ), // enters from the right
-                  child: child,
-                ),
-              );
-            },
-            child: IndexedStack(index: _index, children: pages),
-          ),
-          // Non-blocking "Mute greeting" pill - visible only while the spoken
-          // welcome greeting is playing (see WelcomeSoundPill).
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.only(top: 6),
-                child: WelcomeSoundPill(),
-              ),
+      // No transient overlays here: the spoken greeting is muted from
+      // Settings › Preferences › "Startup greeting" (a persistent switch), not
+      // from a pill that appears and disappears while it plays.
+      body: AnimatedBuilder(
+        animation: _pageAnim,
+        builder: (context, child) {
+          final v = Curves.easeOutCubic.transform(_pageAnim.value);
+          return Opacity(
+            // Ramp from a soft 0.35 (never a harsh blank) up to fully opaque.
+            opacity: 0.35 + 0.65 * v,
+            child: FractionalTranslation(
+              translation: Offset(
+                0.06 * (1 - v),
+                0,
+              ), // enters from the right
+              child: child,
             ),
-          ),
-        ],
+          );
+        },
+        child: IndexedStack(index: _index, children: pages),
       ),
       bottomNavigationBar: InoBottomNav(
         index: _index,

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_detail_repository.dart';
+import '../../data/wallet_repository.dart' show SupabaseWalletRepository;
 import '../../models/document_extraction.dart';
 import '../../models/reminder_models.dart';
 import '../../models/scan_models.dart';
@@ -87,16 +88,12 @@ extension _DocSourceX on _DocSource {
   }
 }
 
-const _wallets = <(String, IconData)>[
-  ('Identity Wallet', Icons.badge_rounded),
-  ('Document Wallet', Icons.folder_shared_rounded),
-  ('Property Wallet', Icons.home_work_rounded),
-  ('Insurance Wallet', Icons.shield_rounded),
-  ('Health Wallet', Icons.favorite_rounded),
-  ('Investment Wallet', Icons.trending_up_rounded),
-  ('Banking Wallet', Icons.account_balance_rounded),
-  ('Password Vault', Icons.lock_rounded),
-];
+/// Every wallet a document can be filed under - the built-ins plus whatever the
+/// user created in the Wallet Hub. Read fresh on each use so a wallet added a
+/// moment ago is already selectable here.
+List<(String, IconData)> get _wallets => [
+      for (final c in SupabaseWalletRepository.categories) (c.name, c.icon),
+    ];
 
 /// Sentinel returned by the category picker when the user taps "Create new
 /// category" instead of an existing one.
@@ -174,7 +171,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       if (prefill.documentName.isNotEmpty) {
         _nameController.text = prefill.documentName;
       }
-      if (_wallets.any((w) => w.$1 == prefill.suggestedWallet)) {
+      // Only fall back to the OCR suggestion when the launcher didn't already
+      // name a wallet - an explicit choice (the Scan flow's "Choose Wallet"
+      // step, or the wallet the scan was started from) must never be overridden.
+      if (_wallet == null &&
+          _wallets.any((w) => w.$1 == prefill.suggestedWallet)) {
         _wallet = prefill.suggestedWallet;
       }
       if (CategoryStore.instance.exists(prefill.category)) {

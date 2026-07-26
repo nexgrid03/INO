@@ -8,6 +8,7 @@ import '../../services/guest_mode.dart';
 import '../../services/voice_navigation_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// A small, **highlighted** voice-assistant button - a filled brand-gradient
@@ -41,7 +42,7 @@ class VoiceMicIconButton extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              gradient: AppGradients.primary,
+              gradient: InoStyle.gradient(context, AppGradients.primary),
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.5),
@@ -251,8 +252,8 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         Container(
           width: 96,
           height: 96,
-          decoration: const BoxDecoration(
-            gradient: AppColors.brandGradient,
+          decoration: BoxDecoration(
+            gradient: InoStyle.gradient(context, AppColors.brandGradient),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 44),
@@ -413,7 +414,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
                 child: Container(
                   height: AppSizes.button,
                   decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
+                    gradient: InoStyle.gradient(context, AppColors.brandGradient),
                     borderRadius: BorderRadius.circular(AppRadius.button),
                   ),
                   child: Center(
@@ -462,7 +463,7 @@ class _PulsingMic extends StatelessWidget {
           width: 84,
           height: 84,
           decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
+            gradient: InoStyle.gradient(context, AppColors.brandGradient),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(

@@ -3,6 +3,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'theme_style.dart';
+
 /// Central color palette and theme for the INO app.
 ///
 /// Premium Teal design system built around the brand anchor **#30ACB3** and a
@@ -269,6 +271,46 @@ class AppPalette {
     shadowStrength: 1.0,
   );
 
+  /// Bold-style light: the same layout of tokens with every neutral run a
+  /// shade deeper - a stronger teal wash, firmer borders and heavier shadows -
+  /// so the accent-flooded cards sit in a correspondingly deeper scene.
+  static const AppPalette lightBold = AppPalette(
+    brightness: Brightness.light,
+    bg: Color(0xFFE7F2F3), // deeper teal wash
+    bgElevated: Color(0xFFF9FDFD),
+    surface: Color(0xFFFCFEFE),
+    cardTop: Color(0xFFFCFEFE),
+    cardBottom: Color(0xFFF1F9FA),
+    surfaceVariant: Color(0xFFE0EFF0),
+    textPrimary: Color(0xFF0B1220),
+    textSecondary: Color(0xFF56636F),
+    textFaint: Color(0xFF8593A2),
+    border: Color(0x4030ACB3), // rgba(48,172,179,0.25) - firmer hairline
+    shadow: Color(0xFF30ACB3),
+    ambient: Color(0xFF30ACB3),
+    shadowStrength: 1.2,
+  );
+
+  /// Soft-style light: a touch airier than classic - a near-white wash, lighter
+  /// hairlines and whisper shadows - the backdrop for glass badges with
+  /// colourful glyphs.
+  static const AppPalette lightSoft = AppPalette(
+    brightness: Brightness.light,
+    bg: Color(0xFFF8FCFD), // lighter, near-white wash
+    bgElevated: Color(0xFFFFFFFF),
+    surface: Color(0xFFFFFFFF),
+    cardTop: Color(0xFFFFFFFF),
+    cardBottom: Color(0xFFFCFEFE),
+    surfaceVariant: Color(0xFFF3FAFB),
+    textPrimary: Color(0xFF1E293B),
+    textSecondary: Color(0xFF6E7F94),
+    textFaint: Color(0xFFA0ACBC),
+    border: Color(0x1F30ACB3), // rgba(48,172,179,0.12) - lighter hairline
+    shadow: Color(0xFF30ACB3),
+    ambient: Color(0xFF30ACB3),
+    shadowStrength: 0.8,
+  );
+
   static const AppPalette dark = AppPalette(
     brightness: Brightness.dark,
     bg: Color(0xFF0A1B1E),
@@ -287,7 +329,29 @@ class AppPalette {
   );
 
   static AppPalette of(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark ? dark : light;
+    // Depends on the InoStyleScope too, so every palette consumer rebuilds
+    // (and re-tones) when the user picks a new style in Profile → App theme.
+    return resolve(
+      brightness: Theme.of(context).brightness,
+      style: InoStyleScope.of(context),
+    );
+  }
+
+  /// The palette for an explicit brightness + style pair (used by [AppTheme]
+  /// when building ThemeData, where there's no scope to read yet).
+  static AppPalette resolve({
+    required Brightness brightness,
+    required ThemeStyle style,
+  }) {
+    if (brightness == Brightness.dark) return dark;
+    switch (style) {
+      case ThemeStyle.bold:
+        return lightBold;
+      case ThemeStyle.soft:
+        return lightSoft;
+      case ThemeStyle.classic:
+        return light;
+    }
   }
 
   /// Subtle top-lit glass gradient used as the default card fill.
@@ -324,9 +388,19 @@ class AppTheme {
   static ThemeData get light => _build(Brightness.light);
   static ThemeData get dark => _build(Brightness.dark);
 
-  static ThemeData _build(Brightness brightness) {
+  /// Style-aware variants - the scaffold wash, borders and shadows shift with
+  /// the picked [ThemeStyle] (classic / bold / soft).
+  static ThemeData lightFor(ThemeStyle style) =>
+      _build(Brightness.light, style: style);
+  static ThemeData darkFor(ThemeStyle style) =>
+      _build(Brightness.dark, style: style);
+
+  static ThemeData _build(
+    Brightness brightness, {
+    ThemeStyle style = ThemeStyle.classic,
+  }) {
     final isDark = brightness == Brightness.dark;
-    final palette = isDark ? AppPalette.dark : AppPalette.light;
+    final palette = AppPalette.resolve(brightness: brightness, style: style);
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primaryGreen,

@@ -20,6 +20,7 @@ import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
+import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -284,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Persisting false also stops a greeting that's currently playing -
     // VoiceGreetingService listens to this setting.
     await AppSettings.instance.setWelcomeSound(value);
-    _toast(value ? 'Startup greeting on' : 'Startup greeting off');
+    _toast(value ? 'Startup greeting on' : 'Startup greeting muted');
   }
 
   Future<void> _toggleAutoBackup(bool value) async {
@@ -312,6 +313,95 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Toggle + persist via the controller using this (live) context, so it
     // works even though the shell's original toggle context is long gone.
     ThemeController.toggle(context);
+  }
+
+  // ---- App theme (visual style) --------------------------------------------
+
+  String _themeStyleLabel(AppLocalizations l10n, ThemeStyle style) {
+    switch (style) {
+      case ThemeStyle.classic:
+        return l10n.t('themeClassic');
+      case ThemeStyle.bold:
+        return l10n.t('themeBold');
+      case ThemeStyle.soft:
+        return l10n.t('themeSoft');
+    }
+  }
+
+  String _themeStyleDesc(AppLocalizations l10n, ThemeStyle style) {
+    switch (style) {
+      case ThemeStyle.classic:
+        return l10n.t('themeClassicDesc');
+      case ThemeStyle.bold:
+        return l10n.t('themeBoldDesc');
+      case ThemeStyle.soft:
+        return l10n.t('themeSoftDesc');
+    }
+  }
+
+  Future<void> _pickThemeStyle() async {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final current = ThemeController.style.value;
+    final picked = await showModalBottomSheet<ThemeStyle>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            _SheetGrip(),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              l10n.t('chooseTheme'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            for (final o in ThemeStyle.values)
+              ListTile(
+                leading: _ThemeSwatch(style: o),
+                title: Text(
+                  _themeStyleLabel(l10n, o),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontWeight:
+                        o == current ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  _themeStyleDesc(l10n, o),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.textSecondary,
+                  ),
+                ),
+                trailing: o == current
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: AppColors.primaryGreen,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(o),
+              ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || picked == current) return;
+    HapticFeedback.selectionClick();
+    // Persists + rebuilds the whole app instantly (see ThemeController.style).
+    ThemeController.setStyle(picked);
+    if (!mounted) return;
+    _toast('Theme set to ${_themeStyleLabel(l10n, picked)}');
   }
 
   // ---- Biometric app-lock --------------------------------------------------
@@ -675,6 +765,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             iconColor: _RowAccent.slate,
             title: l10n.t('darkMode'),
             trailing: _switch(isDark, (_) => _toggleDarkMode()),
+          ),
+          SettingsRow(
+            icon: Icons.palette_rounded,
+            iconColor: _RowAccent.violet,
+            title: l10n.t('appTheme'),
+            subtitle: l10n.t('chooseTheme'),
+            value: _themeStyleLabel(l10n, ThemeController.style.value),
+            onTap: _pickThemeStyle,
           ),
           SettingsRow(
             icon: Icons.language_rounded,
@@ -1154,6 +1252,56 @@ class _SheetGrip extends StatelessWidget {
         color: palette.border,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
+    );
+  }
+}
+
+/// A miniature card preview for one [ThemeStyle] option in the theme picker:
+///  • classic - white card carrying a filled teal badge (white glyph),
+///  • bold    - the deep accent floods the card, glyph plain white,
+///  • soft    - a light wash carrying a colourful glyph.
+class _ThemeSwatch extends StatelessWidget {
+  const _ThemeSwatch({required this.style});
+
+  final ThemeStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = AppColors.primaryGreen;
+    final Color fill;
+    final Color edge;
+    final Widget glyph;
+    switch (style) {
+      case ThemeStyle.classic:
+        fill = Colors.white;
+        edge = accent;
+        glyph = Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: const Icon(Icons.star_rounded, color: Colors.white, size: 12),
+        );
+      case ThemeStyle.bold:
+        fill = InoStyle.deepen(accent, 0.10);
+        edge = InoStyle.deepen(accent, 0.24);
+        glyph = const Icon(Icons.star_rounded, color: Colors.white, size: 16);
+      case ThemeStyle.soft:
+        fill = AppColors.tealFoam;
+        edge = accent; // classic edge; soft only adds the glass sheen
+        glyph = const Icon(Icons.star_rounded, color: accent, size: 16);
+    }
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: edge, width: 2),
+      ),
+      child: Center(child: glyph),
     );
   }
 }

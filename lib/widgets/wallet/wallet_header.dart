@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// Section 1 - Wallet Hub header (launcher style).
@@ -46,9 +47,9 @@ class WalletHeader extends StatelessWidget {
             Container(
               width: 46,
               height: 46,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: AppColors.brandGradient,
+                gradient: InoStyle.gradient(context, AppColors.brandGradient),
               ),
               alignment: Alignment.center,
               child: Text(

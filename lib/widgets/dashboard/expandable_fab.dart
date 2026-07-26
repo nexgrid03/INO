@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// Section 14 - the expandable Floating Action Button.
@@ -212,7 +213,7 @@ class _MainButton extends StatelessWidget {
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: AppColors.brandGradient,
+          gradient: InoStyle.gradient(context, AppColors.brandGradient),
           boxShadow: [
             BoxShadow(
               color: AppColors.primaryGreen.withValues(alpha: 0.40),

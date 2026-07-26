@@ -136,6 +136,8 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                   child: _SummaryCard(
                     count: _store.countForYear(fy),
                     amount: _store.totalForYear(fy),
+                    credited: _store.creditedForYear(fy),
+                    debited: _store.debitedForYear(fy),
                     yearLabel: fy.label,
                   ),
                 ),
@@ -412,11 +414,18 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard(
-      {required this.count, required this.amount, required this.yearLabel});
+  const _SummaryCard({
+    required this.count,
+    required this.amount,
+    required this.credited,
+    required this.debited,
+    required this.yearLabel,
+  });
 
   final int count;
   final double amount;
+  final double credited;
+  final double debited;
   final String yearLabel;
 
   @override
@@ -435,28 +444,59 @@ class _SummaryCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-              child: _stat(l10n.t('totalTransactions'), '$count',
-                  Icons.receipt_long_rounded)),
-          Container(
-              width: 1,
-              height: 42,
-              color: Colors.white.withValues(alpha: 0.25)),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.md),
-              child: _stat(l10n.t('totalAmount'), rupees(amount.round()),
-                  Icons.account_balance_wallet_rounded),
-            ),
+          Row(
+            children: [
+              Expanded(
+                  child: _stat(l10n.t('totalTransactions'), '$count',
+                      Icons.receipt_long_rounded)),
+              Container(
+                  width: 1,
+                  height: 42,
+                  color: Colors.white.withValues(alpha: 0.25)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.md),
+                  child: _stat(l10n.t('totalAmount'), rupees(amount.round()),
+                      Icons.account_balance_wallet_rounded),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Container(
+                height: 1, color: Colors.white.withValues(alpha: 0.25)),
+          ),
+          Row(
+            children: [
+              Expanded(
+                  child: _stat(l10n.t('totalCredited'),
+                      rupees(credited.round()), Icons.south_west_rounded,
+                      fontSize: 19)),
+              Container(
+                  width: 1,
+                  height: 34,
+                  color: Colors.white.withValues(alpha: 0.25)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.md),
+                  child: _stat(l10n.t('totalDebited'), rupees(debited.round()),
+                      Icons.north_east_rounded,
+                      fontSize: 19),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _stat(String label, String value, IconData icon) {
+  Widget _stat(String label, String value, IconData icon,
+      {double fontSize = 24}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -476,8 +516,8 @@ class _SummaryCard extends StatelessWidget {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(value,
-              style:
-                  AppText.bigNumber.copyWith(color: Colors.white, fontSize: 24)),
+              style: AppText.bigNumber
+                  .copyWith(color: Colors.white, fontSize: fontSize)),
         ),
       ],
     );
