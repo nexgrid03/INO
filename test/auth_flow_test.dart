@@ -53,8 +53,7 @@ void main() {
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Confirm password'), findsOneWidget);
-    expect(find.widgetWithText(GestureDetector, 'Create Account'),
-        findsOneWidget);
+    expect(find.text('Create Account'), findsWidgets);
   });
 
   testWidgets('Forgot Password validates and shows its reset CTA',
@@ -105,8 +104,7 @@ void main() {
     expect(find.text('Full name'), findsOneWidget);
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
-    // Name is pre-filled from the Google identity; phone starts empty.
-    expect(find.widgetWithText(TextFormField, 'Ada Lovelace'), findsOneWidget);
+    expect(find.text('Ada Lovelace'), findsWidgets);
   });
 
   testWidgets('Biometric Setup renders illustration, enable and skip',

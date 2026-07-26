@@ -42,11 +42,11 @@ void main() {
       expect(s.duration, ShareDuration.twentyFourHours);
     });
 
-    test('copy-style labels are the user-facing option names', () {
-      expect(ShareColorMode.original.label, 'Original Color');
-      expect(ShareColorMode.blackWhite.label, 'Black & White');
-      expect(ShareColorMode.grayscale.label, 'Grayscale');
-      expect(ShareColorMode.compressedPdf.label, 'Compressed PDF');
+    test('copy-style label keys are defined', () {
+      expect(ShareColorMode.original.labelKey, 'colorOriginal');
+      expect(ShareColorMode.blackWhite.labelKey, 'blackWhite');
+      expect(ShareColorMode.grayscale.labelKey, 'grayscale');
+      expect(ShareColorMode.compressedPdf.labelKey, 'compressedPdf');
     });
   });
 }

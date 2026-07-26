@@ -32,9 +32,9 @@ void main() {
       expect(ShareDuration.sevenDays.seconds, 604800);
     });
 
-    test('has human labels', () {
-      expect(ShareDuration.tenMinutes.label, '10 Minutes');
-      expect(ShareDuration.sevenDays.label, '7 Days');
+    test('has human label keys', () {
+      expect(ShareDuration.tenMinutes.labelKey, 'dur10Minutes');
+      expect(ShareDuration.sevenDays.labelKey, 'dur7Days');
     });
   });
 
