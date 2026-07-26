@@ -1,5 +1,4 @@
-// CupertinoPageTransitionsBuilder is exported by material.dart - no separate
-// cupertino import needed.
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 /// Central color palette and theme for the INO app.

@@ -61,7 +61,10 @@ void main() {
     return sw.elapsedMilliseconds;
   }
 
-  test('image-stage cost breakdown (bake vs enhanced vs binarized)', () async {
+  test(
+    'image-stage cost breakdown (bake vs enhanced vs binarized)',
+    timeout: const Timeout(Duration(minutes: 3)),
+    () async {
     final srcKB = (File(bigPhoto).lengthSync() / 1024).round();
     // ignore: avoid_print
     print('\n=== OCR image-stage benchmark (source $srcKB KB, 3024×4032) ===');
