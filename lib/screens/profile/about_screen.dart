@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../config/supabase_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/profile/settings_scaffold.dart';
@@ -35,22 +36,24 @@ class _AboutScreenState extends State<AboutScreen> {
     }
   }
 
-  String get _environment {
+  String _environmentLabel(AppLocalizations l10n) {
     final host = Uri.tryParse(SupabaseConfig.url)?.host ?? '';
     final project = host.split('.').first;
-    return project.isEmpty ? 'Production' : 'Production · $project';
+    final production = l10n.t('production');
+    return project.isEmpty ? production : '$production · $project';
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final info = _info;
     final version = info?.version ?? '-';
     final build = info?.buildNumber ?? '-';
     final pkg = info?.packageName ?? '-';
 
     return SettingsScaffold(
-      title: 'About INO',
+      title: l10n.t('aboutIno'),
       child: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
@@ -80,7 +83,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 Text('INO',
                     style: AppText.headline.copyWith(color: palette.textPrimary)),
                 const SizedBox(height: 2),
-                Text('Intelligent Network Organizer',
+                Text(l10n.t('intelligentNetworkOrganizer'),
                     style: AppText.body.copyWith(color: palette.textSecondary)),
               ],
             ),
@@ -90,19 +93,25 @@ class _AboutScreenState extends State<AboutScreen> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                _InfoRow(label: 'Version', value: version, copyable: true),
+                _InfoRow(
+                    label: l10n.t('version'), value: version, copyable: true),
                 _divider(palette),
-                _InfoRow(label: 'Build number', value: build),
+                _InfoRow(label: l10n.t('buildNumber'), value: build),
                 _divider(palette),
-                _InfoRow(label: 'Package', value: pkg),
+                _InfoRow(label: l10n.t('package'), value: pkg),
                 _divider(palette),
-                _InfoRow(label: 'Environment', value: _environment),
+                _InfoRow(
+                    label: l10n.t('environment'),
+                    value: _environmentLabel(l10n)),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Center(
-            child: Text('© ${_year()} INO. All rights reserved.',
+            child: Text(
+                l10n
+                    .t('allRightsReserved')
+                    .replaceFirst('{year}', '${_year()}'),
                 style: AppText.caption.copyWith(color: palette.textFaint)),
           ),
         ],
@@ -135,7 +144,11 @@ class _InfoRow extends StatelessWidget {
           ? () async {
               await Clipboard.setData(ClipboardData(text: value));
               if (context.mounted) {
-                BiometricUx.successSnack(context, '$label copied.');
+                BiometricUx.successSnack(
+                    context,
+                    AppLocalizations.of(context)
+                        .t('copiedLabel')
+                        .replaceFirst('{label}', label));
               }
             }
           : null,

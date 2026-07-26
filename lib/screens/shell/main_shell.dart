@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
 import '../../services/guest_mode.dart';
@@ -158,6 +159,7 @@ class _MainShellState extends State<MainShell>
   /// the bar's own geometry (see [InoBottomNav]: 16px outer + 8px inner padding,
   /// 66px tall, 12px above the safe area, five equal slots).
   List<TourStep> _tourSteps(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final size = MediaQuery.sizeOf(context);
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final slotW = (size.width - 32 - 16) / 5;
@@ -175,34 +177,34 @@ class _MainShellState extends State<MainShell>
 
     return [
       TourStep(
-        title: 'Home',
-        body: 'Your dashboard - everything important at a glance.',
+        title: l10n.t('home'),
+        body: l10n.t('tourHomeBody'),
         target: () => slot(0),
       ),
       TourStep(
-        title: 'Vault',
-        body: 'Secure wallets for all your documents.',
+        title: l10n.t('vault'),
+        body: l10n.t('tourVaultBody'),
         target: () => slot(1),
       ),
       TourStep(
-        title: 'Quick Add',
-        body: 'Scan documents, add expenses or jot a note.',
+        title: l10n.t('quickAdd'),
+        body: l10n.t('tourQuickAddBody'),
         target: () => slot(2),
         radius: 40,
       ),
       TourStep(
-        title: 'Alerts',
-        body: 'Reminders so renewals never slip past you.',
+        title: l10n.t('alerts'),
+        body: l10n.t('tourAlertsBody'),
         target: () => slot(3),
       ),
       TourStep(
-        title: 'Profile',
-        body: 'Your account, security and settings.',
+        title: l10n.t('profile'),
+        body: l10n.t('tourProfileBody'),
         target: () => slot(4),
       ),
       TourStep(
-        title: 'Voice Assistant',
-        body: 'Navigate hands-free - try saying "Open documents".',
+        title: l10n.t('voiceAssistant'),
+        body: l10n.t('tourVoiceBody'),
         target: voiceCenter,
         radius: 32,
       ),
@@ -229,30 +231,30 @@ class _MainShellState extends State<MainShell>
       ),
       if (guest)
         const PlaceholderTab(
-          title: 'Vault',
+          titleKey: 'vault',
           icon: Icons.account_balance_wallet_rounded,
-          message: 'Sign in to open your secure vault.',
+          messageKey: 'guestVaultMessage',
         )
       else
         WalletScreen(profile: _profile),
       const PlaceholderTab(
-        title: 'Scan',
+        titleKey: 'scan',
         icon: Icons.document_scanner_rounded,
-        message: 'Scan documents straight into your secure vault.',
+        messageKey: 'guestScanMessage',
       ),
       if (guest)
         const PlaceholderTab(
-          title: 'Alerts',
+          titleKey: 'alerts',
           icon: Icons.notifications_rounded,
-          message: 'Sign in to set reminders and alerts.',
+          messageKey: 'guestAlertsMessage',
         )
       else
         RemindersScreen(profile: _profile),
       if (guest)
         const PlaceholderTab(
-          title: 'Profile',
+          titleKey: 'profile',
           icon: Icons.person_rounded,
-          message: 'Sign in to manage your account.',
+          messageKey: 'guestProfileMessage',
         )
       else
         ProfileScreen(

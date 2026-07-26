@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../l10n/app_localizations.dart';
 import '../repositories/document_repository.dart';
 import 'auth_service.dart';
 
@@ -9,12 +10,14 @@ import 'auth_service.dart';
 enum PasswordStrength { weak, fair, good, strong }
 
 extension PasswordStrengthX on PasswordStrength {
-  String get label => switch (this) {
-        PasswordStrength.weak => 'Weak',
-        PasswordStrength.fair => 'Fair',
-        PasswordStrength.good => 'Good',
-        PasswordStrength.strong => 'Strong',
+  String get labelKey => switch (this) {
+        PasswordStrength.weak => 'strengthWeak',
+        PasswordStrength.fair => 'strengthFair',
+        PasswordStrength.good => 'strengthGood',
+        PasswordStrength.strong => 'strengthStrong',
       };
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   double get fraction => switch (this) {
         PasswordStrength.weak => 0.25,

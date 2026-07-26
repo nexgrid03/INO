@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -69,6 +70,7 @@ class _DirectionToggleState extends State<DirectionToggle>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -80,15 +82,15 @@ class _DirectionToggleState extends State<DirectionToggle>
         children: [
           _segment(
             palette,
+            l10n,
             direction: TransactionDirection.debited,
-            label: 'Debited',
             icon: Icons.south_west_rounded,
             accent: _debitColor,
           ),
           _segment(
             palette,
+            l10n,
             direction: TransactionDirection.credited,
-            label: 'Credited',
             icon: Icons.north_east_rounded,
             accent: _creditColor,
           ),
@@ -98,18 +100,20 @@ class _DirectionToggleState extends State<DirectionToggle>
   }
 
   Widget _segment(
-    AppPalette palette, {
+    AppPalette palette,
+    AppLocalizations l10n, {
     required TransactionDirection direction,
-    required String label,
     required IconData icon,
     required Color accent,
   }) {
     final selected = widget.value == direction;
+    final label = direction.label(l10n);
     return Expanded(
       child: Semantics(
         button: true,
         selected: selected,
-        label: '$label ${direction == TransactionDirection.debited ? 'money out' : 'money in'}',
+        label: '$label '
+            '${l10n.t(direction == TransactionDirection.debited ? 'moneyOut' : 'moneyIn')}',
         child: PressableScale(
           pressedScale: 0.97,
           child: GestureDetector(

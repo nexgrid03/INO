@@ -1,4 +1,5 @@
 import '../config/share_config.dart';
+import '../l10n/app_localizations.dart';
 
 /// Lifecycle of a share, mirroring the `document_shares.status` column.
 enum ShareStatus { active, expired, revoked }
@@ -7,19 +8,22 @@ enum ShareStatus { active, expired, revoked }
 enum ShareDuration { tenMinutes, oneHour, twentyFourHours, sevenDays }
 
 extension ShareDurationX on ShareDuration {
-  /// Human label shown in the picker.
-  String get label {
+  /// Translation key for the label shown in the picker.
+  String get labelKey {
     switch (this) {
       case ShareDuration.tenMinutes:
-        return '10 Minutes';
+        return 'dur10Minutes';
       case ShareDuration.oneHour:
-        return '1 Hour';
+        return 'dur1Hour';
       case ShareDuration.twentyFourHours:
-        return '24 Hours';
+        return 'dur24Hours';
       case ShareDuration.sevenDays:
-        return '7 Days';
+        return 'dur7Days';
     }
   }
+
+  /// Human label shown in the picker, in the active language.
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   /// Time-to-live in seconds - sent to the `create_document_share` RPC.
   int get seconds {

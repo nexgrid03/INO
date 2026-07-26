@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
@@ -36,6 +37,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
 
   Future<void> _upload(TaxDocType type) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final choice = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -54,18 +56,21 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
                     color: palette.border,
                     borderRadius: BorderRadius.circular(AppRadius.pill))),
             const SizedBox(height: AppSpacing.sm),
-            Text('Upload ${type.label}',
+            Text(
+                l10n
+                    .t('uploadType')
+                    .replaceFirst('{type}', type.label(l10n)),
                 style: AppText.subtitle.copyWith(color: palette.textPrimary)),
             ListTile(
               leading:
                   const Icon(Icons.image_rounded, color: AppColors.primaryGreen),
-              title: const Text('Photo / Image'),
+              title: Text(l10n.t('photoImage')),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
               leading: const Icon(Icons.picture_as_pdf_rounded,
                   color: AppColors.lightBlue),
-              title: const Text('PDF'),
+              title: Text(l10n.t('pdf')),
               onTap: () => Navigator.of(context).pop('pdf'),
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -79,7 +84,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
       if (choice == 'image') {
         final access = await CameraPermissionService.instance.requestPhotos();
         if (access != CameraAccess.granted) {
-          _toast('Photo access is needed to upload', error: true);
+          _toast(l10n.t('photoAccessNeededUpload'), error: true);
           return;
         }
         final path = await GalleryImportService.instance.pickImage();
@@ -105,7 +110,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
     } on PdfImportException catch (e) {
       if (mounted) _toast(e.message, error: true);
     } catch (_) {
-      if (mounted) _toast('Could not upload the document', error: true);
+      if (mounted) _toast(l10n.t('couldNotUploadDocument'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -114,22 +119,29 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
   /// Shares every tax document filed under the selected financial year in one
   /// go - the "Share Tax Folder" action (e.g. to send to a CA).
   Future<void> _shareFolder() async {
+    final l10n = AppLocalizations.of(context);
     final fy = _store.selectedYear;
     final docs = _store.taxDocumentsForYear(fy);
     if (docs.isEmpty) {
-      _toast('No tax documents to share for FY ${fy.label}', error: true);
+      _toast(l10n.t('noTaxDocsToShare').replaceFirst('{fy}', fy.label),
+          error: true);
       return;
     }
     final origin = shareOrigin(context);
     try {
       await Share.shareXFiles(
         [for (final d in docs) XFile(d.filePath)],
+        // Subject stays English - it's brand metadata the recipient (e.g. a CA)
+        // sees, not in-app UI.
         subject: 'INO Tax Folder - FY ${fy.label}',
-        text: '${docs.length} tax document(s) for FY ${fy.label}',
+        text: l10n
+            .t('taxDocsForYear')
+            .replaceFirst('{n}', '${docs.length}')
+            .replaceFirst('{fy}', fy.label),
         sharePositionOrigin: origin,
       );
     } catch (_) {
-      if (mounted) _toast('Could not share the tax folder', error: true);
+      if (mounted) _toast(l10n.t('couldNotShareTaxFolder'), error: true);
     }
   }
 
@@ -213,6 +225,7 @@ class _TypeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return InoCard(
       radius: AppRadius.card,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -235,12 +248,17 @@ class _TypeSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(type.label,
+                    Text(type.label(l10n),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.subtitle
                             .copyWith(color: palette.textPrimary, fontSize: 14)),
-                    Text(docs.isEmpty ? 'No files yet' : '${docs.length} file(s)',
+                    Text(
+                        docs.isEmpty
+                            ? l10n.t('noFilesYet')
+                            : l10n
+                                .t('filesCount')
+                                .replaceFirst('{n}', '${docs.length}'),
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary)),
                   ],
@@ -257,14 +275,14 @@ class _TypeSection extends StatelessWidget {
                       color: AppColors.primaryGreen.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.add_rounded,
+                        const Icon(Icons.add_rounded,
                             size: 16, color: AppColors.darkGreen),
-                        SizedBox(width: 3),
-                        Text('Upload',
-                            style: TextStyle(
+                        const SizedBox(width: 3),
+                        Text(l10n.t('upload'),
+                            style: const TextStyle(
                                 color: AppColors.darkGreen,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12.5)),
@@ -331,6 +349,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
           AppSpacing.screen, AppSpacing.md),
@@ -361,10 +380,14 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tax Records',
+                Text(l10n.t('taxRecords'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
-                Text('FY $yearLabel · $count document(s)',
+                Text(
+                    l10n
+                        .t('fyDocumentsCount')
+                        .replaceFirst('{fy}', yearLabel)
+                        .replaceFirst('{n}', '$count'),
                     style: AppText.caption.copyWith(color: palette.textSecondary)),
               ],
             ),

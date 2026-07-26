@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
@@ -74,6 +75,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
 
@@ -111,7 +113,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _showMessage(e.message);
     } catch (e) {
       developer.log('CompleteProfile error: $e', name: 'auth', error: e);
-      _showMessage('Could not save your details. Please try again.');
+      _showMessage(l10n.t('saveDetailsError'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -135,6 +137,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final validate = AuthValidators.of(context);
     return AuthScaffold(
       // No back button: sign-in already succeeded - the only way forward is to
       // finish these details (or the app would strand an authed user on Login).
@@ -146,10 +150,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           const SizedBox(height: 26),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
-            child: const Text(
-              'Complete Your Profile',
+            child: Text(
+              l10n.t('completeProfile'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -159,10 +163,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           const SizedBox(height: 10),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
-            child: const Text(
-              'Just a couple of details to finish setting up your secure vault.',
+            child: Text(
+              l10n.t('completeProfileSubtitle'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14.5,
                 color: AppColors.textMuted,
                 height: 1.5,
@@ -179,13 +183,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   delay: const Duration(milliseconds: 160),
                   child: AuthTextField(
                     controller: _nameController,
-                    label: 'Full name',
+                    label: l10n.t('fullName'),
                     icon: Icons.person_outline_rounded,
                     keyboardType: TextInputType.name,
                     textInputAction: TextInputAction.next,
                     textCapitalization: TextCapitalization.words,
                     autofillHints: const [AutofillHints.name],
-                    validator: AuthValidators.name,
+                    validator: validate.name,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -193,13 +197,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   delay: const Duration(milliseconds: 200),
                   child: AuthTextField(
                     controller: _phoneController,
-                    label: 'Mobile number',
+                    label: l10n.t('mobileNumber'),
                     hint: '+91 98765 43210',
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.telephoneNumber],
-                    validator: AuthValidators.phone,
+                    validator: validate.phone,
                     onSubmitted: (_) => _save(),
                   ),
                 ),
@@ -210,7 +214,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 250),
             child: AuthPrimaryButton(
-              label: 'Continue',
+              label: l10n.t('continue'),
               busy: _busy,
               onPressed: _busy ? null : _save,
             ),
@@ -221,9 +225,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             child: Center(
               child: TextButton(
                 onPressed: _busy ? null : _signOut,
-                child: const Text(
-                  'Not you? Sign out',
-                  style: TextStyle(
+                child: Text(
+                  l10n.t('notYouSignOut'),
+                  style: const TextStyle(
                     color: AppColors.textMuted,
                     fontWeight: FontWeight.w600,
                   ),

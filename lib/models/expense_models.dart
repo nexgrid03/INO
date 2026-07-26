@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 // Models backing the ITR-ready Transaction Vault - a record + receipt store
@@ -52,7 +53,11 @@ class FinancialYear {
 enum TransactionType { expense, income }
 
 extension TransactionTypeX on TransactionType {
-  String get label => this == TransactionType.income ? 'Income' : 'Expense';
+  String get labelKey =>
+      this == TransactionType.income ? 'income' : 'expense';
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
+
   bool get isIncome => this == TransactionType.income;
 
   static TransactionType fromName(String? name) => name == 'income'
@@ -67,8 +72,10 @@ extension TransactionTypeX on TransactionType {
 enum TransactionDirection { debited, credited }
 
 extension TransactionDirectionX on TransactionDirection {
-  String get label =>
-      this == TransactionDirection.credited ? 'Credited' : 'Debited';
+  String get labelKey =>
+      this == TransactionDirection.credited ? 'credited' : 'debited';
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   bool get isCredited => this == TransactionDirection.credited;
 
@@ -108,38 +115,40 @@ extension TxnCategoryX on TxnCategory {
         orElse: () => TxnCategory.other,
       );
 
-  String get label {
+  String get labelKey {
     switch (this) {
       case TxnCategory.salary:
-        return 'Salary';
+        return 'catSalary';
       case TxnCategory.business:
-        return 'Business';
+        return 'catBusiness';
       case TxnCategory.investment:
-        return 'Investment';
+        return 'catInvestment';
       case TxnCategory.rent:
-        return 'Rent';
+        return 'catRent';
       case TxnCategory.insurance:
-        return 'Insurance';
+        return 'catInsurance';
       case TxnCategory.medical:
-        return 'Medical';
+        return 'catMedical';
       case TxnCategory.education:
-        return 'Education';
+        return 'catEducation';
       case TxnCategory.travel:
-        return 'Travel';
+        return 'catTravel';
       case TxnCategory.food:
-        return 'Food';
+        return 'catFood';
       case TxnCategory.shopping:
-        return 'Shopping';
+        return 'catShopping';
       case TxnCategory.utilities:
-        return 'Utilities';
+        return 'catUtilities';
       case TxnCategory.loanEmi:
-        return 'Loan / EMI';
+        return 'catLoanEmi';
       case TxnCategory.taxPayment:
-        return 'Tax Payment';
+        return 'catTaxPayment';
       case TxnCategory.other:
-        return 'Other';
+        return 'catOther';
     }
   }
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   IconData get icon {
     switch (this) {
@@ -216,22 +225,24 @@ extension TxnCategoryX on TxnCategory {
 enum PaymentMethod { cash, upi, card, netBanking, cheque, other }
 
 extension PaymentMethodX on PaymentMethod {
-  String get label {
+  String get labelKey {
     switch (this) {
       case PaymentMethod.cash:
-        return 'Cash';
+        return 'pmCash';
       case PaymentMethod.upi:
-        return 'UPI';
+        return 'pmUpi';
       case PaymentMethod.card:
-        return 'Card';
+        return 'pmCard';
       case PaymentMethod.netBanking:
-        return 'Net Banking';
+        return 'pmNetBanking';
       case PaymentMethod.cheque:
-        return 'Cheque';
+        return 'pmCheque';
       case PaymentMethod.other:
-        return 'Other';
+        return 'pmOther';
     }
   }
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   IconData get icon {
     switch (this) {
@@ -470,30 +481,32 @@ extension TaxDocTypeX on TaxDocType {
         orElse: () => TaxDocType.investmentProof,
       );
 
-  String get label {
+  String get labelKey {
     switch (this) {
       case TaxDocType.form16:
-        return 'Form 16';
+        return 'taxDocForm16';
       case TaxDocType.form26AS:
-        return 'Form 26AS';
+        return 'taxDocForm26AS';
       case TaxDocType.ais:
-        return 'AIS';
+        return 'taxDocAis';
       case TaxDocType.tdsCertificate:
-        return 'TDS Certificates';
+        return 'taxDocTds';
       case TaxDocType.salarySlip:
-        return 'Salary Slips';
+        return 'taxDocSalarySlip';
       case TaxDocType.investmentProof:
-        return 'Investment Proofs';
+        return 'taxDocInvestmentProof';
       case TaxDocType.rentReceipt:
-        return 'Rent Receipts';
+        return 'taxDocRentReceipt';
       case TaxDocType.medicalBill:
-        return 'Medical Bills';
+        return 'taxDocMedicalBill';
       case TaxDocType.insurancePremium:
-        return 'Insurance Premium Receipts';
+        return 'taxDocInsurancePremium';
       case TaxDocType.homeLoanInterest:
-        return 'Home Loan Interest Certificates';
+        return 'taxDocHomeLoanInterest';
     }
   }
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   IconData get icon {
     switch (this) {

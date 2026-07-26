@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
@@ -13,15 +14,17 @@ import '../auth/login_screen.dart';
 class PlaceholderTab extends StatelessWidget {
   const PlaceholderTab({
     super.key,
-    required this.title,
+    required this.titleKey,
     required this.icon,
-    required this.message,
+    required this.messageKey,
     this.showSignOut = false,
   });
 
-  final String title;
+  /// Translation keys (not literals) so the tab follows the app language while
+  /// callers can still build it in a `const` list.
+  final String titleKey;
   final IconData icon;
-  final String message;
+  final String messageKey;
   final bool showSignOut;
 
   Future<void> _signOut(BuildContext context) async {
@@ -36,6 +39,7 @@ class PlaceholderTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: SafeArea(
@@ -63,7 +67,7 @@ class PlaceholderTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  title,
+                  l10n.t(titleKey),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -72,7 +76,7 @@ class PlaceholderTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  message,
+                  l10n.t(messageKey),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14.5,
@@ -89,7 +93,7 @@ class PlaceholderTab extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Coming soon',
+                    l10n.t('comingSoon'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -112,8 +116,8 @@ class PlaceholderTab extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      label: const Text('Sign out',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      label: Text(l10n.t('signOut'),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],

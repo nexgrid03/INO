@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/share_settings.dart';
 import '../../models/wallet_detail_models.dart';
@@ -65,6 +66,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
 
   Future<void> _generateAndShare() async {
     if (_busy) return;
+    final l10n = AppLocalizations.of(context);
     final settings = _settings();
     setState(() => _busy = true);
     try {
@@ -85,8 +87,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     } on DocumentProcessException catch (e) {
       _toast(e.message, error: true);
     } catch (_) {
-      _toast('Could not generate the share copy. Please try again.',
-          error: true);
+      _toast(l10n.t('couldNotGenerateShareCopy'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -104,6 +105,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   ///     opens the selected copy style in the existing viewer.
   Future<void> _generateQr() async {
     if (_busy) return;
+    final l10n = AppLocalizations.of(context);
     final settings = _settings();
     setState(() => _busy = true);
     try {
@@ -151,7 +153,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     } on DocumentProcessException catch (e) {
       _toast(e.message, error: true);
     } catch (_) {
-      _toast('Could not create the QR code. Please try again.', error: true);
+      _toast(l10n.t('couldNotCreateQr'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -159,6 +161,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
 
   void _showBackendNotConfigured() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -170,24 +173,21 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
             const Icon(Icons.cloud_off_rounded, color: AppColors.warning),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
-              child: Text('Sharing Not Set Up',
+              child: Text(l10n.t('sharingNotSetUp'),
                   style: AppText.title
                       .copyWith(color: palette.textPrimary, fontSize: 16)),
             ),
           ],
         ),
         content: Text(
-          'The document sharing service isn’t deployed on the server yet. Deploy '
-          'the Supabase migration and the “share” Edge Function '
-          '(see supabase/README_document_sharing.md), then try again. You can '
-          'still use “Generate & Share” to send the copy directly now.',
+          l10n.t('sharingNotSetUpBody'),
           style: AppText.body.copyWith(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('OK',
-                style: TextStyle(
+            child: Text(l10n.t('ok'),
+                style: const TextStyle(
                     color: AppColors.primaryGreen, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -213,6 +213,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final docs = widget.documents;
     return Scaffold(
       backgroundColor: palette.bg,
@@ -229,14 +230,12 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                   if (!_allImages)
                     _InfoBanner(
                       icon: Icons.picture_as_pdf_rounded,
-                      text:
-                          'Copy styles apply to image documents. PDFs are shared '
-                          'as-is; the link expiry below still applies.',
+                      text: l10n.t('copyStylesPdfNote'),
                     ),
                   if (!_allImages) const SizedBox(height: AppSpacing.md),
 
                   // Copy style - the ONLY thing the user picks besides expiry.
-                  _label('Copy Style', palette),
+                  _label(l10n.t('copyStyle'), palette),
                   const SizedBox(height: AppSpacing.sm),
                   _ColorGrid(
                     selected: _color,
@@ -246,7 +245,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                   const SizedBox(height: AppSpacing.lg),
 
                   // Link expiry - enforced server-side by the share backend.
-                  _label('Link Expiry', palette),
+                  _label(l10n.t('linkExpiry'), palette),
                   const SizedBox(height: AppSpacing.sm),
                   _ExpiryRow(
                     selected: _duration,
@@ -254,9 +253,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Recipients scan the QR to view the shared copy in your '
-                    'secure INO viewer. The link stops working when it expires, '
-                    'and you can revoke it anytime.',
+                    l10n.t('linkExpiryHint'),
                     style: AppText.caption.copyWith(color: palette.textFaint),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -293,6 +290,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
@@ -323,11 +321,14 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Share Settings',
+                Text(l10n.t('shareSettings'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('$count document${count == 1 ? '' : 's'} · original stays safe',
+                Text(
+                    l10n
+                        .t('docsOriginalStaysSafe')
+                        .replaceFirst('{n}', '$count'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],
@@ -392,7 +393,7 @@ class _ColorGrid extends StatelessWidget {
         for (final c in ShareColorMode.values)
           _ChoiceChip(
             icon: c.icon,
-            label: c.label,
+            label: c.label(AppLocalizations.of(context)),
             active: c == selected,
             enabled: enabled,
             onTap: () => onSelected(c),
@@ -415,6 +416,7 @@ class _ExpiryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         for (var i = 0; i < _options.length; i++) ...[
@@ -422,7 +424,9 @@ class _ExpiryRow extends StatelessWidget {
           Expanded(
             child: _ChoiceChip(
               icon: Icons.schedule_rounded,
-              label: 'Expire after ${_options[i].label}',
+              label: l10n
+                  .t('expireAfter')
+                  .replaceFirst('{d}', _options[i].label(l10n)),
               active: _options[i] == selected,
               enabled: true,
               onTap: () => onSelected(_options[i]),
@@ -534,15 +538,15 @@ class _QrLinkButton extends StatelessWidget {
             border: Border.all(
                 color: AppColors.primaryGreen.withValues(alpha: 0.4)),
           ),
-          child: const Center(
+          child: Center(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.qr_code_2_rounded,
+                const Icon(Icons.qr_code_2_rounded,
                     color: AppColors.darkGreen, size: 20),
-                SizedBox(width: 8),
-                Text('Create QR Code',
-                    style: TextStyle(
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context).t('createQrCode'),
+                    style: const TextStyle(
                         color: AppColors.darkGreen,
                         fontWeight: FontWeight.w700,
                         fontSize: 14)),
@@ -569,6 +573,7 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: palette.bg,
@@ -595,7 +600,7 @@ class _ActionBar extends StatelessWidget {
                       height: AppSizes.button,
                       width: 96,
                       child: Center(
-                        child: Text('Cancel',
+                        child: Text(l10n.t('cancel'),
                             style: AppText.subtitle
                                 .copyWith(color: palette.textSecondary)),
                       ),
@@ -638,7 +643,7 @@ class _ActionBar extends StatelessWidget {
                                   const Icon(Icons.ios_share_rounded,
                                       color: Colors.white, size: 19),
                                   const SizedBox(width: 8),
-                                  Text('Generate & Share',
+                                  Text(l10n.t('generateAndShare'),
                                       style: AppText.subtitle.copyWith(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w700)),

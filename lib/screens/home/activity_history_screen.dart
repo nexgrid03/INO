@@ -47,8 +47,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Future<void> _load() async {
+    final l10n = AppLocalizations.of(context);
     try {
-      final items = await ActivityService.instance.load(limit: 100);
+      final items = await ActivityService.instance.load(l10n, limit: 100);
       if (!mounted) return;
       setState(() {
         _items = items;

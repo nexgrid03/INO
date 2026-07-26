@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException, User;
 
+import '../../l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -74,10 +75,11 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   String get _e164 => '${_country.dialCode}$_nationalNumber';
 
   String? _validatePhone(String? value) {
+    final l10n = AppLocalizations.of(context);
     final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return 'Please enter your mobile number';
+    if (digits.isEmpty) return l10n.t('valEnterMobile');
     if (digits.length < 6 || digits.length > 14) {
-      return 'Enter a valid mobile number';
+      return l10n.t('valInvalidMobile');
     }
     return null;
   }
@@ -98,6 +100,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Future<void> _sendOtp() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
+    final l10n = AppLocalizations.of(context);
     final phone = _e164;
     setState(() => _busy = true);
     try {
@@ -107,7 +110,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     } on AuthException catch (e) {
       _showMessage(e.message);
     } catch (_) {
-      _showMessage('Could not send the code. Please try again.');
+      _showMessage(l10n.t('sendCodeError'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -118,7 +121,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerificationScreen(
-          title: 'Verify Your Number',
+          title: AppLocalizations.of(context).t('verifyYourNumber'),
           destination: phone,
           onResend: () => AuthService.instance.sendPhoneOtp(phone),
           onVerify: (code) async {
@@ -160,6 +163,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
       showBack: true,
       child: Form(
@@ -173,10 +177,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             const SizedBox(height: 26),
             FadeSlideIn(
               delay: const Duration(milliseconds: 60),
-              child: const Text(
-                'Sign in with Phone',
+              child: Text(
+                l10n.t('signInWithPhone'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -186,10 +190,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             const SizedBox(height: 10),
             FadeSlideIn(
               delay: const Duration(milliseconds: 110),
-              child: const Text(
-                "We'll text you a 6-digit code to verify your number.",
+              child: Text(
+                l10n.t('phoneOtpSubtitle'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14.5,
                   color: AppColors.textMuted,
                   height: 1.5,
@@ -207,7 +211,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   Expanded(
                     child: AuthTextField(
                       controller: _phoneController,
-                      label: 'Mobile number',
+                      label: l10n.t('mobileNumber'),
                       hint: '98765 43210',
                       icon: Icons.smartphone_rounded,
                       keyboardType: TextInputType.phone,
@@ -227,7 +231,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             FadeSlideIn(
               delay: const Duration(milliseconds: 210),
               child: AuthPrimaryButton(
-                label: 'Send OTP',
+                label: l10n.t('sendOtp'),
                 busy: _busy,
                 onPressed: _busy ? null : _sendOtp,
               ),
@@ -235,10 +239,13 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             const SizedBox(height: 20),
             FadeSlideIn(
               delay: const Duration(milliseconds: 250),
-              child: const Text(
-                'Standard SMS rates may apply.',
+              child: Text(
+                l10n.t('smsRatesApply'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -329,6 +336,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final q = _query.trim().toLowerCase();
     final results = q.isEmpty
         ? _countries
@@ -355,9 +363,9 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Select Country',
-              style: TextStyle(
+            Text(
+              l10n.t('selectCountry'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -370,7 +378,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                 onChanged: (v) => setState(() => _query = v),
                 style: const TextStyle(color: AppColors.textDark),
                 decoration: InputDecoration(
-                  hintText: 'Search country or code',
+                  hintText: l10n.t('searchCountryOrCode'),
                   hintStyle: const TextStyle(color: AppColors.textMuted),
                   prefixIcon:
                       const Icon(Icons.search_rounded, color: AppColors.textMuted),

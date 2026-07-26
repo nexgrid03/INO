@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/demo_account.dart';
+import '../../l10n/app_localizations.dart';
 import '../../main.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_dimens.dart';
@@ -77,10 +78,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
     final identifier = _identifierController.text.trim();
+    // Captured up-front: the awaits below can outlive this widget, and the
+    // error paths still need to speak the user's language.
+    final l10n = AppLocalizations.of(context);
 
     // Only email sign-in is wired to Supabase today; guide mobile users kindly.
     if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage('Mobile sign-in is coming soon - please use your email.');
+      _showMessage(l10n.t('mobileSignInSoon'));
       return;
     }
 
@@ -92,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       final user = res.user;
       if (user == null) {
-        _showMessage('Sign in failed. Please try again.');
+        _showMessage(l10n.t('signInFailed'));
         return;
       }
       developer.log(
@@ -110,13 +114,14 @@ class _LoginScreenState extends State<LoginScreen> {
     } on PostgrestException catch (e) {
       _showMessage(e.message);
     } catch (_) {
-      _showMessage('Something went wrong. Please try again.');
+      _showMessage(l10n.t('somethingWentWrong'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _continueWithGoogle() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _googleBusy = true);
     try {
       final res = await AuthService.instance.signInWithGoogle();
@@ -130,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = res.user;
       if (user == null) {
         developer.log('Google sign-in: null user in response', name: 'auth');
-        _showMessage('Google sign-in failed. Please try again.');
+        _showMessage(l10n.t('googleSignInFailed'));
         return;
       }
       developer.log(
@@ -156,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
         name: 'auth',
         error: e,
       );
-      _showMessage('Could not sign in with Google. Please try again.');
+      _showMessage(l10n.t('googleSignInError'));
     } on AuthException catch (e) {
       developer.log(
         'Auth exception during Google sign-in: ${e.message}',
@@ -177,14 +182,17 @@ class _LoginScreenState extends State<LoginScreen> {
         name: 'auth',
         error: e,
       );
-      _showMessage('Could not sign in with Google. Please try again.');
+      _showMessage(l10n.t('googleSignInError'));
     } finally {
       if (mounted) setState(() => _googleBusy = false);
     }
   }
 
   void _continueWithApple() {
-    _showMessage('Apple sign-in is coming soon.', isError: false);
+    _showMessage(
+      AppLocalizations.of(context).t('appleSignInSoon'),
+      isError: false,
+    );
   }
 
   /// Demo-only: fill the email + password fields with the shared demo account
@@ -245,6 +253,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final validate = AuthValidators.of(context);
     final busy = _busy || _googleBusy || _guestBusy;
     return AuthScaffold(
       child: Column(
@@ -261,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   AppGradients.primary.createShader(bounds),
               blendMode: BlendMode.srcIn,
               child: Text(
-                'Welcome Back',
+                l10n.t('authWelcomeBack'),
                 textAlign: TextAlign.center,
                 style: AppText.display.copyWith(color: Colors.white),
               ),
@@ -271,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
             child: Text(
-              'Sign in to continue using INO',
+              l10n.t('authSignInSubtitle'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14.5, color: palette.textSecondary),
             ),
@@ -301,24 +311,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         AuthTextField(
                           controller: _identifierController,
-                          label: 'Email or mobile number',
+                          label: l10n.t('emailOrMobile'),
                           hint: 'you@example.com',
                           icon: Icons.alternate_email_rounded,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           autofillHints: const [AutofillHints.username],
-                          validator: AuthValidators.emailOrPhone,
+                          validator: validate.emailOrPhone,
                         ),
                         const SizedBox(height: 16),
                         AuthTextField(
                           controller: _passwordController,
-                          label: 'Password',
+                          label: l10n.t('password'),
                           hint: '••••••••',
                           icon: Icons.lock_outline_rounded,
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
                           autofillHints: const [AutofillHints.password],
-                          validator: AuthValidators.password,
+                          validator: validate.password,
                           onSubmitted: (_) => _signIn(),
                           suffix: _VisibilityToggle(
                             obscured: _obscurePassword,
@@ -335,14 +345,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _RememberMe(
+                        label: l10n.t('rememberMe'),
                         value: _rememberMe,
                         onChanged: (v) => setState(() => _rememberMe = v),
                       ),
                       TextButton(
                         onPressed: busy ? null : _goToForgotPassword,
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
+                        child: Text(
+                          l10n.t('forgotPasswordQ'),
+                          style: const TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w600,
                           ),
@@ -353,24 +364,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 14),
 
                   AuthPrimaryButton(
-                    label: 'Sign In',
+                    label: l10n.t('signIn'),
                     busy: _busy,
                     onPressed: busy ? null : _signIn,
                   ),
                   const SizedBox(height: 22),
 
-                  const _OrDivider(),
+                  _OrDivider(label: l10n.t('orDivider')),
                   const SizedBox(height: 18),
 
                   SocialAuthButton(
-                    label: 'Continue with Google',
+                    label: l10n.t('continueWithGoogle'),
                     brand: const GoogleGlyph(),
                     busy: _googleBusy,
                     onPressed: busy ? null : _continueWithGoogle,
                   ),
                   const SizedBox(height: 12),
                   SocialAuthButton(
-                    label: 'Continue with Phone Number',
+                    label: l10n.t('continueWithPhone'),
                     brand: const Icon(Icons.smartphone_rounded,
                         color: AppColors.primaryGreen, size: 20),
                     onPressed: busy ? null : _continueWithPhone,
@@ -378,7 +389,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (_showApple) ...[
                     const SizedBox(height: 12),
                     SocialAuthButton(
-                      label: 'Continue with Apple',
+                      label: l10n.t('continueWithApple'),
                       brand: Icon(Icons.apple,
                           color: palette.textPrimary, size: 20),
                       onPressed: busy ? null : _continueWithApple,
@@ -389,6 +400,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (isDemoBuild) ...[
                     const SizedBox(height: 12),
                     _GuestLoginButton(
+                      label: l10n.t('loginAsGuest'),
                       busy: _guestBusy,
                       onPressed: busy ? null : _loginAsGuest,
                     ),
@@ -403,8 +415,8 @@ class _LoginScreenState extends State<LoginScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 320),
             child: _AuthSwitchRow(
-              prompt: "Don't have an account?",
-              action: 'Create Account',
+              prompt: l10n.t('noAccountPrompt'),
+              action: l10n.t('createAccount'),
               onTap: busy ? null : _goToSignup,
             ),
           ),
@@ -419,8 +431,13 @@ class _LoginScreenState extends State<LoginScreen> {
 /// light Rama-blue (brand teal) border and a white surface, matching the width
 /// of the primary Sign In button above it.
 class _GuestLoginButton extends StatelessWidget {
-  const _GuestLoginButton({required this.busy, required this.onPressed});
+  const _GuestLoginButton({
+    required this.label,
+    required this.busy,
+    required this.onPressed,
+  });
 
+  final String label;
   final bool busy;
   final VoidCallback? onPressed;
 
@@ -448,14 +465,14 @@ class _GuestLoginButton extends StatelessWidget {
                   color: AppColors.primaryGreen,
                 ),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.person_outline_rounded, size: 20),
-                  SizedBox(width: 10),
+                  const Icon(Icons.person_outline_rounded, size: 20),
+                  const SizedBox(width: 10),
                   Text(
-                    'Login as Guest',
-                    style: TextStyle(
+                    label,
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -487,8 +504,13 @@ class _VisibilityToggle extends StatelessWidget {
 }
 
 class _RememberMe extends StatelessWidget {
-  const _RememberMe({required this.value, required this.onChanged});
+  const _RememberMe({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
+  final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -525,9 +547,9 @@ class _RememberMe extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Remember me',
-              style: TextStyle(
+            Text(
+              label,
+              style: const TextStyle(
                 color: AppColors.textMuted,
                 fontWeight: FontWeight.w500,
               ),
@@ -541,7 +563,9 @@ class _RememberMe extends StatelessWidget {
 
 /// "OR" separator between the primary CTA and the social buttons.
 class _OrDivider extends StatelessWidget {
-  const _OrDivider();
+  const _OrDivider({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -552,7 +576,7 @@ class _OrDivider extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
-            'OR',
+            label,
             style: TextStyle(
               color: AppColors.textMuted.withValues(alpha: 0.8),
               fontSize: 12,

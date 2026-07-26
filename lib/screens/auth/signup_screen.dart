@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
@@ -65,6 +66,7 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _createAccount() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
     final email = _emailController.text.trim();
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
@@ -98,7 +100,7 @@ class _SignupScreenState extends State<SignupScreen> {
     } on PostgrestException catch (e) {
       _showMessage(e.message);
     } catch (_) {
-      _showMessage('Could not create your account. Please try again.');
+      _showMessage(l10n.t('createAccountError'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -113,7 +115,7 @@ class _SignupScreenState extends State<SignupScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerificationScreen(
-          title: 'Verification Code',
+          title: AppLocalizations.of(context).t('verificationCode'),
           destination: email,
           onResend: () => AuthService.instance.resendSignupOtp(email),
           onVerify: (code) async {
@@ -149,6 +151,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final validate = AuthValidators.of(context);
     return AuthScaffold(
       showBack: true,
       child: Column(
@@ -156,9 +160,9 @@ class _SignupScreenState extends State<SignupScreen> {
         children: [
           const SizedBox(height: 8),
           FadeSlideIn(
-            child: const Text(
-              'Create Account',
-              style: TextStyle(
+            child: Text(
+              l10n.t('createAccount'),
+              style: const TextStyle(
                 fontSize: 27,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -168,9 +172,12 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
-            child: const Text(
-              'Start your secure digital life with INO',
-              style: TextStyle(fontSize: 14.5, color: AppColors.textMuted),
+            child: Text(
+              l10n.t('signupSubtitle'),
+              style: const TextStyle(
+                fontSize: 14.5,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
           const SizedBox(height: 30),
@@ -184,13 +191,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   delay: const Duration(milliseconds: 110),
                   child: AuthTextField(
                     controller: _nameController,
-                    label: 'Full name',
+                    label: l10n.t('fullName'),
                     icon: Icons.person_outline_rounded,
                     keyboardType: TextInputType.name,
                     textInputAction: TextInputAction.next,
                     textCapitalization: TextCapitalization.words,
                     autofillHints: const [AutofillHints.name],
-                    validator: AuthValidators.name,
+                    validator: validate.name,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -198,13 +205,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   delay: const Duration(milliseconds: 150),
                   child: AuthTextField(
                     controller: _emailController,
-                    label: 'Email address',
+                    label: l10n.t('emailAddress'),
                     hint: 'you@example.com',
                     icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
-                    validator: AuthValidators.email,
+                    validator: validate.email,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -212,13 +219,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   delay: const Duration(milliseconds: 190),
                   child: AuthTextField(
                     controller: _phoneController,
-                    label: 'Mobile number',
+                    label: l10n.t('mobileNumber'),
                     hint: '+91 98765 43210',
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.telephoneNumber],
-                    validator: AuthValidators.phone,
+                    validator: validate.phone,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -226,13 +233,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   delay: const Duration(milliseconds: 230),
                   child: AuthTextField(
                     controller: _passwordController,
-                    label: 'Password',
-                    hint: 'At least 6 characters',
+                    label: l10n.t('password'),
+                    hint: l10n.t('atLeast6Chars'),
                     icon: Icons.lock_outline_rounded,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.newPassword],
-                    validator: AuthValidators.password,
+                    validator: validate.password,
                     suffix: IconButton(
                       onPressed: () => setState(
                         () => _obscurePassword = !_obscurePassword,
@@ -251,12 +258,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   delay: const Duration(milliseconds: 270),
                   child: AuthTextField(
                     controller: _confirmController,
-                    label: 'Confirm password',
-                    hint: 'Re-enter your password',
+                    label: l10n.t('confirmPasswordLabel'),
+                    hint: l10n.t('reenterPassword'),
                     icon: Icons.lock_outline_rounded,
                     obscureText: _obscureConfirm,
                     textInputAction: TextInputAction.done,
-                    validator: (v) => AuthValidators.confirmPassword(
+                    validator: (v) => validate.confirmPassword(
                       v,
                       _passwordController.text,
                     ),
@@ -282,7 +289,7 @@ class _SignupScreenState extends State<SignupScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 320),
             child: AuthPrimaryButton(
-              label: 'Create Account',
+              label: l10n.t('createAccount'),
               busy: _busy,
               onPressed: _busy ? null : _createAccount,
             ),
@@ -294,9 +301,9 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Already have an account?',
-                  style: TextStyle(color: AppColors.textMuted),
+                Text(
+                  l10n.t('haveAccountPrompt'),
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
                 TextButton(
                   onPressed: _busy ? null : () => Navigator.of(context).pop(),
@@ -305,9 +312,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
-                    'Sign In',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.t('signIn'),
+                    style: const TextStyle(
                       color: AppColors.primaryGreen,
                       fontWeight: FontWeight.w700,
                     ),

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../theme/app_dimens.dart';
@@ -66,6 +67,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       developer.log('EditProfile: saving ${widget.profile.authUserId}',
@@ -83,7 +85,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _snack(e.message);
     } catch (e) {
       developer.log('EditProfile error: $e', name: 'profile', error: e);
-      _snack('Could not save your changes. Please try again.');
+      _snack(l10n.t('couldNotSaveChanges'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -92,6 +94,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final validate = AuthValidators.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
@@ -103,7 +107,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           onPressed: _busy ? null : () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Edit Profile',
+          l10n.t('editProfile'),
           style: AppText.title.copyWith(color: palette.textPrimary),
         ),
         centerTitle: true,
@@ -122,25 +126,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _AvatarEditor(
                 initials: _initials,
                 photoUrl: widget.profile.profilePhoto,
-                onTap: () => _snack('Change photo - coming soon',
-                    isError: false),
+                onTap: () =>
+                    _snack(l10n.t('changePhotoComingSoon'), isError: false),
               ),
               const SizedBox(height: AppSpacing.xl),
               AuthTextField(
                 controller: _nameController,
-                label: 'Full name',
+                label: l10n.t('fullName'),
                 icon: Icons.person_outline_rounded,
                 keyboardType: TextInputType.name,
                 textInputAction: TextInputAction.next,
                 textCapitalization: TextCapitalization.words,
                 autofillHints: const [AutofillHints.name],
-                validator: AuthValidators.name,
+                validator: validate.name,
               ),
               const SizedBox(height: AppSpacing.md),
               AuthTextField(
                 controller:
                     TextEditingController(text: widget.profile.email),
-                label: 'Email address',
+                label: l10n.t('emailAddress'),
                 icon: Icons.mail_outline_rounded,
                 enabled: false,
               ),
@@ -148,25 +152,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Text(
-                  'Email is tied to your sign-in and can’t be changed here.',
+                  l10n.t('emailTiedToSignIn'),
                   style: AppText.caption.copyWith(color: palette.textFaint),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               AuthTextField(
                 controller: _phoneController,
-                label: 'Mobile number',
-                hint: '+91 98765 43210',
+                label: l10n.t('mobileNumber'),
+                hint: l10n.t('mobileHint'),
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.telephoneNumber],
-                validator: AuthValidators.phone,
+                validator: validate.phone,
                 onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: AppSpacing.xl),
               AuthPrimaryButton(
-                label: 'Save Changes',
+                label: l10n.t('saveChanges'),
                 busy: _busy,
                 onPressed: _busy ? null : _save,
               ),

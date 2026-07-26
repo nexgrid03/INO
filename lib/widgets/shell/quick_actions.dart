@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../screens/expenses/add_expense_screen.dart';
 import '../../screens/expenses/tax_records_screen.dart';
 import '../../screens/notes/notes_screen.dart';
@@ -42,32 +43,32 @@ extension QuickMenuActionX on QuickMenuAction {
         QuickMenuAction.taxRecords => Icons.receipt_long_rounded,
       };
 
-  /// Short label for menu items and wheel slots.
-  String get label => switch (this) {
-        QuickMenuAction.expenses => 'Expenses',
-        QuickMenuAction.scan => 'Scan',
-        QuickMenuAction.notes => 'Notes',
-        QuickMenuAction.reminders => 'Reminders',
-        QuickMenuAction.emi => 'EMI',
-        QuickMenuAction.sip => 'SIP',
-        QuickMenuAction.areaConverter => 'Area',
-        QuickMenuAction.valuation => 'Valuation',
-        QuickMenuAction.gold => 'Gold',
-        QuickMenuAction.taxRecords => 'Tax',
+  /// Short label for menu items and wheel slots, in the active language.
+  String label(AppLocalizations l10n) => switch (this) {
+        QuickMenuAction.expenses => l10n.t('expenses'),
+        QuickMenuAction.scan => l10n.t('scan'),
+        QuickMenuAction.notes => l10n.t('notes'),
+        QuickMenuAction.reminders => l10n.t('reminders'),
+        QuickMenuAction.emi => l10n.t('emi'),
+        QuickMenuAction.sip => l10n.t('sip'),
+        QuickMenuAction.areaConverter => l10n.t('area'),
+        QuickMenuAction.valuation => l10n.t('valuation'),
+        QuickMenuAction.gold => l10n.t('goldShort'),
+        QuickMenuAction.taxRecords => l10n.t('tax'),
       };
 
-  /// Longer name for the editor sheet.
-  String get title => switch (this) {
-        QuickMenuAction.expenses => 'Add Expense',
-        QuickMenuAction.scan => 'Scan Document',
-        QuickMenuAction.notes => 'Notes',
-        QuickMenuAction.reminders => 'Reminders',
-        QuickMenuAction.emi => 'EMI Calculator',
-        QuickMenuAction.sip => 'SIP Calculator',
-        QuickMenuAction.areaConverter => 'Area Converter',
-        QuickMenuAction.valuation => 'Property Valuation',
-        QuickMenuAction.gold => 'Gold Calculator',
-        QuickMenuAction.taxRecords => 'Tax Records',
+  /// Longer name for the editor sheet, in the active language.
+  String title(AppLocalizations l10n) => switch (this) {
+        QuickMenuAction.expenses => l10n.t('addExpense'),
+        QuickMenuAction.scan => l10n.t('scanDocument'),
+        QuickMenuAction.notes => l10n.t('notes'),
+        QuickMenuAction.reminders => l10n.t('reminders'),
+        QuickMenuAction.emi => l10n.t('emiCalculator'),
+        QuickMenuAction.sip => l10n.t('sipCalculator'),
+        QuickMenuAction.areaConverter => l10n.t('areaConverter'),
+        QuickMenuAction.valuation => l10n.t('propertyValuation'),
+        QuickMenuAction.gold => l10n.t('goldCalculator'),
+        QuickMenuAction.taxRecords => l10n.t('taxRecords'),
       };
 }
 

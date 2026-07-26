@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -60,6 +61,7 @@ class _QuickMenuEditorState extends State<_QuickMenuEditor> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final atCap = _picked.length >= kQuickMenuMax;
 
     return SafeArea(
@@ -85,13 +87,15 @@ class _QuickMenuEditorState extends State<_QuickMenuEditor> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Customize Quick Menu',
+                        l10n.t('customizeQuickMenu'),
                         style: AppText.title
                             .copyWith(color: palette.textPrimary),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Pick up to $kQuickMenuMax features for the + button',
+                        l10n
+                            .t('quickMenuPickHint')
+                            .replaceFirst('{n}', '$kQuickMenuMax'),
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary),
                       ),
@@ -175,7 +179,7 @@ class _ActionTile extends StatelessWidget {
           radius: 12,
         ),
         title: Text(
-          action.title,
+          action.title(AppLocalizations.of(context)),
           style: AppText.subtitle.copyWith(
             color: palette.textPrimary,
             fontWeight: picked ? FontWeight.w800 : FontWeight.w600,

@@ -5,16 +5,23 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import 'quick_actions.dart';
 import 'quick_menu_editor.dart';
 
 /// One bottom-navigation destination.
+///
+/// Carries a translation *key* rather than a literal so the const [tabs] table
+/// stays const while the visible label follows the app language.
 class NavItem {
-  const NavItem(this.label, this.active, this.inactive);
-  final String label;
+  const NavItem(this.labelKey, this.active, this.inactive);
+  final String labelKey;
   final IconData active;
   final IconData inactive;
+
+  /// The destination's name in the active language.
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 }
 
 /// The INO floating bottom navigation bar - a premium, minimal white pill.
@@ -53,19 +60,19 @@ class InoBottomNav extends StatefulWidget {
 
   /// The five primary destinations - single source of truth for every surface.
   static const List<NavItem> tabs = [
-    NavItem('Home', Icons.home_rounded, Icons.home_outlined),
+    NavItem('home', Icons.home_rounded, Icons.home_outlined),
     NavItem(
-      'Vault',
+      'vault',
       Icons.account_balance_wallet_rounded,
       Icons.account_balance_wallet_outlined,
     ),
-    NavItem('Scan', Icons.document_scanner_rounded, Icons.document_scanner_rounded),
+    NavItem('scan', Icons.document_scanner_rounded, Icons.document_scanner_rounded),
     NavItem(
-      'Alerts',
+      'alerts',
       Icons.notifications_rounded,
       Icons.notifications_none_rounded,
     ),
-    NavItem('Profile', Icons.person_rounded, Icons.person_outline_rounded),
+    NavItem('profile', Icons.person_rounded, Icons.person_outline_rounded),
   ];
 
   @override
@@ -752,7 +759,7 @@ class _ScanMenu extends StatelessWidget {
                       size: 15, color: AppColors.primaryGreen),
                   const SizedBox(width: 5),
                   Text(
-                    'Edit',
+                    AppLocalizations.of(context).t('edit'),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontSize: 12,
@@ -825,7 +832,7 @@ class _MenuButtonState extends State<_MenuButton> {
             ),
             const SizedBox(height: 7),
             Text(
-              widget.action.label,
+              widget.action.label(AppLocalizations.of(context)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -917,7 +924,7 @@ class _QuickWheel extends StatelessWidget {
       child: Opacity(
         opacity: (v * 1.2 - 0.2).clamp(0.0, 1.0) * 0.9,
         child: Text(
-          'Slide to an option, release to open',
+          AppLocalizations.of(context).t('slideToOpenHint'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.95),
@@ -995,7 +1002,7 @@ class _QuickWheel extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    action.label,
+                    action.label(AppLocalizations.of(context)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,

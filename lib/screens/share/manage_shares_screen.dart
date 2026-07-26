@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
@@ -98,18 +99,16 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
   }
 
   Future<void> _revoke(DocumentShare share) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Revoke this link?'),
-        content: const Text(
-          'Anyone holding this link or QR code will immediately lose access. '
-          'This cannot be undone.',
-        ),
+        title: Text(l10n.t('revokeThisLinkTitle')),
+        content: Text(l10n.t('revokeThisLinkBody')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.t('cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -120,7 +119,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
               ),
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Revoke'),
+            child: Text(l10n.t('revoke')),
           ),
         ],
       ),
@@ -131,8 +130,8 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
       await ShareRepository.instance.revoke(share.shareId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Share revoked'),
+        SnackBar(
+          content: Text(l10n.t('shareRevoked')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.primaryGreen,
         ),
@@ -149,8 +148,8 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not revoke - please try again'),
+        SnackBar(
+          content: Text(l10n.t('couldNotRevoke')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.critical,
         ),
@@ -170,6 +169,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
@@ -186,7 +186,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Shared Links',
+                  l10n.t('sharedLinksTitle'),
                   style: AppText.headline.copyWith(
                     color: palette.textPrimary,
                     fontSize: 20,
@@ -194,7 +194,7 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Review activity & revoke access anytime',
+                  l10n.t('sharedLinksSubtitle'),
                   style: AppText.caption.copyWith(
                     color: palette.textSecondary,
                   ),
@@ -252,6 +252,7 @@ class _SharesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final active = [
       for (final s in shares)
         if (s.effectiveStatus == ShareStatus.active) s,
@@ -274,7 +275,8 @@ class _SharesList extends StatelessWidget {
       ),
       if (active.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg),
-        _SectionLabel(label: 'ACTIVE LINKS', count: active.length),
+        _SectionLabel(
+            label: l10n.t('activeLinksSection'), count: active.length),
         const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < active.length; i++) ...[
           if (i > 0) const SizedBox(height: AppSpacing.sm),
@@ -287,7 +289,10 @@ class _SharesList extends StatelessWidget {
       ],
       if (history.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg),
-        _SectionLabel(label: 'HISTORY', count: history.length, muted: true),
+        _SectionLabel(
+            label: l10n.t('historySection'),
+            count: history.length,
+            muted: true),
         const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < history.length; i++) ...[
           if (i > 0) const SizedBox(height: AppSpacing.sm),
@@ -386,6 +391,7 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
@@ -393,7 +399,7 @@ class _StatsRow extends StatelessWidget {
             icon: Icons.qr_code_2_rounded,
             color: AppColors.primaryGreen,
             value: activeCount,
-            label: 'Active',
+            label: l10n.t('active'),
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -402,7 +408,7 @@ class _StatsRow extends StatelessWidget {
             icon: Icons.visibility_rounded,
             color: AppColors.lightBlue,
             value: views,
-            label: 'Views',
+            label: l10n.t('views'),
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -411,7 +417,7 @@ class _StatsRow extends StatelessWidget {
             icon: Icons.download_rounded,
             color: AppColors.warning,
             value: downloads,
-            label: 'Downloads',
+            label: l10n.t('downloads'),
           ),
         ),
       ],
@@ -492,12 +498,13 @@ class _ShareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final status = share.effectiveStatus;
     final isActive = status == ShareStatus.active;
     final (statusColor, statusLabel) = switch (status) {
-      ShareStatus.active => (AppColors.primaryGreen, 'Active'),
-      ShareStatus.expired => (AppColors.warning, 'Expired'),
-      ShareStatus.revoked => (AppColors.critical, 'Revoked'),
+      ShareStatus.active => (AppColors.primaryGreen, l10n.t('active')),
+      ShareStatus.expired => (AppColors.warning, l10n.t('expired')),
+      ShareStatus.revoked => (AppColors.critical, l10n.t('revoked')),
     };
 
     return InoCard(
@@ -532,8 +539,11 @@ class _ShareCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${share.documentCount} '
-                      'Document${share.documentCount == 1 ? '' : 's'}',
+                      l10n
+                          .t(share.documentCount == 1
+                              ? 'docCountOne'
+                              : 'docCountMany')
+                          .replaceFirst('{n}', '${share.documentCount}'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(
@@ -544,7 +554,7 @@ class _ShareCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _timingLine(status),
+                      _timingLine(l10n, status),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.caption.copyWith(
@@ -567,15 +577,20 @@ class _ShareCard extends StatelessWidget {
             children: [
               _MetaStat(
                 icon: Icons.visibility_outlined,
-                label:
-                    '${share.viewsCount} view${share.viewsCount == 1 ? '' : 's'}',
+                label: l10n
+                    .t(share.viewsCount == 1
+                        ? 'viewCountOne'
+                        : 'viewCountMany')
+                    .replaceFirst('{n}', '${share.viewsCount}'),
               ),
               const SizedBox(width: AppSpacing.md),
               _MetaStat(
                 icon: Icons.download_outlined,
-                label:
-                    '${share.downloadsCount} download'
-                    '${share.downloadsCount == 1 ? '' : 's'}',
+                label: l10n
+                    .t(share.downloadsCount == 1
+                        ? 'downloadCountOne'
+                        : 'downloadCountMany')
+                    .replaceFirst('{n}', '${share.downloadsCount}'),
               ),
               const Spacer(),
               if (isActive)
@@ -585,7 +600,7 @@ class _ShareCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Details',
+                      l10n.t('details'),
                       style: AppText.label.copyWith(
                         color: palette.textFaint,
                         fontSize: 12,
@@ -605,31 +620,33 @@ class _ShareCard extends StatelessWidget {
     );
   }
 
-  String _timingLine(ShareStatus status) {
-    final created = 'Created ${_monthDay(share.createdAt)}';
+  String _timingLine(AppLocalizations l10n, ShareStatus status) {
+    final created = l10n
+        .t('createdOn')
+        .replaceFirst('{date}', _monthDay(l10n, share.createdAt));
     switch (status) {
       case ShareStatus.active:
-        return '$created · ${_expiresIn(share.expiresAt)}';
+        return '$created · ${_expiresIn(l10n, share.expiresAt)}';
       case ShareStatus.expired:
-        return '$created · Expired ${_monthDay(share.expiresAt)}';
+        final on = l10n
+            .t('expiredOn')
+            .replaceFirst('{date}', _monthDay(l10n, share.expiresAt));
+        return '$created · $on';
       case ShareStatus.revoked:
-        return '$created · Access revoked';
+        return '$created · ${l10n.t('accessRevoked')}';
     }
   }
 
-  static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
+  static String _monthDay(AppLocalizations l10n, DateTime d) =>
+      '${l10n.monthShort(d.month)} ${d.day}';
 
-  static String _monthDay(DateTime d) => '${_months[d.month - 1]} ${d.day}';
-
-  static String _expiresIn(DateTime expiresAt) {
+  static String _expiresIn(AppLocalizations l10n, DateTime expiresAt) {
     final left = expiresAt.difference(DateTime.now());
-    if (left.inDays >= 1) return 'Expires in ${left.inDays}d';
-    if (left.inHours >= 1) return 'Expires in ${left.inHours}h';
-    if (left.inMinutes >= 1) return 'Expires in ${left.inMinutes}m';
-    return 'Expiring now';
+    String at(String key, int n) => l10n.t(key).replaceFirst('{n}', '$n');
+    if (left.inDays >= 1) return at('expiresInDaysShort', left.inDays);
+    if (left.inHours >= 1) return at('expiresInHoursShort', left.inHours);
+    if (left.inMinutes >= 1) return at('expiresInMinutesShort', left.inMinutes);
+    return l10n.t('expiringNow');
   }
 }
 
@@ -719,7 +736,7 @@ class _RevokeButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  'Revoke',
+                  AppLocalizations.of(context).t('revoke'),
                   style: AppText.label.copyWith(
                     color: AppColors.critical,
                     fontSize: 12,
@@ -786,7 +803,7 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'No shared links yet',
+                AppLocalizations.of(context).t('noSharedLinksYet'),
                 style: AppText.headline.copyWith(
                   color: palette.textPrimary,
                   fontSize: 20,
@@ -794,8 +811,7 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Select documents in a wallet and tap “Share via QR” to '
-                'create a secure, expiring link.',
+                AppLocalizations.of(context).t('noSharedLinksSubtitle'),
                 textAlign: TextAlign.center,
                 style: AppText.body.copyWith(
                   color: palette.textSecondary,

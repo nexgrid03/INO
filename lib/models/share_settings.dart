@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import 'document_share.dart' show ShareDuration;
 
 export 'document_share.dart' show ShareDuration, ShareDurationX;
@@ -8,18 +9,20 @@ export 'document_share.dart' show ShareDuration, ShareDurationX;
 enum ShareColorMode { original, blackWhite, grayscale, compressedPdf }
 
 extension ShareColorModeX on ShareColorMode {
-  String get label {
+  String get labelKey {
     switch (this) {
       case ShareColorMode.original:
-        return 'Original Color';
+        return 'colorOriginal';
       case ShareColorMode.blackWhite:
-        return 'Black & White';
+        return 'blackWhite';
       case ShareColorMode.grayscale:
-        return 'Grayscale';
+        return 'grayscale';
       case ShareColorMode.compressedPdf:
-        return 'Compressed PDF';
+        return 'compressedPdf';
     }
   }
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
 
   IconData get icon {
     switch (this) {

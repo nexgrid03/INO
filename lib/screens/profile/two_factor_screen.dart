@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -50,6 +51,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   }
 
   Future<void> _startEnrollment() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       final setup = await TwoFactorService.instance.startEnrollment();
@@ -63,8 +65,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     } catch (e) {
       developer.log('2FA enroll error: $e', name: '2fa', error: e);
       if (mounted) {
-        BiometricUx.errorSnack(
-            context, 'Could not start 2FA setup. Please try again.');
+        BiometricUx.errorSnack(context, l10n.t('couldNotStart2fa'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -72,10 +73,11 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   }
 
   Future<void> _verify() async {
+    final l10n = AppLocalizations.of(context);
     final setup = _setup;
     if (setup == null) return;
     if (_code.text.trim().length < 6) {
-      BiometricUx.errorSnack(context, 'Enter the 6-digit code.');
+      BiometricUx.errorSnack(context, l10n.t('enterSixDigitCode'));
       return;
     }
     setState(() => _busy = true);
@@ -84,18 +86,17 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
           .confirm(factorId: setup.factorId, code: _code.text);
       if (!mounted) return;
       _code.clear();
-      BiometricUx.successSnack(context, 'Two-factor authentication is on.');
+      BiometricUx.successSnack(context, l10n.t('twoFactorOn'));
       setState(() => _stage = _Stage.enabled);
     } on AuthException catch (e) {
       if (mounted) {
-        BiometricUx.errorSnack(
-            context, 'That code is incorrect or expired. Try again.');
+        BiometricUx.errorSnack(context, l10n.t('codeIncorrectExpired'));
       }
       developer.log('2FA verify auth error: ${e.message}', name: '2fa');
     } catch (e) {
       developer.log('2FA verify error: $e', name: '2fa', error: e);
       if (mounted) {
-        BiometricUx.errorSnack(context, 'Could not verify the code.');
+        BiometricUx.errorSnack(context, l10n.t('couldNotVerifyCode'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -103,17 +104,20 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   }
 
   Future<void> _disable() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await _confirmDisable();
     if (!mounted || !confirmed) return;
     setState(() => _busy = true);
     try {
       await TwoFactorService.instance.disable();
       if (!mounted) return;
-      BiometricUx.successSnack(context, 'Two-factor authentication disabled.');
+      BiometricUx.successSnack(context, l10n.t('twoFactorDisabled'));
       setState(() => _stage = _Stage.disabled);
     } catch (e) {
       developer.log('2FA disable error: $e', name: '2fa', error: e);
-      if (mounted) BiometricUx.errorSnack(context, 'Could not disable 2FA.');
+      if (mounted) {
+        BiometricUx.errorSnack(context, l10n.t('couldNotDisable2fa'));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -121,26 +125,27 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
 
   Future<bool> _confirmDisable() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: Text('Disable 2FA?',
+        title: Text(l10n.t('disable2faTitle'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
         content: Text(
-          'Your account will no longer require a second factor when signing in.',
+          l10n.t('disable2faBody'),
           style: AppText.body.copyWith(color: palette.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel',
+            child: Text(l10n.t('cancel'),
                 style: TextStyle(color: palette.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Disable',
-                style: TextStyle(
+            child: Text(l10n.t('disable'),
+                style: const TextStyle(
                     color: AppColors.critical, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -152,7 +157,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: 'Two-Factor Authentication',
+      title: AppLocalizations.of(context).t('twoFactorAuthTitle'),
       child: switch (_stage) {
         _Stage.loading =>
           const Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
@@ -165,6 +170,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
 
   Widget _buildDisabled() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
@@ -173,28 +179,23 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
         _Hero(
           icon: Icons.verified_user_rounded,
           color: AppColors.lightBlue,
-          title: 'Add an extra layer of security',
-          message:
-              'With 2FA on, signing in also requires a time-based code from your '
-              'authenticator app (Google Authenticator, Authy, 1Password …).',
+          title: l10n.t('extraLayerSecurity'),
+          message: l10n.t('twoFactorIntro'),
         ),
         const SizedBox(height: AppSpacing.lg),
-        const _StepTile(
-            n: '1', text: 'Install an authenticator app on your phone.'),
-        const _StepTile(
-            n: '2', text: 'Add INO using the secret we show you next.'),
-        const _StepTile(
-            n: '3', text: 'Enter the 6-digit code to finish setup.'),
+        _StepTile(n: '1', text: l10n.t('twoFactorStep1')),
+        _StepTile(n: '2', text: l10n.t('twoFactorStep2')),
+        _StepTile(n: '3', text: l10n.t('twoFactorStep3')),
         const SizedBox(height: AppSpacing.xl),
         SettingsPrimaryButton(
-          label: 'Enable 2FA',
+          label: l10n.t('enable2fa'),
           icon: Icons.lock_rounded,
           busy: _busy,
           onPressed: _busy ? null : _startEnrollment,
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'You can turn this off any time.',
+          l10n.t('canTurnOffAnyTime'),
           textAlign: TextAlign.center,
           style: AppText.caption.copyWith(color: palette.textFaint),
         ),
@@ -204,29 +205,30 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
 
   Widget _buildEnrolling() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final setup = _setup!;
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
           AppSpacing.screen, AppSpacing.xl),
       children: [
-        Text('Add INO to your authenticator',
+        Text(l10n.t('addInoToAuthenticator'),
             style: AppText.headline.copyWith(color: palette.textPrimary)),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Enter this setup key in your authenticator app, then type the 6-digit '
-          'code it generates.',
+          l10n.t('enterSetupKeyHint'),
           style:
               AppText.body.copyWith(color: palette.textSecondary, height: 1.5),
         ),
         const SizedBox(height: AppSpacing.lg),
-        _CopyField(label: 'Setup key', value: setup.secret),
+        _CopyField(label: l10n.t('setupKey'), value: setup.secret),
         const SizedBox(height: AppSpacing.sm),
-        _CopyField(label: 'Setup URI (advanced)', value: setup.uri, mono: true),
+        _CopyField(
+            label: l10n.t('setupUriAdvanced'), value: setup.uri, mono: true),
         const SizedBox(height: AppSpacing.lg),
         AuthTextField(
           controller: _code,
-          label: '6-digit code',
+          label: l10n.t('sixDigitCode'),
           icon: Icons.pin_rounded,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
@@ -238,7 +240,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
         ),
         const SizedBox(height: AppSpacing.xl),
         SettingsPrimaryButton(
-          label: 'Verify & Turn On',
+          label: l10n.t('verifyAndTurnOn'),
           icon: Icons.check_rounded,
           busy: _busy,
           onPressed: _busy ? null : _verify,
@@ -249,6 +251,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
 
   Widget _buildEnabled() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
@@ -257,10 +260,8 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
         _Hero(
           icon: Icons.gpp_good_rounded,
           color: AppColors.primaryGreen,
-          title: '2FA is on',
-          message:
-              'Your account is protected by a second factor. You’ll be asked for '
-              'a code from your authenticator app when signing in.',
+          title: l10n.t('twoFactorIsOn'),
+          message: l10n.t('twoFactorOnBody'),
         ),
         const SizedBox(height: AppSpacing.lg),
         SettingsCard(
@@ -272,17 +273,14 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
                   const Icon(Icons.info_outline_rounded,
                       color: AppColors.lightBlue, size: 20),
                   const SizedBox(width: 8),
-                  Text('Recovery',
+                  Text(l10n.t('recovery'),
                       style:
                           AppText.subtitle.copyWith(color: palette.textPrimary)),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Keep access to your authenticator app. If you lose your device, '
-                'use its backup/transfer feature or your saved setup key to '
-                'restore your codes. Losing both means you’ll need to reset 2FA '
-                'from a signed-in session.',
+                l10n.t('twoFactorRecoveryBody'),
                 style: AppText.body
                     .copyWith(color: palette.textSecondary, height: 1.5),
               ),
@@ -291,7 +289,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
         ),
         const SizedBox(height: AppSpacing.xl),
         SettingsPrimaryButton(
-          label: 'Disable 2FA',
+          label: l10n.t('disable2fa'),
           icon: Icons.gpp_bad_rounded,
           danger: true,
           busy: _busy,
@@ -423,7 +421,11 @@ class _CopyField extends StatelessWidget {
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: value));
               if (context.mounted) {
-                BiometricUx.successSnack(context, '$label copied.');
+                BiometricUx.successSnack(
+                    context,
+                    AppLocalizations.of(context)
+                        .t('copiedLabel')
+                        .replaceFirst('{label}', label));
               }
             },
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/expense_store.dart';
 import '../../theme/app_dimens.dart';
@@ -44,6 +45,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
 
   Future<void> _pickYear() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final base = FinancialYear.current().startYear;
     final years = <int>{
       for (var i = 0; i < 7; i++) base - i,
@@ -68,7 +70,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     color: palette.border,
                     borderRadius: BorderRadius.circular(AppRadius.pill))),
             const SizedBox(height: AppSpacing.sm),
-            Text('Financial Year',
+            Text(l10n.t('financialYear'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             Flexible(
               child: ListView(
@@ -106,6 +108,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       floatingActionButton:
@@ -144,7 +147,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                       Expanded(
                         child: _ActionChip(
                           icon: Icons.folder_special_rounded,
-                          label: 'Tax Records',
+                          label: l10n.t('taxRecords'),
                           onTap: () => _push(const TaxRecordsScreen()),
                         ),
                       ),
@@ -152,7 +155,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                       Expanded(
                         child: _ActionChip(
                           icon: Icons.summarize_rounded,
-                          label: 'Tax Summary',
+                          label: l10n.t('taxSummary'),
                           onTap: () => _push(const TaxSummaryScreen()),
                         ),
                       ),
@@ -208,9 +211,10 @@ class _List extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     if (results.isEmpty) {
       return Center(
-        child: Text('No transactions match your search',
+        child: Text(l10n.t('noTransactionsMatch'),
             style: AppText.body.copyWith(color: palette.textSecondary)),
       );
     }
@@ -219,7 +223,7 @@ class _List extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 2, 0, 2),
-          child: Text('Recent Transactions',
+          child: Text(l10n.t('recentTransactions'),
               style: AppText.title.copyWith(color: palette.textPrimary)),
         ),
         Expanded(
@@ -248,6 +252,7 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -262,7 +267,7 @@ class _ErrorState extends StatelessWidget {
                   Icon(Icons.cloud_off_rounded,
                       size: 56, color: palette.textFaint),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Couldn\'t load transactions',
+                  Text(l10n.t('couldntLoadTransactions'),
                       style:
                           AppText.title.copyWith(color: palette.textPrimary)),
                   const SizedBox(height: AppSpacing.xs),
@@ -284,14 +289,14 @@ class _ErrorState extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(AppRadius.button),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.refresh_rounded,
+                            const Icon(Icons.refresh_rounded,
                                 color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('Try Again',
-                                style: TextStyle(
+                            const SizedBox(width: 6),
+                            Text(l10n.t('tryAgain'),
+                                style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14)),
@@ -318,6 +323,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         // Always scrollable so pull-to-refresh works on the empty state too.
@@ -349,12 +355,12 @@ class _EmptyState extends StatelessWidget {
                         color: Colors.white, size: 44),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('No Transactions Yet',
+                  Text(l10n.t('noTransactionsYet'),
                       style: AppText.headline
                           .copyWith(color: palette.textPrimary, fontSize: 20)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Store your transaction receipts and payment records securely.',
+                    l10n.t('noTransactionsYetSubtitle'),
                     textAlign: TextAlign.center,
                     style: AppText.body
                         .copyWith(color: palette.textSecondary, height: 1.5),
@@ -379,14 +385,14 @@ class _EmptyState extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded,
+                            const Icon(Icons.add_rounded,
                                 color: Colors.white, size: 20),
-                            SizedBox(width: 6),
-                            Text('Add First Transaction',
-                                style: TextStyle(
+                            const SizedBox(width: 6),
+                            Text(l10n.t('addFirstTransaction'),
+                                style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14.5)),
@@ -415,6 +421,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.internal),
       decoration: BoxDecoration(
@@ -431,7 +438,7 @@ class _SummaryCard extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-              child: _stat('Total Transactions', '$count',
+              child: _stat(l10n.t('totalTransactions'), '$count',
                   Icons.receipt_long_rounded)),
           Container(
               width: 1,
@@ -440,7 +447,7 @@ class _SummaryCard extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(left: AppSpacing.md),
-              child: _stat('Total Amount', rupees(amount.round()),
+              child: _stat(l10n.t('totalAmount'), rupees(amount.round()),
                   Icons.account_balance_wallet_rounded),
             ),
           ),
@@ -543,7 +550,7 @@ class _SearchBar extends StatelessWidget {
       onChanged: onChanged,
       style: AppText.body.copyWith(color: palette.textPrimary),
       decoration: InputDecoration(
-        hintText: 'Search by ID, vendor, amount or date',
+        hintText: AppLocalizations.of(context).t('searchTxnHint'),
         hintStyle: AppText.body.copyWith(color: palette.textFaint),
         prefixIcon: Icon(Icons.search_rounded, color: palette.textFaint),
         filled: true,
@@ -580,13 +587,13 @@ class _AddButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: Colors.white, size: 22),
-              SizedBox(width: 6),
-              Text('Add Transaction',
-                  style: TextStyle(
+              const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 6),
+              Text(AppLocalizations.of(context).t('addTransaction'),
+                  style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 14)),
@@ -639,7 +646,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text('Transaction Vault',
+            child: Text(AppLocalizations.of(context).t('transactionVault'),
                 style: AppText.headline
                     .copyWith(color: palette.textPrimary, fontSize: 21)),
           ),

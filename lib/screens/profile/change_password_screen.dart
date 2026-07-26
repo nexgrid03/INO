@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/account_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -51,18 +52,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   String? _validateNew(String? value) {
+    final l10n = AppLocalizations.of(context);
     final v = value ?? '';
-    if (v.isEmpty) return 'Enter a new password';
-    if (v.length < 8) return 'Use at least 8 characters';
+    if (v.isEmpty) return l10n.t('enterNewPassword');
+    if (v.length < 8) return l10n.t('useAtLeast8Chars');
     if (AccountService.scorePassword(v) == PasswordStrength.weak) {
-      return 'Add letters, numbers or symbols to strengthen it';
+      return l10n.t('strengthenPassword');
     }
-    if (v == _current.text) return 'New password must differ from the current one';
+    if (v == _current.text) return l10n.t('newMustDiffer');
     return null;
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await AccountService.instance.changePassword(
@@ -71,7 +74,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         newPassword: _next.text,
       );
       if (!mounted) return;
-      BiometricUx.successSnack(context, 'Password updated successfully.');
+      BiometricUx.successSnack(context, l10n.t('passwordUpdated'));
       Navigator.of(context).pop(true);
     } on AuthException catch (e) {
       developer.log('changePassword auth error: ${e.message}',
@@ -81,13 +84,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           e.message.toLowerCase().contains('credential');
       BiometricUx.errorSnack(
         context,
-        wrong ? 'Your current password is incorrect.' : e.message,
+        wrong ? l10n.t('currentPasswordIncorrect') : e.message,
       );
     } catch (e) {
       developer.log('changePassword error: $e', name: 'account', error: e);
       if (!mounted) return;
-      BiometricUx.errorSnack(
-          context, 'Could not change your password. Please try again.');
+      BiometricUx.errorSnack(context, l10n.t('couldNotChangePassword'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -96,8 +98,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Change Password',
+      title: l10n.t('changePassword'),
       child: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -107,26 +110,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               AppSpacing.screen, AppSpacing.xl),
           children: [
             Text(
-              'For your security, confirm your current password before setting a new one.',
+              l10n.t('confirmCurrentPasswordIntro'),
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.5),
             ),
             const SizedBox(height: AppSpacing.lg),
             AuthTextField(
               controller: _current,
-              label: 'Current password',
+              label: l10n.t('currentPassword'),
               icon: Icons.lock_outline_rounded,
               obscureText: _obscureCurrent,
               textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Enter your current password' : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? l10n.t('enterCurrentPassword')
+                  : null,
               suffix: _eye(_obscureCurrent,
                   () => setState(() => _obscureCurrent = !_obscureCurrent)),
             ),
             const SizedBox(height: AppSpacing.md),
             AuthTextField(
               controller: _next,
-              label: 'New password',
+              label: l10n.t('newPassword'),
               icon: Icons.lock_reset_rounded,
               obscureText: _obscureNext,
               textInputAction: TextInputAction.next,
@@ -139,17 +143,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: AppSpacing.md),
             AuthTextField(
               controller: _confirm,
-              label: 'Confirm new password',
+              label: l10n.t('confirmNewPassword'),
               icon: Icons.check_circle_outline_rounded,
               obscureText: _obscureNext,
               textInputAction: TextInputAction.done,
               validator: (v) =>
-                  v != _next.text ? 'Passwords do not match' : null,
+                  v != _next.text ? l10n.t('passwordsDoNotMatch') : null,
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: AppSpacing.xl),
             SettingsPrimaryButton(
-              label: 'Update Password',
+              label: l10n.t('updatePassword'),
               icon: Icons.shield_rounded,
               busy: _busy,
               onPressed: _busy ? null : _submit,
@@ -210,7 +214,7 @@ class _StrengthMeter extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text(strength.label,
+          Text(strength.label(AppLocalizations.of(context)),
               style: AppText.caption
                   .copyWith(color: _color, fontWeight: FontWeight.w700)),
         ],

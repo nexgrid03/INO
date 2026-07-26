@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// One stop in the first-run feature tour.
@@ -214,7 +215,9 @@ class _FeatureTourState extends State<FeatureTour> {
                                             horizontal: 10,
                                           ),
                                         ),
-                                        child: const Text('Skip'),
+                                        child: Text(
+                                          AppLocalizations.of(context).t('skip'),
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       FilledButton(
@@ -226,7 +229,10 @@ class _FeatureTourState extends State<FeatureTour> {
                                           ),
                                           minimumSize: const Size(0, 38),
                                         ),
-                                        child: Text(isLast ? 'Done' : 'Next'),
+                                        child: Text(
+                                          AppLocalizations.of(context)
+                                              .t(isLast ? 'done' : 'next'),
+                                        ),
                                       ),
                                     ],
                                   ),

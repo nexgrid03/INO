@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/share_origin.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
@@ -96,9 +97,10 @@ class _QrShareScreenState extends State<QrShareScreen> {
   }
 
   Future<void> _copyLink() async {
+    final l10n = AppLocalizations.of(context);
     await Clipboard.setData(ClipboardData(text: _share.url));
     HapticFeedback.selectionClick();
-    _toast('Link copied to clipboard');
+    _toast(l10n.t('linkCopied'));
   }
 
   Future<void> _shareLink() async {
@@ -111,12 +113,13 @@ class _QrShareScreenState extends State<QrShareScreen> {
 
   Future<void> _downloadQr() async {
     if (!mounted || _busy) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     final origin = shareOrigin(context);
     try {
       final bytes = await _renderQrPng(_share.url);
       if (bytes == null) {
-        _toast('Could not export the QR image.', error: true);
+        _toast(l10n.t('couldNotExportQr'), error: true);
         return;
       }
       final dir = await getTemporaryDirectory();
@@ -130,7 +133,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
         sharePositionOrigin: origin,
       );
     } catch (_) {
-      _toast('Could not export the QR image.', error: true);
+      _toast(l10n.t('couldNotExportQr'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -138,6 +141,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
 
   Future<void> _revoke() async {
     if (_busy) return;
+    final l10n = AppLocalizations.of(context);
     final confirmed = await _confirmRevoke();
     if (confirmed != true) return;
     // The confirm dialog awaited above - the screen may be gone now.
@@ -148,11 +152,11 @@ class _QrShareScreenState extends State<QrShareScreen> {
       if (!mounted) return;
       setState(() => _share = _share.copyAsRevoked());
       HapticFeedback.mediumImpact();
-      _toast('Share revoked - the link no longer works');
+      _toast(l10n.t('shareRevokedLinkDead'));
     } on ShareException catch (e) {
       _toast(e.message, error: true);
     } catch (_) {
-      _toast('Could not revoke the share. Please try again.', error: true);
+      _toast(l10n.t('couldNotRevokeShare'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -160,29 +164,29 @@ class _QrShareScreenState extends State<QrShareScreen> {
 
   Future<bool?> _confirmRevoke() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.large)),
-        title: Text('Revoke access?',
+        title: Text(l10n.t('revokeAccessTitle'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
         content: Text(
-          'Anyone who already has this QR or link will immediately lose access. '
-          'This cannot be undone.',
+          l10n.t('revokeAccessBody'),
           style: AppText.body.copyWith(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Keep',
+            child: Text(l10n.t('keep'),
                 style: TextStyle(color: palette.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Revoke',
-                style: TextStyle(
+            child: Text(l10n.t('revoke'),
+                style: const TextStyle(
                     color: AppColors.critical, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -272,7 +276,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
             onPressed: _preview,
             icon: const Icon(Icons.visibility_rounded,
                 size: 18, color: AppColors.primaryGreen),
-            label: Text('Preview what recipients see',
+            label: Text(AppLocalizations.of(context).t('previewRecipients'),
                 style: AppText.subtitle.copyWith(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w700)),
@@ -291,6 +295,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
   }
 
   Widget _inactiveBody(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final revoked = _status == ShareStatus.revoked;
     return Padding(
       padding: const EdgeInsets.only(top: 60),
@@ -312,13 +317,13 @@ class _QrShareScreenState extends State<QrShareScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            revoked ? 'This share has been revoked.' : 'This shared link has expired.',
+            l10n.t(revoked ? 'shareRevokedState' : 'shareExpiredState'),
             textAlign: TextAlign.center,
             style: AppText.title.copyWith(color: palette.textPrimary),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'No documents are accessible through this QR anymore.',
+            l10n.t('noDocsThroughQr'),
             textAlign: TextAlign.center,
             style: AppText.body.copyWith(color: palette.textSecondary),
           ),
@@ -336,7 +341,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
-                  child: Text('Done',
+                  child: Text(l10n.t('done'),
                       style: AppText.subtitle
                           .copyWith(color: palette.textPrimary)),
                 ),
@@ -360,10 +365,11 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final title = switch (status) {
-      ShareStatus.active => 'Share Ready',
-      ShareStatus.revoked => 'Share Revoked',
-      ShareStatus.expired => 'Share Expired',
+      ShareStatus.active => l10n.t('shareReady'),
+      ShareStatus.revoked => l10n.t('shareRevokedTitle'),
+      ShareStatus.expired => l10n.t('shareExpiredTitle'),
     };
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -399,7 +405,7 @@ class _Header extends StatelessWidget {
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
-                Text('Anyone can scan to view the shared documents',
+                Text(l10n.t('anyoneCanScan'),
                     style:
                         AppText.caption.copyWith(color: palette.textSecondary)),
               ],
@@ -454,8 +460,9 @@ class _ExpiryPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final remaining = share.expiresAt.difference(DateTime.now());
-    final label = _remainingLabel(remaining);
+    final label = remainingShareLabel(l10n, remaining);
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -484,19 +491,34 @@ class _ExpiryPill extends StatelessWidget {
     );
   }
 
-  String _remainingLabel(Duration d) {
-    if (d.isNegative) return 'Expired';
-    if (d.inHours >= 24) {
-      final days = d.inDays;
-      return 'Expires in $days day${days == 1 ? '' : 's'}';
-    }
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    final s = d.inSeconds % 60;
-    if (h > 0) return 'Expires in ${h}h ${m}m';
-    if (m > 0) return 'Expires in ${m}m ${s}s';
-    return 'Expires in ${s}s';
+}
+
+/// "Expires in 3 days" / "Expires in 2h 14m" / "Expired", in the active
+/// language. Shared by this screen's expiry pill and the recipient viewer's.
+String remainingShareLabel(AppLocalizations l10n, Duration d) {
+  if (d.isNegative) return l10n.t('expired');
+  if (d.inHours >= 24) {
+    final days = d.inDays;
+    return days == 1
+        ? l10n.t('expiresInOneDay')
+        : l10n.t('expiresInDaysLong').replaceFirst('{n}', '$days');
   }
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final s = d.inSeconds % 60;
+  if (h > 0) {
+    return l10n
+        .t('expiresInHm')
+        .replaceFirst('{h}', '$h')
+        .replaceFirst('{m}', '$m');
+  }
+  if (m > 0) {
+    return l10n
+        .t('expiresInMs')
+        .replaceFirst('{m}', '$m')
+        .replaceFirst('{s}', '$s');
+  }
+  return l10n.t('expiresInS').replaceFirst('{s}', '$s');
 }
 
 class _DocCountRow extends StatelessWidget {
@@ -509,7 +531,9 @@ class _DocCountRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        '$count document${count == 1 ? '' : 's'} shared',
+        AppLocalizations.of(context)
+            .t('docsSharedCount')
+            .replaceFirst('{n}', '$count'),
         style: AppText.caption.copyWith(color: palette.textSecondary),
       ),
     );
@@ -546,7 +570,7 @@ class _LinkCard extends StatelessWidget {
             onPressed: onCopy,
             visualDensity: VisualDensity.compact,
             icon: Icon(Icons.copy_rounded, size: 18, color: palette.textFaint),
-            tooltip: 'Copy link',
+            tooltip: AppLocalizations.of(context).t('copyLink'),
           ),
         ],
       ),
@@ -571,6 +595,7 @@ class _ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         Row(
@@ -578,7 +603,7 @@ class _ActionGrid extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 icon: Icons.copy_rounded,
-                label: 'Copy Link',
+                label: l10n.t('copyLinkAction'),
                 onTap: busy ? null : onCopy,
               ),
             ),
@@ -586,7 +611,7 @@ class _ActionGrid extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 icon: Icons.ios_share_rounded,
-                label: 'Share Link',
+                label: l10n.t('shareLinkAction'),
                 onTap: busy ? null : onShare,
               ),
             ),
@@ -598,7 +623,7 @@ class _ActionGrid extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 icon: Icons.download_rounded,
-                label: 'Download QR',
+                label: l10n.t('downloadQr'),
                 onTap: busy ? null : onDownload,
               ),
             ),
@@ -606,7 +631,7 @@ class _ActionGrid extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 icon: Icons.link_off_rounded,
-                label: 'Revoke Access',
+                label: l10n.t('revokeAccess'),
                 danger: true,
                 onTap: busy ? null : onRevoke,
               ),

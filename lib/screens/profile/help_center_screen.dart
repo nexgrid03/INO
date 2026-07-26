@@ -1,71 +1,36 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import 'contact_support_screen.dart';
 
+/// One FAQ entry. The question and answer are held as translation *keys* so the
+/// list stays const while the text follows the app language; [tags] are
+/// language-independent search aliases (kept in English so an English query
+/// still matches while browsing in another language).
 class _Faq {
-  const _Faq(this.question, this.answer, this.tags);
-  final String question;
-  final String answer;
+  const _Faq(this.questionKey, this.answerKey, this.tags);
+  final String questionKey;
+  final String answerKey;
   final String tags;
 }
 
 const List<_Faq> _faqs = [
-  _Faq(
-    'How do I add a document?',
-    'Tap the + button on Home or Wallet, choose a category, then scan with your '
-        'camera or import from your gallery. INO enhances the image and saves it '
-        'securely to your vault.',
-    'add upload scan import document',
-  ),
-  _Faq(
-    'How do I protect a document with biometrics?',
-    'Open a document’s menu and choose “Protect”, or toggle “Protect with '
-        'Biometrics” when adding it. Protected documents require Face/Fingerprint '
-        'unlock before they can be opened.',
-    'biometric protect lock face fingerprint security',
-  ),
-  _Faq(
-    'Is my data encrypted?',
-    'Your files are stored in a private, access-controlled cloud bucket and are '
-        'only reachable with your signed-in session. Protected items add a '
-        'biometric gate on top.',
-    'encryption security private storage safe',
-  ),
-  _Faq(
-    'How do backups work?',
-    'Cloud Backup creates a JSON archive of your account and document metadata '
-        'and uploads it to your private storage. Turn on Auto Backup to keep it '
-        'current, or back up manually any time.',
-    'backup cloud restore export sync',
-  ),
-  _Faq(
-    'How do I enable two-factor authentication?',
-    'Go to Security → Two-Factor Authentication, tap Enable, add the setup key '
-        'to an authenticator app, and enter the 6-digit code to confirm.',
-    '2fa two factor totp authenticator security code',
-  ),
-  _Faq(
-    'How do I change or reset my password?',
-    'Security → Change Password. Confirm your current password, then set a new, '
-        'strong one. You’ll see a live strength meter as you type.',
-    'password change reset credential security',
-  ),
-  _Faq(
-    'Can I use INO in dark mode?',
-    'Yes - Preferences → Dark Mode. Your choice is remembered across restarts '
-        'and applies instantly across the whole app.',
-    'dark mode theme appearance light',
-  ),
-  _Faq(
-    'How do I delete my account?',
-    'Scroll to the bottom of Profile and choose Delete Account. You’ll confirm, '
-        're-enter your password, and then your documents, files and profile are '
-        'permanently removed.',
-    'delete account remove erase data privacy',
-  ),
+  _Faq('faqAddDocQ', 'faqAddDocA', 'add upload scan import document'),
+  _Faq('faqProtectQ', 'faqProtectA',
+      'biometric protect lock face fingerprint security'),
+  _Faq('faqEncryptedQ', 'faqEncryptedA',
+      'encryption security private storage safe'),
+  _Faq('faqBackupQ', 'faqBackupA', 'backup cloud restore export sync'),
+  _Faq('faq2faQ', 'faq2faA',
+      '2fa two factor totp authenticator security code'),
+  _Faq('faqPasswordQ', 'faqPasswordA',
+      'password change reset credential security'),
+  _Faq('faqDarkModeQ', 'faqDarkModeA', 'dark mode theme appearance light'),
+  _Faq('faqDeleteQ', 'faqDeleteA',
+      'delete account remove erase data privacy'),
 ];
 
 /// Help Center - searchable FAQ with a shortcut to Contact Support.
@@ -97,12 +62,12 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     super.dispose();
   }
 
-  List<_Faq> get _results {
+  List<_Faq> _results(AppLocalizations l10n) {
     if (_term.isEmpty) return _faqs;
     return _faqs
         .where((f) =>
-            f.question.toLowerCase().contains(_term) ||
-            f.answer.toLowerCase().contains(_term) ||
+            l10n.t(f.questionKey).toLowerCase().contains(_term) ||
+            l10n.t(f.answerKey).toLowerCase().contains(_term) ||
             f.tags.contains(_term))
         .toList();
   }
@@ -110,9 +75,10 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final results = _results;
+    final l10n = AppLocalizations.of(context);
+    final results = _results(l10n);
     return SettingsScaffold(
-      title: 'Help Center',
+      title: l10n.t('helpCenter'),
       child: Column(
         children: [
           Padding(
@@ -123,7 +89,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
               textInputAction: TextInputAction.search,
               style: TextStyle(color: palette.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search help…',
+                hintText: l10n.t('searchHelp'),
                 hintStyle: TextStyle(color: palette.textFaint),
                 prefixIcon:
                     Icon(Icons.search_rounded, color: palette.textSecondary),
@@ -167,7 +133,10 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                         Icon(Icons.help_outline_rounded,
                             color: palette.textFaint, size: 40),
                         const SizedBox(height: AppSpacing.sm),
-                        Text('No results for “${_query.text.trim()}”',
+                        Text(
+                            l10n
+                                .t('helpNoResults')
+                                .replaceFirst('{q}', _query.text.trim()),
                             style: AppText.body
                                 .copyWith(color: palette.textSecondary)),
                       ],
@@ -183,7 +152,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                           color: AppColors.primaryGreen),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text('Still need help?',
+                        child: Text(l10n.t('stillNeedHelp'),
                             style: AppText.subtitle
                                 .copyWith(color: palette.textPrimary)),
                       ),
@@ -194,8 +163,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                                 supportEmail: widget.supportEmail),
                           ),
                         ),
-                        child: const Text('Contact us',
-                            style: TextStyle(
+                        child: Text(l10n.t('contactUs'),
+                            style: const TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontWeight: FontWeight.w700)),
                       ),
@@ -219,6 +188,7 @@ class _FaqTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Container(
@@ -240,12 +210,12 @@ class _FaqTile extends StatelessWidget {
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               iconColor: AppColors.primaryGreen,
               collapsedIconColor: palette.textSecondary,
-              title: Text(faq.question,
+              title: Text(l10n.t(faq.questionKey),
                   style: AppText.subtitle.copyWith(color: palette.textPrimary)),
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(faq.answer,
+                  child: Text(l10n.t(faq.answerKey),
                       style: AppText.body.copyWith(
                           color: palette.textSecondary, height: 1.5)),
                 ),

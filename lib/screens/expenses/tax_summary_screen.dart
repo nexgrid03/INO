@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/expense_store.dart';
 import '../../services/tax_summary_pdf.dart';
@@ -32,6 +33,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
 
   Future<void> _export(TaxSummary summary) async {
     if (_exporting) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _exporting = true);
     final origin = shareOrigin(context);
     try {
@@ -43,8 +45,8 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
       );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not generate the PDF. Please try again.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.t('couldNotGeneratePdf')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.critical,
         ));
@@ -57,6 +59,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: SafeArea(
@@ -96,7 +99,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Net (Income − Expenses)',
+                              Text(l10n.t('netIncomeMinusExpenses'),
                                   style: AppText.caption.copyWith(
                                       color:
                                           Colors.white.withValues(alpha: 0.9))),
@@ -110,7 +113,12 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
                                         .copyWith(color: Colors.white)),
                               ),
                               const SizedBox(height: 4),
-                              Text('${s.transactionCount} transactions · FY ${s.year.label}',
+                              Text(
+                                  l10n
+                                      .t('transactionsForYear')
+                                      .replaceFirst(
+                                          '{n}', '${s.transactionCount}')
+                                      .replaceFirst('{fy}', s.year.label),
                                   style: AppText.caption.copyWith(
                                       color: Colors.white
                                           .withValues(alpha: 0.85))),
@@ -125,26 +133,26 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
                               vertical: AppSpacing.xs),
                           child: Column(
                             children: [
-                              _line(context, 'Total Income', s.totalIncome,
-                                  Icons.south_west_rounded,
+                              _line(context, l10n.t('totalIncome'),
+                                  s.totalIncome, Icons.south_west_rounded,
                                   color: AppColors.primaryGreen),
                               _div(palette),
-                              _line(context, 'Total Expenses', s.totalExpenses,
-                                  Icons.north_east_rounded),
+                              _line(context, l10n.t('totalExpenses'),
+                                  s.totalExpenses, Icons.north_east_rounded),
                               _div(palette),
-                              _line(context, 'Total Investments',
+                              _line(context, l10n.t('totalInvestments'),
                                   s.totalInvestments, Icons.trending_up_rounded),
                               _div(palette),
-                              _line(context, 'Insurance Premiums',
+                              _line(context, l10n.t('insurancePremiums'),
                                   s.insurancePremiums, Icons.shield_rounded),
                               _div(palette),
-                              _line(context, 'Medical Expenses',
+                              _line(context, l10n.t('medicalExpenses'),
                                   s.medicalExpenses, Icons.favorite_rounded),
                               _div(palette),
-                              _line(context, 'Rent Paid', s.rentPaid,
+                              _line(context, l10n.t('rentPaid'), s.rentPaid,
                                   Icons.home_rounded),
                               _div(palette),
-                              _line(context, 'Tax Paid', s.taxPaid,
+                              _line(context, l10n.t('taxPaid'), s.taxPaid,
                                   Icons.gavel_rounded),
                             ],
                           ),
@@ -156,8 +164,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'A personal record summary for reference while '
-                          'preparing your ITR - not a certified tax document.',
+                          l10n.t('taxSummaryDisclaimer'),
                           style: AppText.caption
                               .copyWith(color: palette.textFaint, height: 1.4),
                         ),
@@ -230,14 +237,16 @@ class _ExportButton extends StatelessWidget {
                     child: CircularProgressIndicator(
                         strokeWidth: 2.4,
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                : const Row(
+                : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.picture_as_pdf_rounded,
+                      const Icon(Icons.picture_as_pdf_rounded,
                           color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('Generate Tax Summary (PDF)',
-                          style: TextStyle(
+                      const SizedBox(width: 8),
+                      Text(
+                          AppLocalizations.of(context)
+                              .t('generateTaxSummaryPdf'),
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               fontSize: 14.5)),
@@ -289,7 +298,7 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tax Summary',
+                Text(AppLocalizations.of(context).t('taxSummary'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 Text('FY $yearLabel',

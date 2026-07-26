@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
@@ -151,6 +152,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   Future<void> _attach() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final choice = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -172,28 +174,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ListTile(
               leading:
                   const Icon(Icons.photo_camera_rounded, color: AppColors.primaryGreen),
-              title: const Text('Camera'),
-              subtitle: const Text('Snap the receipt - auto-reads details'),
+              title: Text(l10n.t('camera')),
+              subtitle: Text(l10n.t('snapReceiptSubtitle')),
               onTap: () => Navigator.of(context).pop('camera'),
             ),
             ListTile(
               leading:
                   const Icon(Icons.image_rounded, color: AppColors.primaryGreen),
-              title: const Text('Gallery'),
-              subtitle: const Text('Pick a photo or payment screenshot'),
+              title: Text(l10n.t('gallery')),
+              subtitle: Text(l10n.t('pickPhotoSubtitle')),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
               leading: const Icon(Icons.picture_as_pdf_rounded,
                   color: AppColors.lightBlue),
-              title: const Text('PDF Receipt'),
+              title: Text(l10n.t('pdfReceipt')),
               onTap: () => Navigator.of(context).pop('pdf'),
             ),
             if (_receiptPath != null)
               ListTile(
                 leading:
                     const Icon(Icons.delete_rounded, color: AppColors.critical),
-                title: const Text('Remove attachment'),
+                title: Text(l10n.t('removeAttachment')),
                 onTap: () => Navigator.of(context).pop('remove'),
               ),
             const SizedBox(height: AppSpacing.xs),
@@ -215,9 +217,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final access = await CameraPermissionService.instance.requestCamera();
         if (access != CameraAccess.granted) {
           _toast(
-              access == CameraAccess.permanentlyDenied
-                  ? 'Camera access is blocked - enable it in Settings'
-                  : 'Camera access is needed to snap a receipt',
+              l10n.t(access == CameraAccess.permanentlyDenied
+                  ? 'cameraAccessBlockedReceipt'
+                  : 'cameraAccessNeededReceipt'),
               error: true);
           if (access == CameraAccess.permanentlyDenied) {
             await CameraPermissionService.instance.openSettings();
@@ -236,9 +238,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final access = await CameraPermissionService.instance.requestPhotos();
         if (access != CameraAccess.granted) {
           _toast(
-              access == CameraAccess.permanentlyDenied
-                  ? 'Photo access is blocked - enable it in Settings'
-                  : 'Photo access is needed to attach a screenshot',
+              l10n.t(access == CameraAccess.permanentlyDenied
+                  ? 'photoAccessBlocked'
+                  : 'photoAccessNeeded'),
               error: true);
           if (access == CameraAccess.permanentlyDenied) {
             await CameraPermissionService.instance.openSettings();
@@ -265,7 +267,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     } on PdfImportException catch (e) {
       if (mounted) _toast(e.message, error: true);
     } catch (_) {
-      if (mounted) _toast('Could not attach the receipt', error: true);
+      if (mounted) _toast(l10n.t('couldNotAttachReceipt'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -279,12 +281,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   /// so "Clear" can discard the extraction. OCR failure is non-fatal - the form
   /// stays fully usable.
   Future<void> _runOcr(String path) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _scanning = true);
     try {
       final data = await ReceiptScanService.instance.scan(path);
       if (!mounted || data.isEmpty) {
         if (mounted) {
-          _toast('Couldn\'t read the receipt - fill manually', error: true);
+          _toast(l10n.t('couldntReadReceipt'), error: true);
         }
         return;
       }
@@ -353,14 +356,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ..addAll(filled);
       });
       if (amountUnread) {
-        _toast('Couldn\'t read amount - enter it manually', error: true);
+        _toast(l10n.t('couldntReadAmount'), error: true);
       } else if (filled.isEmpty) {
-        _toast('Nothing new to fill from the receipt');
+        _toast(l10n.t('nothingNewFromReceipt'));
       }
     } catch (_) {
       // OCR / network failure → keep the form usable.
       if (mounted) {
-        _toast('Couldn\'t read the receipt - fill manually', error: true);
+        _toast(l10n.t('couldntReadReceipt'), error: true);
       }
     } finally {
       if (mounted) setState(() => _scanning = false);
@@ -369,25 +372,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   Future<bool?> _askReplaceExisting() {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Replace existing values?'),
+        title: Text(l10n.t('replaceExistingTitle')),
         content: Text(
-          'The receipt has details for fields you\'ve already filled. Replace '
-          'them, or keep what you typed and only fill the empty fields?',
+          l10n.t('replaceExistingBody'),
           style: TextStyle(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep mine'),
+            child: Text(l10n.t('keepMine')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Replace',
-                style: TextStyle(color: AppColors.primaryGreen)),
+            child: Text(l10n.t('replace'),
+                style: const TextStyle(color: AppColors.primaryGreen)),
           ),
         ],
       ),
@@ -414,13 +417,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   void _save() {
+    final l10n = AppLocalizations.of(context);
     final desc = _description.text.trim();
     if (desc.isEmpty) {
-      _toast('Enter a description', error: true);
+      _toast(l10n.t('enterDescription'), error: true);
       return;
     }
     if (_value <= 0) {
-      _toast('Enter an amount greater than 0', error: true);
+      _toast(l10n.t('enterAmountGreaterThanZero'), error: true);
       return;
     }
     final ref = _reference.text.trim().isEmpty ? null : _reference.text.trim();
@@ -478,6 +482,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final editing = widget.existing != null;
     return Scaffold(
       backgroundColor: palette.bg,
@@ -485,7 +490,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Column(
           children: [
             _Header(
-                title: editing ? 'Edit Transaction' : 'Add Transaction',
+                title: l10n.t(editing ? 'editTransaction' : 'addTransaction'),
                 onBack: () => Navigator.of(context).maybePop()),
             Expanded(
               child: SingleChildScrollView(
@@ -496,7 +501,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _Segmented(
-                      options: const ['Expense', 'Income'],
+                      options: [l10n.t('expense'), l10n.t('income')],
                       selectedIndex: _type == TransactionType.income ? 1 : 0,
                       onChanged: (i) => _onTypeChanged(i == 1
                           ? TransactionType.income
@@ -530,7 +535,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              'Couldn\'t read amount - enter it manually',
+                              l10n.t('couldntReadAmount'),
                               style: AppText.caption
                                   .copyWith(color: AppColors.critical),
                             ),
@@ -541,7 +546,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     const SizedBox(height: AppSpacing.md),
                     // Feature 2 - money direction, defaulted from the type above.
                     _Field(
-                      label: 'Direction',
+                      label: l10n.t('direction'),
                       child: DirectionToggle(
                         value: _direction,
                         highlight: _directionAutoSet,
@@ -550,13 +555,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _Field(
-                      label: 'Description',
-                      child: _input(_description, 'e.g. Office rent',
+                      label: l10n.t('description'),
+                      child: _input(_description, l10n.t('descriptionHint'),
                           cap: TextCapitalization.sentences),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _Field(
-                      label: 'Category',
+                      label: l10n.t('category'),
                       child: _CategoryPicker(
                         selected: _category,
                         onChanged: (c) => setState(() => _category = c),
@@ -566,7 +571,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     Row(children: [
                       Expanded(
                         child: _Field(
-                          label: 'Date',
+                          label: l10n.t('date'),
                           child: _Selector(
                               value: _fmtDate(_date),
                               icon: Icons.event_rounded,
@@ -576,9 +581,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: _Field(
-                          label: 'Transaction ID',
+                          label: l10n.t('transactionId'),
                           optional: true,
-                          child: _input(_reference, 'TXN123456'),
+                          child: _input(_reference, l10n.t('transactionIdHint')),
                         ),
                       ),
                     ]),
@@ -586,7 +591,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     Row(children: [
                       Expanded(
                         child: _Field(
-                          label: 'GST Amount',
+                          label: l10n.t('gstAmount'),
                           optional: true,
                           child: _input(_gst, '0', number: true),
                         ),
@@ -594,16 +599,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: _Field(
-                          label: 'Vendor Name',
+                          label: l10n.t('vendorName'),
                           optional: true,
-                          child: _input(_vendor, 'e.g. Reliance',
+                          child: _input(_vendor, l10n.t('vendorNameHint'),
                               cap: TextCapitalization.words),
                         ),
                       ),
                     ]),
                     const SizedBox(height: AppSpacing.md),
                     _Field(
-                      label: 'Payment Method',
+                      label: l10n.t('paymentMethod'),
                       optional: true,
                       child: _PaymentPicker(
                         selected: _payment,
@@ -613,9 +618,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _Field(
-                      label: 'Notes',
+                      label: l10n.t('notes'),
                       optional: true,
-                      child: _input(_note, 'Anything to remember…',
+                      child: _input(_note, l10n.t('notesHint'),
                           cap: TextCapitalization.sentences, maxLines: 3),
                     ),
                   ],
@@ -626,7 +631,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
       bottomNavigationBar: _SaveBar(
-          onSave: _save, label: editing ? 'Save Changes' : 'Add Transaction'),
+          onSave: _save,
+          label: l10n.t(editing ? 'saveChanges' : 'addTransaction')),
     );
   }
 
@@ -742,7 +748,7 @@ class _CategoryPicker extends StatelessWidget {
                   children: [
                     Icon(c.icon, size: 15, color: c.color),
                     const SizedBox(width: 5),
-                    Text(c.label,
+                    Text(c.label(AppLocalizations.of(context)),
                         style: AppText.caption.copyWith(
                             color: palette.textPrimary,
                             fontWeight: c == selected
@@ -799,7 +805,7 @@ class _PaymentPicker extends StatelessWidget {
                             ? AppColors.primaryGreen
                             : palette.textSecondary),
                     const SizedBox(width: 5),
-                    Text(m.label,
+                    Text(m.label(AppLocalizations.of(context)),
                         style: AppText.caption.copyWith(
                             color: palette.textPrimary,
                             fontWeight: m == selected
@@ -838,10 +844,11 @@ class _UploadProof extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final empty = path == null;
     return Semantics(
       button: true,
-      label: empty ? 'Upload payment proof' : 'Change payment proof',
+      label: l10n.t(empty ? 'uploadPaymentProof' : 'changePaymentProof'),
       child: PressableScale(
         pressedScale: 0.99,
         child: GestureDetector(
@@ -860,7 +867,7 @@ class _UploadProof extends StatelessWidget {
                             child:
                                 CircularProgressIndicator(strokeWidth: 2.4)),
                         const SizedBox(width: AppSpacing.sm),
-                        Text(scanning ? 'Scanning…' : 'Attaching…',
+                        Text(l10n.t(scanning ? 'scanning' : 'attaching'),
                             style: AppText.body
                                 .copyWith(color: palette.textSecondary)),
                       ],
@@ -885,14 +892,12 @@ class _UploadProof extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Upload payment proof',
+                                  Text(l10n.t('uploadPaymentProof'),
                                       style: AppText.subtitle.copyWith(
                                           color: palette.textPrimary,
                                           fontSize: 14)),
                                   const SizedBox(height: 2),
-                                  Text(
-                                      'Upload receipt or payment screenshot to '
-                                      'auto-fill',
+                                  Text(l10n.t('uploadProofSubtitle'),
                                       style: AppText.caption.copyWith(
                                           color: palette.textSecondary)),
                                 ],
@@ -933,9 +938,9 @@ class _UploadProof extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                  isPdf
-                                      ? 'PDF attached · tap to change'
-                                      : 'Attached · tap to change',
+                                  l10n.t(isPdf
+                                      ? 'pdfAttachedTapChange'
+                                      : 'attachedTapChange'),
                                   style: AppText.body
                                       .copyWith(color: palette.textPrimary)),
                             ),
@@ -1050,6 +1055,7 @@ class _AutoFilledNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1063,7 +1069,7 @@ class _AutoFilledNote extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Auto-filled from receipt',
+              l10n.t('autoFilledFromReceipt'),
               style: AppText.caption.copyWith(
                   color: AppColors.darkGreen, fontWeight: FontWeight.w700),
             ),
@@ -1075,8 +1081,8 @@ class _AutoFilledNote extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Semantics(
                 button: true,
-                label: 'Clear auto-filled values',
-                child: Text('Clear',
+                label: l10n.t('clearAutoFilled'),
+                child: Text(l10n.t('clear'),
                     style: AppText.caption.copyWith(
                         color: palette.textSecondary,
                         fontWeight: FontWeight.w700)),
@@ -1108,7 +1114,7 @@ class _Field extends StatelessWidget {
                   .copyWith(color: palette.textFaint, fontSize: 11.5)),
           if (optional) ...[
             const SizedBox(width: 6),
-            Text('Optional',
+            Text(AppLocalizations.of(context).t('optional'),
                 style: AppText.label
                     .copyWith(color: palette.textFaint, fontSize: 10.5)),
           ],

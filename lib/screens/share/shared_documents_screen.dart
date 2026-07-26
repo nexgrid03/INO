@@ -8,8 +8,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/share_origin.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/public_share.dart';
 import '../../repositories/share_repository.dart';
+import 'qr_share_screen.dart' show remainingShareLabel;
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -94,6 +96,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
 
   Future<void> _open(SharedDoc doc, {required bool download}) async {
     if (_busyDocId != null) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busyDocId = doc.id);
     final origin = shareOrigin(context);
     try {
@@ -113,13 +116,13 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
       } else {
         final result = await OpenFilex.open(path, type: file.mimeType);
         if (result.type != ResultType.done) {
-          _toast('No app available to open this file.', error: true);
+          _toast(l10n.t('noAppToOpenFile'), error: true);
         }
       }
     } on ShareException catch (e) {
       _toast(e.message, error: true);
     } catch (_) {
-      _toast('Could not ${download ? 'download' : 'open'} this document.',
+      _toast(l10n.t(download ? 'couldNotDownloadDoc' : 'couldNotOpenDoc'),
           error: true);
     } finally {
       if (mounted) setState(() => _busyDocId = null);
@@ -145,6 +148,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   }
 
   Widget _body(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primaryGreen),
@@ -157,35 +161,36 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
         return _TerminalState(
           icon: Icons.timer_off_rounded,
           color: AppColors.warning,
-          title: 'This share link has expired',
-          subtitle: 'The documents are no longer available.',
+          title: l10n.t('shareLinkExpiredTitle'),
+          subtitle: l10n.t('shareLinkExpiredBody'),
         );
       case PublicShareStatus.revoked:
         return _TerminalState(
           icon: Icons.link_off_rounded,
           color: AppColors.critical,
-          title: 'This share link has been revoked',
-          subtitle: 'The owner has turned off access to these documents.',
+          title: l10n.t('shareLinkRevokedTitle'),
+          subtitle: l10n.t('shareLinkRevokedBody'),
         );
       case PublicShareStatus.notFound:
         return _TerminalState(
           icon: Icons.help_outline_rounded,
           color: palette.textFaint,
-          title: 'Link not found',
-          subtitle: 'This shared link doesn’t exist.',
+          title: l10n.t('linkNotFound'),
+          subtitle: l10n.t('linkNotFoundBody'),
         );
       case PublicShareStatus.error:
         return _TerminalState(
           icon: Icons.wifi_off_rounded,
           color: palette.textFaint,
-          title: 'Couldn’t load this share',
-          subtitle: 'Check your connection and try again.',
+          title: l10n.t('couldntLoadShare'),
+          subtitle: l10n.t('checkConnection'),
           onRetry: _load,
         );
     }
   }
 
   Widget _activeBody(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final share = _share!;
     final docs = share.documents;
     return ListView(
@@ -193,13 +198,15 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.lg),
       children: [
-        Text('Shared Documents',
+        Text(l10n.t('sharedDocuments'),
             style: AppText.headline.copyWith(color: palette.textPrimary)),
         const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             Text(
-              '${share.count} document${share.count == 1 ? '' : 's'}',
+              l10n
+                  .t(share.count == 1 ? 'docCountOne' : 'docCountMany')
+                  .replaceFirst('{n}', '${share.count}'),
               style: AppText.subtitle.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -256,7 +263,7 @@ class _Brand extends StatelessWidget {
               Text('INO',
                   style: AppText.title.copyWith(
                       color: palette.textPrimary, fontWeight: FontWeight.w900)),
-              Text('Secure document share',
+              Text(AppLocalizations.of(context).t('secureDocumentShare'),
                   style:
                       AppText.caption.copyWith(color: palette.textSecondary)),
             ],
@@ -280,7 +287,7 @@ class _Footer extends StatelessWidget {
         children: [
           Icon(Icons.lock_rounded, size: 13, color: palette.textFaint),
           const SizedBox(width: 6),
-          Text('Shared via INO · you can only view these documents',
+          Text(AppLocalizations.of(context).t('sharedViaInoFooter'),
               style: AppText.caption.copyWith(color: palette.textFaint)),
         ],
       ),
@@ -310,27 +317,13 @@ class _ExpiryPill extends StatelessWidget {
               size: 14, color: AppColors.primaryGreen),
           const SizedBox(width: 5),
           Text(
-            _label(d),
+            remainingShareLabel(AppLocalizations.of(context), d),
             style: AppText.caption.copyWith(
                 color: AppColors.darkGreen, fontWeight: FontWeight.w700),
           ),
         ],
       ),
     );
-  }
-
-  String _label(Duration d) {
-    if (d.isNegative) return 'Expired';
-    if (d.inHours >= 24) {
-      final days = d.inDays;
-      return 'Expires in $days day${days == 1 ? '' : 's'}';
-    }
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    final s = d.inSeconds % 60;
-    if (h > 0) return 'Expires in ${h}h ${m}m';
-    if (m > 0) return 'Expires in ${m}m ${s}s';
-    return 'Expires in ${s}s';
   }
 }
 
@@ -405,7 +398,7 @@ class _DocCard extends StatelessWidget {
               Expanded(
                 child: _ActionButton(
                   icon: Icons.visibility_rounded,
-                  label: 'View',
+                  label: AppLocalizations.of(context).t('view'),
                   filled: true,
                   onTap: (busy || disabled) ? null : onView,
                 ),
@@ -414,7 +407,7 @@ class _DocCard extends StatelessWidget {
               Expanded(
                 child: _ActionButton(
                   icon: Icons.download_rounded,
-                  label: 'Download',
+                  label: AppLocalizations.of(context).t('download'),
                   filled: false,
                   onTap: (busy || disabled) ? null : onDownload,
                 ),
@@ -547,11 +540,11 @@ class _TerminalState extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.button),
                   child: InkWell(
                     onTap: onRetry,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
-                      child: Text('Try again',
-                          style: TextStyle(
+                      child: Text(AppLocalizations.of(context).t('tryAgain'),
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700)),
                     ),

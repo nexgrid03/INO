@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
@@ -25,7 +26,7 @@ class OtpVerificationScreen extends StatefulWidget {
     required this.onVerify,
     required this.onVerified,
     this.onResend,
-    this.title = 'Verification Code',
+    this.title,
     this.length = 6,
     this.resendSeconds = 30,
   });
@@ -37,7 +38,9 @@ class OtpVerificationScreen extends StatefulWidget {
   final void Function(BuildContext context) onVerified;
   final Future<void> Function()? onResend;
 
-  final String title;
+  /// Heading. Defaults to the localized "Verification Code" when omitted -
+  /// it can't be a const default because it has to follow the active language.
+  final String? title;
   final int length;
   final int resendSeconds;
 
@@ -97,8 +100,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   Future<void> _verify() async {
+    final l10n = AppLocalizations.of(context);
     if (_code.length != widget.length) {
-      _showMessage('Enter the full ${widget.length}-digit code.');
+      _showMessage(
+        l10n.t('otpEnterFull').replaceAll('{n}', '${widget.length}'),
+      );
       return;
     }
     setState(() => _busy = true);
@@ -108,10 +114,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       if (ok) {
         widget.onVerified(context);
       } else {
-        _showMessage('That code is incorrect or expired. Please try again.');
+        _showMessage(l10n.t('otpIncorrect'));
       }
     } catch (_) {
-      _showMessage('Could not verify the code. Please try again.');
+      _showMessage(l10n.t('otpVerifyError'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -119,14 +125,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   Future<void> _resend() async {
     if (_secondsLeft > 0 || widget.onResend == null) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _resending = true);
     try {
       await widget.onResend!();
       if (!mounted) return;
-      _showMessage('A new code is on its way.', isError: false);
+      _showMessage(l10n.t('otpResent'), isError: false);
       _startCountdown();
     } catch (_) {
-      _showMessage('Could not resend the code. Please try again.');
+      _showMessage(l10n.t('otpResendError'));
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -134,6 +141,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final canResend = _secondsLeft == 0 && !_resending;
     return AuthScaffold(
       showBack: true,
@@ -148,7 +156,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: Text(
-              widget.title,
+              widget.title ?? l10n.t('verificationCode'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 26,
@@ -162,7 +170,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             delay: const Duration(milliseconds: 110),
             child: Text.rich(
               TextSpan(
-                text: 'Enter the ${widget.length}-digit code sent to\n',
+                text:
+                    '${l10n.t('otpSentTo').replaceAll('{n}', '${widget.length}')}\n',
                 style: const TextStyle(
                   fontSize: 14.5,
                   color: AppColors.textMuted,
@@ -197,7 +206,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           FadeSlideIn(
             delay: const Duration(milliseconds: 210),
             child: AuthPrimaryButton(
-              label: 'Verify',
+              label: l10n.t('verify'),
               busy: _busy,
               onPressed: _busy ? null : _verify,
             ),
@@ -211,9 +220,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 child: canResend
                     ? TextButton(
                         onPressed: _resend,
-                        child: const Text(
-                          'Resend code',
-                          style: TextStyle(
+                        child: Text(
+                          l10n.t('resendCode'),
+                          style: const TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                           ),
@@ -221,8 +230,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       )
                     : Text(
                         _resending
-                            ? 'Sending…'
-                            : 'Resend code in 0:${_secondsLeft.toString().padLeft(2, '0')}',
+                            ? l10n.t('sending')
+                            : l10n.t('resendCodeIn').replaceAll(
+                                '{t}',
+                                '0:${_secondsLeft.toString().padLeft(2, '0')}',
+                              ),
                         style: const TextStyle(
                           color: AppColors.textMuted,
                           fontWeight: FontWeight.w500,

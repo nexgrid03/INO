@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/trusted_device_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -32,22 +33,27 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
   }
 
   Future<void> _remove(TrustedDevice device) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await TrustedDeviceService.instance.remove(device.id);
     if (!mounted) return;
     if (ok) {
-      BiometricUx.successSnack(context, 'Removed ${device.name}.');
+      BiometricUx.successSnack(
+        context,
+        l10n.t('removedDevice').replaceAll('{name}', device.name),
+      );
       _load();
     } else {
-      BiometricUx.errorSnack(context, 'You can’t remove the current device.');
+      BiometricUx.errorSnack(context, l10n.t('cantRemoveCurrentDevice'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final devices = _devices;
     return SettingsScaffold(
-      title: 'Trusted Devices',
+      title: l10n.t('trustedDevices'),
       actions: [
         IconButton(
           icon: Icon(Icons.refresh_rounded, color: palette.textPrimary),
@@ -66,7 +72,7 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
                     AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
                 children: [
                   Text(
-                    'These are the devices signed in to your INO account.',
+                    l10n.t('trustedDevicesIntro'),
                     style: AppText.body
                         .copyWith(color: palette.textSecondary, height: 1.5),
                   ),
@@ -97,6 +103,7 @@ class _DeviceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
       child: Row(
@@ -135,8 +142,8 @@ class _DeviceTile extends StatelessWidget {
                           color: AppColors.primaryGreen.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
-                        child: const Text('This device',
-                            style: TextStyle(
+                        child: Text(l10n.t('thisDevice'),
+                            style: const TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700)),
@@ -146,7 +153,10 @@ class _DeviceTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Active ${formatRelativeDate(device.lastActive)}',
+                  l10n.t('activeAgo').replaceAll(
+                        '{when}',
+                        formatRelativeDate(l10n, device.lastActive),
+                      ),
                   style: AppText.caption.copyWith(color: palette.textSecondary),
                 ),
               ],
@@ -157,7 +167,7 @@ class _DeviceTile extends StatelessWidget {
               icon: const Icon(Icons.logout_rounded,
                   color: AppColors.critical, size: 20),
               onPressed: onRemove,
-              tooltip: 'Remove device',
+              tooltip: l10n.t('removeDevice'),
             )
           else
             const SizedBox(width: 8),

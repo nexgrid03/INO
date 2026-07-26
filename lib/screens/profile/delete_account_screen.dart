@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/account_service.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_dimens.dart';
@@ -71,6 +72,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   Future<void> _delete() async {
     if (!_canSubmit) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       // Re-authenticate email/password accounts before anything destructive.
@@ -87,12 +89,11 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     } on AuthException catch (e) {
       developer.log('delete reauth failed: ${e.message}', name: 'account');
       if (!mounted) return;
-      BiometricUx.errorSnack(context, 'Your password is incorrect.');
+      BiometricUx.errorSnack(context, l10n.t('yourPasswordIncorrect'));
     } catch (e) {
       developer.log('delete error: $e', name: 'account', error: e);
       if (!mounted) return;
-      BiometricUx.errorSnack(
-          context, 'Could not delete your account. Please try again.');
+      BiometricUx.errorSnack(context, l10n.t('couldNotDeleteAccount'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -101,8 +102,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Delete Account',
+      title: l10n.t('deleteAccount'),
       child: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
@@ -121,36 +123,35 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('This can’t be undone',
+          Text(l10n.t('cantBeUndone'),
               textAlign: TextAlign.center,
               style: AppText.headline.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Deleting your account permanently removes your documents, uploaded '
-            'files, backups and profile. You will be signed out immediately.',
+            l10n.t('deleteAccountWarning'),
             textAlign: TextAlign.center,
             style:
                 AppText.body.copyWith(color: palette.textSecondary, height: 1.5),
           ),
           const SizedBox(height: AppSpacing.xl),
-          Text('Type DELETE to confirm',
+          Text(l10n.t('typeDeleteToConfirm'),
               style: AppText.subtitle.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
           AuthTextField(
             controller: _confirmWord,
-            label: 'Confirmation',
+            label: l10n.t('confirmation'),
             hint: 'DELETE',
             icon: Icons.gpp_bad_rounded,
             textCapitalization: TextCapitalization.characters,
           ),
           if (_hasPassword) ...[
             const SizedBox(height: AppSpacing.md),
-            Text('Confirm your password',
+            Text(l10n.t('confirmYourPassword'),
                 style: AppText.subtitle.copyWith(color: palette.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             AuthTextField(
               controller: _password,
-              label: 'Password',
+              label: l10n.t('password'),
               icon: Icons.lock_outline_rounded,
               obscureText: true,
               onSubmitted: (_) => _delete(),
@@ -158,7 +159,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           ],
           const SizedBox(height: AppSpacing.xl),
           SettingsPrimaryButton(
-            label: 'Permanently Delete Account',
+            label: l10n.t('permanentlyDeleteAccount'),
             icon: Icons.delete_forever_rounded,
             danger: true,
             busy: _busy,
@@ -168,7 +169,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           Center(
             child: TextButton(
               onPressed: _busy ? null : () => Navigator.of(context).maybePop(),
-              child: Text('Keep my account',
+              child: Text(l10n.t('keepMyAccount'),
                   style: TextStyle(
                       color: palette.textSecondary,
                       fontWeight: FontWeight.w700)),

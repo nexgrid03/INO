@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 
 import '../data/reminder_store.dart';
+import '../l10n/app_localizations.dart';
 import '../models/dashboard_models.dart';
 import '../models/document.dart';
 import '../models/reminder_models.dart';
@@ -22,14 +23,20 @@ class ActivityService {
   static final ActivityService instance = ActivityService._();
 
   /// Loads the most recent activity across sources.
-  Future<List<ActivityItem>> load({int limit = 40}) async {
+  ///
+  /// [l10n] renders the relative timestamps in the active language - pass the
+  /// caller's `AppLocalizations.of(context)`.
+  Future<List<ActivityItem>> load(
+    AppLocalizations l10n, {
+    int limit = 40,
+  }) async {
     final items = <ActivityItem>[];
 
     // 1. Documents (real).
     try {
       final docs = await DocumentRepository.instance.listAll();
       for (final d in docs) {
-        items.add(_fromDocument(d));
+        items.add(_fromDocument(l10n, d));
       }
     } catch (e) {
       developer.log('activity: documents unavailable: $e', name: 'activity');
@@ -46,7 +53,7 @@ class ActivityService {
           icon: Icons.alarm_rounded,
           color: r.category.color,
           at: r.date,
-          time: formatRelativeDate(r.date),
+          time: formatRelativeDate(l10n, r.date),
           kind: ActivityKind.reminder,
         ));
       }
@@ -63,7 +70,7 @@ class ActivityService {
         icon: Icons.cloud_done_rounded,
         color: AppColors.lightBlue,
         at: lastBackup,
-        time: formatRelativeDate(lastBackup),
+        time: formatRelativeDate(l10n, lastBackup),
         kind: ActivityKind.backup,
       ));
     }
@@ -81,7 +88,7 @@ class ActivityService {
     return items.take(limit).toList();
   }
 
-  ActivityItem _fromDocument(Document d) {
+  ActivityItem _fromDocument(AppLocalizations l10n, Document d) {
     final category = d.category ?? 'Document';
     return ActivityItem(
       title: '${d.name} uploaded',
@@ -90,7 +97,7 @@ class ActivityService {
       icon: _iconFor(category),
       color: _colorFor(category),
       at: d.createdAt,
-      time: formatRelativeDate(d.createdAt),
+      time: formatRelativeDate(l10n, d.createdAt),
       kind: ActivityKind.document,
     );
   }

@@ -101,7 +101,7 @@ class ShareRepository {
     developer.log(
       'RPC create_document_share → REQUEST\n'
       '  documentIds (${documentIds.length}): $documentIds\n'
-      '  duration: ${duration.label} (${duration.seconds}s)\n'
+      '  duration: ${duration.labelKey} (${duration.seconds}s)\n'
       '  payload: $payload',
       name: 'share',
     );

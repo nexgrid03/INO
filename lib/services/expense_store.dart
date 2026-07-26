@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/expense_repository.dart';
+import '../l10n/app_localizations.dart';
 import '../models/expense_models.dart';
 
 /// The single source of truth for the ITR-ready Transaction Vault.
@@ -147,8 +148,12 @@ class ExpenseStore extends ChangeNotifier {
     return base.where((t) {
       final amount = t.amount.toStringAsFixed(0);
       final date = _searchableDate(t.dateTime);
+      // The category is matched in EVERY supported language, so a query typed
+      // in the user's language hits regardless of which one the UI is showing.
+      final categories =
+          AppLocalizations.allTranslations(t.category.labelKey).join(' ');
       final hay = '${t.description} ${t.reference ?? ''} ${t.vendorName ?? ''} '
-              '$amount ${t.category.label} $date'
+              '$amount $categories $date'
           .toLowerCase();
       return hay.contains(q);
     }).toList();

@@ -142,6 +142,7 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final style = _style;
     return Material(
       color: notification.read
@@ -197,7 +198,7 @@ class _NotificationTile extends StatelessWidget {
                         style: AppText.body.copyWith(
                             color: palette.textSecondary, height: 1.4)),
                     const SizedBox(height: 6),
-                    Text(formatRelativeDate(notification.at),
+                    Text(formatRelativeDate(l10n, notification.at),
                         style: AppText.caption
                             .copyWith(color: palette.textFaint)),
                   ],

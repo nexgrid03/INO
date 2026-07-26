@@ -46,6 +46,30 @@ class AppLocalizations {
     return lang[key] ?? _strings['en']![key] ?? key;
   }
 
+  /// Short month names, indexed by `month - 1`.
+  static const List<String> _monthKeys = [
+    'monJan', 'monFeb', 'monMar', 'monApr', 'monMay', 'monJun', //
+    'monJul', 'monAug', 'monSep', 'monOct', 'monNov', 'monDec',
+  ];
+
+  /// The abbreviated month name ("Jan") in the active language. [month] is 1-12.
+  String monthShort(int month) => t(_monthKeys[month - 1]);
+
+  /// The English text for [key], regardless of the active language.
+  ///
+  /// For the handful of places that must stay language-independent: file names,
+  /// export/PDF metadata and debug logs.
+  static String english(String key) => _strings['en']![key] ?? key;
+
+  /// Every translation of [key] across the supported languages.
+  ///
+  /// Used by search indexes so a query matches whichever language the user is
+  /// typing in, not just the one the UI happens to be showing.
+  static List<String> allTranslations(String key) => [
+        for (final lang in _strings.values)
+          if (lang[key] != null) lang[key]!,
+      ];
+
   // Convenience getters for the highest-traffic strings.
   String get home => t('home');
   String get wallet => t('wallet');
@@ -730,6 +754,477 @@ const Map<String, Map<String, String>> _strings = {
     'securityScoreSubtitle': 'Based on your device and account protections.',
     'insuranceCoverage': 'Insurance coverage',
     'coverageFallback': 'Total cover ₹1.2 Cr · 5 active policies',
+    // Shell / bottom nav / quick menu / first-run tour
+    'skip': 'Skip',
+    'next': 'Next',
+    'quickAdd': 'Quick Add',
+    'voiceAssistant': 'Voice Assistant',
+    'tourHomeBody': 'Your dashboard - everything important at a glance.',
+    'tourVaultBody': 'Secure wallets for all your documents.',
+    'tourQuickAddBody': 'Scan documents, add expenses or jot a note.',
+    'tourAlertsBody': 'Reminders so renewals never slip past you.',
+    'tourProfileBody': 'Your account, security and settings.',
+    'tourVoiceBody': 'Navigate hands-free - try saying "Open documents".',
+    'comingSoon': 'Coming soon',
+    'signOut': 'Sign out',
+    'guestVaultMessage': 'Sign in to open your secure vault.',
+    'guestScanMessage': 'Scan documents straight into your secure vault.',
+    'guestAlertsMessage': 'Sign in to set reminders and alerts.',
+    'guestProfileMessage': 'Sign in to manage your account.',
+    'customizeQuickMenu': 'Customize Quick Menu',
+    'quickMenuPickHint': 'Pick up to {n} features for the + button',
+    'slideToOpenHint': 'Slide to an option, release to open',
+    'emi': 'EMI',
+    'sip': 'SIP',
+    'goldShort': 'Gold',
+    'tax': 'Tax',
+    'valuation': 'Valuation',
+    'addExpense': 'Add Expense',
+    'taxRecords': 'Tax Records',
+    // Expenses - transaction type / direction / category / payment method
+    'expense': 'Expense',
+    'income': 'Income',
+    'debited': 'Debited',
+    'credited': 'Credited',
+    'moneyOut': 'money out',
+    'moneyIn': 'money in',
+    'catSalary': 'Salary',
+    'catBusiness': 'Business',
+    'catInvestment': 'Investment',
+    'catRent': 'Rent',
+    'catInsurance': 'Insurance',
+    'catMedical': 'Medical',
+    'catEducation': 'Education',
+    'catTravel': 'Travel',
+    'catFood': 'Food',
+    'catShopping': 'Shopping',
+    'catUtilities': 'Utilities',
+    'catLoanEmi': 'Loan / EMI',
+    'catTaxPayment': 'Tax Payment',
+    'catOther': 'Other',
+    'pmCash': 'Cash',
+    'pmUpi': 'UPI',
+    'pmCard': 'Card',
+    'pmNetBanking': 'Net Banking',
+    'pmCheque': 'Cheque',
+    'pmOther': 'Other',
+    'taxDocForm16': 'Form 16',
+    'taxDocForm26AS': 'Form 26AS',
+    'taxDocAis': 'AIS',
+    'taxDocTds': 'TDS Certificates',
+    'taxDocSalarySlip': 'Salary Slips',
+    'taxDocInvestmentProof': 'Investment Proofs',
+    'taxDocRentReceipt': 'Rent Receipts',
+    'taxDocMedicalBill': 'Medical Bills',
+    'taxDocInsurancePremium': 'Insurance Premium Receipts',
+    'taxDocHomeLoanInterest': 'Home Loan Interest Certificates',
+    // Add / edit transaction
+    'editTransaction': 'Edit Transaction',
+    'addTransaction': 'Add Transaction',
+    'saveChanges': 'Save Changes',
+    'snapReceiptSubtitle': 'Snap the receipt - auto-reads details',
+    'pickPhotoSubtitle': 'Pick a photo or payment screenshot',
+    'pdfReceipt': 'PDF Receipt',
+    'removeAttachment': 'Remove attachment',
+    'photoAccessBlocked': 'Photo access is blocked - enable it in Settings',
+    'photoAccessNeeded': 'Photo access is needed to attach a screenshot',
+    'cameraAccessBlockedReceipt':
+        'Camera access is blocked - enable it in Settings',
+    'cameraAccessNeededReceipt': 'Camera access is needed to snap a receipt',
+    'couldNotAttachReceipt': 'Could not attach the receipt',
+    'couldntReadReceipt': 'Couldn\'t read the receipt - fill manually',
+    'couldntReadAmount': 'Couldn\'t read amount - enter it manually',
+    'nothingNewFromReceipt': 'Nothing new to fill from the receipt',
+    'replaceExistingTitle': 'Replace existing values?',
+    'replaceExistingBody':
+        'The receipt has details for fields you\'ve already filled. Replace '
+            'them, or keep what you typed and only fill the empty fields?',
+    'keepMine': 'Keep mine',
+    'replace': 'Replace',
+    'enterDescription': 'Enter a description',
+    'enterAmountGreaterThanZero': 'Enter an amount greater than 0',
+    'direction': 'Direction',
+    'description': 'Description',
+    'descriptionHint': 'e.g. Office rent',
+    'date': 'Date',
+    'transactionId': 'Transaction ID',
+    'transactionIdHint': 'TXN123456',
+    'gstAmount': 'GST Amount',
+    'vendorName': 'Vendor Name',
+    'vendorNameHint': 'e.g. Reliance',
+    'paymentMethod': 'Payment Method',
+    'notesHint': 'Anything to remember…',
+    'scanning': 'Scanning…',
+    'attaching': 'Attaching…',
+    'uploadPaymentProof': 'Upload payment proof',
+    'changePaymentProof': 'Change payment proof',
+    'uploadProofSubtitle':
+        'Upload receipt or payment screenshot to auto-fill',
+    'pdfAttachedTapChange': 'PDF attached · tap to change',
+    'attachedTapChange': 'Attached · tap to change',
+    'autoFilledFromReceipt': 'Auto-filled from receipt',
+    'clearAutoFilled': 'Clear auto-filled values',
+    // Transaction vault dashboard
+    'transactionVault': 'Transaction Vault',
+    'financialYear': 'Financial Year',
+    'taxSummary': 'Tax Summary',
+    'noTransactionsMatch': 'No transactions match your search',
+    'recentTransactions': 'Recent Transactions',
+    'couldntLoadTransactions': 'Couldn\'t load transactions',
+    'noTransactionsYet': 'No Transactions Yet',
+    'noTransactionsYetSubtitle':
+        'Store your transaction receipts and payment records securely.',
+    'addFirstTransaction': 'Add First Transaction',
+    'totalTransactions': 'Total Transactions',
+    'totalAmount': 'Total Amount',
+    'searchTxnHint': 'Search by ID, vendor, amount or date',
+    // Transaction details
+    'transaction': 'Transaction',
+    'deleteTransactionTitle': 'Delete transaction?',
+    'deleteTransactionBody': 'This record will be removed from your vault.',
+    'transactionNotFound': 'Transaction not found',
+    'dateAndTime': 'Date & Time',
+    'vendor': 'Vendor',
+    'receiptScreenshot': 'Receipt / Screenshot',
+    'noReceiptAttached': 'No receipt attached',
+    'pdfReceiptTapToOpen': 'PDF receipt · tap to open',
+    'imageUnavailable': 'Image unavailable',
+    'downloadShare': 'Download / Share',
+    'receiptFor': 'Receipt for {name}',
+    // Tax records vault
+    'uploadType': 'Upload {type}',
+    'photoImage': 'Photo / Image',
+    'pdf': 'PDF',
+    'photoAccessNeededUpload': 'Photo access is needed to upload',
+    'couldNotUploadDocument': 'Could not upload the document',
+    'noTaxDocsToShare': 'No tax documents to share for FY {fy}',
+    'taxDocsForYear': '{n} tax document(s) for FY {fy}',
+    'couldNotShareTaxFolder': 'Could not share the tax folder',
+    'noFilesYet': 'No files yet',
+    'filesCount': '{n} file(s)',
+    'fyDocumentsCount': 'FY {fy} · {n} document(s)',
+    // Tax summary
+    'couldNotGeneratePdf': 'Could not generate the PDF. Please try again.',
+    'netIncomeMinusExpenses': 'Net (Income − Expenses)',
+    'transactionsForYear': '{n} transactions · FY {fy}',
+    'totalIncome': 'Total Income',
+    'totalExpenses': 'Total Expenses',
+    'totalInvestments': 'Total Investments',
+    'insurancePremiums': 'Insurance Premiums',
+    'medicalExpenses': 'Medical Expenses',
+    'rentPaid': 'Rent Paid',
+    'taxPaid': 'Tax Paid',
+    'generateTaxSummaryPdf': 'Generate Tax Summary (PDF)',
+    'taxSummaryDisclaimer':
+        'A personal record summary for reference while preparing your ITR - '
+            'not a certified tax document.',
+    // Short month names (see AppLocalizations.monthShort)
+    'monJan': 'Jan',
+    'monFeb': 'Feb',
+    'monMar': 'Mar',
+    'monApr': 'Apr',
+    'monMay': 'May',
+    'monJun': 'Jun',
+    'monJul': 'Jul',
+    'monAug': 'Aug',
+    'monSep': 'Sep',
+    'monOct': 'Oct',
+    'monNov': 'Nov',
+    'monDec': 'Dec',
+    // Sharing - manage shares
+    'sharedLinksTitle': 'Shared Links',
+    'sharedLinksSubtitle': 'Review activity & revoke access anytime',
+    'revokeThisLinkTitle': 'Revoke this link?',
+    'revokeThisLinkBody':
+        'Anyone holding this link or QR code will immediately lose access. '
+            'This cannot be undone.',
+    'revoke': 'Revoke',
+    'shareRevoked': 'Share revoked',
+    'couldNotRevoke': 'Could not revoke - please try again',
+    'activeLinksSection': 'ACTIVE LINKS',
+    'historySection': 'HISTORY',
+    'views': 'Views',
+    'downloads': 'Downloads',
+    'revoked': 'Revoked',
+    'docCountOne': '{n} Document',
+    'docCountMany': '{n} Documents',
+    'viewCountOne': '{n} view',
+    'viewCountMany': '{n} views',
+    'downloadCountOne': '{n} download',
+    'downloadCountMany': '{n} downloads',
+    'createdOn': 'Created {date}',
+    'expiredOn': 'Expired {date}',
+    'accessRevoked': 'Access revoked',
+    'expiresInDaysShort': 'Expires in {n}d',
+    'expiresInHoursShort': 'Expires in {n}h',
+    'expiresInMinutesShort': 'Expires in {n}m',
+    'expiringNow': 'Expiring now',
+    'noSharedLinksYet': 'No shared links yet',
+    'noSharedLinksSubtitle':
+        'Select documents in a wallet and tap “Share via QR” to create a '
+            'secure, expiring link.',
+    // Sharing - QR share screen
+    'linkCopied': 'Link copied to clipboard',
+    'couldNotExportQr': 'Could not export the QR image.',
+    'shareRevokedLinkDead': 'Share revoked - the link no longer works',
+    'couldNotRevokeShare': 'Could not revoke the share. Please try again.',
+    'revokeAccessTitle': 'Revoke access?',
+    'revokeAccessBody':
+        'Anyone who already has this QR or link will immediately lose access. '
+            'This cannot be undone.',
+    'keep': 'Keep',
+    'previewRecipients': 'Preview what recipients see',
+    'shareRevokedState': 'This share has been revoked.',
+    'shareExpiredState': 'This shared link has expired.',
+    'noDocsThroughQr': 'No documents are accessible through this QR anymore.',
+    'shareReady': 'Share Ready',
+    'shareRevokedTitle': 'Share Revoked',
+    'shareExpiredTitle': 'Share Expired',
+    'anyoneCanScan': 'Anyone can scan to view the shared documents',
+    'expiresInDaysLong': 'Expires in {n} days',
+    'expiresInOneDay': 'Expires in 1 day',
+    'expiresInHm': 'Expires in {h}h {m}m',
+    'expiresInMs': 'Expires in {m}m {s}s',
+    'expiresInS': 'Expires in {s}s',
+    'docsSharedCount': '{n} documents shared',
+    'copyLink': 'Copy link',
+    'copyLinkAction': 'Copy Link',
+    'shareLinkAction': 'Share Link',
+    'downloadQr': 'Download QR',
+    'revokeAccess': 'Revoke Access',
+    // Sharing - share configuration
+    'couldNotGenerateShare': 'Could not generate the share. Please try again.',
+    'qrBackendNotConfigured': 'QR Sharing Backend Not Configured',
+    'qrBackendNotConfiguredBody':
+        'The sharing service isn’t set up on the server yet. Deploy the '
+            'Supabase migration and the “share” Edge Function '
+            '(see supabase/README_document_sharing.md), then try again.',
+    'selectedDocuments': 'Selected Documents',
+    'expiryDuration': 'Expiry Duration',
+    'expiryDurationHint':
+        'The QR code stops working automatically when it expires.',
+    'docsSelected': '{n} documents selected',
+    'shareSecurityNote':
+        'Anyone with the link can view only these documents until it expires. '
+            'Your wallet, account and other documents stay private. You can '
+            'revoke access at any time.',
+    'generateQr': 'Generate QR',
+    'dur10Minutes': '10 Minutes',
+    'dur1Hour': '1 Hour',
+    'dur24Hours': '24 Hours',
+    'dur7Days': '7 Days',
+    // Sharing - share settings (copy style)
+    'couldNotGenerateShareCopy':
+        'Could not generate the share copy. Please try again.',
+    'couldNotCreateQr': 'Could not create the QR code. Please try again.',
+    'sharingNotSetUp': 'Sharing Not Set Up',
+    'sharingNotSetUpBody':
+        'The document sharing service isn’t deployed on the server yet. '
+            'Deploy the Supabase migration and the “share” Edge Function '
+            '(see supabase/README_document_sharing.md), then try again. You '
+            'can still use “Generate & Share” to send the copy directly now.',
+    'shareSettings': 'Share Settings',
+    'docsOriginalStaysSafe': '{n} documents · original stays safe',
+    'copyStylesPdfNote':
+        'Copy styles apply to image documents. PDFs are shared as-is; the link '
+            'expiry below still applies.',
+    'copyStyle': 'Copy Style',
+    'linkExpiry': 'Link Expiry',
+    'linkExpiryHint':
+        'Recipients scan the QR to view the shared copy in your secure INO '
+            'viewer. The link stops working when it expires, and you can '
+            'revoke it anytime.',
+    'expireAfter': 'Expire after {d}',
+    'createQrCode': 'Create QR Code',
+    'generateAndShare': 'Generate & Share',
+    'colorOriginal': 'Original Color',
+    'compressedPdf': 'Compressed PDF',
+    // Sharing - recipient viewer
+    'noAppToOpenFile': 'No app available to open this file.',
+    'couldNotDownloadDoc': 'Could not download this document.',
+    'couldNotOpenDoc': 'Could not open this document.',
+    'shareLinkExpiredTitle': 'This share link has expired',
+    'shareLinkExpiredBody': 'The documents are no longer available.',
+    'shareLinkRevokedTitle': 'This share link has been revoked',
+    'shareLinkRevokedBody':
+        'The owner has turned off access to these documents.',
+    'linkNotFound': 'Link not found',
+    'linkNotFoundBody': 'This shared link doesn’t exist.',
+    'couldntLoadShare': 'Couldn’t load this share',
+    'checkConnection': 'Check your connection and try again.',
+    'sharedDocuments': 'Shared Documents',
+    'secureDocumentShare': 'Secure document share',
+    'sharedViaInoFooter': 'Shared via INO · you can only view these documents',
+    // Profile - two-factor authentication
+    'twoFactorAuthTitle': 'Two-Factor Authentication',
+    'couldNotStart2fa': 'Could not start 2FA setup. Please try again.',
+    'enterSixDigitCode': 'Enter the 6-digit code.',
+    'twoFactorOn': 'Two-factor authentication is on.',
+    'codeIncorrectExpired': 'That code is incorrect or expired. Try again.',
+    'couldNotVerifyCode': 'Could not verify the code.',
+    'twoFactorDisabled': 'Two-factor authentication disabled.',
+    'couldNotDisable2fa': 'Could not disable 2FA.',
+    'disable2faTitle': 'Disable 2FA?',
+    'disable2faBody':
+        'Your account will no longer require a second factor when signing in.',
+    'disable': 'Disable',
+    'extraLayerSecurity': 'Add an extra layer of security',
+    'twoFactorIntro':
+        'With 2FA on, signing in also requires a time-based code from your '
+            'authenticator app (Google Authenticator, Authy, 1Password …).',
+    'twoFactorStep1': 'Install an authenticator app on your phone.',
+    'twoFactorStep2': 'Add INO using the secret we show you next.',
+    'twoFactorStep3': 'Enter the 6-digit code to finish setup.',
+    'enable2fa': 'Enable 2FA',
+    'canTurnOffAnyTime': 'You can turn this off any time.',
+    'addInoToAuthenticator': 'Add INO to your authenticator',
+    'enterSetupKeyHint':
+        'Enter this setup key in your authenticator app, then type the 6-digit '
+            'code it generates.',
+    'setupKey': 'Setup key',
+    'setupUriAdvanced': 'Setup URI (advanced)',
+    'sixDigitCode': '6-digit code',
+    'verifyAndTurnOn': 'Verify & Turn On',
+    'twoFactorIsOn': '2FA is on',
+    'twoFactorOnBody':
+        'Your account is protected by a second factor. You’ll be asked for a '
+            'code from your authenticator app when signing in.',
+    'recovery': 'Recovery',
+    'twoFactorRecoveryBody':
+        'Keep access to your authenticator app. If you lose your device, use '
+            'its backup/transfer feature or your saved setup key to restore '
+            'your codes. Losing both means you’ll need to reset 2FA from a '
+            'signed-in session.',
+    'disable2fa': 'Disable 2FA',
+    'copiedLabel': '{label} copied.',
+    // Profile - delete account
+    'yourPasswordIncorrect': 'Your password is incorrect.',
+    'couldNotDeleteAccount':
+        'Could not delete your account. Please try again.',
+    'cantBeUndone': 'This can’t be undone',
+    'deleteAccountWarning':
+        'Deleting your account permanently removes your documents, uploaded '
+            'files, backups and profile. You will be signed out immediately.',
+    'typeDeleteToConfirm': 'Type DELETE to confirm',
+    'confirmation': 'Confirmation',
+    'confirmYourPassword': 'Confirm your password',
+    'permanentlyDeleteAccount': 'Permanently Delete Account',
+    'keepMyAccount': 'Keep my account',
+    // Profile - about
+    'intelligentNetworkOrganizer': 'Intelligent Network Organizer',
+    'version': 'Version',
+    'buildNumber': 'Build number',
+    'package': 'Package',
+    'environment': 'Environment',
+    'production': 'Production',
+    'allRightsReserved': '© {year} INO. All rights reserved.',
+    // Profile - help center
+    'searchHelp': 'Search help…',
+    'helpNoResults': 'No results for “{q}”',
+    'stillNeedHelp': 'Still need help?',
+    'contactUs': 'Contact us',
+    'faqAddDocQ': 'How do I add a document?',
+    'faqAddDocA':
+        'Tap the + button on Home or Wallet, choose a category, then scan with '
+            'your camera or import from your gallery. INO enhances the image '
+            'and saves it securely to your vault.',
+    'faqProtectQ': 'How do I protect a document with biometrics?',
+    'faqProtectA':
+        'Open a document’s menu and choose “Protect”, or toggle “Protect with '
+            'Biometrics” when adding it. Protected documents require '
+            'Face/Fingerprint unlock before they can be opened.',
+    'faqEncryptedQ': 'Is my data encrypted?',
+    'faqEncryptedA':
+        'Your files are stored in a private, access-controlled cloud bucket '
+            'and are only reachable with your signed-in session. Protected '
+            'items add a biometric gate on top.',
+    'faqBackupQ': 'How do backups work?',
+    'faqBackupA':
+        'Cloud Backup creates a JSON archive of your account and document '
+            'metadata and uploads it to your private storage. Turn on Auto '
+            'Backup to keep it current, or back up manually any time.',
+    'faq2faQ': 'How do I enable two-factor authentication?',
+    'faq2faA':
+        'Go to Security → Two-Factor Authentication, tap Enable, add the setup '
+            'key to an authenticator app, and enter the 6-digit code to '
+            'confirm.',
+    'faqPasswordQ': 'How do I change or reset my password?',
+    'faqPasswordA':
+        'Security → Change Password. Confirm your current password, then set a '
+            'new, strong one. You’ll see a live strength meter as you type.',
+    'faqDarkModeQ': 'Can I use INO in dark mode?',
+    'faqDarkModeA':
+        'Yes - Preferences → Dark Mode. Your choice is remembered across '
+            'restarts and applies instantly across the whole app.',
+    'faqDeleteQ': 'How do I delete my account?',
+    'faqDeleteA':
+        'Scroll to the bottom of Profile and choose Delete Account. You’ll '
+            'confirm, re-enter your password, and then your documents, files '
+            'and profile are permanently removed.',
+    // Profile - change password
+    'enterNewPassword': 'Enter a new password',
+    'useAtLeast8Chars': 'Use at least 8 characters',
+    'strengthenPassword': 'Add letters, numbers or symbols to strengthen it',
+    'newMustDiffer': 'New password must differ from the current one',
+    'passwordUpdated': 'Password updated successfully.',
+    'currentPasswordIncorrect': 'Your current password is incorrect.',
+    'couldNotChangePassword':
+        'Could not change your password. Please try again.',
+    'confirmCurrentPasswordIntro':
+        'For your security, confirm your current password before setting a new '
+            'one.',
+    'currentPassword': 'Current password',
+    'enterCurrentPassword': 'Enter your current password',
+    'newPassword': 'New password',
+    'confirmNewPassword': 'Confirm new password',
+    'passwordsDoNotMatch': 'Passwords do not match',
+    'updatePassword': 'Update Password',
+    'strengthWeak': 'Weak',
+    'strengthFair': 'Fair',
+    'strengthGood': 'Good',
+    'strengthStrong': 'Strong',
+    // Profile - edit profile
+    'editProfile': 'Edit Profile',
+    'couldNotSaveChanges': 'Could not save your changes. Please try again.',
+    'changePhotoComingSoon': 'Change photo - coming soon',
+    'emailTiedToSignIn':
+        'Email is tied to your sign-in and can’t be changed here.',
+    'mobileHint': '+91 98765 43210',
+    // Profile - contact support
+    'openingMailApp': 'Opening your mail app to send the message.',
+    'noMailApp': 'No mail app found. Email us at {email}',
+    'couldNotOpenMailApp': 'Could not open your mail app.',
+    'contactSupportIntro':
+        'Tell us what’s going on and we’ll get back to you. Your message opens '
+            'in your mail app addressed to our support team.',
+    'subject': 'Subject',
+    'addShortSubject': 'Add a short subject',
+    'message': 'Message',
+    'addMoreDetail': 'Add a bit more detail',
+    'sendMessage': 'Send Message',
+    // Profile - cloud backup
+    'couldNotLoadBackups': 'Could not load your backups. Pull to retry.',
+    'backupCompleted': 'Backup completed.',
+    'backupFailedRetry': 'Backup failed. Check your connection and retry.',
+    'backupFailed': 'Backup failed. Please try again.',
+    'preparingBackup': 'Preparing your backup…',
+    'couldNotRestoreBackup': 'Could not restore this backup.',
+    'backingUp': 'Backing up…',
+    'backUpNow': 'Back Up Now',
+    'previousBackups': 'PREVIOUS BACKUPS',
+    'lastBackup': 'Last backup',
+    'noBackupsYet': 'No backups yet',
+    'noBackupsYetBody':
+        'You haven’t backed up yet. Tap “Back Up Now” to create your first '
+            'cloud backup.',
+    // Profile - trusted devices
+    'removedDevice': 'Removed {name}.',
+    'cantRemoveCurrentDevice': 'You can’t remove the current device.',
+    'trustedDevicesIntro':
+        'These are the devices signed in to your INO account.',
+    'thisDevice': 'This device',
+    'activeAgo': 'Active {when}',
+    'removeDevice': 'Remove device',
   },
   'hi': {
     'home': 'होम',
@@ -737,6 +1232,8 @@ const Map<String, Map<String, String>> _strings = {
     'scan': 'स्कैन',
     'reminders': 'रिमाइंडर',
     'profile': 'प्रोफ़ाइल',
+    'vault': 'वॉल्ट',
+    'alerts': 'अलर्ट',
     'upload': 'अपलोड',
     'create': 'बनाएँ',
     'save': 'सहेजें',
@@ -1349,6 +1846,457 @@ const Map<String, Map<String, String>> _strings = {
     'securityScoreSubtitle': 'आपके डिवाइस और खाता सुरक्षा पर आधारित।',
     'insuranceCoverage': 'बीमा कवरेज',
     'coverageFallback': 'कुल कवर ₹1.2 करोड़ · 5 सक्रिय पॉलिसियाँ',
+    'skip': 'छोड़ें',
+    'next': 'आगे',
+    'quickAdd': 'तुरंत जोड़ें',
+    'voiceAssistant': 'वॉइस असिस्टेंट',
+    'tourHomeBody': 'आपका डैशबोर्ड - सब ज़रूरी चीज़ें एक नज़र में।',
+    'tourVaultBody': 'आपके सभी दस्तावेज़ों के लिए सुरक्षित वॉलेट।',
+    'tourQuickAddBody': 'दस्तावेज़ स्कैन करें, खर्च जोड़ें या नोट लिखें।',
+    'tourAlertsBody': 'रिमाइंडर, ताकि रिन्यूअल कभी न छूटे।',
+    'tourProfileBody': 'आपका खाता, सुरक्षा और सेटिंग्स।',
+    'tourVoiceBody': 'बिना हाथ लगाए चलाएँ - कहें "दस्तावेज़ खोलें"।',
+    'comingSoon': 'जल्द आ रहा है',
+    'signOut': 'साइन आउट',
+    'guestVaultMessage': 'अपना सुरक्षित वॉल्ट खोलने के लिए साइन इन करें।',
+    'guestScanMessage': 'दस्तावेज़ सीधे अपने सुरक्षित वॉल्ट में स्कैन करें।',
+    'guestAlertsMessage': 'रिमाइंडर और अलर्ट सेट करने के लिए साइन इन करें।',
+    'guestProfileMessage': 'अपना खाता प्रबंधित करने के लिए साइन इन करें।',
+    'customizeQuickMenu': 'क्विक मेन्यू अनुकूलित करें',
+    'quickMenuPickHint': '+ बटन के लिए {n} तक फ़ीचर चुनें',
+    'slideToOpenHint': 'किसी विकल्प पर स्लाइड करें, खोलने के लिए छोड़ें',
+    'emi': 'ईएमआई',
+    'sip': 'एसआईपी',
+    'goldShort': 'सोना',
+    'tax': 'कर',
+    'valuation': 'मूल्यांकन',
+    'addExpense': 'खर्च जोड़ें',
+    'taxRecords': 'कर रिकॉर्ड',
+    'expense': 'खर्च',
+    'income': 'आय',
+    'debited': 'डेबिट',
+    'credited': 'क्रेडिट',
+    'moneyOut': 'पैसा बाहर',
+    'moneyIn': 'पैसा अंदर',
+    'catSalary': 'वेतन',
+    'catBusiness': 'व्यापार',
+    'catInvestment': 'निवेश',
+    'catRent': 'किराया',
+    'catInsurance': 'बीमा',
+    'catMedical': 'चिकित्सा',
+    'catEducation': 'शिक्षा',
+    'catTravel': 'यात्रा',
+    'catFood': 'भोजन',
+    'catShopping': 'खरीदारी',
+    'catUtilities': 'उपयोगिताएँ',
+    'catLoanEmi': 'लोन / ईएमआई',
+    'catTaxPayment': 'कर भुगतान',
+    'catOther': 'अन्य',
+    'pmCash': 'नकद',
+    'pmUpi': 'यूपीआई',
+    'pmCard': 'कार्ड',
+    'pmNetBanking': 'नेट बैंकिंग',
+    'pmCheque': 'चेक',
+    'pmOther': 'अन्य',
+    'taxDocForm16': 'फ़ॉर्म 16',
+    'taxDocForm26AS': 'फ़ॉर्म 26AS',
+    'taxDocAis': 'एआईएस',
+    'taxDocTds': 'टीडीएस प्रमाणपत्र',
+    'taxDocSalarySlip': 'वेतन पर्चियाँ',
+    'taxDocInvestmentProof': 'निवेश प्रमाण',
+    'taxDocRentReceipt': 'किराया रसीदें',
+    'taxDocMedicalBill': 'चिकित्सा बिल',
+    'taxDocInsurancePremium': 'बीमा प्रीमियम रसीदें',
+    'taxDocHomeLoanInterest': 'होम लोन ब्याज प्रमाणपत्र',
+    'editTransaction': 'लेनदेन संपादित करें',
+    'addTransaction': 'लेनदेन जोड़ें',
+    'saveChanges': 'बदलाव सहेजें',
+    'snapReceiptSubtitle': 'रसीद की फ़ोटो लें - विवरण स्वतः पढ़े जाएँगे',
+    'pickPhotoSubtitle': 'फ़ोटो या भुगतान स्क्रीनशॉट चुनें',
+    'pdfReceipt': 'पीडीएफ रसीद',
+    'removeAttachment': 'अटैचमेंट हटाएँ',
+    'photoAccessBlocked': 'फ़ोटो एक्सेस अवरुद्ध है - सेटिंग्स में चालू करें',
+    'photoAccessNeeded': 'स्क्रीनशॉट जोड़ने के लिए फ़ोटो एक्सेस आवश्यक है',
+    'cameraAccessBlockedReceipt':
+        'कैमरा एक्सेस अवरुद्ध है - सेटिंग्स में चालू करें',
+    'cameraAccessNeededReceipt':
+        'रसीद की फ़ोटो लेने के लिए कैमरा एक्सेस आवश्यक है',
+    'couldNotAttachReceipt': 'रसीद अटैच नहीं हो सकी',
+    'couldntReadReceipt': 'रसीद पढ़ी नहीं जा सकी - मैन्युअल भरें',
+    'couldntReadAmount': 'राशि पढ़ी नहीं जा सकी - इसे मैन्युअल भरें',
+    'nothingNewFromReceipt': 'रसीद से भरने के लिए कुछ नया नहीं',
+    'replaceExistingTitle': 'मौजूदा मान बदलें?',
+    'replaceExistingBody':
+        'रसीद में उन फ़ील्ड के विवरण हैं जिन्हें आपने पहले ही भर दिया है। '
+            'उन्हें बदलें, या अपने टाइप किए मान रखें और केवल खाली फ़ील्ड भरें?',
+    'keepMine': 'मेरे रखें',
+    'replace': 'बदलें',
+    'enterDescription': 'विवरण दर्ज करें',
+    'enterAmountGreaterThanZero': '0 से अधिक राशि दर्ज करें',
+    'direction': 'दिशा',
+    'description': 'विवरण',
+    'descriptionHint': 'उदा. ऑफ़िस किराया',
+    'date': 'तारीख़',
+    'transactionId': 'लेनदेन आईडी',
+    'transactionIdHint': 'TXN123456',
+    'gstAmount': 'जीएसटी राशि',
+    'vendorName': 'विक्रेता का नाम',
+    'vendorNameHint': 'उदा. रिलायंस',
+    'paymentMethod': 'भुगतान विधि',
+    'notesHint': 'याद रखने योग्य कुछ…',
+    'scanning': 'स्कैन हो रहा है…',
+    'attaching': 'अटैच हो रहा है…',
+    'uploadPaymentProof': 'भुगतान प्रमाण अपलोड करें',
+    'changePaymentProof': 'भुगतान प्रमाण बदलें',
+    'uploadProofSubtitle':
+        'स्वतः भरने के लिए रसीद या भुगतान स्क्रीनशॉट अपलोड करें',
+    'pdfAttachedTapChange': 'पीडीएफ अटैच · बदलने के लिए टैप करें',
+    'attachedTapChange': 'अटैच · बदलने के लिए टैप करें',
+    'autoFilledFromReceipt': 'रसीद से स्वतः भरा गया',
+    'clearAutoFilled': 'स्वतः भरे मान साफ़ करें',
+    'transactionVault': 'लेनदेन वॉल्ट',
+    'financialYear': 'वित्तीय वर्ष',
+    'taxSummary': 'कर सारांश',
+    'noTransactionsMatch': 'आपकी खोज से कोई लेनदेन मेल नहीं खाता',
+    'recentTransactions': 'हाल के लेनदेन',
+    'couldntLoadTransactions': 'लेनदेन लोड नहीं हो सके',
+    'noTransactionsYet': 'अभी कोई लेनदेन नहीं',
+    'noTransactionsYetSubtitle':
+        'अपनी लेनदेन रसीदें और भुगतान रिकॉर्ड सुरक्षित रूप से रखें।',
+    'addFirstTransaction': 'पहला लेनदेन जोड़ें',
+    'totalTransactions': 'कुल लेनदेन',
+    'totalAmount': 'कुल राशि',
+    'searchTxnHint': 'आईडी, विक्रेता, राशि या तारीख़ से खोजें',
+    'transaction': 'लेनदेन',
+    'deleteTransactionTitle': 'लेनदेन हटाएँ?',
+    'deleteTransactionBody': 'यह रिकॉर्ड आपके वॉल्ट से हटा दिया जाएगा।',
+    'transactionNotFound': 'लेनदेन नहीं मिला',
+    'dateAndTime': 'तारीख़ और समय',
+    'vendor': 'विक्रेता',
+    'receiptScreenshot': 'रसीद / स्क्रीनशॉट',
+    'noReceiptAttached': 'कोई रसीद अटैच नहीं',
+    'pdfReceiptTapToOpen': 'पीडीएफ रसीद · खोलने के लिए टैप करें',
+    'imageUnavailable': 'छवि अनुपलब्ध',
+    'downloadShare': 'डाउनलोड / साझा करें',
+    'receiptFor': '{name} की रसीद',
+    'uploadType': '{type} अपलोड करें',
+    'photoImage': 'फ़ोटो / छवि',
+    'pdf': 'पीडीएफ',
+    'photoAccessNeededUpload': 'अपलोड के लिए फ़ोटो एक्सेस आवश्यक है',
+    'couldNotUploadDocument': 'दस्तावेज़ अपलोड नहीं हो सका',
+    'noTaxDocsToShare':
+        'वित्त वर्ष {fy} के लिए साझा करने योग्य कोई कर दस्तावेज़ नहीं',
+    'taxDocsForYear': 'वित्त वर्ष {fy} के लिए {n} कर दस्तावेज़',
+    'couldNotShareTaxFolder': 'कर फ़ोल्डर साझा नहीं हो सका',
+    'noFilesYet': 'अभी कोई फ़ाइल नहीं',
+    'filesCount': '{n} फ़ाइल',
+    'fyDocumentsCount': 'वित्त वर्ष {fy} · {n} दस्तावेज़',
+    'couldNotGeneratePdf': 'पीडीएफ नहीं बन सका। कृपया फिर कोशिश करें।',
+    'netIncomeMinusExpenses': 'शुद्ध (आय − खर्च)',
+    'transactionsForYear': '{n} लेनदेन · वित्त वर्ष {fy}',
+    'totalIncome': 'कुल आय',
+    'totalExpenses': 'कुल खर्च',
+    'totalInvestments': 'कुल निवेश',
+    'insurancePremiums': 'बीमा प्रीमियम',
+    'medicalExpenses': 'चिकित्सा खर्च',
+    'rentPaid': 'चुकाया गया किराया',
+    'taxPaid': 'चुकाया गया कर',
+    'generateTaxSummaryPdf': 'कर सारांश (पीडीएफ) बनाएँ',
+    'taxSummaryDisclaimer':
+        'यह आपकी ITR तैयारी के दौरान संदर्भ के लिए एक व्यक्तिगत रिकॉर्ड '
+            'सारांश है - प्रमाणित कर दस्तावेज़ नहीं।',
+    'monJan': 'जन',
+    'monFeb': 'फ़र',
+    'monMar': 'मार्च',
+    'monApr': 'अप्रै',
+    'monMay': 'मई',
+    'monJun': 'जून',
+    'monJul': 'जुल',
+    'monAug': 'अग',
+    'monSep': 'सित',
+    'monOct': 'अक्टू',
+    'monNov': 'नव',
+    'monDec': 'दिस',
+    'sharedLinksTitle': 'साझा लिंक',
+    'sharedLinksSubtitle': 'गतिविधि देखें और कभी भी एक्सेस रद्द करें',
+    'revokeThisLinkTitle': 'यह लिंक रद्द करें?',
+    'revokeThisLinkBody':
+        'इस लिंक या क्यूआर कोड वाले किसी भी व्यक्ति की एक्सेस तुरंत समाप्त हो '
+            'जाएगी। इसे पूर्ववत नहीं किया जा सकता।',
+    'revoke': 'रद्द करें',
+    'shareRevoked': 'साझाकरण रद्द किया गया',
+    'couldNotRevoke': 'रद्द नहीं हो सका - कृपया फिर कोशिश करें',
+    'activeLinksSection': 'सक्रिय लिंक',
+    'historySection': 'इतिहास',
+    'views': 'व्यूज़',
+    'downloads': 'डाउनलोड',
+    'revoked': 'रद्द',
+    'docCountOne': '{n} दस्तावेज़',
+    'docCountMany': '{n} दस्तावेज़',
+    'viewCountOne': '{n} व्यू',
+    'viewCountMany': '{n} व्यूज़',
+    'downloadCountOne': '{n} डाउनलोड',
+    'downloadCountMany': '{n} डाउनलोड',
+    'createdOn': '{date} को बनाया',
+    'expiredOn': '{date} को समाप्त',
+    'accessRevoked': 'एक्सेस रद्द',
+    'expiresInDaysShort': '{n} दिन में समाप्त',
+    'expiresInHoursShort': '{n} घंटे में समाप्त',
+    'expiresInMinutesShort': '{n} मिनट में समाप्त',
+    'expiringNow': 'अभी समाप्त हो रहा है',
+    'noSharedLinksYet': 'अभी कोई साझा लिंक नहीं',
+    'noSharedLinksSubtitle':
+        'किसी वॉलेट में दस्तावेज़ चुनें और सुरक्षित, समय-सीमित लिंक बनाने के '
+            'लिए “क्यूआर से साझा करें” पर टैप करें।',
+    'linkCopied': 'लिंक क्लिपबोर्ड पर कॉपी हुआ',
+    'couldNotExportQr': 'क्यूआर छवि एक्सपोर्ट नहीं हो सकी।',
+    'shareRevokedLinkDead': 'साझाकरण रद्द - लिंक अब काम नहीं करता',
+    'couldNotRevokeShare':
+        'साझाकरण रद्द नहीं हो सका। कृपया फिर कोशिश करें।',
+    'revokeAccessTitle': 'एक्सेस रद्द करें?',
+    'revokeAccessBody':
+        'जिनके पास यह क्यूआर या लिंक पहले से है, उनकी एक्सेस तुरंत समाप्त हो '
+            'जाएगी। इसे पूर्ववत नहीं किया जा सकता।',
+    'keep': 'रखें',
+    'previewRecipients': 'देखें प्राप्तकर्ता क्या देखते हैं',
+    'shareRevokedState': 'यह साझाकरण रद्द कर दिया गया है।',
+    'shareExpiredState': 'यह साझा लिंक समाप्त हो गया है।',
+    'noDocsThroughQr':
+        'इस क्यूआर से अब कोई दस्तावेज़ एक्सेस नहीं किया जा सकता।',
+    'shareReady': 'साझाकरण तैयार',
+    'shareRevokedTitle': 'साझाकरण रद्द',
+    'shareExpiredTitle': 'साझाकरण समाप्त',
+    'anyoneCanScan': 'कोई भी स्कैन कर साझा दस्तावेज़ देख सकता है',
+    'expiresInDaysLong': '{n} दिनों में समाप्त',
+    'expiresInOneDay': '1 दिन में समाप्त',
+    'expiresInHm': '{h} घं {m} मि में समाप्त',
+    'expiresInMs': '{m} मि {s} से में समाप्त',
+    'expiresInS': '{s} से में समाप्त',
+    'docsSharedCount': '{n} दस्तावेज़ साझा किए गए',
+    'copyLink': 'लिंक कॉपी करें',
+    'copyLinkAction': 'लिंक कॉपी करें',
+    'shareLinkAction': 'लिंक साझा करें',
+    'downloadQr': 'क्यूआर डाउनलोड करें',
+    'revokeAccess': 'एक्सेस रद्द करें',
+    'couldNotGenerateShare':
+        'साझाकरण नहीं बन सका। कृपया फिर कोशिश करें।',
+    'qrBackendNotConfigured': 'क्यूआर साझाकरण बैकएंड कॉन्फ़िगर नहीं है',
+    'qrBackendNotConfiguredBody':
+        'साझाकरण सेवा अभी सर्वर पर सेट नहीं है। Supabase माइग्रेशन और “share” '
+            'Edge Function डिप्लॉय करें (देखें '
+            'supabase/README_document_sharing.md), फिर कोशिश करें।',
+    'selectedDocuments': 'चयनित दस्तावेज़',
+    'expiryDuration': 'समाप्ति अवधि',
+    'expiryDurationHint':
+        'समय समाप्त होने पर क्यूआर कोड स्वतः काम करना बंद कर देता है।',
+    'docsSelected': '{n} दस्तावेज़ चयनित',
+    'shareSecurityNote':
+        'लिंक वाला कोई भी व्यक्ति समाप्ति तक केवल ये दस्तावेज़ देख सकता है। '
+            'आपका वॉलेट, खाता और अन्य दस्तावेज़ निजी रहते हैं। आप कभी भी '
+            'एक्सेस रद्द कर सकते हैं।',
+    'generateQr': 'क्यूआर बनाएँ',
+    'dur10Minutes': '10 मिनट',
+    'dur1Hour': '1 घंटा',
+    'dur24Hours': '24 घंटे',
+    'dur7Days': '7 दिन',
+    'couldNotGenerateShareCopy':
+        'साझा प्रति नहीं बन सकी। कृपया फिर कोशिश करें।',
+    'couldNotCreateQr': 'क्यूआर कोड नहीं बन सका। कृपया फिर कोशिश करें।',
+    'sharingNotSetUp': 'साझाकरण सेट नहीं है',
+    'sharingNotSetUpBody':
+        'दस्तावेज़ साझाकरण सेवा अभी सर्वर पर डिप्लॉय नहीं है। Supabase '
+            'माइग्रेशन और “share” Edge Function डिप्लॉय करें (देखें '
+            'supabase/README_document_sharing.md), फिर कोशिश करें। आप अभी भी '
+            '“बनाएँ और साझा करें” से प्रति सीधे भेज सकते हैं।',
+    'shareSettings': 'साझाकरण सेटिंग्स',
+    'docsOriginalStaysSafe': '{n} दस्तावेज़ · मूल सुरक्षित रहता है',
+    'copyStylesPdfNote':
+        'कॉपी शैलियाँ छवि दस्तावेज़ों पर लागू होती हैं। पीडीएफ जैसे हैं वैसे '
+            'साझा होते हैं; नीचे दी गई लिंक समाप्ति फिर भी लागू रहती है।',
+    'copyStyle': 'कॉपी शैली',
+    'linkExpiry': 'लिंक समाप्ति',
+    'linkExpiryHint':
+        'प्राप्तकर्ता क्यूआर स्कैन कर आपके सुरक्षित INO व्यूअर में साझा प्रति '
+            'देखते हैं। समय समाप्त होने पर लिंक काम करना बंद कर देता है, और आप '
+            'इसे कभी भी रद्द कर सकते हैं।',
+    'expireAfter': '{d} बाद समाप्त',
+    'createQrCode': 'क्यूआर कोड बनाएँ',
+    'generateAndShare': 'बनाएँ और साझा करें',
+    'colorOriginal': 'मूल रंग',
+    'compressedPdf': 'संपीड़ित पीडीएफ',
+    'noAppToOpenFile': 'इस फ़ाइल को खोलने के लिए कोई ऐप उपलब्ध नहीं है।',
+    'couldNotDownloadDoc': 'यह दस्तावेज़ डाउनलोड नहीं हो सका।',
+    'couldNotOpenDoc': 'यह दस्तावेज़ खोला नहीं जा सका।',
+    'shareLinkExpiredTitle': 'यह साझा लिंक समाप्त हो गया है',
+    'shareLinkExpiredBody': 'दस्तावेज़ अब उपलब्ध नहीं हैं।',
+    'shareLinkRevokedTitle': 'यह साझा लिंक रद्द कर दिया गया है',
+    'shareLinkRevokedBody':
+        'मालिक ने इन दस्तावेज़ों की एक्सेस बंद कर दी है।',
+    'linkNotFound': 'लिंक नहीं मिला',
+    'linkNotFoundBody': 'यह साझा लिंक मौजूद नहीं है।',
+    'couldntLoadShare': 'यह साझाकरण लोड नहीं हो सका',
+    'checkConnection': 'अपना कनेक्शन जाँचें और फिर कोशिश करें।',
+    'sharedDocuments': 'साझा दस्तावेज़',
+    'secureDocumentShare': 'सुरक्षित दस्तावेज़ साझाकरण',
+    'sharedViaInoFooter':
+        'INO के माध्यम से साझा · आप ये दस्तावेज़ केवल देख सकते हैं',
+    'twoFactorAuthTitle': 'दो-चरणीय प्रमाणीकरण',
+    'couldNotStart2fa': '2FA सेटअप शुरू नहीं हो सका। कृपया फिर कोशिश करें।',
+    'enterSixDigitCode': '6-अंकों का कोड दर्ज करें।',
+    'twoFactorOn': 'दो-चरणीय प्रमाणीकरण चालू है।',
+    'codeIncorrectExpired': 'वह कोड गलत या समाप्त है। फिर कोशिश करें।',
+    'couldNotVerifyCode': 'कोड सत्यापित नहीं हो सका।',
+    'twoFactorDisabled': 'दो-चरणीय प्रमाणीकरण बंद कर दिया गया।',
+    'couldNotDisable2fa': '2FA बंद नहीं हो सका।',
+    'disable2faTitle': '2FA बंद करें?',
+    'disable2faBody':
+        'साइन-इन के समय आपके खाते को अब दूसरे चरण की आवश्यकता नहीं होगी।',
+    'disable': 'बंद करें',
+    'extraLayerSecurity': 'सुरक्षा की एक अतिरिक्त परत जोड़ें',
+    'twoFactorIntro':
+        '2FA चालू होने पर, साइन-इन के लिए आपके ऑथेंटिकेटर ऐप (Google '
+            'Authenticator, Authy, 1Password …) से समय-आधारित कोड भी चाहिए।',
+    'twoFactorStep1': 'अपने फ़ोन में एक ऑथेंटिकेटर ऐप इंस्टॉल करें।',
+    'twoFactorStep2': 'आगे दिखाई गई कुंजी से INO जोड़ें।',
+    'twoFactorStep3': 'सेटअप पूरा करने के लिए 6-अंकों का कोड दर्ज करें।',
+    'enable2fa': '2FA चालू करें',
+    'canTurnOffAnyTime': 'आप इसे कभी भी बंद कर सकते हैं।',
+    'addInoToAuthenticator': 'अपने ऑथेंटिकेटर में INO जोड़ें',
+    'enterSetupKeyHint':
+        'यह सेटअप कुंजी अपने ऑथेंटिकेटर ऐप में दर्ज करें, फिर उससे बना '
+            '6-अंकों का कोड टाइप करें।',
+    'setupKey': 'सेटअप कुंजी',
+    'setupUriAdvanced': 'सेटअप URI (उन्नत)',
+    'sixDigitCode': '6-अंकों का कोड',
+    'verifyAndTurnOn': 'सत्यापित करें और चालू करें',
+    'twoFactorIsOn': '2FA चालू है',
+    'twoFactorOnBody':
+        'आपका खाता दूसरे चरण से सुरक्षित है। साइन-इन के समय आपसे आपके '
+            'ऑथेंटिकेटर ऐप का कोड पूछा जाएगा।',
+    'recovery': 'रिकवरी',
+    'twoFactorRecoveryBody':
+        'अपने ऑथेंटिकेटर ऐप की एक्सेस बनाए रखें। डिवाइस खो जाने पर उसकी '
+            'बैकअप/ट्रांसफ़र सुविधा या सहेजी गई सेटअप कुंजी से कोड बहाल करें। '
+            'दोनों खो जाने पर आपको साइन-इन सत्र से 2FA रीसेट करना होगा।',
+    'disable2fa': '2FA बंद करें',
+    'copiedLabel': '{label} कॉपी हुआ।',
+    'yourPasswordIncorrect': 'आपका पासवर्ड गलत है।',
+    'couldNotDeleteAccount': 'आपका खाता हटाया नहीं जा सका। कृपया फिर कोशिश करें।',
+    'cantBeUndone': 'इसे पूर्ववत नहीं किया जा सकता',
+    'deleteAccountWarning':
+        'खाता हटाने से आपके दस्तावेज़, अपलोड की गई फ़ाइलें, बैकअप और प्रोफ़ाइल '
+            'स्थायी रूप से हट जाते हैं। आपको तुरंत साइन आउट कर दिया जाएगा।',
+    'typeDeleteToConfirm': 'पुष्टि के लिए DELETE टाइप करें',
+    'confirmation': 'पुष्टि',
+    'confirmYourPassword': 'अपना पासवर्ड पुष्टि करें',
+    'permanentlyDeleteAccount': 'खाता स्थायी रूप से हटाएँ',
+    'keepMyAccount': 'मेरा खाता रखें',
+    'intelligentNetworkOrganizer': 'इंटेलिजेंट नेटवर्क ऑर्गनाइज़र',
+    'version': 'संस्करण',
+    'buildNumber': 'बिल्ड नंबर',
+    'package': 'पैकेज',
+    'environment': 'एनवायरनमेंट',
+    'production': 'प्रोडक्शन',
+    'allRightsReserved': '© {year} INO. सर्वाधिकार सुरक्षित।',
+    'searchHelp': 'सहायता खोजें…',
+    'helpNoResults': '“{q}” के लिए कोई परिणाम नहीं',
+    'stillNeedHelp': 'अभी भी मदद चाहिए?',
+    'contactUs': 'संपर्क करें',
+    'faqAddDocQ': 'दस्तावेज़ कैसे जोड़ें?',
+    'faqAddDocA':
+        'होम या वॉलेट पर + बटन दबाएँ, श्रेणी चुनें, फिर कैमरे से स्कैन करें या '
+            'गैलरी से इंपोर्ट करें। INO छवि को बेहतर बनाकर सुरक्षित रूप से आपके '
+            'वॉल्ट में सहेज देता है।',
+    'faqProtectQ': 'बायोमेट्रिक्स से दस्तावेज़ कैसे सुरक्षित करें?',
+    'faqProtectA':
+        'किसी दस्तावेज़ का मेन्यू खोलें और “सुरक्षित करें” चुनें, या जोड़ते समय '
+            '“बायोमेट्रिक्स से सुरक्षित करें” चालू करें। सुरक्षित दस्तावेज़ '
+            'खोलने से पहले फ़ेस/फ़िंगरप्रिंट अनलॉक आवश्यक होता है।',
+    'faqEncryptedQ': 'क्या मेरा डेटा एन्क्रिप्टेड है?',
+    'faqEncryptedA':
+        'आपकी फ़ाइलें एक निजी, एक्सेस-नियंत्रित क्लाउड बकेट में संग्रहीत होती '
+            'हैं और केवल आपके साइन-इन सत्र से पहुँच योग्य हैं। सुरक्षित आइटम पर '
+            'बायोमेट्रिक परत अतिरिक्त होती है।',
+    'faqBackupQ': 'बैकअप कैसे काम करता है?',
+    'faqBackupA':
+        'क्लाउड बैकअप आपके खाते और दस्तावेज़ मेटाडेटा का JSON संग्रह बनाकर आपके '
+            'निजी स्टोरेज में अपलोड करता है। इसे अद्यतन रखने के लिए ऑटो बैकअप '
+            'चालू करें, या कभी भी मैन्युअल बैकअप लें।',
+    'faq2faQ': 'दो-चरणीय प्रमाणीकरण कैसे चालू करें?',
+    'faq2faA':
+        'सुरक्षा → दो-चरणीय प्रमाणीकरण पर जाएँ, चालू करें दबाएँ, सेटअप कुंजी '
+            'ऑथेंटिकेटर ऐप में जोड़ें, और पुष्टि के लिए 6-अंकों का कोड दर्ज करें।',
+    'faqPasswordQ': 'पासवर्ड कैसे बदलें या रीसेट करें?',
+    'faqPasswordA':
+        'सुरक्षा → पासवर्ड बदलें। अपना वर्तमान पासवर्ड पुष्टि करें, फिर एक नया, '
+            'मज़बूत पासवर्ड सेट करें। टाइप करते समय लाइव स्ट्रेंथ मीटर दिखेगा।',
+    'faqDarkModeQ': 'क्या INO डार्क मोड में उपयोग कर सकते हैं?',
+    'faqDarkModeA':
+        'हाँ - प्राथमिकताएँ → डार्क मोड। आपकी पसंद रीस्टार्ट के बाद भी याद रहती '
+            'है और पूरे ऐप में तुरंत लागू होती है।',
+    'faqDeleteQ': 'अपना खाता कैसे हटाएँ?',
+    'faqDeleteA':
+        'प्रोफ़ाइल के नीचे जाएँ और खाता हटाएँ चुनें। आप पुष्टि करेंगे, पासवर्ड '
+            'फिर दर्ज करेंगे, और फिर आपके दस्तावेज़, फ़ाइलें और प्रोफ़ाइल '
+            'स्थायी रूप से हट जाएँगे।',
+    'enterNewPassword': 'नया पासवर्ड दर्ज करें',
+    'useAtLeast8Chars': 'कम से कम 8 अक्षर उपयोग करें',
+    'strengthenPassword': 'मज़बूत बनाने के लिए अक्षर, अंक या चिह्न जोड़ें',
+    'newMustDiffer': 'नया पासवर्ड वर्तमान से भिन्न होना चाहिए',
+    'passwordUpdated': 'पासवर्ड सफलतापूर्वक अपडेट हुआ।',
+    'currentPasswordIncorrect': 'आपका वर्तमान पासवर्ड गलत है।',
+    'couldNotChangePassword':
+        'आपका पासवर्ड बदला नहीं जा सका। कृपया फिर कोशिश करें।',
+    'confirmCurrentPasswordIntro':
+        'आपकी सुरक्षा के लिए, नया पासवर्ड सेट करने से पहले वर्तमान पासवर्ड की '
+            'पुष्टि करें।',
+    'currentPassword': 'वर्तमान पासवर्ड',
+    'enterCurrentPassword': 'अपना वर्तमान पासवर्ड दर्ज करें',
+    'newPassword': 'नया पासवर्ड',
+    'confirmNewPassword': 'नया पासवर्ड पुष्टि करें',
+    'passwordsDoNotMatch': 'पासवर्ड मेल नहीं खाते',
+    'updatePassword': 'पासवर्ड अपडेट करें',
+    'strengthWeak': 'कमज़ोर',
+    'strengthFair': 'ठीक',
+    'strengthGood': 'अच्छा',
+    'strengthStrong': 'मज़बूत',
+    'editProfile': 'प्रोफ़ाइल संपादित करें',
+    'couldNotSaveChanges': 'आपके बदलाव सहेजे नहीं जा सके। कृपया फिर कोशिश करें।',
+    'changePhotoComingSoon': 'फ़ोटो बदलें - जल्द आ रहा है',
+    'emailTiedToSignIn':
+        'ईमेल आपके साइन-इन से जुड़ा है और यहाँ बदला नहीं जा सकता।',
+    'mobileHint': '+91 98765 43210',
+    'openingMailApp': 'संदेश भेजने के लिए आपका मेल ऐप खोला जा रहा है।',
+    'noMailApp': 'कोई मेल ऐप नहीं मिला। हमें {email} पर ईमेल करें',
+    'couldNotOpenMailApp': 'आपका मेल ऐप खोला नहीं जा सका।',
+    'contactSupportIntro':
+        'बताएँ क्या हो रहा है और हम आपसे संपर्क करेंगे। आपका संदेश हमारी सपोर्ट '
+            'टीम के पते के साथ आपके मेल ऐप में खुलता है।',
+    'subject': 'विषय',
+    'addShortSubject': 'एक छोटा विषय जोड़ें',
+    'message': 'संदेश',
+    'addMoreDetail': 'कुछ और विवरण जोड़ें',
+    'sendMessage': 'संदेश भेजें',
+    'couldNotLoadBackups': 'आपके बैकअप लोड नहीं हो सके। पुनः प्रयास के लिए खींचें।',
+    'backupCompleted': 'बैकअप पूरा हुआ।',
+    'backupFailedRetry': 'बैकअप असफल। कनेक्शन जाँचें और फिर कोशिश करें।',
+    'backupFailed': 'बैकअप असफल। कृपया फिर कोशिश करें।',
+    'preparingBackup': 'आपका बैकअप तैयार हो रहा है…',
+    'couldNotRestoreBackup': 'यह बैकअप बहाल नहीं हो सका।',
+    'backingUp': 'बैकअप हो रहा है…',
+    'backUpNow': 'अभी बैकअप लें',
+    'previousBackups': 'पिछले बैकअप',
+    'lastBackup': 'अंतिम बैकअप',
+    'noBackupsYet': 'अभी कोई बैकअप नहीं',
+    'noBackupsYetBody':
+        'आपने अभी बैकअप नहीं लिया है। अपना पहला क्लाउड बैकअप बनाने के लिए '
+            '“अभी बैकअप लें” पर टैप करें।',
+    'removedDevice': '{name} हटाया गया।',
+    'cantRemoveCurrentDevice': 'आप वर्तमान डिवाइस नहीं हटा सकते।',
+    'trustedDevicesIntro': 'ये वे डिवाइस हैं जो आपके INO खाते में साइन इन हैं।',
+    'thisDevice': 'यह डिवाइस',
+    'activeAgo': 'सक्रिय {when}',
+    'removeDevice': 'डिवाइस हटाएँ',
   },
   'te': {
     'home': 'హోమ్',
@@ -1356,6 +2304,8 @@ const Map<String, Map<String, String>> _strings = {
     'scan': 'స్కాన్',
     'reminders': 'రిమైండర్‌లు',
     'profile': 'ప్రొఫైల్',
+    'vault': 'వాల్ట్',
+    'alerts': 'హెచ్చరికలు',
     'upload': 'అప్‌లోడ్',
     'create': 'సృష్టించు',
     'save': 'సేవ్ చేయి',
@@ -1754,6 +2704,79 @@ const Map<String, Map<String, String>> _strings = {
     'suggestions': 'సూచనలు',
     'clear': 'క్లియర్',
     'searchGlobalHint': 'డాక్యుమెంట్‌లు, రిమైండర్‌లు, ట్యాగ్‌లు వెతకండి…',
+    // --- Auth screens ---
+    'authWelcomeBack': 'మళ్ళీ స్వాగతం',
+    'authSignInSubtitle': 'INO వాడటం కొనసాగించడానికి సైన్ ఇన్ చేయండి',
+    'emailOrMobile': 'ఇమెయిల్ లేదా మొబైల్ నంబర్',
+    'password': 'పాస్‌వర్డ్',
+    'forgotPasswordQ': 'పాస్‌వర్డ్ మర్చిపోయారా?',
+    'signIn': 'సైన్ ఇన్',
+    'continueWithGoogle': 'Google తో కొనసాగించండి',
+    'continueWithPhone': 'ఫోన్ నంబర్‌తో కొనసాగించండి',
+    'continueWithApple': 'Apple తో కొనసాగించండి',
+    'loginAsGuest': 'అతిథిగా లాగిన్ చేయండి',
+    'rememberMe': 'నన్ను గుర్తుంచుకో',
+    'orDivider': 'లేదా',
+    'noAccountPrompt': 'ఖాతా లేదా?',
+    'createAccount': 'ఖాతా సృష్టించండి',
+    'signupSubtitle': 'INO తో మీ సురక్షిత డిజిటల్ జీవితాన్ని ప్రారంభించండి',
+    'emailAddress': 'ఇమెయిల్ చిరునామా',
+    'mobileNumber': 'మొబైల్ నంబర్',
+    'atLeast6Chars': 'కనీసం 6 అక్షరాలు',
+    'confirmPasswordLabel': 'పాస్‌వర్డ్‌ను నిర్ధారించండి',
+    'reenterPassword': 'మీ పాస్‌వర్డ్‌ను మళ్ళీ నమోదు చేయండి',
+    'haveAccountPrompt': 'ఇప్పటికే ఖాతా ఉందా?',
+    'createAccountError': 'మీ ఖాతాను సృష్టించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'verificationCode': 'ధృవీకరణ కోడ్',
+    'verify': 'ధృవీకరించండి',
+    'resendCode': 'కోడ్ మళ్ళీ పంపండి',
+    'sending': 'పంపుతోంది…',
+    'resendCodeIn': '{t} లో కోడ్ మళ్ళీ పంపండి',
+    'otpEnterFull': 'పూర్తి {n}-అంకెల కోడ్‌ను నమోదు చేయండి.',
+    'otpIncorrect': 'ఆ కోడ్ తప్పు లేదా గడువు ముగిసింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'otpVerifyError': 'కోడ్‌ను ధృవీకరించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'otpResent': 'కొత్త కోడ్ పంపబడుతోంది.',
+    'otpResendError': 'కోడ్‌ను మళ్ళీ పంపలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'otpSentTo': 'దీనికి పంపిన {n}-అంకెల కోడ్‌ను నమోదు చేయండి',
+    'resetPassword': 'పాస్‌వర్డ్ రీసెట్ చేయండి',
+    'resetPasswordSubtitle':
+        'మీ నమోదిత ఇమెయిల్‌ను నమోదు చేయండి, పాస్‌వర్డ్ రీసెట్ చేయడానికి మేము మీకు లింక్ పంపుతాము.',
+    'sendVerificationCode': 'ధృవీకరణ కోడ్ పంపండి',
+    'checkYourInbox': 'మీ ఇన్‌బాక్స్ చూడండి',
+    'resetInstructionsSentTo': 'పాస్‌వర్డ్ రీసెట్ సూచనలను మేము ఇక్కడికి పంపాము',
+    'backToSignIn': 'సైన్ ఇన్‌కు తిరిగి వెళ్ళండి',
+    'useDifferentEmail': 'వేరే ఇమెయిల్ ఉపయోగించండి',
+    'mobileResetSoon': 'మొబైల్ రీసెట్ త్వరలో వస్తుంది - దయచేసి మీ ఇమెయిల్ ఉపయోగించండి.',
+    'resetCodeError': 'రీసెట్ కోడ్‌ను పంపలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'signInWithPhone': 'ఫోన్‌తో సైన్ ఇన్ చేయండి',
+    'phoneOtpSubtitle': 'మీ నంబర్‌ను ధృవీకరించడానికి మేము మీకు 6-అంకెల కోడ్‌ను పంపుతాము.',
+    'sendOtp': 'OTP పంపండి',
+    'smsRatesApply': 'సాధారణ SMS ఛార్జీలు వర్తించవచ్చు.',
+    'verifyYourNumber': 'మీ నంబర్‌ను ధృవీకరించండి',
+    'selectCountry': 'దేశాన్ని ఎంచుకోండి',
+    'searchCountryOrCode': 'దేశం లేదా కోడ్ వెతకండి',
+    'sendCodeError': 'కోడ్‌ను పంపలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'completeProfile': 'మీ ప్రొఫైల్‌ను పూర్తి చేయండి',
+    'completeProfileSubtitle':
+        'మీ సురక్షిత వాల్ట్‌ను సెటప్ చేయడానికి కొన్ని వివరాలు మాత్రమే.',
+    'notYouSignOut': 'మీరు కాదా? సైన్ అవుట్ చేయండి',
+    'saveDetailsError': 'మీ వివరాలను సేవ్ చేయలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'mobileSignInSoon': 'మొబైల్ సైన్-ఇన్ త్వరలో వస్తుంది - దయచేసి మీ ఇమెయిల్ ఉపయోగించండి.',
+    'signInFailed': 'సైన్ ఇన్ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'googleSignInFailed': 'Google సైన్-ఇన్ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'googleSignInError': 'Google తో సైన్ ఇన్ చేయలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'appleSignInSoon': 'Apple సైన్-ఇన్ త్వరలో వస్తుంది.',
+    'valEnterFullName': 'దయచేసి మీ పూర్తి పేరును నమోదు చేయండి',
+    'valNameTooShort': 'పేరు చాలా చిన్నది',
+    'valEnterEmail': 'దయచేసి మీ ఇమెయిల్‌ను నమోదు చేయండి',
+    'valInvalidEmail': 'చెల్లుబాటు అయ్యే ఇమెయిల్ చిరునామాను నమోదు చేయండి',
+    'valEnterMobile': 'దయచేసి మీ మొబైల్ నంబర్‌ను నమోదు చేయండి',
+    'valInvalidMobile': 'చెల్లుబాటు అయ్యే మొబైల్ నంబర్‌ను నమోదు చేయండి',
+    'valEnterEmailOrMobile': 'దయచేసి మీ ఇమెయిల్ లేదా మొబైల్ నంబర్‌ను నమోదు చేయండి',
+    'valEnterPassword': 'దయచేసి పాస్‌వర్డ్‌ను నమోదు చేయండి',
+    'valPasswordTooShort': 'పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి',
+    'valReenterPassword': 'దయచేసి మీ పాస్‌వర్డ్‌ను మళ్ళీ నమోదు చేయండి',
+    'valPasswordMismatch': 'పాస్‌వర్డ్‌లు సరిపోలడం లేదు',
     // --- Dashboard sections ---
     'history': 'చరిత్ర',
     'familyEvents': 'కుటుంబం & కార్యక్రమాలు',
@@ -1899,6 +2922,474 @@ const Map<String, Map<String, String>> _strings = {
     'securityScoreSubtitle': 'మీ పరికరం మరియు ఖాతా రక్షణల ఆధారంగా.',
     'insuranceCoverage': 'బీమా కవరేజ్',
     'coverageFallback': 'మొత్తం కవర్ ₹1.2 కోట్లు · 5 యాక్టివ్ పాలసీలు',
+    'skip': 'దాటవేయి',
+    'next': 'తదుపరి',
+    'quickAdd': 'త్వరిత జోడింపు',
+    'voiceAssistant': 'వాయిస్ అసిస్టెంట్',
+    'tourHomeBody': 'మీ డాష్‌బోర్డ్ - ముఖ్యమైనవన్నీ ఒక చూపులో.',
+    'tourVaultBody': 'మీ అన్ని పత్రాల కోసం సురక్షిత వాలెట్‌లు.',
+    'tourQuickAddBody': 'పత్రాలను స్కాన్ చేయండి, ఖర్చులు జోడించండి లేదా నోట్ రాయండి.',
+    'tourAlertsBody': 'రెన్యువల్స్ ఎప్పుడూ తప్పిపోకుండా రిమైండర్‌లు.',
+    'tourProfileBody': 'మీ ఖాతా, భద్రత మరియు సెట్టింగ్‌లు.',
+    'tourVoiceBody': 'చేతులు లేకుండా నావిగేట్ చేయండి - "పత్రాలు తెరువు" అని చెప్పండి.',
+    'comingSoon': 'త్వరలో వస్తోంది',
+    'signOut': 'సైన్ అవుట్',
+    'guestVaultMessage': 'మీ సురక్షిత వాల్ట్‌ను తెరవడానికి సైన్ ఇన్ చేయండి.',
+    'guestScanMessage': 'పత్రాలను నేరుగా మీ సురక్షిత వాల్ట్‌లోకి స్కాన్ చేయండి.',
+    'guestAlertsMessage': 'రిమైండర్‌లు మరియు హెచ్చరికలు సెట్ చేయడానికి సైన్ ఇన్ చేయండి.',
+    'guestProfileMessage': 'మీ ఖాతాను నిర్వహించడానికి సైన్ ఇన్ చేయండి.',
+    'customizeQuickMenu': 'త్వరిత మెనూను అనుకూలీకరించండి',
+    'quickMenuPickHint': '+ బటన్ కోసం {n} వరకు ఫీచర్లను ఎంచుకోండి',
+    'slideToOpenHint': 'ఒక ఎంపికకు స్లైడ్ చేయండి, తెరవడానికి వదిలేయండి',
+    'emi': 'ఈఎంఐ',
+    'sip': 'ఎస్ఐపీ',
+    'goldShort': 'బంగారం',
+    'tax': 'పన్ను',
+    'valuation': 'మదింపు',
+    'addExpense': 'ఖర్చు జోడించు',
+    'taxRecords': 'పన్ను రికార్డులు',
+    'expense': 'ఖర్చు',
+    'income': 'ఆదాయం',
+    'debited': 'డెబిట్',
+    'credited': 'క్రెడిట్',
+    'moneyOut': 'డబ్బు బయటకు',
+    'moneyIn': 'డబ్బు లోపలికి',
+    'catSalary': 'జీతం',
+    'catBusiness': 'వ్యాపారం',
+    'catInvestment': 'పెట్టుబడి',
+    'catRent': 'అద్దె',
+    'catInsurance': 'బీమా',
+    'catMedical': 'వైద్యం',
+    'catEducation': 'విద్య',
+    'catTravel': 'ప్రయాణం',
+    'catFood': 'ఆహారం',
+    'catShopping': 'షాపింగ్',
+    'catUtilities': 'యుటిలిటీలు',
+    'catLoanEmi': 'రుణం / ఈఎంఐ',
+    'catTaxPayment': 'పన్ను చెల్లింపు',
+    'catOther': 'ఇతర',
+    'pmCash': 'నగదు',
+    'pmUpi': 'యూపీఐ',
+    'pmCard': 'కార్డు',
+    'pmNetBanking': 'నెట్ బ్యాంకింగ్',
+    'pmCheque': 'చెక్కు',
+    'pmOther': 'ఇతర',
+    'taxDocForm16': 'ఫారం 16',
+    'taxDocForm26AS': 'ఫారం 26AS',
+    'taxDocAis': 'ఏఐఎస్',
+    'taxDocTds': 'టీడీఎస్ సర్టిఫికెట్లు',
+    'taxDocSalarySlip': 'జీతం స్లిప్‌లు',
+    'taxDocInvestmentProof': 'పెట్టుబడి రుజువులు',
+    'taxDocRentReceipt': 'అద్దె రసీదులు',
+    'taxDocMedicalBill': 'వైద్య బిల్లులు',
+    'taxDocInsurancePremium': 'బీమా ప్రీమియం రసీదులు',
+    'taxDocHomeLoanInterest': 'గృహ రుణ వడ్డీ సర్టిఫికెట్లు',
+    'editTransaction': 'లావాదేవీని సవరించు',
+    'addTransaction': 'లావాదేవీని జోడించు',
+    'saveChanges': 'మార్పులను సేవ్ చేయి',
+    'snapReceiptSubtitle': 'రసీదును ఫోటో తీయండి - వివరాలు స్వయంగా చదవబడతాయి',
+    'pickPhotoSubtitle': 'ఫోటో లేదా చెల్లింపు స్క్రీన్‌షాట్ ఎంచుకోండి',
+    'pdfReceipt': 'పీడీఎఫ్ రసీదు',
+    'removeAttachment': 'జోడింపును తీసివేయి',
+    'photoAccessBlocked':
+        'ఫోటో యాక్సెస్ నిరోధించబడింది - సెట్టింగ్‌లలో ప్రారంభించండి',
+    'photoAccessNeeded': 'స్క్రీన్‌షాట్ జోడించడానికి ఫోటో యాక్సెస్ అవసరం',
+    'cameraAccessBlockedReceipt':
+        'కెమెరా యాక్సెస్ నిరోధించబడింది - సెట్టింగ్‌లలో ప్రారంభించండి',
+    'cameraAccessNeededReceipt': 'రసీదును ఫోటో తీయడానికి కెమెరా యాక్సెస్ అవసరం',
+    'couldNotAttachReceipt': 'రసీదును జోడించలేకపోయాము',
+    'couldntReadReceipt': 'రసీదును చదవలేకపోయాము - మాన్యువల్‌గా నింపండి',
+    'couldntReadAmount': 'మొత్తాన్ని చదవలేకపోయాము - మాన్యువల్‌గా నమోదు చేయండి',
+    'nothingNewFromReceipt': 'రసీదు నుండి నింపడానికి కొత్తది ఏమీ లేదు',
+    'replaceExistingTitle': 'ఉన్న విలువలను మార్చాలా?',
+    'replaceExistingBody':
+        'మీరు ఇప్పటికే నింపిన ఫీల్డ్‌ల వివరాలు రసీదులో ఉన్నాయి. వాటిని '
+            'మార్చాలా, లేదా మీరు టైప్ చేసినవి ఉంచి ఖాళీ ఫీల్డ్‌లను మాత్రమే '
+            'నింపాలా?',
+    'keepMine': 'నావి ఉంచు',
+    'replace': 'మార్చు',
+    'enterDescription': 'వివరణ నమోదు చేయండి',
+    'enterAmountGreaterThanZero': '0 కంటే ఎక్కువ మొత్తాన్ని నమోదు చేయండి',
+    'direction': 'దిశ',
+    'description': 'వివరణ',
+    'descriptionHint': 'ఉదా. ఆఫీసు అద్దె',
+    'date': 'తేదీ',
+    'transactionId': 'లావాదేవీ ఐడీ',
+    'transactionIdHint': 'TXN123456',
+    'gstAmount': 'జీఎస్టీ మొత్తం',
+    'vendorName': 'విక్రేత పేరు',
+    'vendorNameHint': 'ఉదా. రిలయన్స్',
+    'paymentMethod': 'చెల్లింపు విధానం',
+    'notesHint': 'గుర్తుంచుకోవాల్సినది ఏదైనా…',
+    'scanning': 'స్కాన్ అవుతోంది…',
+    'attaching': 'జోడించబడుతోంది…',
+    'uploadPaymentProof': 'చెల్లింపు రుజువును అప్‌లోడ్ చేయండి',
+    'changePaymentProof': 'చెల్లింపు రుజువును మార్చండి',
+    'uploadProofSubtitle':
+        'స్వయంగా నింపడానికి రసీదు లేదా చెల్లింపు స్క్రీన్‌షాట్ అప్‌లోడ్ చేయండి',
+    'pdfAttachedTapChange': 'పీడీఎఫ్ జోడించబడింది · మార్చడానికి ట్యాప్ చేయండి',
+    'attachedTapChange': 'జోడించబడింది · మార్చడానికి ట్యాప్ చేయండి',
+    'autoFilledFromReceipt': 'రసీదు నుండి స్వయంగా నింపబడింది',
+    'clearAutoFilled': 'స్వయంగా నింపిన విలువలను క్లియర్ చేయి',
+    'transactionVault': 'లావాదేవీ వాల్ట్',
+    'financialYear': 'ఆర్థిక సంవత్సరం',
+    'taxSummary': 'పన్ను సారాంశం',
+    'noTransactionsMatch': 'మీ శోధనకు ఏ లావాదేవీ సరిపోలలేదు',
+    'recentTransactions': 'ఇటీవలి లావాదేవీలు',
+    'couldntLoadTransactions': 'లావాదేవీలను లోడ్ చేయలేకపోయాము',
+    'noTransactionsYet': 'ఇంకా లావాదేవీలు లేవు',
+    'noTransactionsYetSubtitle':
+        'మీ లావాదేవీ రసీదులు మరియు చెల్లింపు రికార్డులను సురక్షితంగా '
+            'భద్రపరచండి.',
+    'addFirstTransaction': 'మొదటి లావాదేవీని జోడించు',
+    'totalTransactions': 'మొత్తం లావాదేవీలు',
+    'totalAmount': 'మొత్తం సొమ్ము',
+    'searchTxnHint': 'ఐడీ, విక్రేత, మొత్తం లేదా తేదీతో శోధించండి',
+    'transaction': 'లావాదేవీ',
+    'deleteTransactionTitle': 'లావాదేవీని తొలగించాలా?',
+    'deleteTransactionBody': 'ఈ రికార్డు మీ వాల్ట్ నుండి తీసివేయబడుతుంది.',
+    'transactionNotFound': 'లావాదేవీ కనుగొనబడలేదు',
+    'dateAndTime': 'తేదీ & సమయం',
+    'vendor': 'విక్రేత',
+    'receiptScreenshot': 'రసీదు / స్క్రీన్‌షాట్',
+    'noReceiptAttached': 'రసీదు జోడించబడలేదు',
+    'pdfReceiptTapToOpen': 'పీడీఎఫ్ రసీదు · తెరవడానికి ట్యాప్ చేయండి',
+    'imageUnavailable': 'చిత్రం అందుబాటులో లేదు',
+    'downloadShare': 'డౌన్‌లోడ్ / షేర్',
+    'receiptFor': '{name} కోసం రసీదు',
+    'uploadType': '{type} అప్‌లోడ్ చేయండి',
+    'photoImage': 'ఫోటో / చిత్రం',
+    'pdf': 'పీడీఎఫ్',
+    'photoAccessNeededUpload': 'అప్‌లోడ్ చేయడానికి ఫోటో యాక్సెస్ అవసరం',
+    'couldNotUploadDocument': 'పత్రాన్ని అప్‌లోడ్ చేయలేకపోయాము',
+    'noTaxDocsToShare':
+        'ఆర్థిక సంవత్సరం {fy} కోసం షేర్ చేయడానికి పన్ను పత్రాలు లేవు',
+    'taxDocsForYear': 'ఆర్థిక సంవత్సరం {fy} కోసం {n} పన్ను పత్రాలు',
+    'couldNotShareTaxFolder': 'పన్ను ఫోల్డర్‌ను షేర్ చేయలేకపోయాము',
+    'noFilesYet': 'ఇంకా ఫైళ్ళు లేవు',
+    'filesCount': '{n} ఫైల్',
+    'fyDocumentsCount': 'ఆర్థిక సంవత్సరం {fy} · {n} పత్రాలు',
+    'couldNotGeneratePdf':
+        'పీడీఎఫ్ తయారు చేయలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'netIncomeMinusExpenses': 'నికర (ఆదాయం − ఖర్చులు)',
+    'transactionsForYear': '{n} లావాదేవీలు · ఆర్థిక సంవత్సరం {fy}',
+    'totalIncome': 'మొత్తం ఆదాయం',
+    'totalExpenses': 'మొత్తం ఖర్చులు',
+    'totalInvestments': 'మొత్తం పెట్టుబడులు',
+    'insurancePremiums': 'బీమా ప్రీమియంలు',
+    'medicalExpenses': 'వైద్య ఖర్చులు',
+    'rentPaid': 'చెల్లించిన అద్దె',
+    'taxPaid': 'చెల్లించిన పన్ను',
+    'generateTaxSummaryPdf': 'పన్ను సారాంశం (పీడీఎఫ్) తయారు చేయి',
+    'taxSummaryDisclaimer':
+        'మీ ITR సిద్ధం చేసేటప్పుడు సూచనగా ఉపయోగపడే వ్యక్తిగత రికార్డు '
+            'సారాంశం - ధృవీకరించిన పన్ను పత్రం కాదు.',
+    'monJan': 'జన',
+    'monFeb': 'ఫిబ్ర',
+    'monMar': 'మార్చి',
+    'monApr': 'ఏప్రి',
+    'monMay': 'మే',
+    'monJun': 'జూన్',
+    'monJul': 'జూలై',
+    'monAug': 'ఆగ',
+    'monSep': 'సెప్టెం',
+    'monOct': 'అక్టో',
+    'monNov': 'నవం',
+    'monDec': 'డిసెం',
+    'sharedLinksTitle': 'షేర్ చేసిన లింక్‌లు',
+    'sharedLinksSubtitle': 'కార్యకలాపాలు చూడండి, ఎప్పుడైనా యాక్సెస్ ఉపసంహరించండి',
+    'revokeThisLinkTitle': 'ఈ లింక్‌ను ఉపసంహరించాలా?',
+    'revokeThisLinkBody':
+        'ఈ లింక్ లేదా క్యూఆర్ కోడ్ ఉన్న ఎవరికైనా యాక్సెస్ వెంటనే పోతుంది. '
+            'ఇది వెనక్కి తీసుకోలేము.',
+    'revoke': 'ఉపసంహరించు',
+    'shareRevoked': 'షేర్ ఉపసంహరించబడింది',
+    'couldNotRevoke': 'ఉపసంహరించలేకపోయాము - దయచేసి మళ్ళీ ప్రయత్నించండి',
+    'activeLinksSection': 'యాక్టివ్ లింక్‌లు',
+    'historySection': 'చరిత్ర',
+    'views': 'వ్యూలు',
+    'downloads': 'డౌన్‌లోడ్‌లు',
+    'revoked': 'ఉపసంహరించబడింది',
+    'docCountOne': '{n} పత్రం',
+    'docCountMany': '{n} పత్రాలు',
+    'viewCountOne': '{n} వ్యూ',
+    'viewCountMany': '{n} వ్యూలు',
+    'downloadCountOne': '{n} డౌన్‌లోడ్',
+    'downloadCountMany': '{n} డౌన్‌లోడ్‌లు',
+    'createdOn': '{date}న సృష్టించబడింది',
+    'expiredOn': '{date}న ముగిసింది',
+    'accessRevoked': 'యాక్సెస్ ఉపసంహరించబడింది',
+    'expiresInDaysShort': '{n} రోజుల్లో ముగుస్తుంది',
+    'expiresInHoursShort': '{n} గంటల్లో ముగుస్తుంది',
+    'expiresInMinutesShort': '{n} నిమిషాల్లో ముగుస్తుంది',
+    'expiringNow': 'ఇప్పుడే ముగుస్తోంది',
+    'noSharedLinksYet': 'ఇంకా షేర్ చేసిన లింక్‌లు లేవు',
+    'noSharedLinksSubtitle':
+        'ఒక వాలెట్‌లో పత్రాలను ఎంచుకుని, సురక్షిత, గడువుతో కూడిన లింక్ '
+            'సృష్టించడానికి “క్యూఆర్ ద్వారా షేర్” నొక్కండి.',
+    'linkCopied': 'లింక్ క్లిప్‌బోర్డ్‌కు కాపీ అయింది',
+    'couldNotExportQr': 'క్యూఆర్ చిత్రాన్ని ఎగుమతి చేయలేకపోయాము.',
+    'shareRevokedLinkDead': 'షేర్ ఉపసంహరించబడింది - లింక్ ఇకపై పనిచేయదు',
+    'couldNotRevokeShare':
+        'షేర్‌ను ఉపసంహరించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'revokeAccessTitle': 'యాక్సెస్ ఉపసంహరించాలా?',
+    'revokeAccessBody':
+        'ఈ క్యూఆర్ లేదా లింక్ ఇప్పటికే ఉన్నవారికి యాక్సెస్ వెంటనే పోతుంది. '
+            'ఇది వెనక్కి తీసుకోలేము.',
+    'keep': 'ఉంచు',
+    'previewRecipients': 'స్వీకర్తలు ఏమి చూస్తారో చూడండి',
+    'shareRevokedState': 'ఈ షేర్ ఉపసంహరించబడింది.',
+    'shareExpiredState': 'ఈ షేర్ లింక్ గడువు ముగిసింది.',
+    'noDocsThroughQr': 'ఈ క్యూఆర్ ద్వారా ఇకపై ఏ పత్రమూ అందుబాటులో లేదు.',
+    'shareReady': 'షేర్ సిద్ధం',
+    'shareRevokedTitle': 'షేర్ ఉపసంహరించబడింది',
+    'shareExpiredTitle': 'షేర్ గడువు ముగిసింది',
+    'anyoneCanScan': 'ఎవరైనా స్కాన్ చేసి షేర్ చేసిన పత్రాలను చూడవచ్చు',
+    'expiresInDaysLong': '{n} రోజుల్లో ముగుస్తుంది',
+    'expiresInOneDay': '1 రోజులో ముగుస్తుంది',
+    'expiresInHm': '{h}గం {m}ని లో ముగుస్తుంది',
+    'expiresInMs': '{m}ని {s}సె లో ముగుస్తుంది',
+    'expiresInS': '{s}సె లో ముగుస్తుంది',
+    'docsSharedCount': '{n} పత్రాలు షేర్ చేయబడ్డాయి',
+    'copyLink': 'లింక్ కాపీ చేయి',
+    'copyLinkAction': 'లింక్ కాపీ చేయి',
+    'shareLinkAction': 'లింక్ షేర్ చేయి',
+    'downloadQr': 'క్యూఆర్ డౌన్‌లోడ్',
+    'revokeAccess': 'యాక్సెస్ ఉపసంహరించు',
+    'couldNotGenerateShare':
+        'షేర్‌ను సృష్టించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'qrBackendNotConfigured': 'క్యూఆర్ షేరింగ్ బ్యాకెండ్ కాన్ఫిగర్ కాలేదు',
+    'qrBackendNotConfiguredBody':
+        'షేరింగ్ సేవ ఇంకా సర్వర్‌లో సెటప్ కాలేదు. Supabase మైగ్రేషన్ మరియు '
+            '“share” Edge Function డిప్లాయ్ చేయండి '
+            '(supabase/README_document_sharing.md చూడండి), తర్వాత మళ్ళీ '
+            'ప్రయత్నించండి.',
+    'selectedDocuments': 'ఎంచుకున్న పత్రాలు',
+    'expiryDuration': 'గడువు వ్యవధి',
+    'expiryDurationHint':
+        'గడువు ముగిసినప్పుడు క్యూఆర్ కోడ్ స్వయంగా పనిచేయడం ఆపేస్తుంది.',
+    'docsSelected': '{n} పత్రాలు ఎంచుకోబడ్డాయి',
+    'shareSecurityNote':
+        'లింక్ ఉన్న ఎవరైనా గడువు వరకు ఈ పత్రాలను మాత్రమే చూడగలరు. మీ వాలెట్, '
+            'ఖాతా మరియు ఇతర పత్రాలు గోప్యంగా ఉంటాయి. మీరు ఎప్పుడైనా యాక్సెస్ '
+            'ఉపసంహరించవచ్చు.',
+    'generateQr': 'క్యూఆర్ సృష్టించు',
+    'dur10Minutes': '10 నిమిషాలు',
+    'dur1Hour': '1 గంట',
+    'dur24Hours': '24 గంటలు',
+    'dur7Days': '7 రోజులు',
+    'couldNotGenerateShareCopy':
+        'షేర్ కాపీని సృష్టించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'couldNotCreateQr':
+        'క్యూఆర్ కోడ్‌ను సృష్టించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'sharingNotSetUp': 'షేరింగ్ సెటప్ కాలేదు',
+    'sharingNotSetUpBody':
+        'పత్రాల షేరింగ్ సేవ ఇంకా సర్వర్‌లో డిప్లాయ్ కాలేదు. Supabase మైగ్రేషన్ '
+            'మరియు “share” Edge Function డిప్లాయ్ చేయండి '
+            '(supabase/README_document_sharing.md చూడండి), తర్వాత మళ్ళీ '
+            'ప్రయత్నించండి. ఇప్పటికీ “సృష్టించి షేర్ చేయి” ద్వారా కాపీని '
+            'నేరుగా పంపవచ్చు.',
+    'shareSettings': 'షేరింగ్ సెట్టింగ్‌లు',
+    'docsOriginalStaysSafe': '{n} పత్రాలు · అసలువి సురక్షితంగా ఉంటాయి',
+    'copyStylesPdfNote':
+        'కాపీ శైలులు చిత్ర పత్రాలకు వర్తిస్తాయి. పీడీఎఫ్‌లు ఉన్నట్టుగానే షేర్ '
+            'అవుతాయి; కింద ఉన్న లింక్ గడువు అయినా వర్తిస్తుంది.',
+    'copyStyle': 'కాపీ శైలి',
+    'linkExpiry': 'లింక్ గడువు',
+    'linkExpiryHint':
+        'స్వీకర్తలు క్యూఆర్ స్కాన్ చేసి మీ సురక్షిత INO వ్యూయర్‌లో షేర్ కాపీని '
+            'చూస్తారు. గడువు ముగిసినప్పుడు లింక్ పనిచేయడం ఆపేస్తుంది, మీరు '
+            'ఎప్పుడైనా ఉపసంహరించవచ్చు.',
+    'expireAfter': '{d} తర్వాత ముగుస్తుంది',
+    'createQrCode': 'క్యూఆర్ కోడ్ సృష్టించు',
+    'generateAndShare': 'సృష్టించి షేర్ చేయి',
+    'colorOriginal': 'అసలు రంగు',
+    'compressedPdf': 'కుదించిన పీడీఎఫ్',
+    'noAppToOpenFile': 'ఈ ఫైల్‌ను తెరవడానికి యాప్ అందుబాటులో లేదు.',
+    'couldNotDownloadDoc': 'ఈ పత్రాన్ని డౌన్‌లోడ్ చేయలేకపోయాము.',
+    'couldNotOpenDoc': 'ఈ పత్రాన్ని తెరవలేకపోయాము.',
+    'shareLinkExpiredTitle': 'ఈ షేర్ లింక్ గడువు ముగిసింది',
+    'shareLinkExpiredBody': 'పత్రాలు ఇకపై అందుబాటులో లేవు.',
+    'shareLinkRevokedTitle': 'ఈ షేర్ లింక్ ఉపసంహరించబడింది',
+    'shareLinkRevokedBody': 'యజమాని ఈ పత్రాల యాక్సెస్‌ను ఆపేశారు.',
+    'linkNotFound': 'లింక్ కనుగొనబడలేదు',
+    'linkNotFoundBody': 'ఈ షేర్ లింక్ లేదు.',
+    'couldntLoadShare': 'ఈ షేర్‌ను లోడ్ చేయలేకపోయాము',
+    'checkConnection': 'మీ కనెక్షన్ తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి.',
+    'sharedDocuments': 'షేర్ చేసిన పత్రాలు',
+    'secureDocumentShare': 'సురక్షిత పత్ర షేరింగ్',
+    'sharedViaInoFooter':
+        'INO ద్వారా షేర్ · మీరు ఈ పత్రాలను చూడటమే చేయగలరు',
+    'twoFactorAuthTitle': 'రెండంచెల ప్రామాణీకరణ',
+    'couldNotStart2fa':
+        '2FA సెటప్‌ను ప్రారంభించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'enterSixDigitCode': '6-అంకెల కోడ్‌ను నమోదు చేయండి.',
+    'twoFactorOn': 'రెండంచెల ప్రామాణీకరణ ఆన్‌లో ఉంది.',
+    'codeIncorrectExpired': 'ఆ కోడ్ తప్పు లేదా గడువు ముగిసింది. మళ్ళీ ప్రయత్నించండి.',
+    'couldNotVerifyCode': 'కోడ్‌ను ధృవీకరించలేకపోయాము.',
+    'twoFactorDisabled': 'రెండంచెల ప్రామాణీకరణ ఆఫ్ చేయబడింది.',
+    'couldNotDisable2fa': '2FA ఆఫ్ చేయలేకపోయాము.',
+    'disable2faTitle': '2FA ఆఫ్ చేయాలా?',
+    'disable2faBody':
+        'సైన్ ఇన్ చేసేటప్పుడు మీ ఖాతాకు ఇకపై రెండవ అంచె అవసరం ఉండదు.',
+    'disable': 'ఆఫ్ చేయి',
+    'extraLayerSecurity': 'అదనపు భద్రతా పొరను జోడించండి',
+    'twoFactorIntro':
+        '2FA ఆన్‌లో ఉన్నప్పుడు, సైన్ ఇన్ చేయడానికి మీ ఆథెంటికేటర్ యాప్ (Google '
+            'Authenticator, Authy, 1Password …) నుండి సమయ-ఆధారిత కోడ్ కూడా '
+            'అవసరం.',
+    'twoFactorStep1': 'మీ ఫోన్‌లో ఒక ఆథెంటికేటర్ యాప్‌ను ఇన్‌స్టాల్ చేయండి.',
+    'twoFactorStep2': 'తర్వాత చూపే రహస్య కీతో INOను జోడించండి.',
+    'twoFactorStep3': 'సెటప్ పూర్తి చేయడానికి 6-అంకెల కోడ్‌ను నమోదు చేయండి.',
+    'enable2fa': '2FA ఆన్ చేయి',
+    'canTurnOffAnyTime': 'మీరు దీన్ని ఎప్పుడైనా ఆఫ్ చేయవచ్చు.',
+    'addInoToAuthenticator': 'మీ ఆథెంటికేటర్‌కు INOను జోడించండి',
+    'enterSetupKeyHint':
+        'ఈ సెటప్ కీని మీ ఆథెంటికేటర్ యాప్‌లో నమోదు చేయండి, తర్వాత అది '
+            'సృష్టించే 6-అంకెల కోడ్‌ను టైప్ చేయండి.',
+    'setupKey': 'సెటప్ కీ',
+    'setupUriAdvanced': 'సెటప్ URI (అధునాతనం)',
+    'sixDigitCode': '6-అంకెల కోడ్',
+    'verifyAndTurnOn': 'ధృవీకరించి ఆన్ చేయి',
+    'twoFactorIsOn': '2FA ఆన్‌లో ఉంది',
+    'twoFactorOnBody':
+        'మీ ఖాతా రెండవ అంచెతో రక్షించబడింది. సైన్ ఇన్ చేసేటప్పుడు మీ '
+            'ఆథెంటికేటర్ యాప్ కోడ్ అడుగుతారు.',
+    'recovery': 'రికవరీ',
+    'twoFactorRecoveryBody':
+        'మీ ఆథెంటికేటర్ యాప్ యాక్సెస్‌ను కాపాడుకోండి. పరికరం పోయినట్లయితే, '
+            'దాని బ్యాకప్/బదిలీ సదుపాయం లేదా భద్రపరిచిన సెటప్ కీతో కోడ్‌లను '
+            'పునరుద్ధరించండి. రెండూ పోతే సైన్-ఇన్ సెషన్ నుండి 2FAను రీసెట్ '
+            'చేయాల్సి ఉంటుంది.',
+    'disable2fa': '2FA ఆఫ్ చేయి',
+    'copiedLabel': '{label} కాపీ అయింది.',
+    'yourPasswordIncorrect': 'మీ పాస్‌వర్డ్ తప్పు.',
+    'couldNotDeleteAccount':
+        'మీ ఖాతాను తొలగించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'cantBeUndone': 'ఇది వెనక్కి తీసుకోలేము',
+    'deleteAccountWarning':
+        'ఖాతాను తొలగించడం మీ పత్రాలు, అప్‌లోడ్ చేసిన ఫైళ్ళు, బ్యాకప్‌లు మరియు '
+            'ప్రొఫైల్‌ను శాశ్వతంగా తీసివేస్తుంది. మీరు వెంటనే సైన్ అవుట్ '
+            'చేయబడతారు.',
+    'typeDeleteToConfirm': 'నిర్ధారించడానికి DELETE అని టైప్ చేయండి',
+    'confirmation': 'నిర్ధారణ',
+    'confirmYourPassword': 'మీ పాస్‌వర్డ్‌ను నిర్ధారించండి',
+    'permanentlyDeleteAccount': 'ఖాతాను శాశ్వతంగా తొలగించు',
+    'keepMyAccount': 'నా ఖాతాను ఉంచు',
+    'intelligentNetworkOrganizer': 'ఇంటెలిజెంట్ నెట్‌వర్క్ ఆర్గనైజర్',
+    'version': 'వెర్షన్',
+    'buildNumber': 'బిల్డ్ నంబర్',
+    'package': 'ప్యాకేజీ',
+    'environment': 'ఎన్విరాన్‌మెంట్',
+    'production': 'ప్రొడక్షన్',
+    'allRightsReserved': '© {year} INO. అన్ని హక్కులు రిజర్వ్ చేయబడ్డాయి.',
+    'searchHelp': 'సహాయం శోధించండి…',
+    'helpNoResults': '“{q}” కోసం ఫలితాలు లేవు',
+    'stillNeedHelp': 'ఇంకా సహాయం కావాలా?',
+    'contactUs': 'మమ్మల్ని సంప్రదించండి',
+    'faqAddDocQ': 'పత్రాన్ని ఎలా జోడించాలి?',
+    'faqAddDocA':
+        'హోమ్ లేదా వాలెట్‌లో + బటన్ నొక్కి, ఒక వర్గాన్ని ఎంచుకోండి, తర్వాత '
+            'కెమెరాతో స్కాన్ చేయండి లేదా గ్యాలరీ నుండి దిగుమతి చేయండి. INO '
+            'చిత్రాన్ని మెరుగుపరిచి మీ వాల్ట్‌లో సురక్షితంగా భద్రపరుస్తుంది.',
+    'faqProtectQ': 'బయోమెట్రిక్స్‌తో పత్రాన్ని ఎలా రక్షించాలి?',
+    'faqProtectA':
+        'పత్రం మెనూను తెరిచి “రక్షించు” ఎంచుకోండి, లేదా జోడించేటప్పుడు '
+            '“బయోమెట్రిక్స్‌తో రక్షించు” ఆన్ చేయండి. రక్షిత పత్రాలు తెరవడానికి '
+            'ముఖం/వేలిముద్ర అన్‌లాక్ అవసరం.',
+    'faqEncryptedQ': 'నా డేటా ఎన్‌క్రిప్ట్ చేయబడిందా?',
+    'faqEncryptedA':
+        'మీ ఫైళ్ళు ప్రైవేట్, యాక్సెస్-నియంత్రిత క్లౌడ్ బకెట్‌లో నిల్వ '
+            'చేయబడతాయి మరియు మీ సైన్-ఇన్ సెషన్‌తో మాత్రమే అందుబాటులో ఉంటాయి. '
+            'రక్షిత అంశాలకు అదనంగా బయోమెట్రిక్ గేట్ ఉంటుంది.',
+    'faqBackupQ': 'బ్యాకప్‌లు ఎలా పనిచేస్తాయి?',
+    'faqBackupA':
+        'క్లౌడ్ బ్యాకప్ మీ ఖాతా మరియు పత్ర మెటాడేటా యొక్క JSON ఆర్కైవ్‌ను '
+            'సృష్టించి మీ ప్రైవేట్ స్టోరేజ్‌కు అప్‌లోడ్ చేస్తుంది. తాజాగా '
+            'ఉంచడానికి ఆటో బ్యాకప్ ఆన్ చేయండి, లేదా ఎప్పుడైనా మాన్యువల్‌గా '
+            'బ్యాకప్ చేయండి.',
+    'faq2faQ': 'రెండంచెల ప్రామాణీకరణను ఎలా ఆన్ చేయాలి?',
+    'faq2faA':
+        'భద్రత → రెండంచెల ప్రామాణీకరణకు వెళ్ళి, ఆన్ చేయి నొక్కి, సెటప్ కీని '
+            'ఆథెంటికేటర్ యాప్‌కు జోడించి, నిర్ధారించడానికి 6-అంకెల కోడ్‌ను '
+            'నమోదు చేయండి.',
+    'faqPasswordQ': 'పాస్‌వర్డ్‌ను ఎలా మార్చాలి లేదా రీసెట్ చేయాలి?',
+    'faqPasswordA':
+        'భద్రత → పాస్‌వర్డ్ మార్చు. మీ ప్రస్తుత పాస్‌వర్డ్‌ను నిర్ధారించి, '
+            'తర్వాత కొత్త, బలమైన పాస్‌వర్డ్ సెట్ చేయండి. టైప్ చేస్తున్నప్పుడు '
+            'లైవ్ స్ట్రెంత్ మీటర్ కనిపిస్తుంది.',
+    'faqDarkModeQ': 'INOను డార్క్ మోడ్‌లో ఉపయోగించవచ్చా?',
+    'faqDarkModeA':
+        'అవును - ప్రాధాన్యతలు → డార్క్ మోడ్. మీ ఎంపిక రీస్టార్ట్ తర్వాత కూడా '
+            'గుర్తుంచుకోబడుతుంది మరియు మొత్తం యాప్‌లో వెంటనే వర్తిస్తుంది.',
+    'faqDeleteQ': 'నా ఖాతాను ఎలా తొలగించాలి?',
+    'faqDeleteA':
+        'ప్రొఫైల్ దిగువకు స్క్రోల్ చేసి ఖాతా తొలగించు ఎంచుకోండి. మీరు '
+            'నిర్ధారించి, పాస్‌వర్డ్‌ను మళ్ళీ నమోదు చేస్తారు, తర్వాత మీ '
+            'పత్రాలు, ఫైళ్ళు మరియు ప్రొఫైల్ శాశ్వతంగా తీసివేయబడతాయి.',
+    'enterNewPassword': 'కొత్త పాస్‌వర్డ్‌ను నమోదు చేయండి',
+    'useAtLeast8Chars': 'కనీసం 8 అక్షరాలు ఉపయోగించండి',
+    'strengthenPassword':
+        'బలపరచడానికి అక్షరాలు, అంకెలు లేదా చిహ్నాలను జోడించండి',
+    'newMustDiffer': 'కొత్త పాస్‌వర్డ్ ప్రస్తుతానికి భిన్నంగా ఉండాలి',
+    'passwordUpdated': 'పాస్‌వర్డ్ విజయవంతంగా అప్‌డేట్ అయింది.',
+    'currentPasswordIncorrect': 'మీ ప్రస్తుత పాస్‌వర్డ్ తప్పు.',
+    'couldNotChangePassword':
+        'మీ పాస్‌వర్డ్‌ను మార్చలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'confirmCurrentPasswordIntro':
+        'మీ భద్రత కోసం, కొత్త పాస్‌వర్డ్ సెట్ చేసే ముందు ప్రస్తుత '
+            'పాస్‌వర్డ్‌ను నిర్ధారించండి.',
+    'currentPassword': 'ప్రస్తుత పాస్‌వర్డ్',
+    'enterCurrentPassword': 'మీ ప్రస్తుత పాస్‌వర్డ్‌ను నమోదు చేయండి',
+    'newPassword': 'కొత్త పాస్‌వర్డ్',
+    'confirmNewPassword': 'కొత్త పాస్‌వర్డ్‌ను నిర్ధారించండి',
+    'passwordsDoNotMatch': 'పాస్‌వర్డ్‌లు సరిపోలలేదు',
+    'updatePassword': 'పాస్‌వర్డ్ అప్‌డేట్ చేయి',
+    'strengthWeak': 'బలహీనం',
+    'strengthFair': 'మధ్యస్థం',
+    'strengthGood': 'మంచిది',
+    'strengthStrong': 'బలమైనది',
+    'editProfile': 'ప్రొఫైల్ సవరించు',
+    'couldNotSaveChanges':
+        'మీ మార్పులను సేవ్ చేయలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'changePhotoComingSoon': 'ఫోటో మార్చు - త్వరలో వస్తోంది',
+    'emailTiedToSignIn':
+        'ఇమెయిల్ మీ సైన్-ఇన్‌తో ముడిపడి ఉంది, ఇక్కడ మార్చలేరు.',
+    'mobileHint': '+91 98765 43210',
+    'openingMailApp': 'సందేశం పంపడానికి మీ మెయిల్ యాప్ తెరవబడుతోంది.',
+    'noMailApp': 'మెయిల్ యాప్ కనుగొనబడలేదు. {email}కు ఇమెయిల్ చేయండి',
+    'couldNotOpenMailApp': 'మీ మెయిల్ యాప్‌ను తెరవలేకపోయాము.',
+    'contactSupportIntro':
+        'ఏమి జరుగుతోందో చెప్పండి, మేము మీకు తిరిగి స్పందిస్తాము. మీ సందేశం మా '
+            'సపోర్ట్ టీమ్ చిరునామాతో మీ మెయిల్ యాప్‌లో తెరుచుకుంటుంది.',
+    'subject': 'విషయం',
+    'addShortSubject': 'ఒక చిన్న విషయాన్ని జోడించండి',
+    'message': 'సందేశం',
+    'addMoreDetail': 'కొంచెం ఎక్కువ వివరాలు జోడించండి',
+    'sendMessage': 'సందేశం పంపు',
+    'couldNotLoadBackups':
+        'మీ బ్యాకప్‌లను లోడ్ చేయలేకపోయాము. మళ్ళీ ప్రయత్నించడానికి లాగండి.',
+    'backupCompleted': 'బ్యాకప్ పూర్తయింది.',
+    'backupFailedRetry':
+        'బ్యాకప్ విఫలమైంది. మీ కనెక్షన్ తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి.',
+    'backupFailed': 'బ్యాకప్ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+    'preparingBackup': 'మీ బ్యాకప్ సిద్ధమవుతోంది…',
+    'couldNotRestoreBackup': 'ఈ బ్యాకప్‌ను పునరుద్ధరించలేకపోయాము.',
+    'backingUp': 'బ్యాకప్ అవుతోంది…',
+    'backUpNow': 'ఇప్పుడే బ్యాకప్ చేయి',
+    'previousBackups': 'మునుపటి బ్యాకప్‌లు',
+    'lastBackup': 'చివరి బ్యాకప్',
+    'noBackupsYet': 'ఇంకా బ్యాకప్‌లు లేవు',
+    'noBackupsYetBody':
+        'మీరు ఇంకా బ్యాకప్ చేయలేదు. మీ మొదటి క్లౌడ్ బ్యాకప్‌ను సృష్టించడానికి '
+            '“ఇప్పుడే బ్యాకప్ చేయి” నొక్కండి.',
+    'removedDevice': '{name} తీసివేయబడింది.',
+    'cantRemoveCurrentDevice': 'మీరు ప్రస్తుత పరికరాన్ని తీసివేయలేరు.',
+    'trustedDevicesIntro':
+        'ఇవి మీ INO ఖాతాలో సైన్ ఇన్ అయిన పరికరాలు.',
+    'thisDevice': 'ఈ పరికరం',
+    'activeAgo': 'సక్రియం {when}',
+    'removeDevice': 'పరికరాన్ని తీసివేయి',
   },
   'ta': {
     'home': 'முகப்பு',
@@ -1906,6 +3397,8 @@ const Map<String, Map<String, String>> _strings = {
     'scan': 'ஸ்கேன்',
     'reminders': 'நினைவூட்டல்கள்',
     'profile': 'சுயவிவரம்',
+    'vault': 'வால்ட்',
+    'alerts': 'எச்சரிக்கைகள்',
     'upload': 'பதிவேற்று',
     'create': 'உருவாக்கு',
     'save': 'சேமி',
@@ -2304,6 +3797,79 @@ const Map<String, Map<String, String>> _strings = {
     'suggestions': 'பரிந்துரைகள்',
     'clear': 'அழி',
     'searchGlobalHint': 'ஆவணங்கள், நினைவூட்டல்கள், குறிச்சொற்களைத் தேடு…',
+    // --- Auth screens ---
+    'authWelcomeBack': 'மீண்டும் வரவேற்கிறோம்',
+    'authSignInSubtitle': 'INO ஐத் தொடர்ந்து பயன்படுத்த உள்நுழையவும்',
+    'emailOrMobile': 'மின்னஞ்சல் அல்லது கைபேசி எண்',
+    'password': 'கடவுச்சொல்',
+    'forgotPasswordQ': 'கடவுச்சொல்லை மறந்துவிட்டீர்களா?',
+    'signIn': 'உள்நுழை',
+    'continueWithGoogle': 'Google உடன் தொடரவும்',
+    'continueWithPhone': 'கைபேசி எண்ணுடன் தொடரவும்',
+    'continueWithApple': 'Apple உடன் தொடரவும்',
+    'loginAsGuest': 'விருந்தினராக உள்நுழையவும்',
+    'rememberMe': 'என்னை நினைவில் வைத்துக்கொள்',
+    'orDivider': 'அல்லது',
+    'noAccountPrompt': 'கணக்கு இல்லையா?',
+    'createAccount': 'கணக்கை உருவாக்கு',
+    'signupSubtitle': 'INO உடன் உங்கள் பாதுகாப்பான டிஜிட்டல் வாழ்க்கையைத் தொடங்குங்கள்',
+    'emailAddress': 'மின்னஞ்சல் முகவரி',
+    'mobileNumber': 'கைபேசி எண்',
+    'atLeast6Chars': 'குறைந்தது 6 எழுத்துகள்',
+    'confirmPasswordLabel': 'கடவுச்சொல்லை உறுதிப்படுத்து',
+    'reenterPassword': 'உங்கள் கடவுச்சொல்லை மீண்டும் உள்ளிடவும்',
+    'haveAccountPrompt': 'ஏற்கனவே கணக்கு உள்ளதா?',
+    'createAccountError': 'உங்கள் கணக்கை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'verificationCode': 'சரிபார்ப்புக் குறியீடு',
+    'verify': 'சரிபார்',
+    'resendCode': 'குறியீட்டை மீண்டும் அனுப்பு',
+    'sending': 'அனுப்புகிறது…',
+    'resendCodeIn': '{t} இல் குறியீட்டை மீண்டும் அனுப்பு',
+    'otpEnterFull': 'முழு {n}-இலக்கக் குறியீட்டை உள்ளிடவும்.',
+    'otpIncorrect': 'அந்தக் குறியீடு தவறானது அல்லது காலாவதியானது. மீண்டும் முயற்சிக்கவும்.',
+    'otpVerifyError': 'குறியீட்டைச் சரிபார்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'otpResent': 'புதிய குறியீடு அனுப்பப்படுகிறது.',
+    'otpResendError': 'குறியீட்டை மீண்டும் அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'otpSentTo': 'இதற்கு அனுப்பப்பட்ட {n}-இலக்கக் குறியீட்டை உள்ளிடவும்',
+    'resetPassword': 'கடவுச்சொல்லை மீட்டமை',
+    'resetPasswordSubtitle':
+        'உங்கள் பதிவுசெய்த மின்னஞ்சலை உள்ளிடவும், கடவுச்சொல்லை மீட்டமைக்க இணைப்பை அனுப்புவோம்.',
+    'sendVerificationCode': 'சரிபார்ப்புக் குறியீட்டை அனுப்பு',
+    'checkYourInbox': 'உங்கள் இன்பாக்ஸைச் சரிபார்க்கவும்',
+    'resetInstructionsSentTo': 'கடவுச்சொல் மீட்டமைப்பு வழிமுறைகளை இங்கு அனுப்பியுள்ளோம்',
+    'backToSignIn': 'உள்நுழைவுக்குத் திரும்பு',
+    'useDifferentEmail': 'வேறு மின்னஞ்சலைப் பயன்படுத்து',
+    'mobileResetSoon': 'கைபேசி மீட்டமைப்பு விரைவில் வருகிறது - உங்கள் மின்னஞ்சலைப் பயன்படுத்தவும்.',
+    'resetCodeError': 'மீட்டமைப்புக் குறியீட்டை அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'signInWithPhone': 'கைபேசி மூலம் உள்நுழை',
+    'phoneOtpSubtitle': 'உங்கள் எண்ணைச் சரிபார்க்க 6-இலக்கக் குறியீட்டை அனுப்புவோம்.',
+    'sendOtp': 'OTP அனுப்பு',
+    'smsRatesApply': 'நிலையான SMS கட்டணங்கள் பொருந்தலாம்.',
+    'verifyYourNumber': 'உங்கள் எண்ணைச் சரிபார்க்கவும்',
+    'selectCountry': 'நாட்டைத் தேர்ந்தெடு',
+    'searchCountryOrCode': 'நாடு அல்லது குறியீட்டைத் தேடு',
+    'sendCodeError': 'குறியீட்டை அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'completeProfile': 'உங்கள் சுயவிவரத்தை நிறைவு செய்யவும்',
+    'completeProfileSubtitle':
+        'உங்கள் பாதுகாப்பான வால்ட்டை அமைக்க சில விவரங்கள் மட்டுமே.',
+    'notYouSignOut': 'நீங்கள் இல்லையா? வெளியேறு',
+    'saveDetailsError': 'உங்கள் விவரங்களைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'mobileSignInSoon': 'கைபேசி உள்நுழைவு விரைவில் வருகிறது - உங்கள் மின்னஞ்சலைப் பயன்படுத்தவும்.',
+    'signInFailed': 'உள்நுழைவு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
+    'googleSignInFailed': 'Google உள்நுழைவு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
+    'googleSignInError': 'Google மூலம் உள்நுழைய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'appleSignInSoon': 'Apple உள்நுழைவு விரைவில் வருகிறது.',
+    'valEnterFullName': 'உங்கள் முழுப் பெயரை உள்ளிடவும்',
+    'valNameTooShort': 'பெயர் மிகவும் சிறியது',
+    'valEnterEmail': 'உங்கள் மின்னஞ்சலை உள்ளிடவும்',
+    'valInvalidEmail': 'சரியான மின்னஞ்சல் முகவரியை உள்ளிடவும்',
+    'valEnterMobile': 'உங்கள் கைபேசி எண்ணை உள்ளிடவும்',
+    'valInvalidMobile': 'சரியான கைபேசி எண்ணை உள்ளிடவும்',
+    'valEnterEmailOrMobile': 'உங்கள் மின்னஞ்சல் அல்லது கைபேசி எண்ணை உள்ளிடவும்',
+    'valEnterPassword': 'கடவுச்சொல்லை உள்ளிடவும்',
+    'valPasswordTooShort': 'கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்',
+    'valReenterPassword': 'உங்கள் கடவுச்சொல்லை மீண்டும் உள்ளிடவும்',
+    'valPasswordMismatch': 'கடவுச்சொற்கள் பொருந்தவில்லை',
     // --- Dashboard sections ---
     'history': 'வரலாறு',
     'familyEvents': 'குடும்பம் & நிகழ்வுகள்',
@@ -2446,5 +4012,497 @@ const Map<String, Map<String, String>> _strings = {
     'securityScoreSubtitle': 'உங்கள் சாதனம் மற்றும் கணக்கு பாதுகாப்புகளின் அடிப்படையில்.',
     'insuranceCoverage': 'காப்பீட்டு கவரேஜ்',
     'coverageFallback': 'மொத்த கவரேஜ் ₹1.2 கோடி · 5 செயலில் உள்ள பாலிசிகள்',
+    'skip': 'தவிர்',
+    'next': 'அடுத்து',
+    'quickAdd': 'விரைவு சேர்ப்பு',
+    'voiceAssistant': 'குரல் உதவியாளர்',
+    'tourHomeBody': 'உங்கள் டாஷ்போர்டு - முக்கியமான அனைத்தும் ஒரே பார்வையில்.',
+    'tourVaultBody': 'உங்கள் அனைத்து ஆவணங்களுக்கும் பாதுகாப்பான வாலட்டுகள்.',
+    'tourQuickAddBody':
+        'ஆவணங்களை ஸ்கேன் செய்யுங்கள், செலவுகளைச் சேர்க்கவும் அல்லது குறிப்பு எழுதவும்.',
+    'tourAlertsBody': 'புதுப்பித்தல்கள் தவறாமல் இருக்க நினைவூட்டல்கள்.',
+    'tourProfileBody': 'உங்கள் கணக்கு, பாதுகாப்பு மற்றும் அமைப்புகள்.',
+    'tourVoiceBody':
+        'கைகள் இல்லாமல் இயக்கவும் - "ஆவணங்களைத் திற" எனச் சொல்லுங்கள்.',
+    'comingSoon': 'விரைவில் வருகிறது',
+    'signOut': 'வெளியேறு',
+    'guestVaultMessage': 'உங்கள் பாதுகாப்பான பெட்டகத்தைத் திறக்க உள்நுழையவும்.',
+    'guestScanMessage':
+        'ஆவணங்களை நேரடியாக உங்கள் பாதுகாப்பான பெட்டகத்தில் ஸ்கேன் செய்யுங்கள்.',
+    'guestAlertsMessage':
+        'நினைவூட்டல்கள் மற்றும் விழிப்பூட்டல்களை அமைக்க உள்நுழையவும்.',
+    'guestProfileMessage': 'உங்கள் கணக்கை நிர்வகிக்க உள்நுழையவும்.',
+    'customizeQuickMenu': 'விரைவு மெனுவைத் தனிப்பயனாக்கு',
+    'quickMenuPickHint': '+ பொத்தானுக்கு {n} அம்சங்கள் வரை தேர்வுசெய்யவும்',
+    'slideToOpenHint': 'ஒரு விருப்பத்திற்கு நகர்த்தி, திறக்க விடுங்கள்',
+    'emi': 'ஈஎம்ஐ',
+    'sip': 'எஸ்ஐபி',
+    'goldShort': 'தங்கம்',
+    'tax': 'வரி',
+    'valuation': 'மதிப்பீடு',
+    'addExpense': 'செலவு சேர்',
+    'taxRecords': 'வரி பதிவுகள்',
+    'expense': 'செலவு',
+    'income': 'வரவு',
+    'debited': 'டெபிட்',
+    'credited': 'கிரெடிட்',
+    'moneyOut': 'பணம் வெளியே',
+    'moneyIn': 'பணம் உள்ளே',
+    'catSalary': 'சம்பளம்',
+    'catBusiness': 'வணிகம்',
+    'catInvestment': 'முதலீடு',
+    'catRent': 'வாடகை',
+    'catInsurance': 'காப்பீடு',
+    'catMedical': 'மருத்துவம்',
+    'catEducation': 'கல்வி',
+    'catTravel': 'பயணம்',
+    'catFood': 'உணவு',
+    'catShopping': 'ஷாப்பிங்',
+    'catUtilities': 'பயன்பாடுகள்',
+    'catLoanEmi': 'கடன் / ஈஎம்ஐ',
+    'catTaxPayment': 'வரி செலுத்துதல்',
+    'catOther': 'மற்றவை',
+    'pmCash': 'ரொக்கம்',
+    'pmUpi': 'யூபிஐ',
+    'pmCard': 'கார்டு',
+    'pmNetBanking': 'நெட் பேங்கிங்',
+    'pmCheque': 'காசோலை',
+    'pmOther': 'மற்றவை',
+    'taxDocForm16': 'படிவம் 16',
+    'taxDocForm26AS': 'படிவம் 26AS',
+    'taxDocAis': 'ஏஐஎஸ்',
+    'taxDocTds': 'டீடீஎஸ் சான்றிதழ்கள்',
+    'taxDocSalarySlip': 'சம்பள சீட்டுகள்',
+    'taxDocInvestmentProof': 'முதலீட்டு ஆவணங்கள்',
+    'taxDocRentReceipt': 'வாடகை ரசீதுகள்',
+    'taxDocMedicalBill': 'மருத்துவ பில்கள்',
+    'taxDocInsurancePremium': 'காப்பீட்டு பிரீமியம் ரசீதுகள்',
+    'taxDocHomeLoanInterest': 'வீட்டுக் கடன் வட்டி சான்றிதழ்கள்',
+    'editTransaction': 'பரிவர்த்தனையைத் திருத்து',
+    'addTransaction': 'பரிவர்த்தனையைச் சேர்',
+    'saveChanges': 'மாற்றங்களைச் சேமி',
+    'snapReceiptSubtitle':
+        'ரசீதைப் படம் எடுங்கள் - விவரங்கள் தானாகப் படிக்கப்படும்',
+    'pickPhotoSubtitle':
+        'புகைப்படம் அல்லது கட்டண ஸ்கிரீன்ஷாட்டைத் தேர்வுசெய்யவும்',
+    'pdfReceipt': 'பிடிஎஃப் ரசீது',
+    'removeAttachment': 'இணைப்பை நீக்கு',
+    'photoAccessBlocked':
+        'புகைப்பட அணுகல் தடுக்கப்பட்டுள்ளது - அமைப்புகளில் இயக்கவும்',
+    'photoAccessNeeded': 'ஸ்கிரீன்ஷாட் இணைக்க புகைப்பட அணுகல் தேவை',
+    'cameraAccessBlockedReceipt':
+        'கேமரா அணுகல் தடுக்கப்பட்டுள்ளது - அமைப்புகளில் இயக்கவும்',
+    'cameraAccessNeededReceipt': 'ரசீதைப் படம் எடுக்க கேமரா அணுகல் தேவை',
+    'couldNotAttachReceipt': 'ரசீதை இணைக்க முடியவில்லை',
+    'couldntReadReceipt': 'ரசீதைப் படிக்க முடியவில்லை - கைமுறையாக நிரப்பவும்',
+    'couldntReadAmount': 'தொகையைப் படிக்க முடியவில்லை - கைமுறையாக உள்ளிடவும்',
+    'nothingNewFromReceipt': 'ரசீதிலிருந்து நிரப்ப புதிதாக எதுவும் இல்லை',
+    'replaceExistingTitle': 'உள்ள மதிப்புகளை மாற்றவா?',
+    'replaceExistingBody':
+        'நீங்கள் ஏற்கனவே நிரப்பிய புலங்களுக்கான விவரங்கள் ரசீதில் உள்ளன. '
+            'அவற்றை மாற்றவா, அல்லது நீங்கள் தட்டச்சு செய்தவற்றை வைத்துக்கொண்டு '
+            'காலியான புலங்களை மட்டும் நிரப்பவா?',
+    'keepMine': 'என்னுடையதை வை',
+    'replace': 'மாற்று',
+    'enterDescription': 'விளக்கத்தை உள்ளிடவும்',
+    'enterAmountGreaterThanZero': '0 ஐ விட அதிகமான தொகையை உள்ளிடவும்',
+    'direction': 'திசை',
+    'description': 'விளக்கம்',
+    'descriptionHint': 'எ.கா. அலுவலக வாடகை',
+    'date': 'தேதி',
+    'transactionId': 'பரிவர்த்தனை ஐடி',
+    'transactionIdHint': 'TXN123456',
+    'gstAmount': 'ஜிஎஸ்டி தொகை',
+    'vendorName': 'விற்பனையாளர் பெயர்',
+    'vendorNameHint': 'எ.கா. ரிலையன்ஸ்',
+    'paymentMethod': 'கட்டண முறை',
+    'notesHint': 'நினைவில் வைக்க வேண்டியது ஏதும்…',
+    'scanning': 'ஸ்கேன் செய்கிறது…',
+    'attaching': 'இணைக்கிறது…',
+    'uploadPaymentProof': 'கட்டண ஆவணத்தைப் பதிவேற்று',
+    'changePaymentProof': 'கட்டண ஆவணத்தை மாற்று',
+    'uploadProofSubtitle':
+        'தானாக நிரப்ப ரசீது அல்லது கட்டண ஸ்கிரீன்ஷாட்டைப் பதிவேற்றவும்',
+    'pdfAttachedTapChange': 'பிடிஎஃப் இணைக்கப்பட்டது · மாற்ற தட்டவும்',
+    'attachedTapChange': 'இணைக்கப்பட்டது · மாற்ற தட்டவும்',
+    'autoFilledFromReceipt': 'ரசீதிலிருந்து தானாக நிரப்பப்பட்டது',
+    'clearAutoFilled': 'தானாக நிரப்பிய மதிப்புகளை அழி',
+    'transactionVault': 'பரிவர்த்தனை பெட்டகம்',
+    'financialYear': 'நிதியாண்டு',
+    'taxSummary': 'வரி சுருக்கம்',
+    'noTransactionsMatch': 'உங்கள் தேடலுக்கு பரிவர்த்தனைகள் பொருந்தவில்லை',
+    'recentTransactions': 'சமீபத்திய பரிவர்த்தனைகள்',
+    'couldntLoadTransactions': 'பரிவர்த்தனைகளை ஏற்ற முடியவில்லை',
+    'noTransactionsYet': 'இன்னும் பரிவர்த்தனைகள் இல்லை',
+    'noTransactionsYetSubtitle':
+        'உங்கள் பரிவர்த்தனை ரசீதுகளையும் கட்டணப் பதிவுகளையும் பாதுகாப்பாக '
+            'வைக்கவும்.',
+    'addFirstTransaction': 'முதல் பரிவர்த்தனையைச் சேர்',
+    'totalTransactions': 'மொத்த பரிவர்த்தனைகள்',
+    'totalAmount': 'மொத்த தொகை',
+    'searchTxnHint': 'ஐடி, விற்பனையாளர், தொகை அல்லது தேதி மூலம் தேடுங்கள்',
+    'transaction': 'பரிவர்த்தனை',
+    'deleteTransactionTitle': 'பரிவர்த்தனையை நீக்கவா?',
+    'deleteTransactionBody': 'இந்தப் பதிவு உங்கள் பெட்டகத்திலிருந்து நீக்கப்படும்.',
+    'transactionNotFound': 'பரிவர்த்தனை கிடைக்கவில்லை',
+    'dateAndTime': 'தேதி & நேரம்',
+    'vendor': 'விற்பனையாளர்',
+    'receiptScreenshot': 'ரசீது / ஸ்கிரீன்ஷாட்',
+    'noReceiptAttached': 'ரசீது இணைக்கப்படவில்லை',
+    'pdfReceiptTapToOpen': 'பிடிஎஃப் ரசீது · திறக்க தட்டவும்',
+    'imageUnavailable': 'படம் கிடைக்கவில்லை',
+    'downloadShare': 'பதிவிறக்கு / பங்கிடு',
+    'receiptFor': '{name} க்கான ரசீது',
+    'uploadType': '{type} பதிவேற்று',
+    'photoImage': 'புகைப்படம் / படம்',
+    'pdf': 'பிடிஎஃப்',
+    'photoAccessNeededUpload': 'பதிவேற்ற புகைப்பட அணுகல் தேவை',
+    'couldNotUploadDocument': 'ஆவணத்தைப் பதிவேற்ற முடியவில்லை',
+    'noTaxDocsToShare': 'நிதியாண்டு {fy} க்கு பங்கிட வரி ஆவணங்கள் இல்லை',
+    'taxDocsForYear': 'நிதியாண்டு {fy} க்கு {n} வரி ஆவணங்கள்',
+    'couldNotShareTaxFolder': 'வரி கோப்புறையைப் பங்கிட முடியவில்லை',
+    'noFilesYet': 'இன்னும் கோப்புகள் இல்லை',
+    'filesCount': '{n} கோப்பு',
+    'fyDocumentsCount': 'நிதியாண்டு {fy} · {n} ஆவணங்கள்',
+    'couldNotGeneratePdf':
+        'பிடிஎஃப் உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'netIncomeMinusExpenses': 'நிகர (வரவு − செலவு)',
+    'transactionsForYear': '{n} பரிவர்த்தனைகள் · நிதியாண்டு {fy}',
+    'totalIncome': 'மொத்த வரவு',
+    'totalExpenses': 'மொத்த செலவு',
+    'totalInvestments': 'மொத்த முதலீடுகள்',
+    'insurancePremiums': 'காப்பீட்டு பிரீமியங்கள்',
+    'medicalExpenses': 'மருத்துவ செலவுகள்',
+    'rentPaid': 'செலுத்திய வாடகை',
+    'taxPaid': 'செலுத்திய வரி',
+    'generateTaxSummaryPdf': 'வரி சுருக்கம் (பிடிஎஃப்) உருவாக்கு',
+    'taxSummaryDisclaimer':
+        'உங்கள் ITR தயாரிக்கும்போது குறிப்புக்கான தனிப்பட்ட பதிவு சுருக்கம் - '
+            'சான்றளிக்கப்பட்ட வரி ஆவணம் அல்ல.',
+    'monJan': 'ஜன',
+    'monFeb': 'பிப்',
+    'monMar': 'மார்',
+    'monApr': 'ஏப்',
+    'monMay': 'மே',
+    'monJun': 'ஜூன்',
+    'monJul': 'ஜூலை',
+    'monAug': 'ஆக',
+    'monSep': 'செப்',
+    'monOct': 'அக்',
+    'monNov': 'நவ',
+    'monDec': 'டிச',
+    'sharedLinksTitle': 'பங்கிட்ட இணைப்புகள்',
+    'sharedLinksSubtitle':
+        'செயல்பாட்டைப் பாருங்கள், எப்போதும் அணுகலை ரத்துசெய்யுங்கள்',
+    'revokeThisLinkTitle': 'இந்த இணைப்பை ரத்துசெய்யவா?',
+    'revokeThisLinkBody':
+        'இந்த இணைப்பு அல்லது கியூஆர் குறியீடு வைத்திருக்கும் யாருக்கும் அணுகல் '
+            'உடனே இழக்கப்படும். இதை மாற்ற முடியாது.',
+    'revoke': 'ரத்துசெய்',
+    'shareRevoked': 'பங்கிடல் ரத்துசெய்யப்பட்டது',
+    'couldNotRevoke': 'ரத்துசெய்ய முடியவில்லை - மீண்டும் முயற்சிக்கவும்',
+    'activeLinksSection': 'செயலில் உள்ள இணைப்புகள்',
+    'historySection': 'வரலாறு',
+    'views': 'பார்வைகள்',
+    'downloads': 'பதிவிறக்கங்கள்',
+    'revoked': 'ரத்து',
+    'docCountOne': '{n} ஆவணம்',
+    'docCountMany': '{n} ஆவணங்கள்',
+    'viewCountOne': '{n} பார்வை',
+    'viewCountMany': '{n} பார்வைகள்',
+    'downloadCountOne': '{n} பதிவிறக்கம்',
+    'downloadCountMany': '{n} பதிவிறக்கங்கள்',
+    'createdOn': '{date} அன்று உருவாக்கப்பட்டது',
+    'expiredOn': '{date} அன்று காலாவதியானது',
+    'accessRevoked': 'அணுகல் ரத்து',
+    'expiresInDaysShort': '{n} நாளில் காலாவதி',
+    'expiresInHoursShort': '{n} மணியில் காலாவதி',
+    'expiresInMinutesShort': '{n} நிமிடத்தில் காலாவதி',
+    'expiringNow': 'இப்போது காலாவதியாகிறது',
+    'noSharedLinksYet': 'இன்னும் பங்கிட்ட இணைப்புகள் இல்லை',
+    'noSharedLinksSubtitle':
+        'ஒரு வாலட்டில் ஆவணங்களைத் தேர்ந்தெடுத்து, பாதுகாப்பான, காலாவதியாகும் '
+            'இணைப்பை உருவாக்க “கியூஆர் வழியாகப் பங்கிடு” என்பதைத் தட்டவும்.',
+    'linkCopied': 'இணைப்பு கிளிப்போர்டுக்கு நகலெடுக்கப்பட்டது',
+    'couldNotExportQr': 'கியூஆர் படத்தை ஏற்றுமதி செய்ய முடியவில்லை.',
+    'shareRevokedLinkDead':
+        'பங்கிடல் ரத்து - இணைப்பு இனி வேலை செய்யாது',
+    'couldNotRevokeShare':
+        'பங்கிடலை ரத்துசெய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'revokeAccessTitle': 'அணுகலை ரத்துசெய்யவா?',
+    'revokeAccessBody':
+        'இந்தக் கியூஆர் அல்லது இணைப்பு ஏற்கனவே உள்ளவர்கள் உடனே அணுகலை '
+            'இழப்பார்கள். இதை மாற்ற முடியாது.',
+    'keep': 'வைத்திரு',
+    'previewRecipients': 'பெறுநர்கள் பார்ப்பதை முன்னோட்டமிடு',
+    'shareRevokedState': 'இந்தப் பங்கிடல் ரத்துசெய்யப்பட்டது.',
+    'shareExpiredState': 'இந்தப் பங்கிட்ட இணைப்பு காலாவதியாகிவிட்டது.',
+    'noDocsThroughQr':
+        'இந்தக் கியூஆர் வழியாக இனி எந்த ஆவணமும் அணுகக் கிடைக்காது.',
+    'shareReady': 'பங்கிடல் தயார்',
+    'shareRevokedTitle': 'பங்கிடல் ரத்து',
+    'shareExpiredTitle': 'பங்கிடல் காலாவதி',
+    'anyoneCanScan':
+        'யாரும் ஸ்கேன் செய்து பங்கிட்ட ஆவணங்களைப் பார்க்க முடியும்',
+    'expiresInDaysLong': '{n} நாட்களில் காலாவதி',
+    'expiresInOneDay': '1 நாளில் காலாவதி',
+    'expiresInHm': '{h}ம {m}நி இல் காலாவதி',
+    'expiresInMs': '{m}நி {s}வி இல் காலாவதி',
+    'expiresInS': '{s}வி இல் காலாவதி',
+    'docsSharedCount': '{n} ஆவணங்கள் பங்கிடப்பட்டன',
+    'copyLink': 'இணைப்பை நகலெடு',
+    'copyLinkAction': 'இணைப்பை நகலெடு',
+    'shareLinkAction': 'இணைப்பைப் பங்கிடு',
+    'downloadQr': 'கியூஆர் பதிவிறக்கு',
+    'revokeAccess': 'அணுகலை ரத்துசெய்',
+    'couldNotGenerateShare':
+        'பங்கிடலை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'qrBackendNotConfigured':
+        'கியூஆர் பங்கிடல் பேக்கெண்ட் அமைக்கப்படவில்லை',
+    'qrBackendNotConfiguredBody':
+        'பங்கிடல் சேவை இன்னும் சர்வரில் அமைக்கப்படவில்லை. Supabase migration '
+            'மற்றும் “share” Edge Function ஐ வரிசைப்படுத்தவும் '
+            '(supabase/README_document_sharing.md பார்க்கவும்), பின் மீண்டும் '
+            'முயற்சிக்கவும்.',
+    'selectedDocuments': 'தேர்ந்தெடுத்த ஆவணங்கள்',
+    'expiryDuration': 'காலாவதி கால அளவு',
+    'expiryDurationHint':
+        'காலாவதியாகும்போது கியூஆர் குறியீடு தானாக வேலை செய்வதை நிறுத்தும்.',
+    'docsSelected': '{n} ஆவணங்கள் தேர்ந்தெடுக்கப்பட்டன',
+    'shareSecurityNote':
+        'இணைப்பு உள்ள யாரும் காலாவதி வரை இந்த ஆவணங்களை மட்டுமே பார்க்க முடியும். '
+            'உங்கள் வாலட், கணக்கு மற்றும் பிற ஆவணங்கள் தனிப்பட்டதாக இருக்கும். '
+            'எப்போதும் அணுகலை ரத்துசெய்ய முடியும்.',
+    'generateQr': 'கியூஆர் உருவாக்கு',
+    'dur10Minutes': '10 நிமிடங்கள்',
+    'dur1Hour': '1 மணி',
+    'dur24Hours': '24 மணி',
+    'dur7Days': '7 நாட்கள்',
+    'couldNotGenerateShareCopy':
+        'பங்கிடல் நகலை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'couldNotCreateQr':
+        'கியூஆர் குறியீட்டை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'sharingNotSetUp': 'பங்கிடல் அமைக்கப்படவில்லை',
+    'sharingNotSetUpBody':
+        'ஆவணப் பங்கிடல் சேவை இன்னும் சர்வரில் வரிசைப்படுத்தப்படவில்லை. Supabase '
+            'migration மற்றும் “share” Edge Function ஐ வரிசைப்படுத்தவும் '
+            '(supabase/README_document_sharing.md பார்க்கவும்), பின் மீண்டும் '
+            'முயற்சிக்கவும். இப்போதும் “உருவாக்கிப் பங்கிடு” மூலம் நகலை நேரடியாக '
+            'அனுப்பலாம்.',
+    'shareSettings': 'பங்கிடல் அமைப்புகள்',
+    'docsOriginalStaysSafe':
+        '{n} ஆவணங்கள் · அசல் பாதுகாப்பாக இருக்கும்',
+    'copyStylesPdfNote':
+        'நகல் பாணிகள் படக் ஆவணங்களுக்குப் பொருந்தும். பிடிஎஃப்கள் அவ்வாறே '
+            'பங்கிடப்படும்; கீழே உள்ள இணைப்பு காலாவதி இன்னும் பொருந்தும்.',
+    'copyStyle': 'நகல் பாணி',
+    'linkExpiry': 'இணைப்பு காலாவதி',
+    'linkExpiryHint':
+        'பெறுநர்கள் கியூஆரை ஸ்கேன் செய்து உங்கள் பாதுகாப்பான INO பார்வையாளரில் '
+            'பங்கிட்ட நகலைப் பார்க்கிறார்கள். காலாவதியாகும்போது இணைப்பு வேலை '
+            'செய்வதை நிறுத்தும், எப்போதும் ரத்துசெய்யலாம்.',
+    'expireAfter': '{d} பின் காலாவதி',
+    'createQrCode': 'கியூஆர் குறியீடு உருவாக்கு',
+    'generateAndShare': 'உருவாக்கிப் பங்கிடு',
+    'colorOriginal': 'அசல் நிறம்',
+    'compressedPdf': 'சுருக்கிய பிடிஎஃப்',
+    'noAppToOpenFile': 'இந்தக் கோப்பைத் திறக்க பயன்பாடு இல்லை.',
+    'couldNotDownloadDoc': 'இந்த ஆவணத்தைப் பதிவிறக்க முடியவில்லை.',
+    'couldNotOpenDoc': 'இந்த ஆவணத்தைத் திறக்க முடியவில்லை.',
+    'shareLinkExpiredTitle': 'இந்தப் பங்கிடல் இணைப்பு காலாவதியாகிவிட்டது',
+    'shareLinkExpiredBody': 'ஆவணங்கள் இனி கிடைக்காது.',
+    'shareLinkRevokedTitle': 'இந்தப் பங்கிடல் இணைப்பு ரத்துசெய்யப்பட்டது',
+    'shareLinkRevokedBody':
+        'உரிமையாளர் இந்த ஆவணங்களின் அணுகலை நிறுத்திவிட்டார்.',
+    'linkNotFound': 'இணைப்பு கிடைக்கவில்லை',
+    'linkNotFoundBody': 'இந்தப் பங்கிட்ட இணைப்பு இல்லை.',
+    'couldntLoadShare': 'இந்தப் பங்கிடலை ஏற்ற முடியவில்லை',
+    'checkConnection': 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    'sharedDocuments': 'பங்கிட்ட ஆவணங்கள்',
+    'secureDocumentShare': 'பாதுகாப்பான ஆவணப் பங்கிடல்',
+    'sharedViaInoFooter':
+        'INO வழியாகப் பங்கிடப்பட்டது · இந்த ஆவணங்களை மட்டும் பார்க்க முடியும்',
+    'twoFactorAuthTitle': 'இரு-படி அங்கீகாரம்',
+    'couldNotStart2fa':
+        '2FA அமைப்பைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'enterSixDigitCode': '6-இலக்க குறியீட்டை உள்ளிடவும்.',
+    'twoFactorOn': 'இரு-படி அங்கீகாரம் இயக்கத்தில் உள்ளது.',
+    'codeIncorrectExpired':
+        'அந்தக் குறியீடு தவறு அல்லது காலாவதியானது. மீண்டும் முயற்சிக்கவும்.',
+    'couldNotVerifyCode': 'குறியீட்டைச் சரிபார்க்க முடியவில்லை.',
+    'twoFactorDisabled': 'இரு-படி அங்கீகாரம் முடக்கப்பட்டது.',
+    'couldNotDisable2fa': '2FA ஐ முடக்க முடியவில்லை.',
+    'disable2faTitle': '2FA ஐ முடக்கவா?',
+    'disable2faBody':
+        'உள்நுழையும்போது உங்கள் கணக்கிற்கு இனி இரண்டாவது காரணி தேவைப்படாது.',
+    'disable': 'முடக்கு',
+    'extraLayerSecurity': 'கூடுதல் பாதுகாப்பு அடுக்கைச் சேர்க்கவும்',
+    'twoFactorIntro':
+        '2FA இயக்கத்தில் இருக்கும்போது, உள்நுழைவுக்கு உங்கள் அங்கீகார '
+            'பயன்பாட்டிலிருந்து (Google Authenticator, Authy, 1Password …) '
+            'நேர-அடிப்படையிலான குறியீடும் தேவை.',
+    'twoFactorStep1':
+        'உங்கள் தொலைபேசியில் ஒரு அங்கீகார பயன்பாட்டை நிறுவவும்.',
+    'twoFactorStep2': 'அடுத்து காட்டப்படும் ரகசியக் குறியீட்டால் INO ஐச் சேர்க்கவும்.',
+    'twoFactorStep3':
+        'அமைப்பை முடிக்க 6-இலக்க குறியீட்டை உள்ளிடவும்.',
+    'enable2fa': '2FA ஐ இயக்கு',
+    'canTurnOffAnyTime': 'இதை எப்போதும் முடக்கலாம்.',
+    'addInoToAuthenticator': 'உங்கள் அங்கீகார பயன்பாட்டில் INO ஐச் சேர்க்கவும்',
+    'enterSetupKeyHint':
+        'இந்த அமைப்புச் சாவியை உங்கள் அங்கீகார பயன்பாட்டில் உள்ளிட்டு, பின் அது '
+            'உருவாக்கும் 6-இலக்க குறியீட்டைத் தட்டச்சு செய்யவும்.',
+    'setupKey': 'அமைப்புச் சாவி',
+    'setupUriAdvanced': 'அமைப்பு URI (மேம்பட்டது)',
+    'sixDigitCode': '6-இலக்க குறியீடு',
+    'verifyAndTurnOn': 'சரிபார்த்து இயக்கு',
+    'twoFactorIsOn': '2FA இயக்கத்தில் உள்ளது',
+    'twoFactorOnBody':
+        'உங்கள் கணக்கு இரண்டாவது காரணியால் பாதுகாக்கப்படுகிறது. உள்நுழையும்போது '
+            'உங்கள் அங்கீகார பயன்பாட்டின் குறியீடு கேட்கப்படும்.',
+    'recovery': 'மீட்பு',
+    'twoFactorRecoveryBody':
+        'உங்கள் அங்கீகார பயன்பாட்டின் அணுகலைத் தக்கவைத்துக்கொள்ளுங்கள். சாதனம் '
+            'தொலைந்தால், அதன் காப்பு/மாற்ற வசதி அல்லது சேமித்த அமைப்புச் '
+            'சாவியால் குறியீடுகளை மீட்டெடுக்கவும். இரண்டும் தொலைந்தால் '
+            'உள்நுழைந்த அமர்விலிருந்து 2FA ஐ மீட்டமைக்க வேண்டும்.',
+    'disable2fa': '2FA ஐ முடக்கு',
+    'copiedLabel': '{label} நகலெடுக்கப்பட்டது.',
+    'yourPasswordIncorrect': 'உங்கள் கடவுச்சொல் தவறு.',
+    'couldNotDeleteAccount':
+        'உங்கள் கணக்கை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'cantBeUndone': 'இதை மாற்ற முடியாது',
+    'deleteAccountWarning':
+        'கணக்கை நீக்குவது உங்கள் ஆவணங்கள், பதிவேற்றிய கோப்புகள், காப்புகள் '
+            'மற்றும் சுயவிவரத்தை நிரந்தரமாக நீக்குகிறது. நீங்கள் உடனே '
+            'வெளியேற்றப்படுவீர்கள்.',
+    'typeDeleteToConfirm': 'உறுதிப்படுத்த DELETE எனத் தட்டச்சு செய்யவும்',
+    'confirmation': 'உறுதிப்படுத்தல்',
+    'confirmYourPassword': 'உங்கள் கடவுச்சொல்லை உறுதிப்படுத்தவும்',
+    'permanentlyDeleteAccount': 'கணக்கை நிரந்தரமாக நீக்கு',
+    'keepMyAccount': 'எனது கணக்கை வைத்திரு',
+    'intelligentNetworkOrganizer': 'இன்டெலிஜென்ட் நெட்வொர்க் ஆர்கனைசர்',
+    'version': 'பதிப்பு',
+    'buildNumber': 'பில்ட் எண்',
+    'package': 'தொகுப்பு',
+    'environment': 'சூழல்',
+    'production': 'ப்ரொடக்ஷன்',
+    'allRightsReserved': '© {year} INO. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.',
+    'searchHelp': 'உதவியைத் தேடு…',
+    'helpNoResults': '“{q}” க்கு முடிவுகள் இல்லை',
+    'stillNeedHelp': 'இன்னும் உதவி தேவையா?',
+    'contactUs': 'எங்களைத் தொடர்பு கொள்ளுங்கள்',
+    'faqAddDocQ': 'ஆவணத்தை எப்படிச் சேர்ப்பது?',
+    'faqAddDocA':
+        'முகப்பு அல்லது வாலட்டில் + பொத்தானைத் தட்டி, ஒரு வகையைத் '
+            'தேர்ந்தெடுத்து, பின் கேமராவால் ஸ்கேன் செய்யுங்கள் அல்லது '
+            'கேலரியிலிருந்து இறக்குமதி செய்யுங்கள். INO படத்தை மேம்படுத்தி '
+            'உங்கள் பெட்டகத்தில் பாதுகாப்பாகச் சேமிக்கிறது.',
+    'faqProtectQ': 'பயோமெட்ரிக்ஸ் மூலம் ஆவணத்தை எப்படிப் பாதுகாப்பது?',
+    'faqProtectA':
+        'ஆவணத்தின் மெனுவைத் திறந்து “பாதுகாக்கவும்” என்பதைத் தேர்வுசெய்யுங்கள், '
+            'அல்லது சேர்க்கும்போது “பயோமெட்ரிக்ஸ் மூலம் பாதுகாக்கவும்” '
+            'என்பதை இயக்கவும். பாதுகாக்கப்பட்ட ஆவணங்களைத் திறக்க முகம்/கைரேகை '
+            'திறப்பு தேவை.',
+    'faqEncryptedQ': 'எனது தரவு குறியாக்கம் செய்யப்பட்டதா?',
+    'faqEncryptedA':
+        'உங்கள் கோப்புகள் தனிப்பட்ட, அணுகல்-கட்டுப்பாட்டு கிளவுட் பக்கெட்டில் '
+            'சேமிக்கப்படுகின்றன, உங்கள் உள்நுழைந்த அமர்வோடு மட்டுமே '
+            'அணுகக்கூடியவை. பாதுகாக்கப்பட்ட உருப்படிகளுக்கு கூடுதலாக '
+            'பயோமெட்ரிக் தடை உள்ளது.',
+    'faqBackupQ': 'காப்புகள் எப்படி வேலை செய்கின்றன?',
+    'faqBackupA':
+        'கிளவுட் காப்பு உங்கள் கணக்கு மற்றும் ஆவண மேனிலைத் தரவின் JSON '
+            'காப்பகத்தை உருவாக்கி உங்கள் தனிப்பட்ட சேமிப்பில் பதிவேற்றுகிறது. '
+            'இதைப் புதுப்பித்து வைக்க தானியங்கு காப்பை இயக்கவும், அல்லது '
+            'எப்போதும் கைமுறையாகக் காப்பு எடுக்கவும்.',
+    'faq2faQ': 'இரு-படி அங்கீகாரத்தை எப்படி இயக்குவது?',
+    'faq2faA':
+        'பாதுகாப்பு → இரு-படி அங்கீகாரம் என்பதற்குச் சென்று, இயக்கு என்பதைத் '
+            'தட்டி, அமைப்புச் சாவியை அங்கீகார பயன்பாட்டில் சேர்த்து, '
+            'உறுதிப்படுத்த 6-இலக்க குறியீட்டை உள்ளிடவும்.',
+    'faqPasswordQ': 'கடவுச்சொல்லை எப்படி மாற்றுவது அல்லது மீட்டமைப்பது?',
+    'faqPasswordA':
+        'பாதுகாப்பு → கடவுச்சொல்லை மாற்று. உங்கள் தற்போதைய கடவுச்சொல்லை '
+            'உறுதிப்படுத்தி, பின் புதிய, வலுவான ஒன்றை அமைக்கவும். தட்டச்சு '
+            'செய்யும்போது நேரடி வலிமை அளவி தெரியும்.',
+    'faqDarkModeQ': 'INO ஐ இருண்ட பயன்முறையில் பயன்படுத்தலாமா?',
+    'faqDarkModeA':
+        'ஆம் - விருப்பங்கள் → இருண்ட பயன்முறை. உங்கள் தேர்வு மறுதொடக்கத்திற்குப் '
+            'பின்னும் நினைவில் வைக்கப்படும், முழு பயன்பாட்டிலும் உடனே '
+            'பொருந்தும்.',
+    'faqDeleteQ': 'எனது கணக்கை எப்படி நீக்குவது?',
+    'faqDeleteA':
+        'சுயவிவரத்தின் கீழே உருட்டி கணக்கை நீக்கு என்பதைத் தேர்வுசெய்யுங்கள். '
+            'நீங்கள் உறுதிப்படுத்தி, கடவுச்சொல்லை மீண்டும் உள்ளிடுவீர்கள், பின் '
+            'உங்கள் ஆவணங்கள், கோப்புகள் மற்றும் சுயவிவரம் நிரந்தரமாக '
+            'நீக்கப்படும்.',
+    'enterNewPassword': 'புதிய கடவுச்சொல்லை உள்ளிடவும்',
+    'useAtLeast8Chars': 'குறைந்தது 8 எழுத்துகளைப் பயன்படுத்தவும்',
+    'strengthenPassword':
+        'வலுப்படுத்த எழுத்துகள், எண்கள் அல்லது குறியீடுகளைச் சேர்க்கவும்',
+    'newMustDiffer':
+        'புதிய கடவுச்சொல் தற்போதையதிலிருந்து வேறுபட வேண்டும்',
+    'passwordUpdated': 'கடவுச்சொல் வெற்றிகரமாகப் புதுப்பிக்கப்பட்டது.',
+    'currentPasswordIncorrect': 'உங்கள் தற்போதைய கடவுச்சொல் தவறு.',
+    'couldNotChangePassword':
+        'உங்கள் கடவுச்சொல்லை மாற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'confirmCurrentPasswordIntro':
+        'உங்கள் பாதுகாப்புக்காக, புதிய கடவுச்சொல்லை அமைக்கும் முன் தற்போதைய '
+            'கடவுச்சொல்லை உறுதிப்படுத்தவும்.',
+    'currentPassword': 'தற்போதைய கடவுச்சொல்',
+    'enterCurrentPassword': 'உங்கள் தற்போதைய கடவுச்சொல்லை உள்ளிடவும்',
+    'newPassword': 'புதிய கடவுச்சொல்',
+    'confirmNewPassword': 'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்',
+    'passwordsDoNotMatch': 'கடவுச்சொற்கள் பொருந்தவில்லை',
+    'updatePassword': 'கடவுச்சொல்லைப் புதுப்பி',
+    'strengthWeak': 'பலவீனம்',
+    'strengthFair': 'சராசரி',
+    'strengthGood': 'நல்லது',
+    'strengthStrong': 'வலுவானது',
+    'editProfile': 'சுயவிவரத்தைத் திருத்து',
+    'couldNotSaveChanges':
+        'உங்கள் மாற்றங்களைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'changePhotoComingSoon': 'படத்தை மாற்று - விரைவில் வருகிறது',
+    'emailTiedToSignIn':
+        'மின்னஞ்சல் உங்கள் உள்நுழைவோடு இணைந்துள்ளது, இங்கே மாற்ற முடியாது.',
+    'mobileHint': '+91 98765 43210',
+    'openingMailApp':
+        'செய்தியை அனுப்ப உங்கள் அஞ்சல் பயன்பாடு திறக்கப்படுகிறது.',
+    'noMailApp':
+        'அஞ்சல் பயன்பாடு இல்லை. {email} க்கு மின்னஞ்சல் அனுப்புங்கள்',
+    'couldNotOpenMailApp': 'உங்கள் அஞ்சல் பயன்பாட்டைத் திறக்க முடியவில்லை.',
+    'contactSupportIntro':
+        'என்ன நடக்கிறது எனச் சொல்லுங்கள், நாங்கள் உங்களைத் தொடர்பு கொள்வோம். '
+            'உங்கள் செய்தி எங்கள் ஆதரவுக் குழு முகவரியுடன் உங்கள் அஞ்சல் '
+            'பயன்பாட்டில் திறக்கும்.',
+    'subject': 'பொருள்',
+    'addShortSubject': 'ஒரு சுருக்கமான பொருளைச் சேர்க்கவும்',
+    'message': 'செய்தி',
+    'addMoreDetail': 'சற்று அதிக விவரம் சேர்க்கவும்',
+    'sendMessage': 'செய்தி அனுப்பு',
+    'couldNotLoadBackups':
+        'உங்கள் காப்புகளை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்க இழுக்கவும்.',
+    'backupCompleted': 'காப்பு முடிந்தது.',
+    'backupFailedRetry':
+        'காப்பு தோல்வி. உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    'backupFailed': 'காப்பு தோல்வி. மீண்டும் முயற்சிக்கவும்.',
+    'preparingBackup': 'உங்கள் காப்பு தயாராகிறது…',
+    'couldNotRestoreBackup': 'இந்தக் காப்பை மீட்டெடுக்க முடியவில்லை.',
+    'backingUp': 'காப்பு எடுக்கிறது…',
+    'backUpNow': 'இப்போது காப்பு எடு',
+    'previousBackups': 'முந்தைய காப்புகள்',
+    'lastBackup': 'கடைசி காப்பு',
+    'noBackupsYet': 'இன்னும் காப்புகள் இல்லை',
+    'noBackupsYetBody':
+        'நீங்கள் இன்னும் காப்பு எடுக்கவில்லை. உங்கள் முதல் கிளவுட் காப்பை '
+            'உருவாக்க “இப்போது காப்பு எடு” என்பதைத் தட்டவும்.',
+    'removedDevice': '{name} அகற்றப்பட்டது.',
+    'cantRemoveCurrentDevice': 'தற்போதைய சாதனத்தை அகற்ற முடியாது.',
+    'trustedDevicesIntro':
+        'இவை உங்கள் INO கணக்கில் உள்நுழைந்த சாதனங்கள்.',
+    'thisDevice': 'இந்தச் சாதனம்',
+    'activeAgo': 'செயலில் {when}',
+    'removeDevice': 'சாதனத்தை அகற்று',
   },
 };

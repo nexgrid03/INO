@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
@@ -36,9 +37,10 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
 
   Future<void> _generate() async {
     if (_generating) return;
+    final l10n = AppLocalizations.of(context);
     final ids = widget.documents.map((d) => d.id).toList();
     developer.log(
-      'Share requested → ids=$ids duration=${_duration.label} '
+      'Share requested → ids=$ids duration=${_duration.labelKey} '
       '(${_duration.seconds}s)',
       name: 'share',
     );
@@ -66,7 +68,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
       _fail(e.message);
     } catch (e) {
       developer.log('Share generate unexpected error: $e', name: 'share');
-      _fail('Could not generate the share. Please try again.');
+      _fail(l10n.t('couldNotGenerateShare'));
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -88,6 +90,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
   void _showBackendNotConfigured() {
     if (!mounted) return;
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,23 +102,21 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
             const Icon(Icons.cloud_off_rounded, color: AppColors.warning),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
-              child: Text('QR Sharing Backend Not Configured',
+              child: Text(l10n.t('qrBackendNotConfigured'),
                   style: AppText.title
                       .copyWith(color: palette.textPrimary, fontSize: 16)),
             ),
           ],
         ),
         content: Text(
-          'The sharing service isn’t set up on the server yet. Deploy the '
-          'Supabase migration and the “share” Edge Function '
-          '(see supabase/README_document_sharing.md), then try again.',
+          l10n.t('qrBackendNotConfiguredBody'),
           style: AppText.body.copyWith(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('OK',
-                style: TextStyle(
+            child: Text(l10n.t('ok'),
+                style: const TextStyle(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w700)),
           ),
@@ -127,6 +128,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final docs = widget.documents;
     return Scaffold(
       backgroundColor: palette.bg,
@@ -140,7 +142,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
                 children: [
-                  _sectionLabel('Selected Documents', palette),
+                  _sectionLabel(l10n.t('selectedDocuments'), palette),
                   const SizedBox(height: AppSpacing.sm),
                   InoCard(
                     padding: const EdgeInsets.symmetric(
@@ -156,10 +158,10 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  _sectionLabel('Expiry Duration', palette),
+                  _sectionLabel(l10n.t('expiryDuration'), palette),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'The QR code stops working automatically when it expires.',
+                    l10n.t('expiryDurationHint'),
                     style: AppText.caption.copyWith(color: palette.textSecondary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -198,6 +200,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
@@ -228,12 +231,12 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Share via QR',
+                Text(l10n.t('shareViaQr'),
                     style: AppText.headline
                         .copyWith(color: palette.textPrimary, fontSize: 21)),
                 const SizedBox(height: 2),
                 Text(
-                  '$count document${count == 1 ? '' : 's'} selected',
+                  l10n.t('docsSelected').replaceFirst('{n}', '$count'),
                   style: AppText.caption.copyWith(color: palette.textSecondary),
                 ),
               ],
@@ -367,7 +370,7 @@ class _DurationChip extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              duration.label,
+              duration.label(AppLocalizations.of(context)),
               style: AppText.subtitle.copyWith(
                 color: active ? Colors.white : palette.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -403,9 +406,7 @@ class _SecurityNote extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Anyone with the link can view only these documents until it '
-              'expires. Your wallet, account and other documents stay private. '
-              'You can revoke access at any time.',
+              AppLocalizations.of(context).t('shareSecurityNote'),
               style: AppText.caption.copyWith(
                 color: palette.textSecondary,
                 height: 1.45,
@@ -432,6 +433,7 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: palette.bg,
@@ -458,7 +460,7 @@ class _ActionBar extends StatelessWidget {
                       height: AppSizes.button,
                       width: 104,
                       child: Center(
-                        child: Text('Cancel',
+                        child: Text(l10n.t('cancel'),
                             style: AppText.subtitle
                                 .copyWith(color: palette.textSecondary)),
                       ),
@@ -504,7 +506,7 @@ class _ActionBar extends StatelessWidget {
                                     const Icon(Icons.qr_code_2_rounded,
                                         color: Colors.white, size: 20),
                                     const SizedBox(width: 8),
-                                    Text('Generate QR',
+                                    Text(l10n.t('generateQr'),
                                         style: AppText.subtitle.copyWith(
                                             color: Colors.white,
                                             fontWeight: FontWeight.w700)),

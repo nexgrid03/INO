@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -55,10 +56,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     final identifier = _controller.text.trim();
 
     if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage('Mobile reset is coming soon - please use your email.');
+      _showMessage(l10n.t('mobileResetSoon'));
       return;
     }
 
@@ -73,7 +75,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } on AuthException catch (e) {
       _showMessage(e.message);
     } catch (_) {
-      _showMessage('Could not send the reset code. Please try again.');
+      _showMessage(l10n.t('resetCodeError'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -88,6 +90,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Widget _buildForm() {
+    final l10n = AppLocalizations.of(context);
+    final validate = AuthValidators.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -96,10 +100,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 26),
         FadeSlideIn(
           delay: const Duration(milliseconds: 60),
-          child: const Text(
-            'Reset Password',
+          child: Text(
+            l10n.t('resetPassword'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
               color: AppColors.textDark,
@@ -109,11 +113,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 10),
         FadeSlideIn(
           delay: const Duration(milliseconds: 110),
-          child: const Text(
-            'Enter your registered email and we’ll send you a link to reset '
-            'your password.',
+          child: Text(
+            l10n.t('resetPasswordSubtitle'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14.5,
               color: AppColors.textMuted,
               height: 1.5,
@@ -128,13 +131,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             delay: const Duration(milliseconds: 160),
             child: AuthTextField(
               controller: _controller,
-              label: 'Email or mobile number',
+              label: l10n.t('emailOrMobile'),
               hint: 'you@example.com',
               icon: Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.username],
-              validator: AuthValidators.emailOrPhone,
+              validator: validate.emailOrPhone,
               onSubmitted: (_) => _send(),
             ),
           ),
@@ -143,7 +146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         FadeSlideIn(
           delay: const Duration(milliseconds: 210),
           child: AuthPrimaryButton(
-            label: 'Send Verification Code',
+            label: l10n.t('sendVerificationCode'),
             busy: _busy,
             onPressed: _busy ? null : _send,
           ),
@@ -154,6 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Widget _buildSent() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -178,10 +182,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 28),
         FadeSlideIn(
           delay: const Duration(milliseconds: 60),
-          child: const Text(
-            'Check your inbox',
+          child: Text(
+            l10n.t('checkYourInbox'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: AppColors.textDark,
@@ -193,7 +197,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           delay: const Duration(milliseconds: 110),
           child: Text.rich(
             TextSpan(
-              text: 'We’ve sent password reset instructions to\n',
+              text: '${l10n.t('resetInstructionsSentTo')}\n',
               style: const TextStyle(
                 fontSize: 14.5,
                 color: AppColors.textMuted,
@@ -216,7 +220,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         FadeSlideIn(
           delay: const Duration(milliseconds: 160),
           child: AuthPrimaryButton(
-            label: 'Back to Sign In',
+            label: l10n.t('backToSignIn'),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -226,9 +230,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: Center(
             child: TextButton(
               onPressed: _busy ? null : () => setState(() => _sent = false),
-              child: const Text(
-                'Use a different email',
-                style: TextStyle(
+              child: Text(
+                l10n.t('useDifferentEmail'),
+                style: const TextStyle(
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w600,
                 ),

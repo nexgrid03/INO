@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/share_origin.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
 import '../../services/backup_service.dart';
@@ -38,6 +39,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
   }
 
   Future<void> _loadBackups() async {
+    final l10n = AppLocalizations.of(context);
     try {
       final list = await BackupService.instance.listBackups();
       if (!mounted) return;
@@ -50,12 +52,13 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
       if (!mounted) return;
       setState(() {
         _backups = const [];
-        _error = 'Could not load your backups. Pull to retry.';
+        _error = l10n.t('couldNotLoadBackups');
       });
     }
   }
 
   Future<void> _backupNow() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _backingUp = true;
       _progress = 0;
@@ -69,21 +72,22 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
         },
       );
       if (!mounted) return;
-      BiometricUx.successSnack(context, 'Backup completed.');
+      BiometricUx.successSnack(context, l10n.t('backupCompleted'));
       await _loadBackups();
     } catch (e) {
       developer.log('backupNow error: $e', name: 'backup', error: e);
       if (!mounted) return;
-      setState(() => _error = 'Backup failed. Check your connection and retry.');
-      BiometricUx.errorSnack(context, 'Backup failed. Please try again.');
+      setState(() => _error = l10n.t('backupFailedRetry'));
+      BiometricUx.errorSnack(context, l10n.t('backupFailed'));
     } finally {
       if (mounted) setState(() => _backingUp = false);
     }
   }
 
   Future<void> _restore(CloudBackup backup) async {
+    final l10n = AppLocalizations.of(context);
     try {
-      BiometricUx.successSnack(context, 'Preparing your backup…');
+      BiometricUx.successSnack(context, l10n.t('preparingBackup'));
       final file = await BackupService.instance.download(backup);
       if (!mounted) return;
       await Share.shareXFiles([XFile(file.path)],
@@ -92,7 +96,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
     } catch (e) {
       developer.log('restore error: $e', name: 'backup', error: e);
       if (mounted) {
-        BiometricUx.errorSnack(context, 'Could not restore this backup.');
+        BiometricUx.errorSnack(context, l10n.t('couldNotRestoreBackup'));
       }
     }
   }
@@ -100,9 +104,10 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final backups = _backups;
     return SettingsScaffold(
-      title: 'Cloud Backup',
+      title: l10n.t('cloudBackup'),
       child: RefreshIndicator(
         onRefresh: _loadBackups,
         color: AppColors.primaryGreen,
@@ -120,13 +125,13 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
             ],
             const SizedBox(height: AppSpacing.lg),
             SettingsPrimaryButton(
-              label: _backingUp ? 'Backing up…' : 'Back Up Now',
+              label: l10n.t(_backingUp ? 'backingUp' : 'backUpNow'),
               icon: Icons.cloud_upload_rounded,
               busy: _backingUp,
               onPressed: _backingUp ? null : _backupNow,
             ),
             const SizedBox(height: AppSpacing.section),
-            Text('PREVIOUS BACKUPS',
+            Text(l10n.t('previousBackups'),
                 style: AppText.label.copyWith(color: palette.textFaint)),
             const SizedBox(height: AppSpacing.sm),
             if (backups == null)
@@ -158,6 +163,7 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -182,14 +188,14 @@ class _StatusCard extends StatelessWidget {
                   builder: (context, last, _) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Last backup',
+                      Text(l10n.t('lastBackup'),
                           style: AppText.caption
                               .copyWith(color: palette.textSecondary)),
                       const SizedBox(height: 2),
                       Text(
                         last == null
-                            ? 'No backups yet'
-                            : formatRelativeDate(last),
+                            ? l10n.t('noBackupsYet')
+                            : formatRelativeDate(l10n, last),
                         style: AppText.title
                             .copyWith(color: palette.textPrimary),
                       ),
@@ -227,6 +233,7 @@ class _BackupTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       child: Row(
@@ -248,7 +255,7 @@ class _BackupTile extends StatelessWidget {
               children: [
                 Text(
                   backup.updatedAt != null
-                      ? formatRelativeDate(backup.updatedAt!)
+                      ? formatRelativeDate(l10n, backup.updatedAt!)
                       : backup.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

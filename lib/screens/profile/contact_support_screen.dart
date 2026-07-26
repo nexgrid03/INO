@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_text_field.dart';
@@ -40,6 +41,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       final uri = Uri(
@@ -54,17 +56,16 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       if (ok) {
-        BiometricUx.successSnack(
-            context, 'Opening your mail app to send the message.');
+        BiometricUx.successSnack(context, l10n.t('openingMailApp'));
         Navigator.of(context).pop();
       } else {
         BiometricUx.errorSnack(
-            context, 'No mail app found. Email us at $_email');
+            context, l10n.t('noMailApp').replaceFirst('{email}', _email));
       }
     } catch (e) {
       developer.log('contact send error: $e', name: 'support', error: e);
       if (mounted) {
-        BiometricUx.errorSnack(context, 'Could not open your mail app.');
+        BiometricUx.errorSnack(context, l10n.t('couldNotOpenMailApp'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,8 +82,9 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: 'Contact Support',
+      title: l10n.t('contactSupport'),
       child: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -92,20 +94,19 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
               AppSpacing.screen, AppSpacing.xl),
           children: [
             Text(
-              'Tell us what’s going on and we’ll get back to you. Your message '
-              'opens in your mail app addressed to our support team.',
+              l10n.t('contactSupportIntro'),
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.5),
             ),
             const SizedBox(height: AppSpacing.lg),
             AuthTextField(
               controller: _subject,
-              label: 'Subject',
+              label: l10n.t('subject'),
               icon: Icons.subject_rounded,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.sentences,
               validator: (v) => (v == null || v.trim().length < 3)
-                  ? 'Add a short subject'
+                  ? l10n.t('addShortSubject')
                   : null,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -128,7 +129,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
             SettingsPrimaryButton(
-              label: 'Send Message',
+              label: l10n.t('sendMessage'),
               icon: Icons.send_rounded,
               busy: _busy,
               onPressed: _busy ? null : _send,
@@ -148,6 +149,7 @@ class _MessageField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return TextFormField(
       controller: controller,
       minLines: 5,
@@ -158,10 +160,11 @@ class _MessageField extends StatelessWidget {
         fontSize: 15,
         fontWeight: FontWeight.w500,
       ),
-      validator: (v) =>
-          (v == null || v.trim().length < 10) ? 'Add a bit more detail' : null,
+      validator: (v) => (v == null || v.trim().length < 10)
+          ? l10n.t('addMoreDetail')
+          : null,
       decoration: InputDecoration(
-        labelText: 'Message',
+        labelText: l10n.t('message'),
         alignLabelWithHint: true,
         filled: true,
         fillColor: AppColors.surface,
