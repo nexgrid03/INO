@@ -64,9 +64,22 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
       _saving = true;
       _error = null;
     });
-    final created = await CustomWalletStore.instance.add(
-      CustomWallet(name: name, iconKey: _iconKey, colorValue: _colorValue),
-    );
+    // `add` provisions the wallet's table on the server, so it can fail on a
+    // bad connection or a name the database rejects. Surface that instead of
+    // popping with a wallet that has nowhere to store documents.
+    final CustomWallet created;
+    try {
+      created = await CustomWalletStore.instance.add(
+        CustomWallet(name: name, iconKey: _iconKey, colorValue: _colorValue),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = l10n.t('somethingWentWrong');
+      });
+      return;
+    }
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop(created);

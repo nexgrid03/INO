@@ -131,16 +131,22 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
       if (idx != -1) list[idx] = record;
     }
     // Persist the change so it survives a restart (fire-and-forget).
-    DocumentRepository.instance.update(record.id, {
-      'is_favorite': record.isFavorite,
-      'status': record.status.name,
-    }).catchError((_) {});
+    DocumentRepository.instance.update(
+      record.id,
+      {
+        'is_favorite': record.isFavorite,
+        'status': record.status.name,
+      },
+      wallet: walletName,
+    ).catchError((_) {});
   }
 
   @override
   void deleteRecord(String walletName, String recordId) {
     _cache[walletName]?.removeWhere((r) => r.id == recordId);
-    DocumentRepository.instance.delete(recordId).catchError((_) {});
+    DocumentRepository.instance
+        .delete(recordId, wallet: walletName)
+        .catchError((_) {});
   }
 
   @override

@@ -544,115 +544,121 @@ class PropertyCard extends StatelessWidget {
             border: Border.all(color: palette.border),
             boxShadow: palette.cardShadow,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Thumbnail - the user's photo, else a typed gradient tile.
-              SizedBox(
-                width: 104,
-                child: _Thumbnail(property: property, accent: accent),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              property.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.title.copyWith(
-                                color: palette.textPrimary,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          if (onFavorite != null)
-                            GestureDetector(
-                              onTap: onFavorite,
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: Icon(
-                                  property.isFavorite
-                                      ? Icons.star_rounded
-                                      : Icons.star_outline_rounded,
-                                  size: 19,
-                                  color: property.isFavorite
-                                      ? AppColors.warning
-                                      : palette.textFaint,
+          // The card sits in a sliver list, so its height is unbounded. The
+          // thumbnail stretches to whatever the text column measures, and
+          // stretch needs a real height to stretch to - hence IntrinsicHeight.
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Thumbnail - the user's photo, else a typed gradient tile.
+                SizedBox(
+                  width: 104,
+                  child: _Thumbnail(property: property, accent: accent),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                property.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.title.copyWith(
+                                  color: palette.textPrimary,
+                                  fontSize: 15,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(property.type.icon,
-                              size: 13, color: palette.textFaint),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              property.locationLine.isEmpty
-                                  ? property.type.label
-                                  : '${property.type.label} · ${property.locationLine}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.caption
-                                  .copyWith(color: palette.textSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  property.portfolioValue > 0
-                                      ? money(property.portfolioValue, currency)
-                                      : 'Value not set',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.title.copyWith(
-                                    color: property.portfolioValue > 0
-                                        ? palette.textPrimary
+                            if (onFavorite != null)
+                              GestureDetector(
+                                onTap: onFavorite,
+                                behavior: HitTestBehavior.opaque,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: Icon(
+                                    property.isFavorite
+                                        ? Icons.star_rounded
+                                        : Icons.star_outline_rounded,
+                                    size: 19,
+                                    color: property.isFavorite
+                                        ? AppColors.warning
                                         : palette.textFaint,
-                                    fontSize: 15,
                                   ),
                                 ),
-                                if (appreciation != null)
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(property.type.icon,
+                                size: 13, color: palette.textFaint),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                property.locationLine.isEmpty
+                                    ? property.type.label
+                                    : '${property.type.label} · ${property.locationLine}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.caption
+                                    .copyWith(color: palette.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 9),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    '${appreciation >= 0 ? '▲' : '▼'} ${(appreciation.abs() * 100).toStringAsFixed(1)}% since purchase',
+                                    property.portfolioValue > 0
+                                        ? money(
+                                            property.portfolioValue, currency)
+                                        : 'Value not set',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppText.caption.copyWith(
-                                      color: appreciation >= 0
-                                          ? AppColors.success
-                                          : AppColors.critical,
-                                      fontSize: 11.5,
+                                    style: AppText.title.copyWith(
+                                      color: property.portfolioValue > 0
+                                          ? palette.textPrimary
+                                          : palette.textFaint,
+                                      fontSize: 15,
                                     ),
                                   ),
-                              ],
+                                  if (appreciation != null)
+                                    Text(
+                                      '${appreciation >= 0 ? '▲' : '▼'} ${(appreciation.abs() * 100).toStringAsFixed(1)}% since purchase',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppText.caption.copyWith(
+                                        color: appreciation >= 0
+                                            ? AppColors.success
+                                            : AppColors.critical,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                          _StatusPill(status: property.status),
-                        ],
-                      ),
-                    ],
+                            _StatusPill(status: property.status),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

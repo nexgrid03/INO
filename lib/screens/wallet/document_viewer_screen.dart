@@ -252,7 +252,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   Future<void> _persistPathFix(String fixed) async {
     try {
-      await DocumentRepository.instance.update(_record.id, {'file_path': fixed});
+      await DocumentRepository.instance.update(
+          _record.id, {'file_path': fixed},
+          wallet: widget.walletName);
       developer.log('migrated file_path for ${_record.id} -> $fixed',
           name: 'viewer');
     } catch (e) {
@@ -538,7 +540,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (newName == null || newName.isEmpty || newName == _record.name) return;
     setState(() => _record = _record.copyWith(name: newName));
     try {
-      await DocumentRepository.instance.rename(_record.id, newName);
+      await DocumentRepository.instance
+          .rename(_record.id, newName, wallet: widget.walletName);
       WalletDetailRepository.instance.updateRecord(widget.walletName, _record);
       if (!mounted) return;
       _snack(AppLocalizations.of(context)
@@ -597,7 +600,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     );
     if (target == null) return;
     try {
-      await DocumentRepository.instance.move(_record.id, target);
+      await DocumentRepository.instance
+          .move(_record.id, fromWallet: widget.walletName, toWallet: target);
       WalletDetailRepository.instance
           .deleteRecordLocal(widget.walletName, _record.id);
       if (!mounted) return;

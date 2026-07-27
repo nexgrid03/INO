@@ -59,6 +59,37 @@ void main() {
       expect(find.text('Add property'), findsOneWidget);
     });
 
+    testWidgets('Property Wallet renders a property card', (tester) async {
+      // Regression: the card's Row stretches its thumbnail to the card height,
+      // and a sliver list gives its children unbounded height - without an
+      // IntrinsicHeight that combination throws the moment the first property
+      // exists, so the wallet crashed as soon as one was added.
+      // Seeded through `runAsync`: `add()` awaits shared_preferences, which
+      // never resolves once the test clock is faked.
+      await tester.runAsync(() => PropertyStore.instance.add(Property(
+            id: 'p1',
+            name: 'Green Meadows Villa',
+            type: PropertyType.villa,
+            status: PropertyStatus.rented,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            city: 'Hyderabad',
+            purchasePrice: 5000000,
+            currentValue: 7500000,
+            rentalIncome: 25000,
+            hasLoan: true,
+            outstandingLoan: 1200000,
+          )));
+      await _pumpScreen(
+        tester,
+        PropertyWalletScreen(
+          category: _category('Property Wallet', Icons.home_work_rounded),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Green Meadows Villa'), findsOneWidget);
+    });
+
     testWidgets('Investment Wallet shows its empty state', (tester) async {
       await _pumpScreen(
         tester,

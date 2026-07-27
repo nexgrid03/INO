@@ -6,13 +6,18 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/document.dart';
+import 'wallet_tables.dart';
 
-/// The ONLY place in the app that reads/writes the `public.documents` table.
+/// The ONLY place in the app that reads/writes wallet records.
 ///
 /// Screens go through this repository instead of querying Supabase directly -
 /// the same pattern as [UserRepository]. RLS guarantees a user only ever
-/// touches their own rows, so we never pass a user id: the table fills
+/// touches their own rows, so we never pass a user id: every table fills
 /// `auth_user_id` from `auth.uid()` automatically.
+///
+/// Since the 20260727 migration each wallet has its OWN table (see
+/// [WalletTables]). Writes therefore need to know which wallet a record belongs
+/// to; reads that span wallets go through the read-only `documents` view.
 class DocumentRepository {
   DocumentRepository._();
   static final DocumentRepository instance = DocumentRepository._();
@@ -20,15 +25,17 @@ class DocumentRepository {
   /// The Supabase client (created in main.dart at startup).
   SupabaseClient get _client => Supabase.instance.client;
 
-  static const String _table = 'documents';
   static const String _bucket = 'documents';
 
   /// Hidden wallet that holds PROCESSED SHARE COPIES (black & white / grayscale /
-  /// compressed-PDF images produced for a QR share). They live as real
-  /// `documents` rows so the existing `share` Edge Function can serve them by id
-  /// - exactly like any other document - but are filtered out of [listAll] so
-  /// they never appear in the user's wallets, search, dashboards or exports.
+  /// compressed-PDF images produced for a QR share). They live as real document
+  /// rows so the existing `share` Edge Function can serve them by id - exactly
+  /// like any other document - but sit in their own table, so they never appear
+  /// in the user's wallets, search, dashboards or exports.
   static const String shareCacheWallet = '__ino_share_cache__';
+
+  /// The table backing [wallet].
+  String _tableFor(String wallet) => WalletTables.slugFor(wallet);
 
   /// The signed-in user's id, or null when signed out.
   String? get _uid => _client.auth.currentUser?.id;
@@ -81,13 +88,60 @@ class DocumentRepository {
   }
 
   /// Renames a document (updates the `name` column).
-  Future<void> rename(String id, String name) =>
-      update(id, {'name': name.trim()});
+  Future<void> rename(String id, String name, {required String wallet}) =>
+      update(id, {'name': name.trim()}, wallet: wallet);
 
   /// Moves a document to a different wallet.
-  Future<void> move(String id, String wallet) => update(id, {'wallet': wallet});
+  ///
+  /// A wallet is now a table, not a column, so this copies the core columns
+  /// across and deletes the original. The id is carried over deliberately:
+  /// document protection flags and live share links reference it, and letting a
+  /// move mint a new id would silently break both.
+  ///
+  /// Only the columns every wallet shares travel. Wallet-specific detail (a
+  /// property's registration data, a card's last4) does NOT survive a move,
+  /// because the destination table has nowhere to put it.
+  Future<void> move(String id,
+      {required String fromWallet, required String toWallet}) async {
+    final userId = _uid;
+    if (userId == null) {
+      throw const AuthException('You must be signed in to move a document.');
+    }
+    if (WalletTables.slugFor(fromWallet) == WalletTables.slugFor(toWallet)) {
+      return;
+    }
 
-  /// Inserts a new document row and returns it.
+    final row = await _client
+        .from(_tableFor(fromWallet))
+        .select()
+        .eq('id', id)
+        .eq('auth_user_id', userId)
+        .single();
+
+    await _client.from(_tableFor(toWallet)).insert({
+      'id': row['id'],
+      'auth_user_id': userId,
+      'name': row['name'],
+      'category': row['category'],
+      'record_number': row['record_number'],
+      'status': row['status'],
+      'tags': row['tags'],
+      'notes': row['notes'],
+      'is_favorite': row['is_favorite'],
+      'expires_at': row['expires_at'],
+      'file_path': row['file_path'],
+      'created_at': row['created_at'],
+    });
+
+    await _client
+        .from(_tableFor(fromWallet))
+        .delete()
+        .eq('id', id)
+        .eq('auth_user_id', userId);
+    _bump();
+  }
+
+  /// Inserts a new document row into [wallet]'s table and returns it.
   ///
   /// Only sends the columns we own; the database fills the rest (`id`,
   /// `auth_user_id`, timestamps) from the DEFAULTs in the schema.
@@ -111,12 +165,11 @@ class DocumentRepository {
       throw const AuthException('You must be signed in to add a document.');
     }
     final row = await _client
-        .from(_table)
+        .from(_tableFor(wallet))
         .insert({
           // Stamp the owner explicitly (the column also defaults to auth.uid()
           // and RLS enforces it) so no document is ever created without an owner.
           'auth_user_id': userId,
-          'wallet': wallet,
           'name': name,
           'category': category,
           'record_number': recordNumber,
@@ -131,30 +184,31 @@ class DocumentRepository {
         .select() // ask Supabase to return the inserted row
         .single(); // expect exactly one row back
     _bump();
-    return Document.fromMap(row);
+    return Document.fromMap(row, wallet: wallet);
   }
 
-  /// All documents in one wallet, newest first.
+  /// All documents in one wallet, newest first. Reads the wallet's own table
+  /// rather than the union view, so it never scans the other wallets.
   Future<List<Document>> listForWallet(String wallet) async {
     final userId = _uid;
     if (userId == null) return const [];
     final rows = await _client
-        .from(_table)
+        .from(_tableFor(wallet))
         .select()
         .eq('auth_user_id', userId) // defense-in-depth with RLS
-        .eq('wallet', wallet)
         .order('created_at', ascending: false);
-    return [for (final r in rows) Document.fromMap(r)];
+    return [for (final r in rows) Document.fromMap(r, wallet: wallet)];
   }
 
-  /// Every document belonging to the signed-in user, newest first. Excludes the
-  /// hidden [shareCacheWallet] copies so processed share images never surface in
+  /// Every document belonging to the signed-in user, newest first, across every
+  /// wallet - so this reads the `documents` union view. Excludes the hidden
+  /// [shareCacheWallet] copies so processed share images never surface in
   /// search / dashboards / exports.
   Future<List<Document>> listAll() async {
     final userId = _uid;
     if (userId == null) return const [];
     final rows = await _client
-        .from(_table)
+        .from(WalletTables.documentsView)
         .select()
         .eq('auth_user_id', userId) // defense-in-depth with RLS
         .neq('wallet', shareCacheWallet)
@@ -163,17 +217,7 @@ class DocumentRepository {
   }
 
   /// The processed share copies (hidden [shareCacheWallet] rows), newest first.
-  Future<List<Document>> listShareCopies() async {
-    final userId = _uid;
-    if (userId == null) return const [];
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('auth_user_id', userId)
-        .eq('wallet', shareCacheWallet)
-        .order('created_at', ascending: false);
-    return [for (final r in rows) Document.fromMap(r)];
-  }
+  Future<List<Document>> listShareCopies() => listForWallet(shareCacheWallet);
 
   /// Best-effort cleanup of processed share copies older than [olderThan] (past
   /// the maximum share TTL, so their QR links have already expired). Removes both
@@ -189,7 +233,7 @@ class DocumentRepository {
         if (d.createdAt.isBefore(cutoff)) {
           final p = d.filePath;
           if (p != null && p.isNotEmpty) stalePaths.add(p);
-          await delete(d.id);
+          await delete(d.id, wallet: shareCacheWallet);
         }
       }
       if (stalePaths.isNotEmpty) await removeObjects(stalePaths);
@@ -201,21 +245,30 @@ class DocumentRepository {
   /// Updates a few columns on an existing row (e.g. favourite / status).
   /// RLS guarantees the user can only touch their own rows; the explicit
   /// auth_user_id filter is defense-in-depth so ownership is verified here too.
-  Future<void> update(String id, Map<String, dynamic> fields) async {
+  Future<void> update(String id, Map<String, dynamic> fields,
+      {required String wallet}) async {
     final userId = _uid;
     if (userId == null) {
       throw const AuthException('You must be signed in to edit a document.');
     }
-    await _client.from(_table).update(fields).eq('id', id).eq('auth_user_id', userId);
+    await _client
+        .from(_tableFor(wallet))
+        .update(fields)
+        .eq('id', id)
+        .eq('auth_user_id', userId);
   }
 
   /// Deletes a document row by id (only if it belongs to the signed-in user).
-  Future<void> delete(String id) async {
+  Future<void> delete(String id, {required String wallet}) async {
     final userId = _uid;
     if (userId == null) {
       throw const AuthException('You must be signed in to delete a document.');
     }
-    await _client.from(_table).delete().eq('id', id).eq('auth_user_id', userId);
+    await _client
+        .from(_tableFor(wallet))
+        .delete()
+        .eq('id', id)
+        .eq('auth_user_id', userId);
     _bump();
   }
 
@@ -240,14 +293,27 @@ class DocumentRepository {
     developer.log('removed ${objectPaths.length} object(s)', name: 'storage');
   }
 
-  /// Deletes every document row belonging to the signed-in user. RLS already
-  /// scopes this to their own rows; the explicit filter satisfies Supabase's
-  /// "delete needs a filter" guard.
+  /// Deletes every document row belonging to the signed-in user, in every
+  /// wallet. RLS already scopes this to their own rows; the explicit filter
+  /// satisfies Supabase's "delete needs a filter" guard.
+  ///
+  /// Each table is cleared independently: one wallet failing must not leave the
+  /// remaining wallets' rows behind on an account deletion.
   Future<void> deleteAllRowsForUser() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
-    await _client.from(_table).delete().eq('auth_user_id', userId);
+    final slugs = await WalletTables.allSlugs();
+    Object? firstError;
+    for (final slug in slugs) {
+      try {
+        await _client.from(slug).delete().eq('auth_user_id', userId);
+      } catch (e) {
+        developer.log('deleteAllRowsForUser: $slug failed: $e', name: 'storage');
+        firstError ??= e;
+      }
+    }
     _bump();
+    if (firstError != null) throw firstError;
   }
 
   /// Uploads arbitrary bytes to an object path (used for JSON cloud backups).

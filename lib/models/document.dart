@@ -36,10 +36,14 @@ class Document {
 
   /// Builds a [Document] from a row returned by Supabase (a `Map`).
   /// The keys are the exact column names from the database.
-  factory Document.fromMap(Map<String, dynamic> map) {
+  ///
+  /// [wallet] names the wallet the row came from. Rows read from a per-wallet
+  /// table have no `wallet` column - the table IS the wallet - so the caller
+  /// supplies it; rows from the `documents` union view carry their own.
+  factory Document.fromMap(Map<String, dynamic> map, {String? wallet}) {
     return Document(
       id: map['id'] as String,
-      wallet: map['wallet'] as String,
+      wallet: (map['wallet'] as String?) ?? wallet ?? '',
       name: map['name'] as String,
       category: map['category'] as String?,
       recordNumber: map['record_number'] as String?,

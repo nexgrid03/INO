@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/wallet_models.dart';
+import '../repositories/wallet_tables.dart';
 import 'category_store.dart';
 
 /// The icon catalogue offered by the Create Wallet sheet.
@@ -159,9 +160,19 @@ class CustomWalletStore extends ChangeNotifier {
 
   /// Adds a wallet. If one with the same (case-insensitive) name already
   /// exists, returns that one instead of duplicating.
+  ///
+  /// Provisions the wallet's TABLE first and lets a failure propagate: since
+  /// every wallet owns a table, a wallet without one looks fine in the grid but
+  /// fails on the first document saved into it. Better to refuse up front than
+  /// to hand back a wallet that cannot hold anything.
   Future<CustomWallet> add(CustomWallet wallet) async {
     final existing = byName(wallet.name);
     if (existing != null) return existing;
+    await WalletTables.createCustomWallet(
+      wallet.name,
+      iconKey: wallet.iconKey,
+      colorValue: wallet.colorValue,
+    );
     _wallets.add(wallet);
     notifyListeners();
     await _persist();
