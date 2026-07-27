@@ -29,6 +29,7 @@ import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
 import '../auth/login_screen.dart';
+import '../family/family_vault_screen.dart';
 import '../legal/legal_document_screen.dart';
 import 'about_screen.dart';
 import 'change_password_screen.dart';
@@ -708,6 +709,18 @@ class _ProfileScreenState extends State<ProfileScreen>
             iconColor: _RowAccent.purple,
             title: l10n.t('trustedDevices'),
             onTap: () => _push(const TrustedDevicesScreen()),
+          ),
+        ],
+      ),
+      SettingsGroup(
+        caption: l10n.t('family'),
+        children: [
+          SettingsRow(
+            icon: Icons.family_restroom_rounded,
+            iconColor: _RowAccent.violet,
+            title: l10n.t('familyVault'),
+            subtitle: l10n.t('familyVaultDesc'),
+            onTap: () => _push(const FamilyVaultScreen()),
           ),
         ],
       ),

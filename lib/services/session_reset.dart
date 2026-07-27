@@ -7,6 +7,7 @@ import 'card_store.dart';
 import 'category_store.dart';
 import 'document_protection_store.dart';
 import 'expense_store.dart';
+import 'family_vault_store.dart';
 import 'global_search_service.dart';
 import 'investment_store.dart';
 import 'notes_store.dart';
@@ -77,6 +78,11 @@ class SessionReset {
     // Notes Vault cache - same: drop in-memory state + re-arm the loader; the
     // next account's ensureLoaded() fetches its own RLS-scoped rows.
     await _guard('notes', () async => NotesStore.instance.clear());
+
+    // Family Vault cache - drop in-memory vaults + re-arm the loader so the
+    // next account loads its OWN RLS-scoped memberships.
+    await _guard('familyVaults',
+        () async => FamilyVaultStore.instance.clear());
 
     // Re-arm the spoken welcome so the next sign-in is greeted at the start of
     // ITS session - still exactly once per session.
