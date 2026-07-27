@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Accent applied to the reminder notification's small icon and title.
+
+      This is the INO brand teal, used at its exact brand value - it is never
+      darkened (see the app-wide brand colour rule). It must stay in sync with
+      AppColors.primaryGreen in lib/theme/app_theme.dart.
+    -->
+    <color name="ino_notification_accent">#FF30ACB3</color>
+</resources>

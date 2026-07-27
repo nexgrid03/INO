@@ -6,6 +6,12 @@
     <!-- Biometric app-lock (fingerprint / Face unlock). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- Reminder push notifications (FCM). Android 13+ (API 33) requires this
+         as a RUNTIME permission - PushService.init() prompts for it. Without
+         the prompt being granted, messages are delivered to the app but the
+         system never shows them, which looks exactly like "push is broken". -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Voice navigation: on-device speech recognition needs the microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -30,6 +36,24 @@
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="docscanner,ocr" />
+
+        <!-- ================= Reminder push notifications (FCM) ================= -->
+        <!-- The channel a BACKGROUND message lands in when the system builds the
+             notification itself (the app isn't running, so no Dart code picks a
+             channel). Must match the id PushService creates via
+             flutter_local_notifications, or Android 8+ drops the message with
+             "no such channel". -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ino_reminders" />
+        <!-- Monochrome status-bar icon. Android tints this by the accent colour;
+             a full-colour icon renders as a white square. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ino_notification_accent" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

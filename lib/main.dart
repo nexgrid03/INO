@@ -21,6 +21,7 @@ import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/password_store.dart';
 import 'services/property_store.dart';
+import 'services/push_service.dart';
 import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
 import 'services/voice_manager.dart';
@@ -76,6 +77,13 @@ Future<void> main() async {
 
   // Warm the notification feed so the bell badge is accurate on first paint.
   unawaited(NotificationCenter.instance.load());
+
+  // Reminder push notifications (FCM). Deliberately NOT awaited: it makes
+  // network calls (Firebase handshake, token fetch, token upsert) that must
+  // never sit between the user and the first frame. A tap that cold-launched
+  // the app is still routed correctly - PushService waits for the navigator to
+  // attach before navigating.
+  unawaited(PushService.instance.init(InoApp.navigatorKey));
 
   // Warm the centralized voice manager so the native TextToSpeech service is
   // already bound (and past its cold-start races) before the voice greeting

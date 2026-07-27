@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import 'biometric_service.dart';
+import 'push_service.dart';
 import 'session_reset.dart';
 
 /// Single place that talks to Supabase auth.
@@ -237,6 +238,13 @@ class AuthService {
     } catch (_) {
       // Ignore if Google wasn't used / not initialised.
     }
+    // Release this device's push token BEFORE the session ends. The DELETE is
+    // authorised by an RLS policy on auth.uid(), so once signOut() has run the
+    // row can no longer be removed - and this phone would keep receiving THIS
+    // account's reminder pushes after the next account signs in. Ordering here
+    // is the whole point; do not move this below the signOut.
+    await PushService.instance.unregisterToken();
+
     await _client.auth.signOut();
     // Wipe every user-scoped in-memory / local cache so the NEXT account can't
     // see this account's reminders, notifications, categories, etc. Done after

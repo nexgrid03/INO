@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';

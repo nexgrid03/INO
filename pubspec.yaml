@@ -85,6 +85,14 @@ dependencies:
   # pack is installed; the keyword→route matching is always fully offline.
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
+  # Reminder push notifications. Firebase is used ONLY as the push transport
+  # (FCM) - the data and the "who is due today" logic stay in Supabase. See
+  # PUSH_NOTIFICATIONS.md.
+  firebase_core: ^4.12.1
+  firebase_messaging: ^16.4.3
+  # Required, not optional: Android silently swallows an FCM `notification`
+  # payload while the app is FOREGROUNDED, so PushService re-displays it here.
+  flutter_local_notifications: ^22.2.0
 
 # ---------------------------------------------------------------------------
 # Dependency overrides

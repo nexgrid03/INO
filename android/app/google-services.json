@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "205011674878",
+    "project_id": "inoapp-b0101",
+    "storage_bucket": "inoapp-b0101.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:205011674878:android:f765ea1cb02cdee19a67af",
+        "android_client_info": {
+          "package_name": "com.example.inoapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDanpIlktQphaJVi1ismWPVwslJ6L7RxUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
