@@ -215,6 +215,9 @@ class Investment {
   }
 
   Investment copyWith({
+    /// Only set when adopting the database's uuid after the record is first
+    /// uploaded (see LocalCollectionStore.withId). Never change an id otherwise.
+    String? id,
     String? name,
     InvestmentType? type,
     DateTime? updatedAt,
@@ -232,7 +235,7 @@ class Investment {
     bool? isFavorite,
   }) {
     return Investment(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
       createdAt: createdAt,

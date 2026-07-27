@@ -93,6 +93,11 @@ dependencies:
   # Required, not optional: Android silently swallows an FCM `notification`
   # payload while the app is FOREGROUNDED, so PushService re-displays it here.
   flutter_local_notifications: ^22.2.0
+  # Password Vault end-to-end encryption: PBKDF2-HMAC-SHA256 key derivation from
+  # the user's vault passphrase, and AES-GCM for the stored secret. The key is
+  # derived on-device and never transmitted, so `w_password_vault.secret` holds
+  # ciphertext the server cannot read. See lib/services/vault_crypto.dart.
+  cryptography: ^2.9.0
 
 # ---------------------------------------------------------------------------
 # Dependency overrides

@@ -162,6 +162,9 @@ class SavedCard {
   }
 
   SavedCard copyWith({
+    /// Only set when adopting the database's uuid after the record is first
+    /// uploaded (see LocalCollectionStore.withId). Never change an id otherwise.
+    String? id,
     String? name,
     String? bank,
     CardKind? kind,
@@ -176,7 +179,7 @@ class SavedCard {
     DateTime? updatedAt,
   }) {
     return SavedCard(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       bank: bank ?? this.bank,
       kind: kind ?? this.kind,

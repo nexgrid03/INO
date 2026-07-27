@@ -1,11 +1,16 @@
 import '../models/card_models.dart';
 import 'local_collection_store.dart';
 
-/// The Banking Wallet's saved cards (device-local, per account).
+/// The Banking Wallet's saved cards, synced to `w_cards_wallet`.
 ///
 /// What is stored is deliberately not enough to transact: a label, the bank,
 /// the holder's name, the network and the **last four digits only**. There is
 /// no CVV field and no full card number anywhere in the app.
+///
+/// That is precisely what makes this table safe to sync. The schema enforces it
+/// too - `w_cards_wallet.last4` carries a `^[0-9]{4}$` check constraint, so a
+/// full PAN cannot be written even by mistake. Keep it that way: if a full card
+/// number is ever added to [SavedCard], it must NOT be added to [toRow].
 class CardStore extends LocalCollectionStore<SavedCard> {
   CardStore._();
   static final CardStore instance = CardStore._();
@@ -21,6 +26,53 @@ class CardStore extends LocalCollectionStore<SavedCard> {
 
   @override
   String idOf(SavedCard item) => item.id;
+
+  // ---- Supabase sync --------------------------------------------------------
+
+  @override
+  String get syncTable => 'w_cards_wallet';
+
+  @override
+  SavedCard withId(SavedCard item, String id) => item.copyWith(id: id);
+
+  /// Maps a [SavedCard] onto its `w_cards_wallet` columns.
+  ///
+  /// `last4` is the only part of the card number that appears here, and the
+  /// table's check constraint rejects anything that is not exactly 4 digits.
+  @override
+  Future<Map<String, dynamic>> toRow(SavedCard c) async => {
+        'name': c.name,
+        'bank': c.bank,
+        'card_kind': c.kind.name,
+        'network': c.network.name,
+        'holder_name': c.holderName,
+        'last4': c.last4.isEmpty ? null : c.last4,
+        'expiry_month': c.expiryMonth,
+        'expiry_year': c.expiryYear,
+        'theme_key': c.themeKey,
+        'notes': c.notes,
+        'is_favorite': c.isFavorite,
+        'created_at': c.createdAt.toIso8601String(),
+        'updated_at': c.updatedAt.toIso8601String(),
+      };
+
+  @override
+  Future<SavedCard> fromRow(Map<String, dynamic> row) async => SavedCard(
+        id: row['id'] as String,
+        name: (row['name'] as String?) ?? 'Card',
+        bank: (row['bank'] as String?) ?? '',
+        kind: CardKindX.fromName(row['card_kind'] as String?),
+        network: CardNetworkX.fromName(row['network'] as String?),
+        holderName: (row['holder_name'] as String?) ?? '',
+        last4: (row['last4'] as String?) ?? '',
+        expiryMonth: (row['expiry_month'] as num?)?.toInt(),
+        expiryYear: (row['expiry_year'] as num?)?.toInt(),
+        themeKey: (row['theme_key'] as String?) ?? 'ocean',
+        notes: row['notes'] as String?,
+        isFavorite: (row['is_favorite'] as bool?) ?? false,
+        createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+      );
 
   /// Favourites first, then most recently added.
   List<SavedCard> get sorted {

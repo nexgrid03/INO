@@ -178,6 +178,9 @@ class PasswordEntry {
   }
 
   PasswordEntry copyWith({
+    /// Only set when adopting the database's uuid after the record is first
+    /// uploaded (see LocalCollectionStore.withId). Never change an id otherwise.
+    String? id,
     String? title,
     String? password,
     PasswordCategory? category,
@@ -191,7 +194,7 @@ class PasswordEntry {
     bool? isFavorite,
   }) {
     return PasswordEntry(
-      id: id,
+      id: id ?? this.id,
       title: title ?? this.title,
       password: password ?? this.password,
       category: category ?? this.category,

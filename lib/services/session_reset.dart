@@ -14,6 +14,7 @@ import 'notes_store.dart';
 import 'notification_center.dart';
 import 'password_store.dart';
 import 'property_store.dart';
+import 'vault_crypto.dart';
 import 'voice_greeting_service.dart';
 import 'wallet_store.dart';
 
@@ -67,6 +68,12 @@ class SessionReset {
 
     // Per-document biometric-protection flags (persisted global key).
     await _guard('protection', () => DocumentProtectionStore.instance.clear());
+
+    // Drop the Password Vault's derived key. Without this the next account to
+    // sign in on this device would inherit an unlocked vault and the previous
+    // user's key still in memory - and PasswordStore would happily seal the new
+    // user's credentials with it.
+    await _guard('vaultKey', () async => VaultCrypto.instance.lock());
 
     // In-memory document cache + persisted recent-search history.
     await _guard('search', () => GlobalSearchService.instance.clear());

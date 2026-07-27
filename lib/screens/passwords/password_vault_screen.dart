@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/password_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/password_store.dart';
+import '../../services/vault_crypto.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -14,6 +17,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../wallet/wallet_detail_screen.dart';
 import 'password_form_screen.dart';
+import 'vault_passphrase_sheet.dart';
 
 /// The Password Vault - a modern password manager.
 ///
@@ -81,8 +85,21 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Biometric gate. A cancelled prompt leaves the vault closed and pops back -
-  /// the list is never built, so nothing sensitive reaches the screen.
+  /// Two gates, in order.
+  ///
+  /// 1. **Biometric** - proves it is the device owner. A cancelled prompt
+  ///    leaves the vault closed and pops back, so the list is never built and
+  ///    nothing sensitive reaches the screen.
+  /// 2. **Vault passphrase** - derives the encryption key. Without it the
+  ///    stored secrets are ciphertext this app genuinely cannot read, so this
+  ///    is not a second lock over the same door: it is the only thing that
+  ///    makes the contents legible at all.
+  ///
+  /// The passphrase step is skipped when the key is already in memory for this
+  /// session, and degrades gracefully offline: if we cannot tell whether a
+  /// passphrase exists, the vault opens read-only from the local cache rather
+  /// than offering to create a second one, which would strand every secret
+  /// sealed under the first.
   Future<void> _unlock() async {
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
@@ -90,11 +107,36 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       title: 'Verify your identity',
     );
     if (!mounted) return;
+    if (!ok) {
+      setState(() {
+        _unlocked = false;
+        _checking = false;
+      });
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    await _ensureVaultKey();
+    if (!mounted) return;
     setState(() {
-      _unlocked = ok;
+      _unlocked = true;
       _checking = false;
     });
-    if (!ok && mounted) Navigator.of(context).maybePop();
+    // Now that the key is available, pull the encrypted entries down.
+    unawaited(_store.reload());
+  }
+
+  /// Obtains the encryption key, prompting for the passphrase if needed.
+  Future<void> _ensureVaultKey() async {
+    if (VaultCrypto.instance.isUnlocked) return;
+
+    final exists = await VaultCrypto.instance.hasPassphrase();
+    if (!mounted) return;
+
+    // Unknown (offline / signed out) - do NOT offer to create one.
+    if (exists == null) return;
+
+    await showVaultPassphraseSheet(context, isFirstTime: !exists);
   }
 
   List<PasswordEntry> get _visible {

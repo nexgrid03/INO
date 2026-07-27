@@ -332,6 +332,9 @@ class Property {
   }
 
   Property copyWith({
+    /// Only set when adopting the database's uuid after the record is first
+    /// uploaded (see LocalCollectionStore.withId). Never change an id otherwise.
+    String? id,
     String? name,
     PropertyType? type,
     PropertyStatus? status,
@@ -374,7 +377,7 @@ class Property {
     bool? isFavorite,
   }) {
     return Property(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
       status: status ?? this.status,
