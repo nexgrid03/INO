@@ -48,7 +48,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Full name'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
     expect(find.text('Email address'), findsOneWidget);
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
@@ -101,7 +101,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Complete Your Profile'), findsOneWidget);
-    expect(find.text('Full name'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Ada Lovelace'), findsWidgets);

@@ -58,6 +58,6 @@ void main() {
     await tester.tap(find.text('10 Minutes'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('10 Minutes'), findsOneWidget);
-    expect(find.text('1 document selected'), findsOneWidget);
+    expect(find.text('1 documents selected'), findsOneWidget);
   });
 }
