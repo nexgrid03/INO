@@ -29,6 +29,21 @@ class UserProfile {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// The inverse of [UserProfile.fromMap] - same column-name keys. Used by the
+  /// on-device profile cache that lets a signed-in user boot without network.
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'auth_user_id': authUserId,
+        'full_name': fullName,
+        'email': email,
+        'phone': phone,
+        'profile_photo': profilePhoto,
+        'preferred_language': preferredLanguage,
+        'biometric_enabled': biometricEnabled,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
   /// Builds a [UserProfile] from a row returned by Supabase (a `Map`).
   /// The keys are the exact column names from the database.
   factory UserProfile.fromMap(Map<String, dynamic> map) {

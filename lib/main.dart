@@ -10,6 +10,7 @@ import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/share/shared_documents_screen.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/account_switcher.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
@@ -40,6 +41,10 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
+
+  // Multi-account registry: remembers every account that signs in on this
+  // device (Profile → Accounts) and keeps the live one's entry fresh.
+  await AccountSwitcher.instance.init();
 
   // Hydrate persisted preferences before the first frame so the UI (theme, lock
   // screen, settings toggles) renders in its saved state with no flash.

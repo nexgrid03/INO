@@ -46,6 +46,9 @@ class PropertyStore extends LocalCollectionStore<Property> {
         'record_number': p.registrationNumber,
         'notes': p.notes,
         'is_favorite': p.isFavorite,
+        // The property form's consent sheet gates every save, so an uploaded
+        // row always records the user's approval.
+        'consent': true,
         'created_at': p.createdAt.toIso8601String(),
         'updated_at': p.updatedAt.toIso8601String(),
         // valuation

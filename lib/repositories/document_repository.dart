@@ -131,6 +131,8 @@ class DocumentRepository {
       'expires_at': row['expires_at'],
       'file_path': row['file_path'],
       'created_at': row['created_at'],
+      // A move is not a new save - carry the original row's consent forward.
+      'consent': row['consent'] ?? false,
     });
 
     await _client
@@ -180,6 +182,9 @@ class DocumentRepository {
           // `expires_at` is a DATE column - send YYYY-MM-DD, not a timestamp.
           'expires_at': expiresAt == null ? null : _dateOnly(expiresAt),
           'file_path': filePath,
+          // Every save path passes the consent sheet before reaching here, so
+          // a created row always records the user's approval.
+          'consent': true,
         })
         .select() // ask Supabase to return the inserted row
         .single(); // expect exactly one row back

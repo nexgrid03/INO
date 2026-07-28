@@ -12,6 +12,7 @@ import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
@@ -272,8 +273,12 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       showModuleToast(context, 'Give the property a name first', error: true);
       return;
     }
-    setState(() => _saving = true);
     FocusScope.of(context).unfocus();
+
+    // The consent gate: nothing is stored until the user agrees.
+    if (!await showDataConsentSheet(context, what: 'this property')) return;
+    if (!mounted) return;
+    setState(() => _saving = true);
 
     final now = DateTime.now();
     final heirs = _heirs.text

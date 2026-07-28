@@ -43,6 +43,9 @@ class InvestmentStore extends LocalCollectionStore<Investment> {
         'investment_type': i.type.name,
         'notes': i.notes,
         'is_favorite': i.isFavorite,
+        // The investment form's consent sheet gates every save, so an uploaded
+        // row always records the user's approval.
+        'consent': true,
         'created_at': i.createdAt.toIso8601String(),
         'updated_at': i.updatedAt.toIso8601String(),
         'institution': i.institution,

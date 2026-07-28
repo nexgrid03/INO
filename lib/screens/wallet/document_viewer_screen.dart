@@ -19,6 +19,7 @@ import '../../repositories/document_repository.dart';
 import '../../services/auth_service.dart';
 import '../../services/document_file_service.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -110,6 +111,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   @override
   void initState() {
     super.initState();
+    // Hydrate the offline library so the save-offline button shows the right
+    // state on first paint (a purely local read - no network).
+    OfflineDocumentStore.instance.ensureLoaded();
     _resolve();
   }
 
@@ -461,6 +465,48 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     }
   }
 
+  /// Saves (or removes) this document's durable offline copy.
+  ///
+  /// Saving reuses the file already displayed in the viewer, so with a warm
+  /// cache it is instant and needs no network at all.
+  Future<void> _toggleOffline() async {
+    final store = OfflineDocumentStore.instance;
+    if (store.isSaved(_record.id)) {
+      await store.remove(_record.id);
+      if (!mounted) return;
+      setState(() {});
+      _snack('Removed from offline');
+      return;
+    }
+    final path = _storagePath ?? _record.filePath;
+    if (path == null) {
+      _snack('This record has no file to save.', error: true);
+      return;
+    }
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final file = await _localFile();
+      final saved = await store.save(
+        docId: _record.id,
+        name: _record.name,
+        wallet: widget.walletName,
+        category: _record.category,
+        objectPath: path,
+        sourceFile: file,
+      );
+      if (!mounted) return;
+      setState(() {});
+      if (saved != null) {
+        _snack('Saved offline - view it anytime, no internet needed');
+      } else {
+        _snack('Could not save this document offline.', error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _download() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -652,6 +698,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     );
     if (confirmed != true) return;
     WalletDetailRepository.instance.deleteRecord(widget.walletName, _record.id);
+    // A deleted document must not linger in the offline library.
+    await OfflineDocumentStore.instance.handleDocumentDeleted(_record.id);
     if (mounted) _popRemoved();
   }
 
@@ -930,6 +978,23 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               ),
               onPressed: _toggleFavorite,
             ),
+            ListenableBuilder(
+              listenable: OfflineDocumentStore.instance,
+              builder: (context, _) {
+                final saved =
+                    OfflineDocumentStore.instance.isSaved(_record.id);
+                return IconButton(
+                  tooltip: saved ? 'Remove offline copy' : 'Save offline',
+                  icon: Icon(
+                    saved
+                        ? Icons.offline_pin_rounded
+                        : Icons.download_for_offline_outlined,
+                    color: saved ? AppColors.primaryGreen : fg,
+                  ),
+                  onPressed: _toggleOffline,
+                );
+              },
+            ),
             IconButton(
               tooltip: AppLocalizations.of(context).t('share'),
               icon: const Icon(Icons.ios_share_rounded),
@@ -953,6 +1018,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       icon: Icon(Icons.more_vert_rounded, color: fg),
       onSelected: (value) {
         switch (value) {
+          case 'offline':
+            _toggleOffline();
           case 'rename':
             _rename();
           case 'move':
@@ -970,6 +1037,14 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       itemBuilder: (context) {
         final l10n = AppLocalizations.of(context);
         return [
+          PopupMenuItem(
+            value: 'offline',
+            child: Text(
+              OfflineDocumentStore.instance.isSaved(_record.id)
+                  ? 'Remove offline copy'
+                  : 'Save to app · view offline',
+            ),
+          ),
           PopupMenuItem(value: 'rename', child: Text(l10n.t('rename'))),
           PopupMenuItem(value: 'move', child: Text(l10n.t('move'))),
           PopupMenuItem(value: 'archive', child: Text(l10n.t('archive'))),

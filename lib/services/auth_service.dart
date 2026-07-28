@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import 'account_switcher.dart';
 import 'biometric_service.dart';
 import 'push_service.dart';
 import 'session_reset.dart';
@@ -244,6 +245,11 @@ class AuthService {
     // account's reminder pushes after the next account signs in. Ordering here
     // is the whole point; do not move this below the signOut.
     await PushService.instance.unregisterToken();
+
+    // An explicit logout removes this account from the device's saved-accounts
+    // list too - its refresh token is revoked by the signOut below, so the
+    // entry could never re-open a session anyway.
+    await AccountSwitcher.instance.forgetCurrent();
 
     await _client.auth.signOut();
     // Wipe every user-scoped in-memory / local cache so the NEXT account can't

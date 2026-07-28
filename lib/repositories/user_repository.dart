@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_profile.dart';
@@ -40,7 +43,9 @@ class UserRepository {
         })
         .select() // ask Supabase to return the inserted row
         .single(); // expect exactly one row back
-    return UserProfile.fromMap(row);
+    final profile = UserProfile.fromMap(row);
+    await _cacheProfile(profile);
+    return profile;
   }
 
   /// Updates the signed-in user's profile with the provided (non-null) fields
@@ -71,7 +76,9 @@ class UserRepository {
         .eq('auth_user_id', authUserId)
         .select()
         .single();
-    return UserProfile.fromMap(row);
+    final profile = UserProfile.fromMap(row);
+    await _cacheProfile(profile);
+    return profile;
   }
 
   /// Fetches a profile by its auth user id, or `null` if none exists yet.
@@ -81,7 +88,43 @@ class UserRepository {
         .select()
         .eq('auth_user_id', authUserId)
         .maybeSingle(); // returns null instead of throwing when no row
-    return row == null ? null : UserProfile.fromMap(row);
+    if (row == null) return null;
+    final profile = UserProfile.fromMap(row);
+    await _cacheProfile(profile);
+    return profile;
+  }
+
+  // ---- On-device profile cache ---------------------------------------------
+  //
+  // Every successful fetch/create/update snapshots the profile locally, so a
+  // signed-in user whose network is down can still boot into their shell (and
+  // reach features that are deliberately offline, like Offline documents).
+
+  static const String _cachePrefix = 'ino_profile_cache';
+
+  Future<void> _cacheProfile(UserProfile profile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        '${_cachePrefix}_${profile.authUserId}',
+        jsonEncode(profile.toMap()),
+      );
+    } catch (_) {
+      // Best-effort: a failed cache write must never break a live fetch.
+    }
+  }
+
+  /// The last profile this device fetched for [authUserId], or null when this
+  /// account has never loaded here. Purely local - never touches the network.
+  Future<UserProfile?> getCachedProfile(String authUserId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('${_cachePrefix}_$authUserId');
+      if (raw == null) return null;
+      return UserProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Returns the existing profile, or creates one if it's missing.

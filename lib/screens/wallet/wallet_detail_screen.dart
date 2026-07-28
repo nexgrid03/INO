@@ -7,6 +7,7 @@ import '../../models/dashboard_models.dart' show QuickAction;
 import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/document_protection_store.dart';
+import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -82,6 +83,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Hydrate the offline library (local read) so the action sheet can show
+    // "Save to app" vs "Remove offline copy" correctly on first open.
+    OfflineDocumentStore.instance.ensureLoaded();
     _future = WalletDetailRepository.instance.load(widget.category).then((
       data,
     ) {
@@ -417,6 +421,41 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
+  /// Saves this document's durable offline copy (or removes it). Saving from
+  /// the list downloads the file once, so it needs internet the first time;
+  /// after that the doc opens from the device with no network at all.
+  Future<void> _toggleOffline(DocumentRecord r) async {
+    final store = OfflineDocumentStore.instance;
+    await store.ensureLoaded();
+    if (store.isSaved(r.id)) {
+      await store.remove(r.id);
+      if (!mounted) return;
+      setState(() {});
+      _toast('Removed from offline');
+      return;
+    }
+    final path = r.filePath;
+    if (path == null || path.trim().isEmpty) {
+      _toast('This record has no file to save offline.');
+      return;
+    }
+    _toast('Saving for offline…');
+    final saved = await store.save(
+      docId: r.id,
+      name: r.name,
+      wallet: widget.category.name,
+      objectPath: path,
+      category: r.category,
+    );
+    if (!mounted) return;
+    setState(() {});
+    _toast(
+      saved != null
+          ? '"${r.name}" saved - view it offline anytime from Home'
+          : 'Could not save for offline. Check your connection and try again.',
+    );
+  }
+
   // ---- Action sheets -------------------------------------------------------
 
   void _openActions(DocumentRecord r) {
@@ -427,68 +466,86 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      // The action list has outgrown short screens (8 rows) - scroll inside
+      // the sheet rather than overflow.
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.border,
-                borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Row(
-                children: [
-                  Icon(r.icon, color: AppColors.primaryGreen, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      r.name,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Row(
+                  children: [
+                    Icon(r.icon, color: AppColors.primaryGreen, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        r.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: palette.textPrimary,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            _action(Icons.open_in_full_rounded, 'Open', () => _openDocument(r)),
-            _action(
-              Icons.qr_code_2_rounded,
-              'Share via QR',
-              () => _shareSingle(r),
-            ),
-            _action(
-              DocumentProtectionStore.instance.isProtected(r.id)
-                  ? Icons.lock_open_rounded
-                  : Icons.lock_rounded,
-              DocumentProtectionStore.instance.isProtected(r.id)
-                  ? 'Remove protection'
-                  : 'Protect with Biometrics',
-              () => _toggleProtection(r),
-            ),
-            _action(
-              r.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-              r.isFavorite ? 'Remove favorite' : 'Favorite',
-              () => _toggleFavorite(r),
-            ),
-            _action(Icons.archive_rounded, 'Archive', () => _archive(r)),
-            _action(
-              Icons.delete_outline_rounded,
-              'Delete',
-              () => _delete(r),
-              danger: true,
-            ),
-            const SizedBox(height: 8),
-          ],
+              _action(
+                Icons.open_in_full_rounded,
+                'Open',
+                () => _openDocument(r),
+              ),
+              _action(
+                OfflineDocumentStore.instance.isSaved(r.id)
+                    ? Icons.offline_pin_rounded
+                    : Icons.download_for_offline_outlined,
+                OfflineDocumentStore.instance.isSaved(r.id)
+                    ? 'Remove offline copy'
+                    : 'Save to app · view offline',
+                () => _toggleOffline(r),
+              ),
+              _action(
+                Icons.qr_code_2_rounded,
+                'Share via QR',
+                () => _shareSingle(r),
+              ),
+              _action(
+                DocumentProtectionStore.instance.isProtected(r.id)
+                    ? Icons.lock_open_rounded
+                    : Icons.lock_rounded,
+                DocumentProtectionStore.instance.isProtected(r.id)
+                    ? 'Remove protection'
+                    : 'Protect with Biometrics',
+                () => _toggleProtection(r),
+              ),
+              _action(
+                r.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                r.isFavorite ? 'Remove favorite' : 'Favorite',
+                () => _toggleFavorite(r),
+              ),
+              _action(Icons.archive_rounded, 'Archive', () => _archive(r)),
+              _action(
+                Icons.delete_outline_rounded,
+                'Delete',
+                () => _delete(r),
+                danger: true,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

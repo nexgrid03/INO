@@ -19,6 +19,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
@@ -383,6 +384,10 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         : (userNotes.isEmpty ? null : userNotes);
 
     FocusScope.of(context).unfocus();
+
+    // The consent gate: nothing is uploaded or stored until the user agrees.
+    if (!await showDataConsentSheet(context, what: 'this document')) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     try {

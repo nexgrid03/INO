@@ -10,11 +10,13 @@ import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/account_switcher.dart';
 import '../../services/app_settings.dart';
 import '../../services/auth_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/data_export_service.dart';
+import '../../services/session_reset.dart';
 import '../../services/storage_stats_service.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
@@ -28,6 +30,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
+import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../family/family_vault_screen.dart';
 import '../legal/legal_document_screen.dart';
@@ -654,6 +657,103 @@ class _ProfileScreenState extends State<ProfileScreen>
     _toast('Profile updated');
   }
 
+  // ---- Accounts (multi-account) --------------------------------------------
+
+  /// Starts the add-account flow: the current session is saved so it can be
+  /// switched back to, then the normal sign-in screen takes over. Signing in
+  /// as another user replaces the client session WITHOUT revoking this one
+  /// server-side, so both accounts stay switchable afterwards.
+  Future<void> _addAccount() async {
+    await AccountSwitcher.instance.saveCurrent();
+    // Account boundary: the next account must never see this account's cached
+    // data. Cleared caches re-hydrate from the server on the next load, so
+    // backing out of the sign-in screen costs nothing.
+    await SessionReset.instance.clear();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  /// Actions for a saved (non-current) account: switch to it, or forget it.
+  Future<void> _accountSheet(SavedAccount account) async {
+    final palette = AppPalette.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            _SheetGrip(),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              account.displayName,
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
+            if (account.email.isNotEmpty)
+              Text(
+                account.email,
+                style: AppText.caption.copyWith(color: palette.textSecondary),
+              ),
+            const SizedBox(height: AppSpacing.xs),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz_rounded,
+                  color: AppColors.primaryGreen),
+              title: Text('Switch to this account',
+                  style: TextStyle(color: palette.textPrimary)),
+              onTap: () => Navigator.of(context).pop('switch'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_remove_rounded,
+                  color: AppColors.critical),
+              title: Text('Remove from this device',
+                  style: TextStyle(color: palette.textPrimary)),
+              onTap: () => Navigator.of(context).pop('remove'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'switch') {
+      await _switchAccount(account);
+    } else if (action == 'remove') {
+      await AccountSwitcher.instance.removeAccount(account.id);
+      if (!mounted) return;
+      setState(() {});
+      _toast('Account removed from this device');
+    }
+  }
+
+  Future<void> _switchAccount(SavedAccount account) async {
+    final ok = await AccountSwitcher.instance.switchTo(account);
+    if (!mounted) return;
+    if (!ok) {
+      // The stored session was revoked or expired; the dead entry is already
+      // removed. The account can be re-added through the normal sign-in.
+      setState(() {});
+      _toast('That session has expired - use Add account to sign in again');
+      return;
+    }
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+    // Re-enter through the standard post-auth flow so the whole shell
+    // rebuilds around the switched account's profile.
+    await routeAfterAuth(
+      authUserId: user.id,
+      fullName: (user.userMetadata?['full_name'] as String?) ?? '',
+      email: user.email ?? '',
+    );
+  }
+
   // ---- Build ---------------------------------------------------------------
 
   @override
@@ -681,6 +781,47 @@ class _ProfileScreenState extends State<ProfileScreen>
         totalLabel: _storage.quotaLabel,
         percentLabel: _storageLoading ? '…' : '${_storage.percent}%',
         fraction: _storage.fraction,
+      ),
+      // Multi-account: every account signed in on this device, switchable in
+      // two taps. The current one is marked; tapping another offers
+      // switch / remove; Add account runs the normal sign-in flow.
+      ListenableBuilder(
+        listenable: AccountSwitcher.instance,
+        builder: (context, _) {
+          final accounts = AccountSwitcher.instance.accounts;
+          final currentId = AccountSwitcher.instance.currentUserId;
+          return SettingsGroup(
+            caption: 'Accounts',
+            children: [
+              for (final a in accounts)
+                SettingsRow(
+                  icon: Icons.account_circle_rounded,
+                  iconColor: a.id == currentId
+                      ? _RowAccent.green
+                      : _RowAccent.indigo,
+                  title: a.displayName,
+                  subtitle: a.email.isEmpty ? null : a.email,
+                  trailing: a.id == currentId
+                      ? Text(
+                          'Current',
+                          style: AppText.caption.copyWith(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : null,
+                  onTap: a.id == currentId ? null : () => _accountSheet(a),
+                ),
+              SettingsRow(
+                icon: Icons.person_add_alt_1_rounded,
+                iconColor: _RowAccent.emerald,
+                title: 'Add account',
+                subtitle: 'Sign in with another account and switch anytime',
+                onTap: _addAccount,
+              ),
+            ],
+          );
+        },
       ),
       SettingsGroup(
         caption: l10n.t('security'),

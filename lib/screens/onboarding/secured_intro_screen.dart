@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../main.dart';
+import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
@@ -83,9 +84,19 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
       // mode entirely and gets their real shell.
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
-        final profile = await UserRepository.instance.getProfileByAuthId(
-          session.user.id,
-        );
+        UserProfile? profile;
+        try {
+          profile = await UserRepository.instance.getProfileByAuthId(
+            session.user.id,
+          );
+        } catch (_) {
+          // Network down. The session is still valid, so fall back to the
+          // profile this device last fetched - a signed-in user must reach
+          // their shell offline (that's what Offline documents exist for),
+          // never the sign-in screen.
+          profile =
+              await UserRepository.instance.getCachedProfile(session.user.id);
+        }
         if (profile != null && mounted) {
           GuestMode.active = false;
           goToShell(context, profile);

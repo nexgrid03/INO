@@ -52,6 +52,9 @@ class CardStore extends LocalCollectionStore<SavedCard> {
         'theme_key': c.themeKey,
         'notes': c.notes,
         'is_favorite': c.isFavorite,
+        // The card form's consent sheet gates every save, so an uploaded row
+        // always records the user's approval.
+        'consent': true,
         'created_at': c.createdAt.toIso8601String(),
         'updated_at': c.updatedAt.toIso8601String(),
       };

@@ -28,6 +28,7 @@ import '../../widgets/home/empty_state.dart';
 import '../../widgets/home/market_card.dart';
 import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/skeletons.dart';
+import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
 import '../home/pending_actions_screen.dart';
@@ -344,6 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onNotes: () => _push(const NotesScreen()),
           onExpenses: () => _push(const ExpenseDashboardScreen()),
           onScanner: _scan,
+          onOffline: () => _push(const OfflineDocumentsScreen()),
         ),
       ),
 
@@ -427,12 +429,14 @@ class _QuickActionsRow extends StatelessWidget {
     required this.onNotes,
     required this.onExpenses,
     required this.onScanner,
+    required this.onOffline,
   });
 
   final VoidCallback onDocuments;
   final VoidCallback onNotes;
   final VoidCallback onExpenses;
   final VoidCallback onScanner;
+  final VoidCallback onOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -464,6 +468,12 @@ class _QuickActionsRow extends StatelessWidget {
         label: l10n.t('scanner'),
         color: const Color(0xFF4383EA), // blue - capture / tech
         onTap: onScanner,
+      ),
+      QuickActionButton(
+        icon: Icons.offline_pin_rounded,
+        label: 'Offline',
+        color: const Color(0xFF3CB59E), // seafoam - always available
+        onTap: onOffline,
       ),
     ];
 
