@@ -161,6 +161,17 @@ class VaultMember {
     return (parts.first[0] + parts[1][0]).toUpperCase();
   }
 
+  /// True if [query] matches this member's name, email or phone (used by the
+  /// members search field). An empty query matches everything.
+  bool matches(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return (displayName ?? '').toLowerCase().contains(q) ||
+        (email ?? '').toLowerCase().contains(q) ||
+        (phone ?? '').toLowerCase().contains(q) ||
+        role.label.toLowerCase().contains(q);
+  }
+
   factory VaultMember.fromRow(Map<String, dynamic> row) => VaultMember(
         id: row['id'].toString(),
         vaultId: row['vault_id'].toString(),
@@ -182,4 +193,237 @@ class VaultSummary {
 
   final FamilyVault vault;
   final VaultRole myRole;
+}
+
+/// The lifecycle state of an invitation (`public.vault_invitations.status`).
+enum InvitationStatus { pending, accepted, declined, revoked, expired }
+
+extension InvitationStatusX on InvitationStatus {
+  String get label {
+    switch (this) {
+      case InvitationStatus.pending:
+        return 'Pending';
+      case InvitationStatus.accepted:
+        return 'Accepted';
+      case InvitationStatus.declined:
+        return 'Declined';
+      case InvitationStatus.revoked:
+        return 'Cancelled';
+      case InvitationStatus.expired:
+        return 'Expired';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case InvitationStatus.pending:
+        return const Color(0xFFE0A100);
+      case InvitationStatus.accepted:
+        return AppColors.primaryGreen;
+      case InvitationStatus.declined:
+      case InvitationStatus.revoked:
+        return const Color(0xFF64748B);
+      case InvitationStatus.expired:
+        return AppColors.critical;
+    }
+  }
+
+  static InvitationStatus fromName(String? name) {
+    switch (name) {
+      case 'accepted':
+        return InvitationStatus.accepted;
+      case 'declined':
+        return InvitationStatus.declined;
+      case 'revoked':
+        return InvitationStatus.revoked;
+      case 'expired':
+        return InvitationStatus.expired;
+      default:
+        return InvitationStatus.pending;
+    }
+  }
+}
+
+/// One invitation row (`public.vault_invitations`). Carries the DENORMALIZED
+/// vault name + inviter name so an invitee (not yet a member) can render the
+/// invitation card without reading family_vaults / users (both owner-scoped).
+class VaultInvitation {
+  const VaultInvitation({
+    required this.id,
+    required this.vaultId,
+    required this.role,
+    required this.status,
+    this.email,
+    this.phone,
+    this.vaultName,
+    this.invitedByName,
+    this.createdAt,
+    this.expiresAt,
+    this.updatedAt,
+    this.acceptedAt,
+  });
+
+  final String id;
+  final String vaultId;
+  final VaultRole role;
+  final InvitationStatus status;
+  final String? email;
+  final String? phone;
+  final String? vaultName;
+  final String? invitedByName;
+  final DateTime? createdAt;
+  final DateTime? expiresAt;
+  final DateTime? updatedAt;
+  final DateTime? acceptedAt;
+
+  /// The invited contact (email preferred, else phone).
+  String get target {
+    final e = email?.trim();
+    if (e != null && e.isNotEmpty) return e;
+    final p = phone?.trim();
+    if (p != null && p.isNotEmpty) return p;
+    return '—';
+  }
+
+  bool get isPending => status == InvitationStatus.pending;
+
+  /// True once [expiresAt] is in the past (the server also flips the status on
+  /// accept, but this lets the UI show "expired" without a round-trip).
+  bool get isExpired =>
+      expiresAt != null && expiresAt!.isBefore(DateTime.now());
+
+  factory VaultInvitation.fromRow(Map<String, dynamic> row) => VaultInvitation(
+        id: row['id'].toString(),
+        vaultId: row['vault_id'].toString(),
+        role: VaultRoleX.fromName(row['role'] as String?),
+        status: InvitationStatusX.fromName(row['status'] as String?),
+        email: row['email'] as String?,
+        phone: row['phone'] as String?,
+        vaultName: row['vault_name'] as String?,
+        invitedByName: row['invited_by_name'] as String?,
+        createdAt:
+            DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal(),
+        expiresAt:
+            DateTime.tryParse(row['expires_at']?.toString() ?? '')?.toLocal(),
+        updatedAt:
+            DateTime.tryParse(row['updated_at']?.toString() ?? '')?.toLocal(),
+        acceptedAt:
+            DateTime.tryParse(row['accepted_at']?.toString() ?? '')?.toLocal(),
+      );
+
+  /// True if [query] matches the target contact, role or vault name (used by the
+  /// invitation search field). An empty query matches everything.
+  bool matches(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return target.toLowerCase().contains(q) ||
+        role.label.toLowerCase().contains(q) ||
+        (vaultName ?? '').toLowerCase().contains(q);
+  }
+}
+
+/// One audit-trail entry (`public.vault_audit_log`). An immutable record of a
+/// membership / invitation / ownership action, shown in the vault's Activity
+/// section. The server is the sole writer.
+class VaultAuditEntry {
+  const VaultAuditEntry({
+    required this.id,
+    required this.vaultId,
+    required this.action,
+    this.actorName,
+    this.targetType,
+    this.targetLabel,
+    this.metadata = const {},
+    required this.createdAt,
+  });
+
+  final String id;
+  final String vaultId;
+
+  /// The raw action code, e.g. `invite_sent`, `role_changed`.
+  final String action;
+  final String? actorName;
+  final String? targetType;
+  final String? targetLabel;
+  final Map<String, dynamic> metadata;
+  final DateTime createdAt;
+
+  /// A human sentence for the row, e.g. "Ravi invited asha@x.com as Editor".
+  String get summary {
+    final who = (actorName?.trim().isNotEmpty == true) ? actorName!.trim() : 'Someone';
+    final what = targetLabel ?? '';
+    switch (action) {
+      case 'invite_sent':
+        return '$who invited $what$_roleSuffix';
+      case 'invite_accepted':
+        return '$what accepted the invitation';
+      case 'invite_declined':
+        return '$what declined the invitation';
+      case 'invite_cancelled':
+        return '$who cancelled the invite to $what';
+      case 'invite_resent':
+        return '$who resent the invite to $what';
+      case 'role_changed':
+        final from = metadata['from'];
+        final to = metadata['to'];
+        return '$who changed $what\'s role'
+            '${from != null && to != null ? ' from $from to $to' : ''}';
+      case 'member_removed':
+        return '$who removed $what';
+      case 'member_left':
+        return '$what left the vault';
+      case 'ownership_transferred':
+        return '$who transferred ownership to $what';
+      case 'vault_renamed':
+        final to = metadata['to'];
+        return '$who renamed the vault${to != null ? ' to "$to"' : ''}';
+      default:
+        return '$who · ${action.replaceAll('_', ' ')}'
+            '${what.isNotEmpty ? ' · $what' : ''}';
+    }
+  }
+
+  String get _roleSuffix {
+    final r = metadata['role'];
+    return r == null ? '' : ' as ${VaultRoleX.fromName(r.toString()).label}';
+  }
+
+  IconData get icon {
+    switch (action) {
+      case 'invite_sent':
+      case 'invite_resent':
+        return Icons.outgoing_mail;
+      case 'invite_accepted':
+        return Icons.how_to_reg_rounded;
+      case 'invite_declined':
+      case 'invite_cancelled':
+        return Icons.unsubscribe_rounded;
+      case 'role_changed':
+        return Icons.tune_rounded;
+      case 'member_removed':
+      case 'member_left':
+        return Icons.person_remove_rounded;
+      case 'ownership_transferred':
+        return Icons.workspace_premium_rounded;
+      case 'vault_renamed':
+        return Icons.drive_file_rename_outline_rounded;
+      default:
+        return Icons.history_rounded;
+    }
+  }
+
+  factory VaultAuditEntry.fromRow(Map<String, dynamic> row) => VaultAuditEntry(
+        id: row['id'].toString(),
+        vaultId: row['vault_id'].toString(),
+        action: (row['action'] as String?) ?? '',
+        actorName: row['actor_name'] as String?,
+        targetType: row['target_type'] as String?,
+        targetLabel: row['target_label'] as String?,
+        metadata: row['metadata'] is Map
+            ? Map<String, dynamic>.from(row['metadata'] as Map)
+            : const {},
+        createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+      );
 }

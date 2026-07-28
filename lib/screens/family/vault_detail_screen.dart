@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show Supabase, RealtimeChannel;
 
 import '../../data/family_vault_repository.dart';
 import '../../models/family_vault_models.dart';
@@ -8,11 +12,14 @@ import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
+import 'invite_member_sheet.dart';
 
-/// One Family Vault: its members and their roles. Owners/admins can assign
-/// roles and remove members here (item 7). Inviting new members arrives in
-/// Phase 2 — the affordance is present and gated to those who may manage
-/// members. Documents scoped to the vault come in a later phase.
+/// One Family Vault: members, their roles, and (for owners/admins) invitations.
+///
+/// Owner/admin can invite by email/phone, change a member's role, remove a
+/// member, cancel/resend invitations, and — owner only — transfer ownership.
+/// Any non-owner member can leave. Every mutation is enforced server-side by
+/// the RPCs (see the 20260731 migration); the UI only gates what it shows.
 class VaultDetailScreen extends StatefulWidget {
   const VaultDetailScreen({super.key, required this.summary});
 
@@ -26,19 +33,73 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   final _repo = FamilyVaultRepository.instance;
   final _store = FamilyVaultStore.instance;
 
-  late final VaultRole _myRole = widget.summary.myRole;
+  VaultRole _myRole = VaultRole.viewer;
   late String _vaultName = widget.summary.vault.name;
 
   List<VaultMember> _members = const [];
+  List<VaultInvitation> _invitations = const [];
+  List<VaultAuditEntry> _audit = const [];
   bool _loading = true;
+  bool _invitesLoading = false;
+  bool _auditLoading = false;
   String? _error;
 
+  /// Search text applied to the members + invitations lists.
+  String _query = '';
+
+  /// Live updates for this vault's members + invitations, with a short debounce.
+  RealtimeChannel? _channel;
+  Timer? _debounce;
+
   String get _vaultId => widget.summary.vault.id;
+  String? get _currentUid =>
+      Supabase.instance.client.auth.currentUser?.id;
 
   @override
   void initState() {
     super.initState();
-    _loadMembers();
+    _myRole = widget.summary.myRole;
+    _refresh();
+    _startRealtime();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    final ch = _channel;
+    if (ch != null) _repo.unwatch(ch);
+    super.dispose();
+  }
+
+  void _startRealtime() {
+    _channel = _repo.watchVault(_vaultId, () {
+      // Debounce a burst of row changes into a single refresh.
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 350), () {
+        if (mounted) _refresh();
+      });
+    });
+  }
+
+  Future<void> _refresh() async {
+    await _loadMembers();
+    if (_myRole.canManageMembers) {
+      await _loadInvitations();
+      await _loadAudit();
+    }
+  }
+
+  Future<void> _loadAudit() async {
+    setState(() => _auditLoading = true);
+    try {
+      final audit = await _repo.auditLog(_vaultId, limit: 30);
+      if (mounted) setState(() => _audit = audit);
+    } catch (e) {
+      // Non-fatal — the roster still works without the activity trail.
+      debugPrint('[FamilyVault] loadAudit failed: $e');
+    } finally {
+      if (mounted) setState(() => _auditLoading = false);
+    }
   }
 
   Future<void> _loadMembers() async {
@@ -49,8 +110,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     try {
       final members = await _repo.members(_vaultId);
       if (!mounted) return;
+      // Keep my own role in sync (e.g. after an ownership transfer).
+      final me = members.where((m) => m.authUserId == _currentUid);
       setState(() {
         _members = members;
+        if (me.isNotEmpty) _myRole = me.first.role;
         _loading = false;
       });
     } catch (e) {
@@ -62,6 +126,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     }
   }
 
+  Future<void> _loadInvitations() async {
+    setState(() => _invitesLoading = true);
+    try {
+      final invites = await _repo.invitationsForVault(_vaultId);
+      if (mounted) setState(() => _invitations = invites);
+    } catch (e) {
+      // Non-fatal — the members list still works without the invite roster.
+      debugPrint('[FamilyVault] loadInvitations failed: $e');
+    } finally {
+      if (mounted) setState(() => _invitesLoading = false);
+    }
+  }
+
   void _toast(String m, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(m),
@@ -70,11 +147,278 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     ));
   }
 
-  void _invite() {
-    // Phase 2: invite by phone / Google / device contacts. The entry point is
-    // here now so the flow has a home.
-    _toast('Member invitations arrive in the next update.');
+  Future<void> _invite() async {
+    final sent = await showInviteMemberSheet(context, _vaultId);
+    if (sent == true && mounted) {
+      _toast('Invitation sent');
+      await _loadInvitations();
+      await _loadAudit();
+    }
   }
+
+  // ---- Member actions ------------------------------------------------------
+
+  Future<void> _memberActions(VaultMember member) async {
+    final isMe = member.authUserId == _currentUid;
+    final isOwnerRow = member.role == VaultRole.owner;
+    final canManage = _myRole.canManageMembers && !isOwnerRow && !isMe;
+    final canTransfer = _myRole == VaultRole.owner && !isOwnerRow;
+    final canLeave = isMe && !isOwnerRow;
+    if (!canManage && !canTransfer && !canLeave) return;
+
+    final palette = AppPalette.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+            const SizedBox(height: AppSpacing.sm),
+            if (canManage) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Change role',
+                      style: AppText.label.copyWith(color: palette.textFaint)),
+                ),
+              ),
+              for (final role in VaultRoleX.assignable)
+                ListTile(
+                  leading: Icon(role.icon, color: role.color),
+                  title: Text(role.label),
+                  subtitle: Text(role.description),
+                  trailing: member.role == role
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: AppColors.primaryGreen)
+                      : null,
+                  onTap: () => Navigator.of(context).pop('role:${role.name}'),
+                ),
+            ],
+            if (canTransfer) ...[
+              Divider(height: 1, color: palette.border),
+              ListTile(
+                leading: const Icon(Icons.workspace_premium_rounded,
+                    color: AppColors.primaryGreen),
+                title: const Text('Make owner'),
+                subtitle: const Text('Transfer ownership — you become Admin'),
+                onTap: () => Navigator.of(context).pop('transfer'),
+              ),
+            ],
+            if (canManage) ...[
+              Divider(height: 1, color: palette.border),
+              ListTile(
+                leading: const Icon(Icons.person_remove_rounded,
+                    color: AppColors.critical),
+                title: const Text('Remove from vault',
+                    style: TextStyle(color: AppColors.critical)),
+                onTap: () => Navigator.of(context).pop('remove'),
+              ),
+            ],
+            if (canLeave)
+              ListTile(
+                leading: const Icon(Icons.logout_rounded,
+                    color: AppColors.critical),
+                title: const Text('Leave vault',
+                    style: TextStyle(color: AppColors.critical)),
+                onTap: () => Navigator.of(context).pop('leave'),
+              ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    if (action == 'transfer') {
+      await _transferOwnership(member);
+      return;
+    }
+    if (action == 'leave') {
+      await _leave(member);
+      return;
+    }
+    try {
+      if (action == 'remove') {
+        await _repo.removeMember(member.id);
+        _toast('${member.label} removed');
+      } else if (action.startsWith('role:')) {
+        final role = VaultRoleX.fromName(action.substring(5));
+        if (role == member.role) return;
+        await _repo.updateMemberRole(member.id, role);
+        _toast('${member.label} is now ${role.label}');
+      }
+      await _loadMembers();
+      await _loadAudit();
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t update the member.', error: true);
+    }
+  }
+
+  Future<void> _transferOwnership(VaultMember member) async {
+    final palette = AppPalette.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: const Text('Transfer ownership?'),
+        content: Text(
+          'Make ${member.label} the owner of "$_vaultName"? You will become an '
+          'Admin. Only the owner can transfer ownership or delete the vault.',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Transfer',
+                style: TextStyle(color: AppColors.primaryGreen)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _repo.transferOwnership(_vaultId, member.authUserId);
+      _toast('${member.label} is now the owner');
+      await _loadMembers();
+      await _loadAudit();
+      await _store.reload(); // list roles changed
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t transfer ownership.', error: true);
+    }
+  }
+
+  Future<void> _leave(VaultMember me) async {
+    final palette = AppPalette.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: const Text('Leave vault?'),
+        content: Text(
+          'You\'ll lose access to "$_vaultName". An owner or admin can invite '
+          'you again later.',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Leave',
+                  style: TextStyle(color: AppColors.critical))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _repo.removeMember(me.id);
+      await _store.reload();
+      if (mounted) Navigator.of(context).maybePop();
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t leave the vault.', error: true);
+    }
+  }
+
+  // ---- Invitation actions --------------------------------------------------
+
+  Future<void> _inviteActions(VaultInvitation inv) async {
+    if (!_myRole.canManageMembers) return;
+    final palette = AppPalette.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+            const SizedBox(height: AppSpacing.sm),
+            if (inv.isPending) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Change role',
+                      style: AppText.label.copyWith(color: palette.textFaint)),
+                ),
+              ),
+              for (final role in VaultRoleX.assignable)
+                ListTile(
+                  leading: Icon(role.icon, color: role.color),
+                  title: Text(role.label),
+                  trailing: inv.role == role
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: AppColors.primaryGreen)
+                      : null,
+                  onTap: () => Navigator.of(context).pop('role:${role.name}'),
+                ),
+              Divider(height: 1, color: palette.border),
+              ListTile(
+                leading: const Icon(Icons.cancel_rounded,
+                    color: AppColors.critical),
+                title: const Text('Cancel invitation',
+                    style: TextStyle(color: AppColors.critical)),
+                onTap: () => Navigator.of(context).pop('cancel'),
+              ),
+            ] else
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded,
+                    color: AppColors.primaryGreen),
+                title: const Text('Resend invitation'),
+                subtitle: Text('Re-send to ${inv.target}'),
+                onTap: () => Navigator.of(context).pop('resend'),
+              ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    try {
+      if (action == 'cancel') {
+        await _repo.cancelInvitation(inv.id);
+        _toast('Invitation cancelled');
+      } else if (action == 'resend') {
+        await _repo.resendInvitation(inv.id);
+        _toast('Invitation resent');
+      } else if (action.startsWith('role:')) {
+        final role = VaultRoleX.fromName(action.substring(5));
+        await _repo.resendInvitation(inv.id, role: role);
+        _toast('Invitation role updated to ${role.label}');
+      }
+      await _loadInvitations();
+      await _loadAudit();
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t update the invitation.', error: true);
+    }
+  }
+
+  // ---- Vault owner actions -------------------------------------------------
 
   Future<void> _renameVault() async {
     final controller = TextEditingController(text: _vaultName);
@@ -106,6 +450,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     try {
       await _store.rename(_vaultId, name);
       if (mounted) setState(() => _vaultName = name);
+      await _loadAudit();
     } catch (e) {
       if (mounted) _toast('Couldn\'t rename the vault.', error: true);
     }
@@ -143,86 +488,15 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     }
   }
 
-  Future<void> _memberActions(VaultMember member) async {
-    // Only admins/owner manage members, and never the owner row or yourself.
-    if (!_myRole.canManageMembers ||
-        member.role == VaultRole.owner ||
-        member.authUserId == widget.summary.vault.ownerAuthUserId) {
-      return;
-    }
-    final palette = AppPalette.of(context);
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill))),
-            const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Text('Change role',
-                  style: AppText.label.copyWith(color: palette.textFaint)),
-            ),
-            for (final role in VaultRoleX.assignable)
-              ListTile(
-                leading: Icon(role.icon, color: role.color),
-                title: Text(role.label),
-                subtitle: Text(role.description),
-                trailing: member.role == role
-                    ? const Icon(Icons.check_circle_rounded,
-                        color: AppColors.primaryGreen)
-                    : null,
-                onTap: () => Navigator.of(context).pop('role:${role.name}'),
-              ),
-            Divider(height: 1, color: palette.border),
-            ListTile(
-              leading: const Icon(Icons.person_remove_rounded,
-                  color: AppColors.critical),
-              title: const Text('Remove from vault',
-                  style: TextStyle(color: AppColors.critical)),
-              onTap: () => Navigator.of(context).pop('remove'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !mounted) return;
-    try {
-      if (action == 'remove') {
-        await _repo.removeMember(member.id);
-        _toast('${member.label} removed');
-      } else if (action.startsWith('role:')) {
-        final role = VaultRoleX.fromName(action.substring(5));
-        if (role == member.role) return;
-        await _repo.updateMemberRole(member.id, role);
-        _toast('${member.label} is now ${role.label}');
-      }
-      await _loadMembers();
-    } catch (e) {
-      if (mounted) _toast('Couldn\'t update the member.', error: true);
-    }
-  }
+  // ---- Build ---------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      floatingActionButton: _myRole.canManageMembers
-          ? _InviteButton(onTap: _invite)
-          : null,
+      floatingActionButton:
+          _myRole.canManageMembers ? _InviteButton(onTap: _invite) : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -230,7 +504,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.primaryGreen,
-                onRefresh: _loadMembers,
+                onRefresh: _refresh,
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : _error != null
@@ -259,6 +533,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       );
 
   Widget _body(AppPalette palette) {
+    final pendingCount = _invitations.where((i) => i.isPending).length;
+    final members = _members.where((m) => m.matches(_query)).toList();
+    final invitations = _invitations.where((i) => i.matches(_query)).toList();
+    final searchable = _members.length > 1 || _invitations.isNotEmpty;
     return ListView(
       physics:
           const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
@@ -300,6 +578,17 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
+
+        // Search (members + invitations) — shown once there's enough to filter.
+        if (searchable) ...[
+          _SearchField(
+            hint: 'Search members or invitations',
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        // Members.
         Row(
           children: [
             Text('Members',
@@ -326,28 +615,149 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        InoCard(
-          radius: AppRadius.card,
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-          child: Column(
+        if (members.isEmpty)
+          _NoMatches(palette: palette, what: 'members')
+        else
+          InoCard(
+            radius: AppRadius.card,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            child: Column(
+              children: [
+                for (var i = 0; i < members.length; i++) ...[
+                  if (i > 0) Divider(height: 1, color: palette.border),
+                  _MemberRow(
+                    member: members[i],
+                    isMe: members[i].authUserId == _currentUid,
+                    actionable: _canActOn(members[i]),
+                    onTap: () => _memberActions(members[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+        // Invitations (owner/admin only).
+        if (_myRole.canManageMembers) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Row(
             children: [
-              for (var i = 0; i < _members.length; i++) ...[
-                if (i > 0) Divider(height: 1, color: palette.border),
-                _MemberRow(
-                  member: _members[i],
-                  canManage: _myRole.canManageMembers &&
-                      _members[i].role != VaultRole.owner &&
-                      _members[i].authUserId !=
-                          widget.summary.vault.ownerAuthUserId,
-                  onTap: () => _memberActions(_members[i]),
+              Text('Invitations',
+                  style: AppText.title.copyWith(color: palette.textPrimary)),
+              if (pendingCount > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text('$pendingCount pending',
+                      style: AppText.label.copyWith(
+                          color: AppColors.darkGreen,
+                          fontWeight: FontWeight.w700)),
                 ),
               ],
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          if (_invitesLoading && _invitations.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (invitations.isEmpty)
+            InoCard(
+              radius: AppRadius.card,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(Icons.mail_outline_rounded,
+                      size: 20, color: palette.textFaint),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                        _query.isEmpty
+                            ? 'No invitations yet. Tap Invite to add family.'
+                            : 'No invitations match "$_query".',
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary)),
+                  ),
+                ],
+              ),
+            )
+          else
+            InoCard(
+              radius: AppRadius.card,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  for (var i = 0; i < invitations.length; i++) ...[
+                    if (i > 0) Divider(height: 1, color: palette.border),
+                    _InvitationRow(
+                      invite: invitations[i],
+                      onTap: () => _inviteActions(invitations[i]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+          // Activity (audit trail) — owner/admin only.
+          const SizedBox(height: AppSpacing.lg),
+          Text('Activity',
+              style: AppText.title.copyWith(color: palette.textPrimary)),
+          const SizedBox(height: AppSpacing.sm),
+          if (_auditLoading && _audit.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_audit.isEmpty)
+            InoCard(
+              radius: AppRadius.card,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded,
+                      size: 20, color: palette.textFaint),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text('No activity yet.',
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary)),
+                  ),
+                ],
+              ),
+            )
+          else
+            InoCard(
+              radius: AppRadius.card,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  for (var i = 0; i < _audit.length; i++) ...[
+                    if (i > 0) Divider(height: 1, color: palette.border),
+                    _AuditRow(entry: _audit[i]),
+                  ],
+                ],
+              ),
+            ),
+        ],
       ],
     );
+  }
+
+  bool _canActOn(VaultMember member) {
+    final isMe = member.authUserId == _currentUid;
+    final isOwnerRow = member.role == VaultRole.owner;
+    final canManage = _myRole.canManageMembers && !isOwnerRow && !isMe;
+    final canTransfer = _myRole == VaultRole.owner && !isOwnerRow;
+    final canLeave = isMe && !isOwnerRow;
+    return canManage || canTransfer || canLeave;
   }
 
   Widget _header(AppPalette palette) {
@@ -407,19 +817,21 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 class _MemberRow extends StatelessWidget {
   const _MemberRow({
     required this.member,
-    required this.canManage,
+    required this.isMe,
+    required this.actionable,
     required this.onTap,
   });
 
   final VaultMember member;
-  final bool canManage;
+  final bool isMe;
+  final bool actionable;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return InkWell(
-      onTap: canManage ? onTap : null,
+      onTap: actionable ? onTap : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(
@@ -443,11 +855,24 @@ class _MemberRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(member.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                          color: palette.textPrimary, fontSize: 14.5)),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(member.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.subtitle.copyWith(
+                                color: palette.textPrimary, fontSize: 14.5)),
+                      ),
+                      if (isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Text('(you)',
+                              style: AppText.caption
+                                  .copyWith(color: palette.textFaint)),
+                        ),
+                    ],
+                  ),
                   if (member.email?.isNotEmpty == true ||
                       member.phone?.isNotEmpty == true) ...[
                     const SizedBox(height: 2),
@@ -466,7 +891,7 @@ class _MemberRow extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xs),
             VaultRoleBadge(role: member.role),
-            if (canManage)
+            if (actionable)
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Icon(Icons.more_horiz_rounded,
@@ -474,6 +899,222 @@ class _MemberRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InvitationRow extends StatelessWidget {
+  const _InvitationRow({required this.invite, required this.onTap});
+
+  final VaultInvitation invite;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(
+                invite.email != null
+                    ? Icons.email_rounded
+                    : Icons.phone_rounded,
+                size: 18,
+                color: palette.textFaint),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(invite.target,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.subtitle.copyWith(
+                          color: palette.textPrimary, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('Invited as ${invite.role.label}',
+                      style: AppText.caption
+                          .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            _StatusChip(status: invite.status),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.more_horiz_rounded,
+                  size: 18, color: palette.textFaint),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+
+  final InvitationStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: status.color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(status.label,
+          style: TextStyle(
+              color: status.color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+/// A compact search box that filters the members + invitations lists locally.
+class _SearchField extends StatefulWidget {
+  const _SearchField({required this.hint, required this.onChanged});
+
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return TextField(
+      controller: _controller,
+      onChanged: widget.onChanged,
+      textInputAction: TextInputAction.search,
+      style: AppText.body.copyWith(color: palette.textPrimary, fontSize: 14.5),
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: widget.hint,
+        hintStyle: AppText.body.copyWith(color: palette.textFaint, fontSize: 14),
+        prefixIcon:
+            Icon(Icons.search_rounded, size: 20, color: palette.textFaint),
+        suffixIcon: _controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: Icon(Icons.close_rounded,
+                    size: 18, color: palette.textFaint),
+                onPressed: () {
+                  _controller.clear();
+                  widget.onChanged('');
+                  setState(() {});
+                },
+              ),
+        filled: true,
+        fillColor: palette.surfaceVariant,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          borderSide: BorderSide(color: palette.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          borderSide: BorderSide(color: palette.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          borderSide:
+              const BorderSide(color: AppColors.primaryGreen, width: 1.4),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when a search filters every row out of a list.
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.palette, required this.what});
+
+  final AppPalette palette;
+  final String what;
+
+  @override
+  Widget build(BuildContext context) {
+    return InoCard(
+      radius: AppRadius.card,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(Icons.search_off_rounded, size: 20, color: palette.textFaint),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text('No $what match your search.',
+                style: AppText.caption.copyWith(color: palette.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row in the vault's Activity (audit) trail.
+class _AuditRow extends StatelessWidget {
+  const _AuditRow({required this.entry});
+
+  final VaultAuditEntry entry;
+
+  static String _ago(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
+    if (d.inDays < 7) return '${d.inDays}d ago';
+    return '${d.inDays ~/ 7}w ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(entry.icon, size: 16, color: AppColors.darkGreen),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(entry.summary,
+                style: AppText.caption.copyWith(
+                    color: palette.textPrimary, fontSize: 12.5, height: 1.35)),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(_ago(entry.createdAt),
+              style: AppText.caption
+                  .copyWith(color: palette.textFaint, fontSize: 11)),
+        ],
       ),
     );
   }

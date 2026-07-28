@@ -2,13 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/data/family_vault_repository.dart';
 import 'package:inoapp/models/family_vault_models.dart';
 import 'package:inoapp/services/family_vault_store.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show RealtimeChannel;
 
 /// An in-memory fake so the store's logic is testable without Supabase.
 class _FakeVaultRepo implements FamilyVaultRepository {
   final List<VaultSummary> vaults = [];
+  final List<VaultInvitation> pending = [];
   int _seq = 0;
   bool failCreate = false;
   bool failWrite = false;
+  final List<String> accepted = [];
+  final List<String> declined = [];
 
   @override
   Future<List<VaultSummary>> myVaults() async => List.of(vaults);
@@ -45,6 +49,62 @@ class _FakeVaultRepo implements FamilyVaultRepository {
 
   @override
   Future<void> removeMember(String memberId) async {}
+
+  @override
+  Future<void> transferOwnership(String vaultId, String newOwner) async {}
+
+  @override
+  Future<VaultInvitation> invite(String vaultId, VaultRole role,
+      {String? email, String? phone}) async {
+    if (failWrite) throw Exception('offline');
+    return VaultInvitation(
+      id: 'i${_seq++}',
+      vaultId: vaultId,
+      role: role,
+      status: InvitationStatus.pending,
+      email: email,
+      phone: phone,
+    );
+  }
+
+  @override
+  Future<List<VaultInvitation>> invitationsForVault(String vaultId) async =>
+      pending.where((i) => i.vaultId == vaultId).toList();
+
+  @override
+  Future<List<VaultInvitation>> myPendingInvitations() async => List.of(pending);
+
+  @override
+  Future<void> acceptInvitation(String id) async {
+    accepted.add(id);
+    pending.removeWhere((i) => i.id == id);
+  }
+
+  @override
+  Future<void> declineInvitation(String id) async {
+    declined.add(id);
+    pending.removeWhere((i) => i.id == id);
+  }
+
+  @override
+  Future<void> cancelInvitation(String id) async {}
+
+  @override
+  Future<void> resendInvitation(String id, {VaultRole? role}) async {}
+
+  @override
+  Future<List<VaultAuditEntry>> auditLog(String vaultId, {int limit = 50}) async =>
+      const [];
+
+  // Realtime is a no-op in tests (no live backend).
+  @override
+  RealtimeChannel? watchMyVaults(void Function() onChange) => null;
+
+  @override
+  RealtimeChannel? watchVault(String vaultId, void Function() onChange) => null;
+
+  @override
+  Future<void> unwatch(RealtimeChannel channel) async {}
 }
 
 void main() {
@@ -187,6 +247,189 @@ void main() {
       await FamilyVaultStore.instance.create('A');
       FamilyVaultStore.instance.clear();
       expect(FamilyVaultStore.instance.isEmpty, isTrue);
+    });
+
+    test('accept / decline delegate to the repository', () async {
+      final repo2 = _FakeVaultRepo();
+      FamilyVaultRepository.instance = repo2;
+      FamilyVaultStore.instance.reset();
+
+      await FamilyVaultStore.instance.acceptInvitation('inv-1');
+      expect(repo2.accepted, contains('inv-1'));
+
+      await FamilyVaultStore.instance.declineInvitation('inv-2');
+      expect(repo2.declined, contains('inv-2'));
+    });
+  });
+
+  group('InvitationStatus', () {
+    test('fromName maps values and defaults to pending', () {
+      expect(InvitationStatusX.fromName('accepted'), InvitationStatus.accepted);
+      expect(InvitationStatusX.fromName('declined'), InvitationStatus.declined);
+      expect(InvitationStatusX.fromName('revoked'), InvitationStatus.revoked);
+      expect(InvitationStatusX.fromName('expired'), InvitationStatus.expired);
+      expect(InvitationStatusX.fromName('pending'), InvitationStatus.pending);
+      expect(InvitationStatusX.fromName(null), InvitationStatus.pending);
+      expect(InvitationStatusX.fromName('garbage'), InvitationStatus.pending);
+    });
+
+    test('revoked reads as "Cancelled"', () {
+      expect(InvitationStatus.revoked.label, 'Cancelled');
+      expect(InvitationStatus.pending.label, 'Pending');
+    });
+  });
+
+  group('VaultInvitation', () {
+    test('fromRow parses an email invitation with denormalized names', () {
+      final inv = VaultInvitation.fromRow({
+        'id': 'i1',
+        'vault_id': 'v1',
+        'role': 'editor',
+        'status': 'pending',
+        'email': 'asha@example.com',
+        'vault_name': 'Sharma Family',
+        'invited_by_name': 'Ravi',
+        'created_at': '2026-07-28T10:00:00Z',
+        'expires_at': '2026-08-27T10:00:00Z',
+      });
+      expect(inv.role, VaultRole.editor);
+      expect(inv.status, InvitationStatus.pending);
+      expect(inv.isPending, isTrue);
+      expect(inv.target, 'asha@example.com');
+      expect(inv.vaultName, 'Sharma Family');
+      expect(inv.invitedByName, 'Ravi');
+    });
+
+    test('target falls back to phone when no email', () {
+      final inv = VaultInvitation.fromRow({
+        'id': 'i2',
+        'vault_id': 'v2',
+        'role': 'viewer',
+        'status': 'pending',
+        'phone': '+919876543210',
+      });
+      expect(inv.target, '+919876543210');
+      expect(inv.role, VaultRole.viewer);
+    });
+
+    test('assignable roles for invites never include owner', () {
+      // The invite sheet only ever offers these; owner is created by the DB
+      // trigger / transfer, never invited.
+      expect(VaultRoleX.assignable, isNot(contains(VaultRole.owner)));
+    });
+
+    test('parses lifecycle timestamps (updated_at / accepted_at)', () {
+      final inv = VaultInvitation.fromRow({
+        'id': 'i9',
+        'vault_id': 'v9',
+        'role': 'admin',
+        'status': 'accepted',
+        'email': 'a@x.com',
+        'created_at': '2026-07-28T10:00:00Z',
+        'expires_at': '2026-08-27T10:00:00Z',
+        'updated_at': '2026-07-28T11:00:00Z',
+        'accepted_at': '2026-07-28T11:00:00Z',
+      });
+      expect(inv.updatedAt, isNotNull);
+      expect(inv.acceptedAt, isNotNull);
+      expect(inv.status, InvitationStatus.accepted);
+    });
+
+    test('isExpired reflects an expiry in the past', () {
+      final past = VaultInvitation.fromRow({
+        'id': 'i10',
+        'vault_id': 'v10',
+        'role': 'viewer',
+        'status': 'pending',
+        'email': 'a@x.com',
+        'expires_at': '2000-01-01T00:00:00Z',
+      });
+      expect(past.isExpired, isTrue);
+    });
+
+    test('matches() searches target, role and vault name', () {
+      final inv = VaultInvitation.fromRow({
+        'id': 'i11',
+        'vault_id': 'v11',
+        'role': 'editor',
+        'status': 'pending',
+        'email': 'asha@example.com',
+        'vault_name': 'Sharma Family',
+      });
+      expect(inv.matches(''), isTrue); // empty query matches all
+      expect(inv.matches('asha'), isTrue); // target
+      expect(inv.matches('editor'), isTrue); // role label
+      expect(inv.matches('sharma'), isTrue); // vault name
+      expect(inv.matches('nope'), isFalse);
+    });
+  });
+
+  group('VaultMember search', () {
+    VaultMember m({String? name, String? email, String? phone}) => VaultMember(
+          id: 'm',
+          vaultId: 'v',
+          authUserId: 'u',
+          role: VaultRole.editor,
+          displayName: name,
+          email: email,
+          phone: phone,
+          joinedAt: DateTime(2026, 7, 28),
+        );
+
+    test('matches name / email / phone / role, empty matches all', () {
+      final member = m(name: 'Asha Rao', email: 'asha@x.com', phone: '+91999');
+      expect(member.matches(''), isTrue);
+      expect(member.matches('asha'), isTrue);
+      expect(member.matches('ASHA@X'), isTrue);
+      expect(member.matches('999'), isTrue);
+      expect(member.matches('editor'), isTrue);
+      expect(member.matches('zzz'), isFalse);
+    });
+  });
+
+  group('VaultAuditEntry', () {
+    VaultAuditEntry entry(String action,
+            {String? actor, String? target, Map<String, dynamic>? meta}) =>
+        VaultAuditEntry.fromRow({
+          'id': 'a1',
+          'vault_id': 'v1',
+          'action': action,
+          'actor_name': actor,
+          'target_label': target,
+          'metadata': meta ?? {},
+          'created_at': '2026-07-28T10:00:00Z',
+        });
+
+    test('fromRow parses fields + metadata', () {
+      final e = entry('role_changed',
+          actor: 'Ravi', target: 'Asha', meta: {'from': 'viewer', 'to': 'admin'});
+      expect(e.action, 'role_changed');
+      expect(e.actorName, 'Ravi');
+      expect(e.targetLabel, 'Asha');
+      expect(e.metadata['to'], 'admin');
+    });
+
+    test('summary reads as a human sentence per action', () {
+      expect(
+        entry('invite_sent', actor: 'Ravi', target: 'a@x.com', meta: {'role': 'editor'})
+            .summary,
+        'Ravi invited a@x.com as Editor',
+      );
+      expect(entry('invite_accepted', target: 'Asha').summary,
+          'Asha accepted the invitation');
+      expect(
+        entry('role_changed', actor: 'Ravi', target: 'Asha', meta: {'from': 'viewer', 'to': 'admin'})
+            .summary,
+        'Ravi changed Asha\'s role from viewer to admin',
+      );
+      expect(entry('ownership_transferred', actor: 'Ravi', target: 'Asha').summary,
+          'Ravi transferred ownership to Asha');
+      expect(entry('member_left', target: 'Asha').summary, 'Asha left the vault');
+    });
+
+    test('unknown action falls back to a readable default', () {
+      expect(entry('some_new_action', actor: 'Ravi').summary,
+          contains('some new action'));
     });
   });
 }
