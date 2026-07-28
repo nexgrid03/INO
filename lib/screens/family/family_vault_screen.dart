@@ -28,6 +28,33 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   void initState() {
     super.initState();
     _store.ensureLoaded();
+    // Surface any pending invitations addressed to this user (badge + cards).
+    _store.refreshPendingInvitations();
+  }
+
+  Future<void> _accept(VaultInvitation inv) async {
+    try {
+      await _store.acceptInvitation(inv.id);
+      if (mounted) _toastOk('Joined ${inv.vaultName ?? 'the vault'}');
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t accept: ${_errorText(e)}');
+    }
+  }
+
+  Future<void> _decline(VaultInvitation inv) async {
+    try {
+      await _store.declineInvitation(inv.id);
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t decline the invitation.');
+    }
+  }
+
+  void _toastOk(String m) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(m),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.primaryGreen,
+    ));
   }
 
   Future<void> _create() async {
@@ -87,6 +114,16 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
         child: Column(
           children: [
             _Header(onBack: () => Navigator.of(context).maybePop()),
+            // Pending invitations addressed to this user — shown above the
+            // vault list (and even when the user has no vaults yet).
+            ListenableBuilder(
+              listenable: _store,
+              builder: (context, _) => _PendingInvites(
+                invites: _store.pendingInvites,
+                onAccept: _accept,
+                onDecline: _decline,
+              ),
+            ),
             Expanded(
               child: ListenableBuilder(
                 listenable: _store,
@@ -96,9 +133,14 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
                   if (loading) {
                     return const Center(child: CircularProgressIndicator());
                   }
+                  Future<void> refreshAll() async {
+                    await _store.reload();
+                    await _store.refreshPendingInvitations();
+                  }
+
                   return RefreshIndicator(
                     color: AppColors.primaryGreen,
-                    onRefresh: _store.reload,
+                    onRefresh: refreshAll,
                     child: failed
                         ? _ErrorState(
                             message: _store.loadError!, onRetry: _store.reload)
@@ -132,6 +174,160 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
             builder: (_) => VaultDetailScreen(summary: vaults[i]),
           )),
         ),
+      ),
+    );
+  }
+}
+
+/// The "you've been invited" cards shown at the top of the Family Vault screen.
+/// Renders nothing when there are no pending invitations.
+class _PendingInvites extends StatelessWidget {
+  const _PendingInvites({
+    required this.invites,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final List<VaultInvitation> invites;
+  final ValueChanged<VaultInvitation> onAccept;
+  final ValueChanged<VaultInvitation> onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    if (invites.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.sm),
+      child: Column(
+        children: [
+          for (final inv in invites)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _InviteCard(
+                invite: inv,
+                onAccept: () => onAccept(inv),
+                onDecline: () => onDecline(inv),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InviteCard extends StatelessWidget {
+  const _InviteCard({
+    required this.invite,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final VaultInvitation invite;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(
+            color: AppColors.primaryGreen.withValues(alpha: 0.4), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: AppSizes.iconContainerSm,
+                height: AppSizes.iconContainerSm,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: const Icon(Icons.mark_email_unread_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('You\'ve been invited',
+                        style: AppText.subtitle.copyWith(
+                            color: palette.textPrimary, fontSize: 14.5)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${invite.vaultName ?? 'Family Vault'} · as '
+                      '${invite.role.label}'
+                      '${invite.invitedByName != null ? ' · by ${invite.invitedByName}' : ''}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: PressableScale(
+                  child: GestureDetector(
+                    onTap: onDecline,
+                    child: Container(
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: palette.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppRadius.button),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Text('Decline',
+                          style: AppText.subtitle.copyWith(
+                              color: palette.textSecondary, fontSize: 14)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: PressableScale(
+                  child: GestureDetector(
+                    onTap: onAccept,
+                    child: Container(
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.brandGradient,
+                        borderRadius: BorderRadius.circular(AppRadius.button),
+                      ),
+                      child: const Text('Accept',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

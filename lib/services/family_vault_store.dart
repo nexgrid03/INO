@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,11 +19,23 @@ class FamilyVaultStore extends ChangeNotifier {
   bool _loading = false;
   String? _loadError;
 
+  /// Pending invitations addressed to the signed-in user — drives the badge and
+  /// the "You've been invited" cards. Cached so the badge shows offline.
+  final List<VaultInvitation> _pendingInvites = [];
+
+  /// Realtime channel for live updates to the vault list + invite badge, and a
+  /// short debounce so a burst of row changes triggers a single refresh.
+  RealtimeChannel? _channel;
+  Timer? _debounce;
+
   List<VaultSummary> get vaults => List.unmodifiable(_vaults);
   bool get isLoading => _loading;
   bool get isLoaded => _loaded;
   bool get isEmpty => _vaults.isEmpty;
   String? get loadError => _loadError;
+
+  List<VaultInvitation> get pendingInvites => List.unmodifiable(_pendingInvites);
+  int get pendingInviteCount => _pendingInvites.length;
 
   String? _uid() {
     try {
@@ -150,10 +164,78 @@ class FamilyVaultStore extends ChangeNotifier {
     }
   }
 
+  // ---- Invitations ---------------------------------------------------------
+
+  /// Refreshes the signed-in user's pending invitations (badge + cards). Called
+  /// on app open / login and after accept/decline. Never throws — a badge that
+  /// can't refresh must not break the app.
+  Future<void> refreshPendingInvitations() async {
+    if (!_remote) return;
+    try {
+      final invites =
+          await FamilyVaultRepository.instance.myPendingInvitations();
+      _pendingInvites
+        ..clear()
+        ..addAll(invites);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[FamilyVault] refreshPendingInvitations failed: $e');
+    }
+  }
+
+  /// Accepts an invitation, then refreshes vaults (a new membership appeared)
+  /// and the pending list. Rethrows on failure.
+  Future<void> acceptInvitation(String invitationId) async {
+    await FamilyVaultRepository.instance.acceptInvitation(invitationId);
+    _pendingInvites.removeWhere((i) => i.id == invitationId);
+    notifyListeners();
+    await _load();
+    await refreshPendingInvitations();
+  }
+
+  /// Declines an invitation and drops it from the pending list. Rethrows.
+  Future<void> declineInvitation(String invitationId) async {
+    await FamilyVaultRepository.instance.declineInvitation(invitationId);
+    _pendingInvites.removeWhere((i) => i.id == invitationId);
+    notifyListeners();
+  }
+
+  // ---- Realtime ------------------------------------------------------------
+
+  /// Opens a realtime subscription so the vault list and invite badge update
+  /// live when memberships / invitations / vaults change on the server (e.g. an
+  /// admin invites you, or you're removed elsewhere). Safe to call repeatedly —
+  /// it no-ops if already subscribed. Idempotent + failure-tolerant.
+  void startRealtime() {
+    if (_channel != null || !_remote) return;
+    _channel = FamilyVaultRepository.instance.watchMyVaults(_onRealtimeChange);
+  }
+
+  /// Debounced so a burst of row changes (e.g. a transfer touches several rows)
+  /// collapses into one refresh of the list + pending invitations.
+  void _onRealtimeChange() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      await reload();
+      await refreshPendingInvitations();
+    });
+  }
+
+  /// Tears down the realtime subscription (sign-out / dispose).
+  void stopRealtime() {
+    _debounce?.cancel();
+    _debounce = null;
+    final ch = _channel;
+    _channel = null;
+    if (ch != null) FamilyVaultRepository.instance.unwatch(ch);
+  }
+
   /// Drops the in-memory cache and re-arms the loader so the next signed-in
   /// account loads its OWN vaults. Called from SessionReset on sign-out.
   void clear() {
+    stopRealtime();
     _vaults.clear();
+    _pendingInvites.clear();
     _loaded = false;
     _loading = false;
     _loadError = null;

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
+import '../../services/family_vault_store.dart';
 import '../../services/guest_mode.dart';
 import '../../services/voice_greeting_service.dart';
 import '../../widgets/shell/feature_tour.dart';
@@ -92,6 +93,13 @@ class _MainShellState extends State<MainShell>
         Future<void>.delayed(const Duration(milliseconds: 700), () {
           if (mounted) setState(() => _tourActive = true);
         });
+      }
+      // Surface any Family Vault invitations addressed to this user on app open
+      // (drives the pending badge / cards) and open a realtime subscription so
+      // the list + badge stay live. Fire-and-forget; never blocks.
+      if (!GuestMode.active) {
+        FamilyVaultStore.instance.refreshPendingInvitations();
+        FamilyVaultStore.instance.startRealtime();
       }
     });
   }
