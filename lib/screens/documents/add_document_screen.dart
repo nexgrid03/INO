@@ -92,7 +92,7 @@ extension _DocSourceX on _DocSource {
 /// user created in the Wallet Hub. Read fresh on each use so a wallet added a
 /// moment ago is already selectable here.
 List<(String, IconData)> get _wallets => [
-      for (final c in SupabaseWalletRepository.categories) (c.name, c.icon),
+      for (final c in SupabaseWalletRepository.documentWallets) (c.name, c.icon),
     ];
 
 /// Sentinel returned by the category picker when the user taps "Create new

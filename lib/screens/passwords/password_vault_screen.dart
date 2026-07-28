@@ -15,16 +15,16 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
-import '../wallet/wallet_detail_screen.dart';
 import 'password_form_screen.dart';
 import 'vault_passphrase_sheet.dart';
 
-/// The Password Vault - a modern password manager.
+/// The Password Vault, simplified: a list of NICKNAMES, nothing else.
 ///
-/// The whole screen is gated behind the app's biometric [VaultGuard]: nothing
-/// is rendered until the user authenticates, and a cancelled prompt returns
-/// them to the hub. Inside, credentials are grouped by category, searchable,
-/// and masked until explicitly revealed one at a time.
+/// Each entry is a decoy name the user invented plus its password - no site,
+/// no username, no category. The whole screen is gated behind the app's
+/// biometric [VaultGuard]: nothing is rendered until the user authenticates,
+/// and a cancelled prompt returns them to the hub. Passwords are masked until
+/// explicitly revealed one at a time.
 class PasswordVaultScreen extends StatefulWidget {
   const PasswordVaultScreen({super.key, required this.category});
 
@@ -34,33 +34,13 @@ class PasswordVaultScreen extends StatefulWidget {
   State<PasswordVaultScreen> createState() => _PasswordVaultScreenState();
 }
 
-enum _VaultView { all, favorites, recent, weak }
-
-extension _VaultViewX on _VaultView {
-  String get label => switch (this) {
-        _VaultView.all => 'All',
-        _VaultView.favorites => 'Favourites',
-        _VaultView.recent => 'Recent',
-        _VaultView.weak => 'Weak',
-      };
-
-  IconData get icon => switch (this) {
-        _VaultView.all => Icons.grid_view_rounded,
-        _VaultView.favorites => Icons.star_rounded,
-        _VaultView.recent => Icons.schedule_rounded,
-        _VaultView.weak => Icons.gpp_maybe_rounded,
-      };
-}
-
 class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   final _store = PasswordStore.instance;
   final _searchController = TextEditingController();
 
   String _query = '';
-  _VaultView _view = _VaultView.all;
-  PasswordCategory? _categoryFilter;
 
-  /// Only one credential is ever revealed at a time.
+  /// Only one password is ever revealed at a time.
   String? _revealedId;
 
   bool _unlocked = false;
@@ -139,20 +119,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     await showVaultPassphraseSheet(context, isFirstTime: !exists);
   }
 
-  List<PasswordEntry> get _visible {
-    Iterable<PasswordEntry> base = switch (_view) {
-      _VaultView.all => _store.sorted,
-      _VaultView.favorites => _store.sorted.where((e) => e.isFavorite),
-      _VaultView.recent => _store.recentlyAdded,
-      _VaultView.weak => _store.sorted.where((e) =>
-          e.strength == PasswordStrength.weak ||
-          e.strength == PasswordStrength.fair),
-    };
-    if (_categoryFilter != null) {
-      base = base.where((e) => e.category == _categoryFilter);
-    }
-    return base.where((e) => e.matches(_query)).toList();
-  }
+  List<PasswordEntry> get _visible =>
+      _store.sorted.where((e) => e.matches(_query)).toList();
 
   Future<void> _add() async {
     final created = await Navigator.of(context).push<PasswordEntry>(
@@ -173,14 +141,14 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   Future<void> _delete(PasswordEntry entry) async {
     final ok = await confirmDestructive(
       context,
-      title: 'Delete credential?',
-      message: 'The saved password for "${entry.title}" will be removed from '
-          'this device. This cannot be undone.',
+      title: 'Delete password?',
+      message: 'The password saved as "${entry.nickname}" will be removed. '
+          'This cannot be undone.',
     );
     if (!ok || !mounted) return;
     await _store.remove(entry.id);
     if (!mounted) return;
-    showModuleToast(context, 'Credential deleted');
+    showModuleToast(context, 'Password deleted');
   }
 
   void _copy(String label, String value) {
@@ -203,14 +171,6 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     );
     if (!ok || !mounted) return;
     setState(() => _revealedId = entry.id);
-  }
-
-  void _openDocuments() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WalletDetailScreen(category: widget.category),
-      ),
-    );
   }
 
   Future<void> _openGenerator() async {
@@ -240,7 +200,6 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
 
     final hasAny = _store.items.isNotEmpty;
     final visible = _visible;
-    final categories = _store.usedCategories;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -259,7 +218,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                   child: ModuleHeader(
                     title: 'Passwords',
                     subtitle: hasAny
-                        ? '${_store.count} credential${_store.count == 1 ? '' : 's'} · unlocked'
+                        ? '${_store.count} saved · unlocked'
                         : 'Locked behind your biometrics',
                     actions: [
                       ModuleIconButton(
@@ -268,13 +227,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                         onTap: _openGenerator,
                       ),
                       ModuleIconButton(
-                        icon: Icons.folder_shared_rounded,
-                        tooltip: 'Vault documents',
-                        onTap: _openDocuments,
-                      ),
-                      ModuleIconButton(
                         icon: Icons.add_rounded,
-                        tooltip: 'Add credential',
+                        tooltip: 'Add password',
                         onTap: _add,
                       ),
                     ],
@@ -295,118 +249,32 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                     icon: Icons.lock_rounded,
                     title: 'Vault is empty',
                     message:
-                        'Save the logins you use every day. Passwords stay on '
-                        'this device, masked by default and behind your biometrics.',
-                    actionLabel: 'Add credential',
+                        'Save a password under a nickname only you understand. '
+                        'It is encrypted on this device before it is stored, '
+                        'and stays behind your biometrics.',
+                    actionLabel: 'Add password',
                     onAction: _add,
                   ),
                 )
               else ...[
-                // Health strip.
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: FadeSlideIn(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: StatTile(
-                              value: '${_store.count}',
-                              label: 'Saved',
-                              icon: Icons.vpn_key_rounded,
-                              accent: AppColors.primaryGreen,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: StatTile(
-                              value: '${_store.weakCount}',
-                              label: 'Weak or fair',
-                              icon: Icons.gpp_maybe_rounded,
-                              accent: _store.weakCount > 0
-                                  ? AppColors.warning
-                                  : AppColors.success,
-                              onTap: () =>
-                                  setState(() => _view = _VaultView.weak),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: StatTile(
-                              value: '${_store.reusedCount}',
-                              label: 'Reused',
-                              icon: Icons.content_copy_rounded,
-                              accent: _store.reusedCount > 0
-                                  ? AppColors.critical
-                                  : AppColors.success,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     child: FloatingSearchBar(
-                      hint: 'Search passwords…',
+                      hint: 'Search nicknames…',
                       height: 48,
                       controller: _searchController,
                       onChanged: (v) => setState(() => _query = v),
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: ModuleChipRow(
-                    labels: [for (final v in _VaultView.values) v.label],
-                    icons: [for (final v in _VaultView.values) v.icon],
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    selectedIndex: _VaultView.values.indexOf(_view),
-                    onSelect: (i) =>
-                        setState(() => _view = _VaultView.values[i]),
-                  ),
-                ),
-                if (categories.length > 1) ...[
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 38,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        children: [
-                          ModuleChip(
-                            label: 'Every category',
-                            selected: _categoryFilter == null,
-                            onTap: () =>
-                                setState(() => _categoryFilter = null),
-                          ),
-                          for (final c in categories) ...[
-                            const SizedBox(width: 8),
-                            ModuleChip(
-                              label: c.label,
-                              icon: c.icon,
-                              count: _store.countIn(c),
-                              accent: c.color,
-                              selected: _categoryFilter == c,
-                              onTap: () =>
-                                  setState(() => _categoryFilter = c),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 if (visible.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Center(
                         child: Text(
-                          'Nothing matches this view.',
+                          'No nickname matches this search.',
                           style: AppText.body
                               .copyWith(color: palette.textSecondary),
                         ),
@@ -431,10 +299,6 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                             onReveal: () => _toggleReveal(entry),
                             onCopyPassword: () =>
                                 _copy('Password', entry.password),
-                            onCopyUsername: entry.accountLine.isEmpty
-                                ? null
-                                : () => _copy('Username', entry.accountLine),
-                            onFavorite: () => _store.toggleFavorite(entry.id),
                             onDelete: () => _delete(entry),
                           ),
                         );
@@ -459,9 +323,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   }
 }
 
-/// One credential row: monogram tile, title, account line, strength dot and an
-/// expanding action row. Matches the clean list rhythm of the reference while
-/// using the app's own card surface.
+/// One saved password: monogram tile, nickname, masked dots, strength dot and
+/// an expanding action row when revealed.
 class PasswordTile extends StatelessWidget {
   const PasswordTile({
     super.key,
@@ -470,9 +333,7 @@ class PasswordTile extends StatelessWidget {
     required this.onTap,
     required this.onReveal,
     required this.onCopyPassword,
-    required this.onFavorite,
     required this.onDelete,
-    this.onCopyUsername,
   });
 
   final PasswordEntry entry;
@@ -480,14 +341,12 @@ class PasswordTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onReveal;
   final VoidCallback onCopyPassword;
-  final VoidCallback onFavorite;
   final VoidCallback onDelete;
-  final VoidCallback? onCopyUsername;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final color = entry.category.color;
+    const color = AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.99,
       child: GestureDetector(
@@ -505,8 +364,7 @@ class PasswordTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  // Monogram tile in the category colour - the stand-in for a
-                  // brand logo the app can't ship.
+                  // Monogram tile - the first letter of the nickname.
                   Container(
                     width: 42,
                     height: 42,
@@ -525,33 +383,18 @@ class PasswordTile extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                entry.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppText.subtitle.copyWith(
-                                  color: palette.textPrimary,
-                                  fontSize: 14.5,
-                                ),
-                              ),
-                            ),
-                            if (entry.isFavorite) ...[
-                              const SizedBox(width: 5),
-                              const Icon(Icons.star_rounded,
-                                  size: 14, color: AppColors.warning),
-                            ],
-                          ],
+                        Text(
+                          entry.nickname,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.subtitle.copyWith(
+                            color: palette.textPrimary,
+                            fontSize: 14.5,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          revealed
-                              ? entry.password
-                              : (entry.accountLine.isEmpty
-                                  ? '••••••••••'
-                                  : entry.accountLine),
+                          revealed ? entry.password : '••••••••••',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.caption.copyWith(
@@ -583,7 +426,7 @@ class PasswordTile extends StatelessWidget {
                 ],
               ),
               // The revealed state also exposes the quick actions, so the
-              // plaintext and the copy buttons appear together deliberately.
+              // plaintext and the copy button appear together deliberately.
               AnimatedSize(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
@@ -593,26 +436,10 @@ class PasswordTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 10, right: 4),
                         child: Row(
                           children: [
-                            if (onCopyUsername != null) ...[
-                              _QuickAction(
-                                icon: Icons.person_rounded,
-                                label: 'Copy user',
-                                onTap: onCopyUsername!,
-                              ),
-                              const SizedBox(width: 8),
-                            ],
                             _QuickAction(
                               icon: Icons.key_rounded,
                               label: 'Copy password',
                               onTap: onCopyPassword,
-                            ),
-                            const SizedBox(width: 8),
-                            _QuickAction(
-                              icon: entry.isFavorite
-                                  ? Icons.star_rounded
-                                  : Icons.star_outline_rounded,
-                              label: 'Favourite',
-                              onTap: onFavorite,
                             ),
                             const SizedBox(width: 8),
                             _QuickAction(

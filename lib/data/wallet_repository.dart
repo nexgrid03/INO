@@ -121,6 +121,13 @@ class SupabaseWalletRepository implements WalletRepository {
   static List<WalletCategory> get categories =>
       [..._categories, ...CustomWalletStore.instance.categories];
 
+  /// Wallets a DOCUMENT can be filed under. The Password Vault is excluded:
+  /// since the nickname simplification its table stores only
+  /// nickname + password rows and has no document columns, so saving or moving
+  /// a document into it would fail at the database.
+  static List<WalletCategory> get documentWallets =>
+      [for (final c in categories) if (c.name != 'Password Vault') c];
+
   /// Finds a wallet category by its full name (e.g. "Insurance Wallet").
   /// Case-insensitive so a custom wallet still resolves if a document row
   /// stored it with different casing.

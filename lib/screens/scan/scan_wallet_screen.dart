@@ -45,8 +45,9 @@ class ScanWalletScreen extends StatefulWidget {
 
 class _ScanWalletScreenState extends State<ScanWalletScreen> {
   /// Read fresh on every build so a wallet created from the sheet below is in
-  /// the list immediately.
-  List<WalletCategory> get _wallets => SupabaseWalletRepository.categories;
+  /// the list immediately. Password Vault is excluded - it no longer stores
+  /// documents.
+  List<WalletCategory> get _wallets => SupabaseWalletRepository.documentWallets;
 
   late String _selected = widget.suggestedWallet;
 

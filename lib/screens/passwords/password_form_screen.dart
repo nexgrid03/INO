@@ -10,11 +10,13 @@ import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
-/// Add / edit one credential.
+/// Add / edit one saved password.
 ///
-/// The password field is masked by default, can be revealed, and sits above a
-/// live strength meter that reacts as it is typed. The generator is one tap
-/// away and writes straight into the field.
+/// The form is deliberately tiny: a NICKNAME - a decoy name the user invents,
+/// never the real site or app - and the password itself. Nothing else is
+/// asked for, so nothing else can leak. Saving always passes through the
+/// consent sheet: the entry is only stored after the user approves it, which
+/// is what the `consent` flag on the row records.
 class PasswordFormScreen extends StatefulWidget {
   const PasswordFormScreen({super.key, this.existing});
 
@@ -28,15 +30,9 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _store = PasswordStore.instance;
 
-  final _title = TextEditingController();
-  final _url = TextEditingController();
-  final _username = TextEditingController();
-  final _email = TextEditingController();
+  final _nickname = TextEditingController();
   final _password = TextEditingController();
-  final _notes = TextEditingController();
-  final _tags = TextEditingController();
 
-  PasswordCategory _category = PasswordCategory.other;
   bool _obscure = true;
   bool _saving = false;
 
@@ -47,37 +43,15 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     super.initState();
     final e = widget.existing;
     if (e == null) return;
-    _title.text = e.title;
-    _url.text = e.url ?? '';
-    _username.text = e.username ?? '';
-    _email.text = e.email ?? '';
+    _nickname.text = e.nickname;
     _password.text = e.password;
-    _notes.text = e.notes ?? '';
-    _tags.text = e.tags.join(', ');
-    _category = e.category;
   }
 
   @override
   void dispose() {
-    for (final c in [
-      _title, _url, _username, _email, _password, _notes, _tags //
-    ]) {
-      c.dispose();
-    }
+    _nickname.dispose();
+    _password.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickCategory() async {
-    final i = await showModulePicker(
-      context,
-      title: 'Category',
-      labels: [for (final c in PasswordCategory.values) c.label],
-      icons: [for (final c in PasswordCategory.values) c.icon],
-      colors: [for (final c in PasswordCategory.values) c.color],
-      selectedIndex: PasswordCategory.values.indexOf(_category),
-    );
-    if (i == null || !mounted) return;
-    setState(() => _category = PasswordCategory.values[i]);
   }
 
   Future<void> _generate() async {
@@ -92,33 +66,22 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
   Future<void> _save() async {
     if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _saving = true);
     FocusScope.of(context).unfocus();
 
+    // The consent gate. Declining leaves the form exactly as it was - nothing
+    // is stored anywhere until this returns true.
+    final agreed = await showSaveConsentSheet(context);
+    if (agreed != true || !mounted) return;
+
+    setState(() => _saving = true);
     final now = DateTime.now();
-    final tags = _tags.text
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-
-    String? orNull(TextEditingController c) =>
-        c.text.trim().isEmpty ? null : c.text.trim();
-
     final entry = PasswordEntry(
       id: widget.existing?.id ?? _store.newId('pw'),
-      title: _title.text.trim(),
+      nickname: _nickname.text.trim(),
       password: _password.text,
-      category: _category,
+      consent: true,
       createdAt: widget.existing?.createdAt ?? now,
       updatedAt: now,
-      url: orNull(_url),
-      username: orNull(_username),
-      email: orNull(_email),
-      notes: orNull(_notes),
-      tags: tags,
-      iconKey: widget.existing?.iconKey,
-      isFavorite: widget.existing?.isFavorite ?? false,
     );
 
     if (_isEdit) {
@@ -128,7 +91,7 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     }
     if (!mounted) return;
     HapticFeedback.mediumImpact();
-    if (_isEdit) await showSuccessBurst(context, 'Credential updated');
+    if (_isEdit) await showSuccessBurst(context, 'Password updated');
     if (!mounted) return;
     Navigator.of(context).pop(entry);
   }
@@ -150,52 +113,29 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
               children: [
                 ModuleHeader(
-                  title: _isEdit ? 'Edit credential' : 'New credential',
-                  subtitle: _isEdit ? widget.existing!.title : _category.label,
+                  title: _isEdit ? 'Edit password' : 'Add password',
+                  subtitle: 'A nickname and the password · nothing else',
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // ---- Account ----
+                // ---- Nickname ----
                 FadeSlideIn(
                   child: ModuleSection(
-                    title: 'Account',
-                    icon: _category.icon,
-                    accent: _category.color,
+                    title: 'Nickname',
+                    icon: Icons.badge_rounded,
+                    accent: AppColors.primaryGreen,
                     children: [
                       ModuleField(
-                        label: 'Website or app',
-                        controller: _title,
-                        hint: 'e.g. Google',
-                        textCapitalization: TextCapitalization.words,
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Enter a name' : null,
+                        label: 'Type a name by which you can remember this password',
+                        controller: _nickname,
+                        hint: 'e.g. blue parrot',
+                        textCapitalization: TextCapitalization.none,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? 'Give this password a nickname'
+                            : null,
                         onChanged: (_) => setState(() {}),
                       ),
-                      ModulePickerField(
-                        label: 'Category',
-                        value: _category.label,
-                        icon: _category.icon,
-                        accent: _category.color,
-                        onTap: _pickCategory,
-                      ),
-                      ModuleField(
-                        label: 'Website URL',
-                        controller: _url,
-                        hint: 'https://…',
-                        keyboardType: TextInputType.url,
-                        textCapitalization: TextCapitalization.none,
-                      ),
-                      ModuleField(
-                        label: 'Username',
-                        controller: _username,
-                        textCapitalization: TextCapitalization.none,
-                      ),
-                      ModuleField(
-                        label: 'Email',
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        textCapitalization: TextCapitalization.none,
-                      ),
+                      const _NicknameNote(),
                     ],
                   ),
                 ),
@@ -223,65 +163,20 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
                         validator: (v) =>
                             (v ?? '').isEmpty ? 'Enter a password' : null,
                         onChanged: (_) => setState(() {}),
-                        suffix: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
-                              visualDensity: VisualDensity.compact,
-                              tooltip: _obscure ? 'Show' : 'Hide',
-                              icon: Icon(
-                                _obscure
-                                    ? Icons.visibility_rounded
-                                    : Icons.visibility_off_rounded,
-                                size: 19,
-                                color: palette.textSecondary,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: _password.text.isEmpty
-                                  ? null
-                                  : () {
-                                      Clipboard.setData(
-                                          ClipboardData(text: _password.text));
-                                      HapticFeedback.selectionClick();
-                                      showModuleToast(context, 'Password copied');
-                                    },
-                              visualDensity: VisualDensity.compact,
-                              tooltip: 'Copy',
-                              icon: Icon(Icons.copy_rounded,
-                                  size: 18, color: palette.textSecondary),
-                            ),
-                          ],
+                        suffix: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          visualDensity: VisualDensity.compact,
+                          tooltip: _obscure ? 'Show' : 'Hide',
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                            size: 19,
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ),
                       StrengthMeter(strength: strength),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // ---- Extras ----
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 110),
-                  child: ModuleSection(
-                    title: 'Tags & notes',
-                    icon: Icons.sell_rounded,
-                    accent: const Color(0xFF64748B),
-                    children: [
-                      ModuleField(
-                        label: 'Tags',
-                        controller: _tags,
-                        hint: 'Comma-separated, e.g. personal, 2FA',
-                        textCapitalization: TextCapitalization.none,
-                      ),
-                      ModuleField(
-                        label: 'Notes',
-                        controller: _notes,
-                        hint: 'Recovery codes hint, security questions…',
-                        maxLines: 3,
-                      ),
                     ],
                   ),
                 ),
@@ -299,10 +194,155 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
         child: SafeArea(
           top: false,
           child: GradientButton(
-            label: _isEdit ? 'Save changes' : 'Save credential',
+            label: _isEdit ? 'Save changes' : 'Save password',
             busy: _saving,
             onTap: _save,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The standing explanation of why the nickname must be a decoy.
+class _NicknameNote extends StatelessWidget {
+  const _NicknameNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.tips_and_updates_rounded,
+              size: 17, color: AppColors.primaryGreen),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Use a random nickname only you understand - not the real app '
+              'or site name. "blue parrot" is good; "Instagram" is not.',
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The consent sheet every save passes through. Returns true only when the
+/// user explicitly agrees - dismissing the sheet any other way declines.
+Future<bool?> showSaveConsentSheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _ConsentSheet(),
+  );
+}
+
+class _ConsentSheet extends StatelessWidget {
+  const _ConsentSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                const Icon(Icons.verified_user_rounded,
+                    size: 20, color: AppColors.primaryGreen),
+                const SizedBox(width: 8),
+                Text('Before this password is saved',
+                    style: AppText.title.copyWith(color: palette.textPrimary)),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Your password will be saved with proper security - it is '
+              'encrypted on this device with your vault passphrase before it '
+              'is stored, so nobody else can read it.\n\n'
+              'One check before you agree: make sure you entered a NICKNAME, '
+              'not the real name. Saving "Instagram" with password "ramu1243" '
+              'links the two together - a random nickname like "blue parrot" '
+              'keeps them apart.',
+              style: AppText.body.copyWith(
+                color: palette.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: PressableScale(
+                    pressedScale: 0.97,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: palette.surfaceVariant,
+                          borderRadius: BorderRadius.circular(AppRadius.chip),
+                          border: Border.all(color: palette.border),
+                        ),
+                        child: Text(
+                          'Go back',
+                          style: AppText.subtitle
+                              .copyWith(color: palette.textPrimary),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  flex: 2,
+                  child: GradientButton(
+                    label: 'I understand · save',
+                    icon: Icons.check_rounded,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

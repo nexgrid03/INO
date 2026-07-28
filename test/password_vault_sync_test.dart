@@ -61,9 +61,9 @@ void main() {
 /// enough to map the other fields.
 PasswordEntry _entry() => PasswordEntry(
       id: 'pw_local_1',
-      title: 'Bank',
+      nickname: 'blue parrot',
       password: 'hunter2',
-      category: PasswordCategory.banking,
+      consent: true,
       createdAt: DateTime.utc(2026, 1, 1),
       updatedAt: DateTime.utc(2026, 1, 1),
     );

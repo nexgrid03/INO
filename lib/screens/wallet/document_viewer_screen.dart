@@ -555,8 +555,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   Future<void> _move() async {
     // Built-ins + the user's own wallets, so a document can be moved into a
-    // wallet they created in the hub.
-    final wallets = SupabaseWalletRepository.categories;
+    // wallet they created in the hub. Password Vault is excluded - it no
+    // longer stores documents.
+    final wallets = SupabaseWalletRepository.documentWallets;
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final target = await showModalBottomSheet<String>(

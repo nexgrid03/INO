@@ -4,16 +4,20 @@ import '../models/password_models.dart';
 import 'local_collection_store.dart';
 import 'vault_crypto.dart';
 
-/// The Password Vault's credentials, synced to `w_password_vault` as
+/// The Password Vault's saved passwords, synced to `w_password_vault` as
 /// **end-to-end encrypted** ciphertext.
 ///
 /// SECURITY NOTE - read before extending this:
 ///
 /// The password itself is sealed by [VaultCrypto] with a key derived on-device
-/// from the user's vault passphrase, so the `secret` column holds ciphertext
-/// the server cannot read. Everything else on the row - title, username, url -
-/// is metadata and is stored in the clear, protected only by RLS. Do not move a
-/// credential into any of those columns.
+/// from the user's vault passphrase, so the `password` column holds ciphertext
+/// the server cannot read. The nickname is stored in the clear, protected only
+/// by RLS - which is exactly why the UI insists it must be a decoy the user
+/// invents, never the real site or app name. Do not add columns that would
+/// carry a credential in the clear.
+///
+/// `consent` records the user's approval from the save dialog. The form never
+/// calls [add]/[update] without it, so every uploaded row carries true.
 ///
 /// Sync only happens while the vault is UNLOCKED, because sealing needs the
 /// key. When it is locked, [syncTable] is null and this store behaves exactly
@@ -47,7 +51,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   /// Null while the vault is locked, which disables sync entirely.
   ///
   /// This is the fail-closed switch: with no key there is no way to seal a
-  /// secret, and a credential must never be uploaded unsealed. A locked vault
+  /// secret, and a password must never be uploaded unsealed. A locked vault
   /// therefore degrades to the old device-local behaviour rather than to a
   /// plaintext upload.
   @override
@@ -63,7 +67,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   /// Throws if the vault locked between the caller's check and here. That is
   /// intentional: [LocalCollectionStore] catches it, keeps the record local,
   /// and retries on the next sync - which is the correct outcome. Writing a
-  /// null or plaintext `secret` would not be.
+  /// null or plaintext `password` would not be.
   @override
   Future<Map<String, dynamic>> toRow(PasswordEntry e) async {
     final sealed = await VaultCrypto.instance.encrypt(e.password);
@@ -71,106 +75,40 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
       throw StateError('vault locked - refusing to upload an unsealed secret');
     }
     return {
-      // `name` is the shared base column; the model calls it `title`.
-      'name': e.title,
-      'secret': sealed,
-      'category': e.category.name,
-      'url': e.url,
-      'username': e.username,
-      'email': e.email,
-      'icon_key': e.iconKey,
-      'notes': e.notes,
-      'tags': e.tags,
-      'is_favorite': e.isFavorite,
+      'nickname': e.nickname,
+      'password': sealed,
+      'consent': e.consent,
       'created_at': e.createdAt.toIso8601String(),
       'updated_at': e.updatedAt.toIso8601String(),
     };
   }
 
-  /// Rebuilds an entry, decrypting the secret.
+  /// Rebuilds an entry, decrypting the sealed password.
   ///
-  /// A secret that will not open (wrong key, tampered row) yields an empty
-  /// password rather than throwing, so one bad row cannot make the whole vault
+  /// A password that will not open (wrong key, tampered row) yields an empty
+  /// string rather than throwing, so one bad row cannot make the whole vault
   /// unreadable. The entry is still listed - the user can see it exists and
   /// re-enter it.
   @override
   Future<PasswordEntry> fromRow(Map<String, dynamic> row) async {
-    final sealed = row['secret'] as String?;
+    final sealed = row['password'] as String?;
     final plaintext =
         sealed == null ? '' : (await VaultCrypto.instance.decrypt(sealed) ?? '');
     return PasswordEntry(
       id: row['id'] as String,
-      title: (row['name'] as String?) ?? '',
+      nickname: (row['nickname'] as String?) ?? '',
       password: plaintext,
-      category: PasswordCategoryX.fromName(row['category'] as String?),
+      consent: (row['consent'] as bool?) ?? false,
       createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
       updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
-      url: row['url'] as String?,
-      username: row['username'] as String?,
-      email: row['email'] as String?,
-      notes: row['notes'] as String?,
-      tags: [for (final t in (row['tags'] as List?) ?? const []) t.toString()],
-      iconKey: row['icon_key'] as String?,
-      isFavorite: (row['is_favorite'] as bool?) ?? false,
     );
   }
 
-  /// Favourites first, then A–Z by title (a password manager reads best
-  /// alphabetically - "recent" is available as an explicit filter instead).
+  /// A–Z by nickname - the vault list reads best alphabetically.
   List<PasswordEntry> get sorted {
-    final list = [...items]..sort((a, b) {
-        if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      });
+    final list = [...items]..sort((a, b) =>
+        a.nickname.toLowerCase().compareTo(b.nickname.toLowerCase()));
     return List.unmodifiable(list);
-  }
-
-  /// The five most recently added credentials, newest first.
-  List<PasswordEntry> get recentlyAdded {
-    final list = [...items]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list.take(5).toList();
-  }
-
-  List<PasswordEntry> get favorites =>
-      items.where((e) => e.isFavorite).toList();
-
-  /// Categories the user actually has credentials in, in enum order.
-  List<PasswordCategory> get usedCategories {
-    final used = items.map((e) => e.category).toSet();
-    return [
-      for (final c in PasswordCategory.values)
-        if (used.contains(c)) c,
-    ];
-  }
-
-  int countIn(PasswordCategory category) =>
-      items.where((e) => e.category == category).length;
-
-  /// How many entries score below [PasswordStrength.good] - the vault's own
-  /// health signal.
-  int get weakCount => items
-      .where((e) =>
-          e.strength == PasswordStrength.weak ||
-          e.strength == PasswordStrength.fair)
-      .length;
-
-  /// Passwords reused across more than one entry (compared exactly). Returns
-  /// the number of entries involved, which is what the health card reports.
-  int get reusedCount {
-    final counts = <String, int>{};
-    for (final e in items) {
-      if (e.password.isEmpty) continue;
-      counts[e.password] = (counts[e.password] ?? 0) + 1;
-    }
-    return counts.entries
-        .where((e) => e.value > 1)
-        .fold(0, (s, e) => s + e.value);
-  }
-
-  Future<void> toggleFavorite(String id) async {
-    final e = byId(id);
-    if (e == null) return;
-    await update(e.copyWith(isFavorite: !e.isFavorite));
   }
 }
 

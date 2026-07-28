@@ -209,15 +209,13 @@ void main() {
     test('search never matches on the secret itself', () {
       final entry = PasswordEntry(
         id: 'p1',
-        title: 'Google',
+        nickname: 'blue parrot',
         password: 'hunter2secret',
-        category: PasswordCategory.email,
+        consent: true,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
-        username: 'someone',
       );
-      expect(entry.matches('google'), isTrue);
-      expect(entry.matches('someone'), isTrue);
+      expect(entry.matches('parrot'), isTrue);
       expect(entry.matches('hunter2'), isFalse);
     });
   });
