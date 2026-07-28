@@ -7,6 +7,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import '../data/scan_repository.dart' show OcrException;
 import '../models/ocr_result_model.dart';
+import '../models/ocr_stage.dart';
 import 'aadhaar_parser.dart';
 import 'document_detector.dart';
 import 'driving_license_parser.dart';
@@ -14,6 +15,9 @@ import 'image_enhancer.dart';
 import 'pan_parser.dart';
 import 'passport_parser.dart';
 import 'voter_id_parser.dart';
+
+/// Called as the pipeline enters each stage, so the UI can show real progress.
+typedef OnOcrStage = void Function(OcrStage stage);
 
 /// The real, on-device OCR pipeline built on Google ML Kit Text Recognition.
 ///
@@ -100,7 +104,18 @@ class OcrService {
   /// to an [OcrException] so the flow degrades to manual entry instead of
   /// crashing - the pipeline never suppresses a failure silently.
   Future<OcrExtraction> extract(String imagePath,
-      {bool assumeClean = false, bool textOnly = false}) async {
+      {bool assumeClean = false,
+      bool textOnly = false,
+      OnOcrStage? onStage}) async {
+    // Reporting must never be able to break extraction: a listener that throws
+    // (a disposed screen, a bad setState) would otherwise take down the whole
+    // pipeline and send the user to manual entry for a UI bug.
+    void stage(OcrStage s) {
+      try {
+        onStage?.call(s);
+      } catch (_) {}
+    }
+
     final sw = Stopwatch()..start();
     final temps = <String>{};
     // Per-stage timing summary (STEP 1 - MEASURE). Each awaited stage records a
@@ -118,12 +133,17 @@ class OcrService {
     _step('START extract | ${_fileKB(imagePath)}KB | $imagePath | '
         'textOnly=$textOnly assumeClean=$assumeClean', sw: sw);
 
+    stage(OcrStage.uploading);
+
     // Result cache - the same unchanged file never pays for OCR twice.
     final cacheKey = _cacheKey(imagePath);
     final cached = cacheKey == null ? null : _cache[cacheKey];
     if (cached != null) {
       _logTimings({'cacheHit': 0}, sw.elapsedMilliseconds);
       _step('END extract OK (cache hit)', sw: sw);
+      // Jump the UI straight to done - a cache hit has no work to narrate, and
+      // pretending otherwise would be a fake progress animation again.
+      stage(OcrStage.finishing);
       return cached;
     }
 
@@ -134,6 +154,7 @@ class OcrService {
       //      decodes faster here AND makes the single ML Kit pass faster.
       ProcessedImage base;
       mark = sw.elapsedMilliseconds;
+      stage(OcrStage.preparing);
       if (assumeClean) {
         _step('SKIP bakeBase (clean capture)', sw: sw);
         base = ProcessedImage(
@@ -165,6 +186,7 @@ class OcrService {
       timings['bake'] = lap();
 
       // 1. Probe pass - baseline read + text region (crop) + skew (deskew).
+      stage(OcrStage.extractingText);
       _step('START OCR original', sw: sw);
       final probe = await _recognize(base.path, 'original');
       timings['probe'] = lap();
@@ -186,10 +208,13 @@ class OcrService {
         if (probeText.length >= _kTextMinChars) {
           _logTimings(timings, sw.elapsedMilliseconds);
           _step('END extract OK (textOnly fast path)', sw: sw);
+          stage(OcrStage.saving);
           final result = _textExtraction(probeText);
           _cachePut(cacheKey, result);
+          stage(OcrStage.finishing);
           return result;
         }
+        stage(OcrStage.refining);
         // Weak read → a single enhanced rescue pass (still no binarized pass).
         _step('START buildCandidate enhanced (textOnly rescue)', sw: sw);
         final enhImg = await _buildCandidateSafe(
@@ -213,8 +238,10 @@ class OcrService {
         if (text.isEmpty) {
           throw const OcrException('No readable text found in the capture.');
         }
+        stage(OcrStage.saving);
         final result = _textExtraction(text);
         _cachePut(cacheKey, result);
+        stage(OcrStage.finishing);
         return result;
       }
 
@@ -222,12 +249,17 @@ class OcrService {
       // well-structured document, skip the (expensive) enhanced + binarized
       // passes entirely. Clean captures finish ~2–3× faster with no quality
       // loss; noisy captures still fall through to the full multi-pass pipeline.
+      // _score both detects the document type and parses its fields, so the two
+      // stages are reported around that single call rather than invented.
+      stage(OcrStage.identifyingType);
       final probePass = _score(probe);
+      stage(OcrStage.readingFields);
       if (probePass.structure >= 6 && probePass.text.trim().isNotEmpty) {
         _logPasses([probePass], probePass);
         _logTimings(timings, sw.elapsedMilliseconds);
         _step('END extract OK (fast path) type=${probePass.detection.type.label}',
             sw: sw);
+        stage(OcrStage.saving);
         final fast = OcrExtraction(
           type: probePass.detection.type,
           typeConfidence: probePass.detection.confidence,
@@ -235,8 +267,13 @@ class OcrService {
           rawText: probePass.text,
         );
         _cachePut(cacheKey, fast);
+        stage(OcrStage.finishing);
         return fast;
       }
+
+      // Not a confident read - pay for the image work. This is the branch the
+      // user actually waits on, so it gets its own stage.
+      stage(OcrStage.refining);
 
       final region = _textRegion(probe.result);
       final skew = _medianSkew(probe.result);
@@ -307,6 +344,7 @@ class OcrService {
       }
 
       _step('END extract OK', sw: sw);
+      stage(OcrStage.saving);
       final extraction = OcrExtraction(
         type: best.detection.type,
         typeConfidence: best.detection.confidence,
@@ -314,6 +352,7 @@ class OcrService {
         rawText: best.text,
       );
       _cachePut(cacheKey, extraction);
+      stage(OcrStage.finishing);
       return extraction;
     } on OcrException {
       rethrow; // expected outcome - the screen shows manual entry.

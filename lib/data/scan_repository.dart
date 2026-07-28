@@ -1,3 +1,4 @@
+import '../models/ocr_stage.dart';
 import '../models/scan_models.dart';
 import '../services/ocr_service.dart';
 
@@ -20,7 +21,14 @@ abstract class ScanRepository {
   /// and returns the structured result. [assumeClean] marks a capture that is
   /// already upright/cropped/rectified (ML Kit scanner output), letting the
   /// pipeline skip its normalization bake for a much faster read.
-  Future<OcrResult> extract({String? imagePath, bool assumeClean = false});
+  ///
+  /// [onStage] is invoked as the pipeline moves between stages, so the
+  /// processing screen can report real progress rather than animate a timer.
+  Future<OcrResult> extract({
+    String? imagePath,
+    bool assumeClean = false,
+    OnOcrStage? onStage,
+  });
 
   static ScanRepository instance = MlKitScanRepository();
 }
@@ -28,13 +36,16 @@ abstract class ScanRepository {
 /// The production implementation: real on-device OCR via [OcrService].
 class MlKitScanRepository implements ScanRepository {
   @override
-  Future<OcrResult> extract(
-      {String? imagePath, bool assumeClean = false}) async {
+  Future<OcrResult> extract({
+    String? imagePath,
+    bool assumeClean = false,
+    OnOcrStage? onStage,
+  }) async {
     if (imagePath == null || imagePath.isEmpty) {
       throw const OcrException('No image to analyse.');
     }
     final extraction = await OcrService.instance
-        .extract(imagePath, assumeClean: assumeClean);
+        .extract(imagePath, assumeClean: assumeClean, onStage: onStage);
     return extraction.toOcrResult();
   }
 }
@@ -45,10 +56,19 @@ class SampleScanRepository implements ScanRepository {
   bool failNext = false;
 
   @override
-  Future<OcrResult> extract(
-      {String? imagePath, bool assumeClean = false}) async {
-    // Simulates on-device OCR latency.
-    await Future<void>.delayed(const Duration(milliseconds: 2200));
+  Future<OcrResult> extract({
+    String? imagePath,
+    bool assumeClean = false,
+    OnOcrStage? onStage,
+  }) async {
+    // Simulates on-device OCR latency, walking the same stages the real
+    // pipeline reports so the processing screen can be exercised without a
+    // device.
+    for (final s in OcrStage.values) {
+      onStage?.call(s);
+      await Future<void>.delayed(const Duration(milliseconds: 275));
+      if (s == OcrStage.readingFields && failNext) break;
+    }
     if (failNext) {
       failNext = false;
       throw const OcrException('No readable text found in the capture');

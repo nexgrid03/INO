@@ -61,6 +61,28 @@ class ImageEnhancer {
   /// Upscale target (width) for the cropped "enhanced" candidate.
   static const int _kCandidateTargetWidth = 1600;
 
+  /// Interpolation used to deskew an OCR candidate.
+  ///
+  /// This is the single biggest performance lever in the pipeline - see the
+  /// measured comparison in [_buildCandidateSync]. If a recognition regression
+  /// is ever traced to deskewed captures, changing this one value back to
+  /// [img.Interpolation.cubic] restores the previous behaviour exactly, at a
+  /// cost of roughly 2.7 seconds per candidate build.
+  ///
+  /// Applies to the OCR path only. The user-facing Rotate tool ([rotate90])
+  /// deliberately keeps cubic: that output is what the user actually looks at.
+  static const img.Interpolation kDeskewInterpolation =
+      img.Interpolation.linear;
+
+  /// Interpolation used to upscale a small OCR candidate.
+  ///
+  /// The most expensive single operation in the pipeline before this was
+  /// changed - see the measured comparison in [_buildCandidateSync]. Revert to
+  /// [img.Interpolation.cubic] to restore the previous behaviour exactly, at a
+  /// cost of roughly 3.7 seconds per candidate build.
+  static const img.Interpolation kUpscaleInterpolation =
+      img.Interpolation.linear;
+
   // ─────────────────────────── Review-screen tools ───────────────────────────
 
   /// A lightweight "document" enhancement for the review screen: grayscale + a
@@ -263,17 +285,45 @@ class ImageEnhancer {
     }
 
     // 2. Deskew - only for a meaningful, plausible tilt.
+    //
+    // Interpolation is LINEAR, not cubic, and that single choice is the largest
+    // performance factor in the whole OCR pipeline. Measured on a 2000x1500
+    // base (test/ocr_substep_bench_test.dart):
+    //
+    //     cubic    3253 ms   <- 61% of the entire enhanced pass
+    //     linear    506 ms
+    //     nearest   107 ms
+    //
+    // Cubic samples 16 neighbours per output pixel, linear 4. On document text
+    // that has already been through a q90 JPEG encode and is about to be
+    // unsharp-masked in step 4, the extra taps buy no recognisable detail - but
+    // they cost ~2.7 seconds on every candidate build. Nearest is rejected: it
+    // aliases glyph edges badly enough to actually hurt recognition.
     if (deskewDegrees != null &&
         deskewDegrees.abs() >= 1.0 &&
         deskewDegrees.abs() <= 30.0) {
       im = img.copyRotate(im,
-          angle: -deskewDegrees, interpolation: img.Interpolation.cubic);
+          angle: -deskewDegrees, interpolation: kDeskewInterpolation);
     }
 
     // 3. Upscale small captures so glyphs have more pixels…
+    //
+    // This is the single most expensive operation in the pipeline, and it fires
+    // on nearly every run: a portrait phone capture bakes down to ~1500x2000,
+    // which is under [targetWidth], so the upscale happens whether or not the
+    // capture is skewed. Measured on exactly that shape:
+    //
+    //     cubic     3960 ms   <- the bulk of the whole enhanced pass
+    //     linear     223 ms
+    //
+    // Cubic is 17x the cost for an upscale of about 7%. Bicubic's advantage is
+    // smoother gradients on large magnifications; over this ratio, on text that
+    // is unsharp-masked two lines below, it buys nothing a recognizer can use.
+    // (Interpolation.average is deliberately not used here - it is a box filter
+    // meant for DOWNscaling and would soften glyph edges.)
     if (im.width < targetWidth && im.width > 0) {
       im = img.copyResize(im,
-          width: targetWidth, interpolation: img.Interpolation.cubic);
+          width: targetWidth, interpolation: kUpscaleInterpolation);
     }
     // …but never exceed the memory cap.
     im = _capLongestSide(im, _kMaxDim);

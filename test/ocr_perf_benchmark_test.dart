@@ -92,6 +92,15 @@ void main() {
       await ImageEnhancer.buildCandidate(baseId, binarize: true);
     });
 
+    // The realistic case: a hand-held capture is never perfectly square, so the
+    // probe reports a skew and the deskew rotation runs too. The calls above
+    // pass no angle and therefore SKIP it - which is why they under-report what
+    // a real run costs. This is the number that matters.
+    await time('buildCandidate enhanced + 3° deskew (real-world)', () async {
+      await ImageEnhancer.buildCandidate(baseId,
+          deskewDegrees: 3.0, binarize: false);
+    });
+
     // ignore: avoid_print
     print('--- Receipt path image work: BEFORE vs AFTER ---');
     // BEFORE (old receipt path == full ID pipeline): bake(id) + enhanced + binarized.

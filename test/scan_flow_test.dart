@@ -60,7 +60,11 @@ void main() {
     expect(captured!.suggestedWallet, 'Identity Wallet');
   });
 
-  testWidgets('OCR failure invokes the failure callback', (tester) async {
+  testWidgets('OCR failure shows a recoverable error, not an endless spinner',
+      (tester) async {
+    // Failure no longer jumps silently to manual entry: it explains what
+    // happened and offers Retry, so a transient bad read costs a tap instead of
+    // the whole extraction. `onFailed` now means "the user chose manual entry".
     (ScanRepository.instance as SampleScanRepository).failNext = true;
     var failed = false;
     await tester.pumpWidget(
@@ -74,8 +78,79 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 2400));
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(tester.takeException(), isNull);
+    // The failure state is reached - the user is never left loading forever.
+    expect(find.text('Try Again'), findsOneWidget);
+    expect(find.text('Manual Entry'), findsOneWidget);
+    // …and it has NOT silently fallen through to manual entry.
+    expect(failed, isFalse);
+
+    // Choosing manual entry is what invokes the callback.
+    await tester.tap(find.text('Manual Entry'));
+    await tester.pump();
     expect(failed, isTrue);
+  });
+
+  testWidgets('Retry re-runs extraction and can succeed', (tester) async {
+    // The point of the retry path: `failNext` clears itself after firing, so
+    // the second attempt takes the normal route and resolves.
+    (ScanRepository.instance as SampleScanRepository).failNext = true;
+    OcrResult? captured;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OcrProcessingScreen(
+          imagePath: null,
+          onResult: (r) => captured = r,
+          onFailed: () {},
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 2400));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Try Again'), findsOneWidget);
+    expect(captured, isNull);
+
+    await tester.tap(find.text('Try Again'));
+    await tester.pump();
+    // Back to processing, with the stage checklist visible.
+    expect(find.text('Extracting Information'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 2600));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.takeException(), isNull);
+    expect(captured, isNotNull);
+    expect(captured!.documentName, 'PAN Card');
+  });
+
+  testWidgets('Processing screen reports real pipeline stages', (tester) async {
+    // Progress is driven by OcrStage callbacks from the pipeline, not by a
+    // fixed animation. The first stage must be visible immediately, before any
+    // work could plausibly have finished.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OcrProcessingScreen(
+          imagePath: null,
+          onResult: (_) {},
+          onFailed: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Uploading document'), findsOneWidget);
+    expect(find.text('Extracting text'), findsOneWidget);
+    expect(find.text('Identifying document type'), findsOneWidget);
+    expect(find.text('Reading fields'), findsOneWidget);
+    expect(find.text('Saving information'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Drain the mock run so the timer doesn't outlive the test.
+    await tester.pump(const Duration(milliseconds: 2600));
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('OCR results screen renders editable, confirmable fields',
