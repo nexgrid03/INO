@@ -100,8 +100,31 @@ class _ScannerScreenState extends State<ScannerScreen>
     WidgetsBinding.instance.removeObserver(this);
     _toastTimer?.cancel();
     _hintTimer?.cancel();
-    _controller?.dispose();
+    // Stop the frame stream BEFORE disposing. Disposing a CameraController that
+    // is still streaming makes CameraX block the main thread during shutdown
+    // (the "CameraX shutdown → INO isn't responding → Lost connection" freeze,
+    // with no Dart/native exception). dispose() can't await, so hand the
+    // controller to a fire-and-forget teardown that stops the stream first.
+    final controller = _controller;
+    _controller = null;
+    _streaming = false;
+    _teardownCamera(controller);
     super.dispose();
+  }
+
+  /// Stops the image stream (if running) and THEN disposes the controller, so
+  /// CameraX never tears down with frames in flight — which is what hangs the
+  /// UI thread on shutdown.
+  Future<void> _teardownCamera(CameraController? controller) async {
+    if (controller == null) return;
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    } catch (_) {/* already stopped / not streaming */}
+    try {
+      await controller.dispose();
+    } catch (_) {/* already disposed */}
   }
 
   // ---- Lifecycle -----------------------------------------------------------
@@ -112,10 +135,12 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       // Free the camera while backgrounded (and during the ML Kit activity).
+      // Stop the stream before disposing (see [_teardownCamera]) so CameraX
+      // shutdown never blocks the main thread when the app goes inactive.
       _controller = null;
-      controller?.dispose();
-      // Tear down detection so it restarts clean (at idle) on resume.
       _streaming = false;
+      _teardownCamera(controller);
+      // Tear down detection so it restarts clean (at idle) on resume.
       _detector.reset();
       _resetDetectionState();
       _clearTransientFeedback();

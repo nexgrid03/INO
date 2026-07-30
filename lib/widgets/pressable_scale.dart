@@ -30,7 +30,11 @@ class _PressableScaleState extends State<PressableScale> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
+    // A pointer up/cancel can arrive after this widget is gone (e.g. the press
+    // navigated away, disposing us, before the release event lands). Guard
+    // against setState() after dispose().
+    if (!mounted || _pressed == value) return;
+    setState(() => _pressed = value);
   }
 
   @override

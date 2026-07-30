@@ -201,6 +201,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
   /// scans reliably on any background when saved or shared.
   Future<Uint8List?> _renderQrPng(String data,
       {double moduleSize = 660, double margin = 56}) async {
+    final sw = Stopwatch()..start();
     final painter = QrPainter(
       data: data,
       version: QrVersions.auto,
@@ -220,6 +221,8 @@ class _QrShareScreenState extends State<QrShareScreen> {
     final image =
         await recorder.endRecording().toImage(full.toInt(), full.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    developer.log('QR render → ${sw.elapsedMilliseconds}ms', name: 'share');
     return bytes?.buffer.asUint8List();
   }
 
