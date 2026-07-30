@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -44,6 +47,19 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Opens an offline copy, gating protected documents behind the biometric
+  /// prompt first - exactly as the online path does in `WalletDetailScreen`.
+  ///
+  /// Without this the offline library was a way around the lock: a document
+  /// marked protected still required Face ID / fingerprint when opened from its
+  /// wallet, but its offline copy opened straight from disk with no check at
+  /// all. The protection flag belongs to the document, not to the route used to
+  /// reach it, so it is enforced here too.
+  ///
+  /// [OfflineDoc.id] is the original document row's id, which is the same key
+  /// [DocumentProtectionStore] stores the flag under - so a document protected
+  /// online is automatically protected here, with no extra bookkeeping and no
+  /// way for the two to drift apart.
   Future<void> _open(OfflineDoc doc) async {
     final file = File(doc.localPath);
     if (!await file.exists()) {
@@ -55,6 +71,18 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
       return;
     }
     if (!mounted) return;
+
+    // Gate BEFORE anything is rendered or handed to another app: a cancelled
+    // prompt must leave the file completely unrevealed.
+    if (DocumentProtectionStore.instance.isProtected(doc.id)) {
+      final unlocked = await VaultGuard.instance.ensureUnlocked(
+        context,
+        reason: 'Authenticate to access this protected document.',
+        title: AppLocalizations.of(context).t('verifyIdentity'),
+      );
+      if (!unlocked || !mounted) return;
+    }
+
     if (doc.isImage) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -160,6 +188,8 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                           icon: _iconFor(doc),
                           subtitle:
                               '${doc.wallet} · ${doc.sizeLabel} · saved ${_dateLabel(doc.savedAt)}',
+                          protected: DocumentProtectionStore.instance
+                              .isProtected(doc.id),
                           onTap: () => _open(doc),
                           onRemove: () => _remove(doc),
                         ),
@@ -181,6 +211,7 @@ class _OfflineDocTile extends StatelessWidget {
     required this.doc,
     required this.icon,
     required this.subtitle,
+    required this.protected,
     required this.onTap,
     required this.onRemove,
   });
@@ -188,6 +219,11 @@ class _OfflineDocTile extends StatelessWidget {
   final OfflineDoc doc;
   final IconData icon;
   final String subtitle;
+
+  /// Whether opening this copy will require biometric authentication, so the
+  /// prompt is never a surprise.
+  final bool protected;
+
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -243,6 +279,12 @@ class _OfflineDocTile extends StatelessWidget {
                   ],
                 ),
               ),
+              // Protected copies are marked, so the biometric prompt on tap is
+              // expected rather than a surprise.
+              if (protected) ...[
+                Icon(Icons.lock_rounded, size: 16, color: palette.textSecondary),
+                const SizedBox(width: 6),
+              ],
               // The offline badge - the whole point of this list.
               const Icon(Icons.offline_pin_rounded,
                   size: 18, color: AppColors.primaryGreen),

@@ -137,3 +137,25 @@ a { color: inherit; }
 .state p { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
 
 .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 22px 16px; }
+
+/* View Once (one-time links) */
+.vo-warn {
+  margin-top: 12px; padding: 11px 13px; border-radius: 12px;
+  font-size: 13px; line-height: 1.5; color: #92400e;
+  background: rgba(245, 165, 36, 0.12); border: 1px solid rgba(245, 165, 36, 0.35);
+}
+.vo-error {
+  margin-top: 10px; padding: 10px 13px; border-radius: 12px;
+  font-size: 13px; line-height: 1.5; color: #b91c1c;
+  background: rgba(239, 83, 80, 0.12); border: 1px solid rgba(239, 83, 80, 0.35);
+}
+/* Deterrent only: a browser cannot block screenshots. The one-time token is
+   the actual guarantee; the mobile app adds Android FLAG_SECURE on top. */
+.vo-noselect, .vo-noselect * {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.vo-noselect .stage img { pointer-events: none; }
+@media (prefers-color-scheme: dark) {
+  .vo-warn { color: #fcd34d; }
+  .vo-error { color: #fca5a5; }
+}

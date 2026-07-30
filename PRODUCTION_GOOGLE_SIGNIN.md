@@ -152,3 +152,4 @@ Supabase Google provider enabled with the Web client ID `535920485088-…`.
 
 *Reference:* `RELEASE_SIGNING.md` (full keystore/SHA guide), `lib/services/auth_service.dart`,
 `lib/config/supabase_config.dart`, `android/app/build.gradle.kts`.
+

@@ -33,4 +33,24 @@ class ShareConfig {
 
   /// The Edge Function URL for a share [token] (app-side JSON/bytes fetch).
   static String apiUrl(String token) => '$apiBase/$token';
+
+  // ---- View Once ----------------------------------------------------------
+  // One-time links live under `/v/<token>` instead of `/s/<token>`, on the same
+  // two hosts, so they inherit the deployment and the domain automatically.
+
+  /// Public base for one-time links - derived from [publicBase] by swapping the
+  /// trailing `/s` segment for `/v`, so pointing [publicBase] at a new domain
+  /// moves both kinds of link at once.
+  static String get viewOncePublicBase {
+    final base = publicBase.endsWith('/s')
+        ? publicBase.substring(0, publicBase.length - 2)
+        : publicBase;
+    return '${base.endsWith('/') ? base.substring(0, base.length - 1) : base}/v';
+  }
+
+  /// The public, shareable one-time URL (what the view-once QR encodes).
+  static String viewOncePublicUrl(String token) => '$viewOncePublicBase/$token';
+
+  /// The Edge Function base for a one-time [token] (app-side peek/claim/bytes).
+  static String viewOnceApiUrl(String token) => '$apiBase/v/$token';
 }

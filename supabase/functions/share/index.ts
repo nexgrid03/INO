@@ -16,6 +16,17 @@
 //         streams it back - so the client NEVER sees the bucket path, the
 //         signed URL/token, the owner, or the document UUID.
 //
+// VIEW ONCE (one-time links) - additive, separate routes, same proxy discipline:
+//
+//   GET  /share/v/:token           → NON-CONSUMING status peek (ready / viewed /
+//                                    expired / revoked / not_found). Safe for
+//                                    link-preview crawlers and page refreshes.
+//   POST /share/v/:token/claim     → BURNS the link (atomic, exactly once) and
+//                                    returns a short-lived access key.
+//   GET  /share/v/:token/file?k=…  → the bytes, inline only, for the claiming
+//                                    client. No download disposition: a
+//                                    view-once document is viewed, not kept.
+//
 // Security: every request re-validates status='active' AND expires_at>now();
 // documents are referenced by their POSITION in the share (0,1,2…), not by
 // their Supabase id; files are only served when that position maps to a doc in
@@ -42,7 +53,9 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, OPTIONS",
+  // POST is used only by the view-once /claim route (an explicit, state-changing
+  // action). Every pre-existing route stays GET-only.
+  "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -101,6 +114,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const shareId = tail[0];
     if (!shareId) return renderShare("not_found", req, null, []);
+
+    // ---- View-once namespace: /share/v/<token>[/claim|/file] --------------
+    // `v` is a reserved first segment. Real share ids are `share_…` and share
+    // tokens are 12+ hex chars, so neither can ever be the literal "v".
+    if (shareId === "v") {
+      const token = tail[1];
+      if (!token) return json({ status: "not_found", message: VO_MESSAGES.not_found }, 404);
+      if (tail[2] === "claim") return await claimViewOnce(token, req);
+      if (tail[2] === "file") return await serveViewOnceFile(token, url.searchParams.get("k"));
+      return await peekViewOnce(token, req);
+    }
 
     if (tail[1] === "file" && tail[2] !== undefined) {
       return await serveFile(shareId, tail[2], url.searchParams.get("mode") ?? "view");
@@ -322,6 +346,321 @@ async function serveFile(shareId: string, handle: string, mode: string): Promise
       "content-disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
     },
   });
+}
+
+// ---- View Once --------------------------------------------------------------
+// One-time links. Every decision is made by Postgres (peek / claim / resolve are
+// SECURITY DEFINER RPCs granted to the service role only), so the "exactly once"
+// guarantee is a single atomic UPDATE rather than anything this function does.
+
+type VoStatus = "ready" | "viewed" | "expired" | "revoked" | "not_found" | "error";
+
+const VO_MESSAGES: Record<VoStatus, string> = {
+  ready: "",
+  viewed: "This document has already been viewed or has expired.",
+  expired: "This document has already been viewed or has expired.",
+  revoked: "This link has been revoked by the sender.",
+  not_found: "This document has already been viewed or has expired.",
+  error: "Something went wrong. Please try again.",
+};
+
+// HTTP status per view-once outcome. A burned link is 410 Gone - the honest code.
+const VO_STATUS: Record<VoStatus, number> = {
+  ready: 200,
+  viewed: 410,
+  expired: 410,
+  revoked: 410,
+  not_found: 404,
+  error: 500,
+};
+
+function voStatusOf(payload: unknown): VoStatus {
+  const s = (payload as { status?: string } | null)?.status;
+  switch (s) {
+    case "ready":
+    case "viewed":
+    case "expired":
+    case "revoked":
+    case "not_found":
+      return s;
+    case "claimed":
+      return "ready";
+    default:
+      return "error";
+  }
+}
+
+/** SHA-256 of the caller's IP - forensics without ever storing a raw address. */
+async function ipHash(req: Request): Promise<string | null> {
+  const raw = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
+  if (!raw) return null;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
+/** NON-CONSUMING status check. Never burns the link - only /claim does. */
+async function peekViewOnce(token: string, req: Request): Promise<Response> {
+  console.log(`[view-once] peek token=${token.slice(0, 6)}…`);
+  const { data, error } = await admin.rpc("peek_view_once_share", { p_token: token });
+  if (error) {
+    console.error("[view-once] peek error:", error);
+    return wantsJson(req)
+      ? json({ status: "error", message: VO_MESSAGES.error }, 500)
+      : htmlResponse(viewOnceStatusHtml("error"), 500);
+  }
+  const payload = (data ?? {}) as Record<string, unknown>;
+  const status = voStatusOf(payload);
+
+  if (wantsJson(req)) {
+    if (status === "ready") {
+      return json(
+        {
+          status: "ready",
+          name: payload.name ?? "Document",
+          type: payload.type ?? "Document",
+          expiresAt: payload.expiresAt ?? null,
+        },
+        200,
+      );
+    }
+    return json({ status, message: VO_MESSAGES[status] }, VO_STATUS[status]);
+  }
+
+  // Browser hitting this function directly (no web frontend in front of it):
+  // serve a self-contained one-time viewer so the feature still works.
+  if (status === "ready") {
+    return htmlResponse(
+      viewOnceHtml(token, String(payload.name ?? "Document"), String(payload.type ?? "Document")),
+      200,
+    );
+  }
+  return htmlResponse(viewOnceStatusHtml(status), VO_STATUS[status]);
+}
+
+/**
+ * BURNS the link. The RPC does `update … where viewed = false` atomically, so
+ * exactly one caller can ever succeed. On success it hands back a short-lived
+ * access key - without it the caller could never fetch the bytes it just earned.
+ */
+async function claimViewOnce(token: string, req: Request): Promise<Response> {
+  if (req.method !== "POST") {
+    // Claiming is state-changing on purpose: a GET must never destroy a share.
+    return json({ status: "error", message: "Use POST to open this document." }, 405);
+  }
+  console.log(`[view-once] claim token=${token.slice(0, 6)}…`);
+  const { data, error } = await admin.rpc("claim_view_once_share", {
+    p_token: token,
+    p_ip_hash: await ipHash(req),
+  });
+  if (error) {
+    console.error("[view-once] claim error:", error);
+    return json({ status: "error", message: VO_MESSAGES.error }, 500);
+  }
+
+  const payload = (data ?? {}) as Record<string, unknown>;
+  if (payload.status !== "claimed") {
+    const status = voStatusOf(payload);
+    return json({ status, message: VO_MESSAGES[status] }, VO_STATUS[status]);
+  }
+
+  const accessKey = String(payload.accessKey ?? "");
+  // Derive kind/mime from the stored path so the viewer can pick a PDF vs image
+  // renderer. The path itself stays server-side and is discarded here.
+  let kind: "pdf" | "image" | "other" = "other";
+  let mime = "application/octet-stream";
+  const { data: resolved } = await admin.rpc("resolve_view_once_file", {
+    p_token: token,
+    p_access_key: accessKey,
+  });
+  const filePath = (resolved as { status?: string; filePath?: string } | null)?.filePath;
+  if (filePath) {
+    const derived = fileKind(filePath);
+    kind = derived.kind;
+    mime = derived.mime;
+  }
+
+  console.log(`[view-once] claimed token=${token.slice(0, 6)}… kind=${kind}`);
+  return json(
+    {
+      status: "claimed",
+      accessKey,
+      accessExpiresAt: payload.accessExpiresAt ?? null,
+      viewedAt: payload.viewedAt ?? null,
+      name: payload.name ?? "Document",
+      type: payload.type ?? "Document",
+      kind,
+      mime,
+    },
+    200,
+  );
+}
+
+/**
+ * Streams the claimed document's bytes. Requires the access key minted by
+ * /claim, which expires in minutes - so the link being burned doesn't lock the
+ * one legitimate viewer out of the document it just opened.
+ *
+ * Inline only. A view-once document is viewed, not downloaded, so there is no
+ * `mode=download` here at all.
+ */
+async function serveViewOnceFile(token: string, accessKey: string | null): Promise<Response> {
+  if (!accessKey) return json({ status: "not_found", message: VO_MESSAGES.not_found }, 404);
+
+  const { data, error } = await admin.rpc("resolve_view_once_file", {
+    p_token: token,
+    p_access_key: accessKey,
+  });
+  if (error) {
+    console.error("[view-once] resolve error:", error);
+    return json({ status: "error", message: VO_MESSAGES.error }, 500);
+  }
+  const payload = (data ?? {}) as { status?: string; filePath?: string; name?: string };
+  if (payload.status !== "ok" || !payload.filePath) {
+    console.log(`[view-once] file denied token=${token.slice(0, 6)}…`);
+    return json({ status: "expired", message: VO_MESSAGES.expired }, 410);
+  }
+
+  // Signed URL minted + consumed server-side; never sent to the client.
+  const { data: signed, error: signErr } = await admin.storage
+    .from(BUCKET)
+    .createSignedUrl(payload.filePath, SIGNED_URL_TTL);
+  if (signErr || !signed?.signedUrl) {
+    console.error("[view-once] createSignedUrl error:", signErr);
+    return json({ status: "error", message: VO_MESSAGES.error }, 500);
+  }
+
+  const upstream = await fetch(signed.signedUrl);
+  if (!upstream.ok || !upstream.body) {
+    console.error(`[view-once] upstream fetch failed status=${upstream.status}`);
+    return json({ status: "error", message: VO_MESSAGES.error }, 502);
+  }
+
+  const filename = downloadName(payload.name ?? "document", payload.filePath);
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      ...CORS,
+      "content-type": upstream.headers.get("content-type") ?? mimeFromPath(payload.filePath),
+      "cache-control": "no-store, no-cache, must-revalidate, private",
+      // Inline only - never an attachment.
+      "content-disposition": `inline; filename="${filename}"`,
+    },
+  });
+}
+
+/** Terminal state page for a burned / expired / missing one-time link. */
+function viewOnceStatusHtml(kind: VoStatus): string {
+  const map: Record<string, { emoji: string; bg: string; title: string; msg: string }> = {
+    viewed: {
+      emoji: "👁️",
+      bg: "rgba(239,83,80,.15)",
+      title: "This document has already been viewed",
+      msg: "View-once links open exactly one time. Ask the sender for a new link.",
+    },
+    expired: {
+      emoji: "⏳",
+      bg: "rgba(245,165,36,.15)",
+      title: "This document has already been viewed or has expired",
+      msg: "Ask the sender for a new link.",
+    },
+    revoked: {
+      emoji: "🚫",
+      bg: "rgba(239,83,80,.15)",
+      title: "This link has been revoked",
+      msg: "The sender has turned off access to this document.",
+    },
+    not_found: {
+      emoji: "🔍",
+      bg: "rgba(148,163,184,.18)",
+      title: "This document has already been viewed or has expired",
+      msg: "This one-time link doesn’t exist any more.",
+    },
+    error: {
+      emoji: "⚠️",
+      bg: "rgba(148,163,184,.18)",
+      title: "Something went wrong",
+      msg: "Please try opening the link again in a moment.",
+    },
+  };
+  const s = map[kind] ?? map.error;
+  const body = `${brandTop()}
+    <div class="state">
+      <div class="circle" style="background:${s.bg}">${s.emoji}</div>
+      <h2>${escapeHtml(s.title)}</h2>
+      <p>${escapeHtml(s.msg)}</p>
+      <div class="foot" style="margin-top:26px">🔒 Shared securely via INO</div>
+    </div>`;
+  return shell(body);
+}
+
+/**
+ * The self-contained one-time viewer served when a browser hits this function
+ * directly. The link is NOT burned by loading this page - only by pressing
+ * "Open once", which POSTs /claim. That keeps chat-app link previews, refreshes
+ * and accidental taps from destroying the share.
+ */
+function viewOnceHtml(token: string, name: string, type: string): string {
+  const base = escapeAttr(token);
+  const body = `${brandTop()}
+    <div class="wrap">
+      <div class="card" id="gate">
+        <div class="row">
+          <div class="ic">👁️</div>
+          <div class="info"><b>${escapeHtml(name)}</b><span>${escapeHtml(type)} · view once</span></div>
+        </div>
+        <div class="warn">⚠️ This document can be opened <b>only once</b>. As soon as you open it, the
+          link expires permanently — so make sure you are ready to read it now.</div>
+        <div class="acts">
+          <button class="btn view" id="open" type="button">${ICON_VIEW}Open once</button>
+        </div>
+      </div>
+      <div id="stage" class="vo-stage" hidden></div>
+      <div class="foot">🔒 One-time secure view via INO</div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('open');
+        var gate = document.getElementById('gate');
+        var stage = document.getElementById('stage');
+        btn.addEventListener('click', function () {
+          btn.disabled = true;
+          btn.textContent = 'Opening…';
+          fetch(${JSON.stringify(`${base}/claim`)}, { method: 'POST', cache: 'no-store' })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (res) {
+              if (!res.ok || res.j.status !== 'claimed') {
+                document.body.innerHTML =
+                  '<div class="state"><div class="circle" style="background:rgba(239,83,80,.15)">👁️</div>' +
+                  '<h2>This document has already been viewed or has expired.</h2></div>';
+                return;
+              }
+              var src = ${JSON.stringify(`${base}/file?k=`)} + encodeURIComponent(res.j.accessKey);
+              gate.hidden = true;
+              stage.hidden = false;
+              stage.innerHTML = res.j.kind === 'image'
+                ? '<img alt="" src="' + src + '"/>'
+                : '<iframe title="document" src="' + src + '"></iframe>';
+            })
+            .catch(function () {
+              btn.disabled = false;
+              btn.textContent = 'Open once';
+            });
+        });
+        // Deterrents only - a browser cannot truly block screenshots.
+        document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      })();
+    </script>`;
+  const headExtra = `<style>
+    .warn{margin-top:12px;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.5;
+          background:rgba(245,165,36,.12);border:1px solid rgba(245,165,36,.35);color:#92400e}
+    .vo-stage{background:#0b1220;border-radius:18px;overflow:hidden;min-height:60vh;
+              display:flex;align-items:center;justify-content:center}
+    .vo-stage img{max-width:100%;height:auto;display:block;-webkit-user-select:none;user-select:none;
+                  -webkit-touch-callout:none;pointer-events:none}
+    .vo-stage iframe{width:100%;height:78vh;border:0;background:#fff}
+    @media (prefers-color-scheme:dark){.warn{color:#fcd34d}}
+  </style>`;
+  return shell(body, headExtra);
 }
 
 // ---- Responses --------------------------------------------------------------

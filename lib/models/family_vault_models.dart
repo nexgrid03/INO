@@ -427,3 +427,85 @@ class VaultAuditEntry {
             DateTime.now(),
       );
 }
+
+/// A document shared into a Family Vault (`public.vault_documents`).
+///
+/// The display fields are DENORMALIZED on purpose. The source document lives in
+/// an owner-scoped wallet table whose RLS restricts it to its owner, so a
+/// co-member genuinely cannot read it - a row that joined to the original would
+/// list but never render. Everything needed to show and open the file therefore
+/// travels on this row.
+class VaultDocument {
+  const VaultDocument({
+    required this.id,
+    required this.vaultId,
+    required this.sharedBy,
+    required this.objectPath,
+    required this.name,
+    this.category,
+    this.sizeBytes,
+    this.contentType,
+    this.note,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String vaultId;
+
+  /// Who contributed it. An editor may withdraw only their own contributions;
+  /// admins and the owner may remove anything.
+  final String sharedBy;
+
+  /// The object name in the `documents` storage bucket. Access to it is gated
+  /// by a storage policy that re-checks vault membership on every read, which
+  /// is what makes removing a member revoke downloads instantly.
+  final String objectPath;
+
+  final String name;
+  final String? category;
+  final int? sizeBytes;
+  final String? contentType;
+  final String? note;
+  final DateTime createdAt;
+
+  /// The file extension, lower-cased, derived from the stored object name.
+  String get extension {
+    final dot = objectPath.lastIndexOf('.');
+    if (dot < 0 || dot == objectPath.length - 1) return '';
+    return objectPath.substring(dot + 1).toLowerCase();
+  }
+
+  bool get isImage => const {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic'}
+      .contains(extension);
+
+  bool get isPdf => extension == 'pdf';
+
+  /// "2.4 MB" - what the list row shows. Empty when the size is unknown.
+  String get sizeLabel {
+    final b = sizeBytes;
+    if (b == null || b <= 0) return '';
+    if (b >= 1024 * 1024) return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (b >= 1024) return '${(b / 1024).round()} KB';
+    return '$b B';
+  }
+
+  /// Whether [uid] may withdraw this document, given their [role] in the vault.
+  /// Mirrors `remove_vault_document()`; the authoritative check is server-side.
+  bool canBeRemovedBy(String? uid, VaultRole role) =>
+      (uid != null && sharedBy == uid) || role.canManageMembers;
+
+  factory VaultDocument.fromRow(Map<String, dynamic> row) => VaultDocument(
+        id: row['id'].toString(),
+        vaultId: row['vault_id'].toString(),
+        sharedBy: row['shared_by']?.toString() ?? '',
+        objectPath: (row['object_path'] as String?) ?? '',
+        name: (row['name'] as String?) ?? 'Document',
+        category: row['category'] as String?,
+        sizeBytes: (row['size_bytes'] as num?)?.toInt(),
+        contentType: row['content_type'] as String?,
+        note: row['note'] as String?,
+        createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
+                ?.toLocal() ??
+            DateTime.now(),
+      );
+}

@@ -26,6 +26,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_buttons.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
+import '../../widgets/wallet_detail/share_to_vault_sheet.dart';
 
 /// What changed while viewing a document, returned to the wallet list on pop.
 class DocumentViewerResult {
@@ -505,6 +506,29 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Shares this document into a Family Vault.
+  ///
+  /// Only the storage object path is registered - the file is not copied, so
+  /// withdrawing it (or removing a member) revokes access rather than leaving
+  /// duplicates scattered across other accounts.
+  Future<void> _shareToFamilyVault() async {
+    final path = _storagePath ?? _record.filePath;
+    if (path == null) {
+      _snack('This record has no file to share.', error: true);
+      return;
+    }
+    final shared = await showShareToVaultSheet(
+      context,
+      objectPath: path,
+      documentName: _record.name,
+      category: _record.category,
+      sourceTable: widget.walletName,
+      sourceId: _record.id,
+    );
+    if (!mounted || !shared) return;
+    _snack('Shared to your Family Vault');
   }
 
   Future<void> _download() async {
@@ -994,6 +1018,11 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                   onPressed: _toggleOffline,
                 );
               },
+            ),
+            IconButton(
+              tooltip: 'Share to Family Vault',
+              icon: const Icon(Icons.family_restroom_rounded),
+              onPressed: _shareToFamilyVault,
             ),
             IconButton(
               tooltip: AppLocalizations.of(context).t('share'),

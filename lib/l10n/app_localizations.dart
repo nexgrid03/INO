@@ -1297,6 +1297,83 @@ const Map<String, Map<String, String>> _strings = {
     'thisDevice': 'This device',
     'activeAgo': 'Active {when}',
     'removeDevice': 'Remove device',
+    // ---- View Once (one-time document sharing) ----
+    'shareMode': 'Share mode',
+    'shareNormally': 'Share Normally',
+    'shareViewOnce': 'View Once',
+    'viewOnceSingleDocOnly':
+        'View Once works with one document at a time. Select a single document '
+            'to use it.',
+    'viewOnceSenderWarning':
+        'This document can only be opened once. After it is viewed, the link '
+            'will expire permanently.',
+    'viewOnceExpiryHint':
+        'The link also expires on its own if nobody opens it in time.',
+    'createViewOnceLink': 'Create View-Once Link',
+    'viewOnceCouldNotCreate':
+        'Could not create the one-time link. Please try again.',
+    'viewOnceShareSubject': 'A one-time document was shared with you via INO',
+    'viewOnceBadge': 'View once',
+    'viewOnceHeaderSubtitle': 'Opens exactly one time, then expires',
+    'viewOnceReadyTitle': 'One-Time Link Ready',
+    'viewOnceOpenedTitle': 'Already Opened',
+    'viewOnceOpenedBody':
+        'The recipient has viewed this document. The link is now permanently '
+            'expired.',
+    'viewOnceRevokedTitle': 'Link Revoked',
+    'viewOnceRevokedBody': 'This one-time link can no longer be opened.',
+    'viewOnceExpiredTitle': 'Link Expired',
+    'viewOnceExpiredBody':
+        'Nobody opened this link before it expired. Create a new one to share '
+            'again.',
+    'viewOnceOpenedAt': 'Opened {t}',
+    'viewOnceOpenedLabel': 'Opened',
+    'viewOnceWaitingLabel': 'Not opened yet',
+    'viewOnceRevokedToast': 'Link revoked. It can no longer be opened.',
+    'revokeViewOnceTitle': 'Revoke this link?',
+    'revokeViewOnceBody':
+        'The recipient will no longer be able to open this document. This '
+            'cannot be undone.',
+    'viewOnceBrandSubtitle': 'One-time secure view',
+    'viewOnceGateTitle': 'Someone shared a document with you',
+    'viewOnceGateSubtitle': 'You can open it one time only',
+    'viewOnceGateWarning':
+        'This document can be opened only once. The moment you open it, the '
+            'link expires permanently — make sure you are ready to read it now.',
+    'openOnce': 'Open Once',
+    'viewOnceCouldNotOpen':
+        'Could not open the document. Check your connection and try again.',
+    'viewOnceViewedNow': 'Viewed',
+    'viewOnceSpentTitle': 'Already viewed',
+    'viewOnceSpentBody':
+        'This document has already been viewed or has expired.',
+    'viewOnceRevokedRecipientBody':
+        'The sender has turned off access to this document.',
+    'viewOnceProtectionAndroid':
+        'Screenshots and screen recording are blocked while this document is '
+            'open.',
+    'viewOnceProtectionOther':
+        'iOS cannot block screenshots — no app can. The one-time link is the '
+            'protection: it expires permanently the moment you open it.',
+    'viewOnceCaptureTitle': 'Screen recording detected',
+    'viewOnceCaptureBody':
+        'The document is hidden while your screen is being recorded or '
+            'mirrored. Stop the recording to continue reading.',
+    'viewOnceScreenshotNotice': 'Screenshot detected — this was a one-time document.',
+    'viewOnceCantPreview': 'Can’t show this file inside INO',
+    'viewOnceCantPreviewBody':
+        'INO can display images in-app. This file needs your device’s viewer.',
+    'openInSystemViewer': 'Open in system viewer',
+    'viewOnceExternalWarning':
+        'Opening outside INO means screenshot protection no longer applies. '
+            'The file is deleted from this device as soon as you return.',
+    'viewOnceCloseTitle': 'Close this document?',
+    'viewOnceCloseBody':
+        'You have already used your single view. Once you close it, you cannot '
+            'open it again.',
+    'keepReading': 'Keep reading',
+    'closeAction': 'Close',
+    'continueAction': 'Continue',
   },
   'hi': {
     'home': 'होम',
@@ -2430,6 +2507,80 @@ const Map<String, Map<String, String>> _strings = {
     'thisDevice': 'यह डिवाइस',
     'activeAgo': 'सक्रिय {when}',
     'removeDevice': 'डिवाइस हटाएँ',
+    // ---- View Once (एक-बार देखने वाली साझेदारी) ----
+    'shareMode': 'साझा करने का तरीका',
+    'shareNormally': 'सामान्य रूप से साझा करें',
+    'shareViewOnce': 'एक बार देखें',
+    'viewOnceSingleDocOnly':
+        '"एक बार देखें" एक समय में एक ही दस्तावेज़ के साथ काम करता है। इसके '
+            'लिए केवल एक दस्तावेज़ चुनें।',
+    'viewOnceSenderWarning':
+        'यह दस्तावेज़ केवल एक बार खोला जा सकता है। देखे जाने के बाद लिंक हमेशा '
+            'के लिए समाप्त हो जाएगा।',
+    'viewOnceExpiryHint':
+        'यदि कोई समय पर नहीं खोलता, तो लिंक स्वयं भी समाप्त हो जाता है।',
+    'createViewOnceLink': 'एक-बार लिंक बनाएँ',
+    'viewOnceCouldNotCreate':
+        'एक-बार लिंक नहीं बन सका। कृपया फिर कोशिश करें।',
+    'viewOnceShareSubject': 'INO के ज़रिए आपके साथ एक-बार का दस्तावेज़ साझा किया गया',
+    'viewOnceBadge': 'एक बार देखें',
+    'viewOnceHeaderSubtitle': 'ठीक एक बार खुलता है, फिर समाप्त',
+    'viewOnceReadyTitle': 'एक-बार लिंक तैयार',
+    'viewOnceOpenedTitle': 'पहले ही खोला जा चुका',
+    'viewOnceOpenedBody':
+        'प्राप्तकर्ता यह दस्तावेज़ देख चुका है। लिंक अब हमेशा के लिए समाप्त है।',
+    'viewOnceRevokedTitle': 'लिंक रद्द किया गया',
+    'viewOnceRevokedBody': 'यह एक-बार लिंक अब नहीं खोला जा सकता।',
+    'viewOnceExpiredTitle': 'लिंक समाप्त',
+    'viewOnceExpiredBody':
+        'समाप्त होने से पहले किसी ने यह लिंक नहीं खोला। दोबारा साझा करने के '
+            'लिए नया लिंक बनाएँ।',
+    'viewOnceOpenedAt': '{t} को खोला गया',
+    'viewOnceOpenedLabel': 'खोला गया',
+    'viewOnceWaitingLabel': 'अभी तक नहीं खोला गया',
+    'viewOnceRevokedToast': 'लिंक रद्द कर दिया गया। यह अब नहीं खुलेगा।',
+    'revokeViewOnceTitle': 'यह लिंक रद्द करें?',
+    'revokeViewOnceBody':
+        'प्राप्तकर्ता अब यह दस्तावेज़ नहीं खोल पाएगा। इसे वापस नहीं किया जा सकता।',
+    'viewOnceBrandSubtitle': 'एक-बार सुरक्षित दृश्य',
+    'viewOnceGateTitle': 'किसी ने आपके साथ एक दस्तावेज़ साझा किया है',
+    'viewOnceGateSubtitle': 'आप इसे केवल एक बार खोल सकते हैं',
+    'viewOnceGateWarning':
+        'यह दस्तावेज़ केवल एक बार खोला जा सकता है। खोलते ही लिंक हमेशा के लिए '
+            'समाप्त हो जाएगा — इसलिए तभी खोलें जब आप अभी पढ़ने के लिए तैयार हों।',
+    'openOnce': 'एक बार खोलें',
+    'viewOnceCouldNotOpen':
+        'दस्तावेज़ नहीं खुल सका। अपना कनेक्शन जाँचें और फिर कोशिश करें।',
+    'viewOnceViewedNow': 'देखा गया',
+    'viewOnceSpentTitle': 'पहले ही देखा जा चुका',
+    'viewOnceSpentBody':
+        'यह दस्तावेज़ पहले ही देखा जा चुका है या समाप्त हो चुका है।',
+    'viewOnceRevokedRecipientBody':
+        'भेजने वाले ने इस दस्तावेज़ की पहुँच बंद कर दी है।',
+    'viewOnceProtectionAndroid':
+        'यह दस्तावेज़ खुला रहने तक स्क्रीनशॉट और स्क्रीन रिकॉर्डिंग अवरुद्ध हैं।',
+    'viewOnceProtectionOther':
+        'iOS स्क्रीनशॉट नहीं रोक सकता — कोई ऐप नहीं रोक सकता। सुरक्षा एक-बार '
+            'लिंक ही है: खोलते ही यह हमेशा के लिए समाप्त हो जाता है।',
+    'viewOnceCaptureTitle': 'स्क्रीन रिकॉर्डिंग का पता चला',
+    'viewOnceCaptureBody':
+        'जब तक आपकी स्क्रीन रिकॉर्ड या मिरर हो रही है, दस्तावेज़ छिपा रहेगा। '
+            'पढ़ना जारी रखने के लिए रिकॉर्डिंग बंद करें।',
+    'viewOnceScreenshotNotice': 'स्क्रीनशॉट का पता चला — यह एक-बार का दस्तावेज़ था।',
+    'viewOnceCantPreview': 'यह फ़ाइल INO के भीतर नहीं दिखाई जा सकती',
+    'viewOnceCantPreviewBody':
+        'INO ऐप में चित्र दिखा सकता है। इस फ़ाइल के लिए आपके डिवाइस का व्यूअर चाहिए।',
+    'openInSystemViewer': 'सिस्टम व्यूअर में खोलें',
+    'viewOnceExternalWarning':
+        'INO के बाहर खोलने पर स्क्रीनशॉट सुरक्षा लागू नहीं होती। लौटते ही '
+            'फ़ाइल इस डिवाइस से हटा दी जाती है।',
+    'viewOnceCloseTitle': 'यह दस्तावेज़ बंद करें?',
+    'viewOnceCloseBody':
+        'आप अपना एकमात्र दृश्य उपयोग कर चुके हैं। बंद करने के बाद इसे दोबारा '
+            'नहीं खोला जा सकता।',
+    'keepReading': 'पढ़ते रहें',
+    'closeAction': 'बंद करें',
+    'continueAction': 'जारी रखें',
   },
   'te': {
     'home': 'హోమ్',
@@ -3585,6 +3736,81 @@ const Map<String, Map<String, String>> _strings = {
     'thisDevice': 'ఈ పరికరం',
     'activeAgo': 'సక్రియం {when}',
     'removeDevice': 'పరికరాన్ని తీసివేయి',
+    // ---- View Once (ఒకసారి మాత్రమే చూసే భాగస్వామ్యం) ----
+    'shareMode': 'భాగస్వామ్య విధానం',
+    'shareNormally': 'సాధారణంగా షేర్ చేయి',
+    'shareViewOnce': 'ఒకసారి చూడు',
+    'viewOnceSingleDocOnly':
+        '"ఒకసారి చూడు" ఒకేసారి ఒక పత్రంతో పనిచేస్తుంది. దీని కోసం ఒకే పత్రాన్ని '
+            'ఎంచుకోండి.',
+    'viewOnceSenderWarning':
+        'ఈ పత్రాన్ని ఒకేసారి మాత్రమే తెరవగలరు. చూసిన తర్వాత లింక్ శాశ్వతంగా '
+            'ముగిసిపోతుంది.',
+    'viewOnceExpiryHint':
+        'ఎవరూ సమయానికి తెరవకపోతే లింక్ దానంతట అదే ముగిసిపోతుంది.',
+    'createViewOnceLink': 'ఒకసారి-చూసే లింక్ సృష్టించు',
+    'viewOnceCouldNotCreate':
+        'ఒకసారి-చూసే లింక్‌ను సృష్టించలేకపోయాము. మళ్లీ ప్రయత్నించండి.',
+    'viewOnceShareSubject': 'INO ద్వారా మీతో ఒకసారి-చూసే పత్రం పంచుకోబడింది',
+    'viewOnceBadge': 'ఒకసారి చూడు',
+    'viewOnceHeaderSubtitle': 'సరిగ్గా ఒకసారి తెరుచుకుంటుంది, తర్వాత ముగుస్తుంది',
+    'viewOnceReadyTitle': 'ఒకసారి-చూసే లింక్ సిద్ధం',
+    'viewOnceOpenedTitle': 'ఇప్పటికే తెరవబడింది',
+    'viewOnceOpenedBody':
+        'స్వీకర్త ఈ పత్రాన్ని చూశారు. లింక్ ఇప్పుడు శాశ్వతంగా ముగిసింది.',
+    'viewOnceRevokedTitle': 'లింక్ రద్దు చేయబడింది',
+    'viewOnceRevokedBody': 'ఈ ఒకసారి-చూసే లింక్‌ను ఇక తెరవలేరు.',
+    'viewOnceExpiredTitle': 'లింక్ ముగిసింది',
+    'viewOnceExpiredBody':
+        'ముగిసేలోపు ఎవరూ ఈ లింక్‌ను తెరవలేదు. మళ్లీ పంచుకోవడానికి కొత్తది '
+            'సృష్టించండి.',
+    'viewOnceOpenedAt': '{t}కు తెరవబడింది',
+    'viewOnceOpenedLabel': 'తెరవబడింది',
+    'viewOnceWaitingLabel': 'ఇంకా తెరవలేదు',
+    'viewOnceRevokedToast': 'లింక్ రద్దు చేయబడింది. ఇక తెరవడం సాధ్యం కాదు.',
+    'revokeViewOnceTitle': 'ఈ లింక్‌ను రద్దు చేయాలా?',
+    'revokeViewOnceBody':
+        'స్వీకర్త ఇక ఈ పత్రాన్ని తెరవలేరు. దీన్ని వెనక్కి తీసుకోలేరు.',
+    'viewOnceBrandSubtitle': 'ఒకసారి-మాత్రమే సురక్షిత వీక్షణ',
+    'viewOnceGateTitle': 'ఎవరో మీతో ఒక పత్రాన్ని పంచుకున్నారు',
+    'viewOnceGateSubtitle': 'మీరు దీన్ని ఒకసారి మాత్రమే తెరవగలరు',
+    'viewOnceGateWarning':
+        'ఈ పత్రాన్ని ఒకసారి మాత్రమే తెరవగలరు. తెరిచిన క్షణమే లింక్ శాశ్వతంగా '
+            'ముగుస్తుంది — ఇప్పుడే చదవడానికి సిద్ధంగా ఉన్నప్పుడే తెరవండి.',
+    'openOnce': 'ఒకసారి తెరువు',
+    'viewOnceCouldNotOpen':
+        'పత్రాన్ని తెరవలేకపోయాము. మీ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+    'viewOnceViewedNow': 'చూడబడింది',
+    'viewOnceSpentTitle': 'ఇప్పటికే చూడబడింది',
+    'viewOnceSpentBody':
+        'ఈ పత్రం ఇప్పటికే చూడబడింది లేదా ముగిసిపోయింది.',
+    'viewOnceRevokedRecipientBody':
+        'పంపినవారు ఈ పత్రానికి ప్రాప్యతను ఆపివేశారు.',
+    'viewOnceProtectionAndroid':
+        'ఈ పత్రం తెరిచి ఉన్నంతసేపు స్క్రీన్‌షాట్‌లు మరియు స్క్రీన్ రికార్డింగ్ '
+            'నిరోధించబడతాయి.',
+    'viewOnceProtectionOther':
+        'iOS స్క్రీన్‌షాట్‌లను ఆపలేదు — ఏ యాప్ కూడా ఆపలేదు. రక్షణ ఒకసారి-చూసే '
+            'లింకే: మీరు తెరిచిన క్షణమే అది శాశ్వతంగా ముగుస్తుంది.',
+    'viewOnceCaptureTitle': 'స్క్రీన్ రికార్డింగ్ గుర్తించబడింది',
+    'viewOnceCaptureBody':
+        'మీ స్క్రీన్ రికార్డ్ లేదా మిర్రర్ అవుతున్నంత సేపు పత్రం దాచబడుతుంది. '
+            'చదవడం కొనసాగించడానికి రికార్డింగ్‌ను ఆపండి.',
+    'viewOnceScreenshotNotice': 'స్క్రీన్‌షాట్ గుర్తించబడింది — ఇది ఒకసారి-చూసే పత్రం.',
+    'viewOnceCantPreview': 'ఈ ఫైల్‌ను INO లోపల చూపలేము',
+    'viewOnceCantPreviewBody':
+        'INO యాప్‌లో చిత్రాలను చూపగలదు. ఈ ఫైల్‌కు మీ పరికర వీక్షకుడు అవసరం.',
+    'openInSystemViewer': 'సిస్టమ్ వీక్షకుడిలో తెరువు',
+    'viewOnceExternalWarning':
+        'INO వెలుపల తెరిస్తే స్క్రీన్‌షాట్ రక్షణ వర్తించదు. మీరు తిరిగి రాగానే '
+            'ఫైల్ ఈ పరికరం నుండి తొలగించబడుతుంది.',
+    'viewOnceCloseTitle': 'ఈ పత్రాన్ని మూసివేయాలా?',
+    'viewOnceCloseBody':
+        'మీరు మీ ఏకైక వీక్షణను ఉపయోగించారు. మూసివేసిన తర్వాత దీన్ని మళ్లీ '
+            'తెరవలేరు.',
+    'keepReading': 'చదువుతూ ఉండు',
+    'closeAction': 'మూసివేయి',
+    'continueAction': 'కొనసాగించు',
   },
   'ta': {
     'home': 'முகப்பு',
@@ -4762,5 +4988,84 @@ const Map<String, Map<String, String>> _strings = {
     'thisDevice': 'இந்தச் சாதனம்',
     'activeAgo': 'செயலில் {when}',
     'removeDevice': 'சாதனத்தை அகற்று',
+    // ---- View Once (ஒருமுறை மட்டும் பார்க்கும் பகிர்வு) ----
+    'shareMode': 'பகிர்வு முறை',
+    'shareNormally': 'வழக்கமாகப் பகிர்',
+    'shareViewOnce': 'ஒருமுறை பார்',
+    'viewOnceSingleDocOnly':
+        '"ஒருமுறை பார்" ஒரே நேரத்தில் ஒரு ஆவணத்துடன் மட்டுமே செயல்படும். ஒரே '
+            'ஆவணத்தைத் தேர்ந்தெடுக்கவும்.',
+    'viewOnceSenderWarning':
+        'இந்த ஆவணத்தை ஒருமுறை மட்டுமே திறக்க முடியும். பார்த்த பிறகு இணைப்பு '
+            'நிரந்தரமாகக் காலாவதியாகும்.',
+    'viewOnceExpiryHint':
+        'யாரும் சரியான நேரத்தில் திறக்கவில்லை என்றால் இணைப்பு தானாகவே காலாவதியாகும்.',
+    'createViewOnceLink': 'ஒருமுறை இணைப்பை உருவாக்கு',
+    'viewOnceCouldNotCreate':
+        'ஒருமுறை இணைப்பை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    'viewOnceShareSubject': 'INO வழியாக ஒருமுறை ஆவணம் உங்களுடன் பகிரப்பட்டது',
+    'viewOnceBadge': 'ஒருமுறை பார்',
+    'viewOnceHeaderSubtitle': 'சரியாக ஒருமுறை திறக்கும், பின் காலாவதியாகும்',
+    'viewOnceReadyTitle': 'ஒருமுறை இணைப்பு தயார்',
+    'viewOnceOpenedTitle': 'ஏற்கனவே திறக்கப்பட்டது',
+    'viewOnceOpenedBody':
+        'பெறுநர் இந்த ஆவணத்தைப் பார்த்துவிட்டார். இணைப்பு இப்போது நிரந்தரமாகக் '
+            'காலாவதியாகிவிட்டது.',
+    'viewOnceRevokedTitle': 'இணைப்பு ரத்துசெய்யப்பட்டது',
+    'viewOnceRevokedBody': 'இந்த ஒருமுறை இணைப்பை இனி திறக்க முடியாது.',
+    'viewOnceExpiredTitle': 'இணைப்பு காலாவதியானது',
+    'viewOnceExpiredBody':
+        'காலாவதியாகும் முன் யாரும் இதைத் திறக்கவில்லை. மீண்டும் பகிர புதிய '
+            'இணைப்பை உருவாக்கவும்.',
+    'viewOnceOpenedAt': '{t} அன்று திறக்கப்பட்டது',
+    'viewOnceOpenedLabel': 'திறக்கப்பட்டது',
+    'viewOnceWaitingLabel': 'இன்னும் திறக்கப்படவில்லை',
+    'viewOnceRevokedToast': 'இணைப்பு ரத்துசெய்யப்பட்டது. இனி திறக்க முடியாது.',
+    'revokeViewOnceTitle': 'இந்த இணைப்பை ரத்துசெய்யவா?',
+    'revokeViewOnceBody':
+        'பெறுநரால் இனி இந்த ஆவணத்தைத் திறக்க முடியாது. இதைத் திரும்பப் பெற முடியாது.',
+    'viewOnceBrandSubtitle': 'ஒருமுறை பாதுகாப்பான பார்வை',
+    'viewOnceGateTitle': 'யாரோ உங்களுடன் ஒரு ஆவணத்தைப் பகிர்ந்துள்ளனர்',
+    'viewOnceGateSubtitle': 'நீங்கள் இதை ஒருமுறை மட்டுமே திறக்க முடியும்',
+    'viewOnceGateWarning':
+        'இந்த ஆவணத்தை ஒருமுறை மட்டுமே திறக்க முடியும். திறக்கும் தருணத்திலேயே '
+            'இணைப்பு நிரந்தரமாகக் காலாவதியாகும் — இப்போதே படிக்கத் தயாராக '
+            'இருக்கும்போது மட்டும் திறக்கவும்.',
+    'openOnce': 'ஒருமுறை திற',
+    'viewOnceCouldNotOpen':
+        'ஆவணத்தைத் திறக்க முடியவில்லை. இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    'viewOnceViewedNow': 'பார்க்கப்பட்டது',
+    'viewOnceSpentTitle': 'ஏற்கனவே பார்க்கப்பட்டது',
+    'viewOnceSpentBody':
+        'இந்த ஆவணம் ஏற்கனவே பார்க்கப்பட்டுவிட்டது அல்லது காலாவதியாகிவிட்டது.',
+    'viewOnceRevokedRecipientBody':
+        'அனுப்பியவர் இந்த ஆவணத்தின் அணுகலை நிறுத்திவிட்டார்.',
+    'viewOnceProtectionAndroid':
+        'இந்த ஆவணம் திறந்திருக்கும் வரை ஸ்கிரீன்ஷாட் மற்றும் திரைப் பதிவு '
+            'தடுக்கப்படும்.',
+    'viewOnceProtectionOther':
+        'iOS ஸ்கிரீன்ஷாட்டைத் தடுக்க முடியாது — எந்தப் பயன்பாட்டாலும் முடியாது. '
+            'ஒருமுறை இணைப்பே பாதுகாப்பு: திறந்த உடனேயே அது நிரந்தரமாக '
+            'காலாவதியாகிறது.',
+    'viewOnceCaptureTitle': 'திரைப் பதிவு கண்டறியப்பட்டது',
+    'viewOnceCaptureBody':
+        'உங்கள் திரை பதிவு அல்லது பிரதிபலிக்கப்படும் வரை ஆவணம் மறைக்கப்படும். '
+            'தொடர்ந்து படிக்கப் பதிவை நிறுத்தவும்.',
+    'viewOnceScreenshotNotice': 'ஸ்கிரீன்ஷாட் கண்டறியப்பட்டது — இது ஒருமுறை ஆவணம்.',
+    'viewOnceCantPreview': 'இந்தக் கோப்பை INO உள்ளே காட்ட முடியாது',
+    'viewOnceCantPreviewBody':
+        'INO பயன்பாட்டில் படங்களைக் காட்ட முடியும். இந்தக் கோப்புக்கு உங்கள் '
+            'சாதனத்தின் காட்சியாளர் தேவை.',
+    'openInSystemViewer': 'கணினி காட்சியாளரில் திற',
+    'viewOnceExternalWarning':
+        'INO வெளியே திறந்தால் ஸ்கிரீன்ஷாட் பாதுகாப்பு பொருந்தாது. நீங்கள் '
+            'திரும்பியவுடன் கோப்பு இந்தச் சாதனத்திலிருந்து நீக்கப்படும்.',
+    'viewOnceCloseTitle': 'இந்த ஆவணத்தை மூடவா?',
+    'viewOnceCloseBody':
+        'உங்கள் ஒரே பார்வையைப் பயன்படுத்திவிட்டீர்கள். மூடிய பிறகு மீண்டும் '
+            'திறக்க முடியாது.',
+    'keepReading': 'படித்துக்கொண்டிரு',
+    'closeAction': 'மூடு',
+    'continueAction': 'தொடர்',
   },
 };

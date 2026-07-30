@@ -5,6 +5,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/share/shared_documents_screen.dart';
+import '../screens/share/view_once_viewer_screen.dart';
 
 /// Handles incoming share deep links (Android App Links + the `ino://` scheme)
 /// and routes them to [SharedDocumentsScreen].
@@ -30,10 +31,18 @@ class DeepLinkService {
   StreamSubscription<Uri>? _sub;
 
   String? _initialShareId;
+  String? _initialViewOnceToken;
   String? _initialLinkStr; // to skip the one-time stream replay of the launch link
 
   /// The share id the app was cold-launched with (null for a normal launch).
   String? get initialShareId => _initialShareId;
+
+  /// The **view-once** token the app was cold-launched with (null otherwise).
+  ///
+  /// Kept separate from [initialShareId] because the two links are not
+  /// interchangeable: a one-time link must land on the gated viewer, which warns
+  /// before spending the single view.
+  String? get initialViewOnceToken => _initialViewOnceToken;
 
   /// Captures the cold-start launch link. Call in `main()` before `runApp`.
   /// Never throws - a failure just means "no initial deep link".
@@ -41,10 +50,13 @@ class DeepLinkService {
     try {
       final uri = await _appLinks.getInitialLink();
       _initialLinkStr = uri?.toString();
-      _initialShareId = parseShareId(uri);
+      _initialViewOnceToken = parseViewOnceToken(uri);
+      // A link is one or the other, never both.
+      _initialShareId = _initialViewOnceToken == null ? parseShareId(uri) : null;
       developer.log(
         'captureInitialLink → incoming=${uri ?? '(none)'} '
-        'shareId=${_initialShareId ?? '(none)'}',
+        'shareId=${_initialShareId ?? '(none)'} '
+        'viewOnce=${_initialViewOnceToken ?? '(none)'}',
         name: 'deeplink',
       );
     } catch (e, st) {
@@ -88,6 +100,14 @@ class DeepLinkService {
       developer.log('  skipped: replay of the launch link', name: 'deeplink');
       return;
     }
+    // One-time links first: they must never fall through to the regular viewer,
+    // which would fetch (and therefore not gate) the document.
+    final viewOnce = parseViewOnceToken(uri);
+    if (viewOnce != null) {
+      developer.log('  extracted view-once token', name: 'deeplink');
+      _navigate(viewOnce, viewOnce: true);
+      return;
+    }
     final shareId = parseShareId(uri);
     if (shareId == null) {
       developer.log('  ignored: not a share link', name: 'deeplink');
@@ -98,7 +118,7 @@ class DeepLinkService {
   }
 
   /// Pushes the viewer, retrying briefly if the navigator isn't attached yet.
-  void _navigate(String shareId, {int attempt = 0}) {
+  void _navigate(String token, {int attempt = 0, bool viewOnce = false}) {
     final nav = _navigatorKey?.currentState;
     if (nav == null) {
       if (attempt >= 20) {
@@ -106,15 +126,21 @@ class DeepLinkService {
             name: 'deeplink');
         return;
       }
-      Future.delayed(const Duration(milliseconds: 100),
-          () => _navigate(shareId, attempt: attempt + 1));
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        () => _navigate(token, attempt: attempt + 1, viewOnce: viewOnce),
+      );
       return;
     }
-    developer.log('navigate → SharedDocumentsScreen(token=$shareId)',
-        name: 'deeplink');
+    developer.log(
+      'navigate → ${viewOnce ? 'ViewOnceViewerScreen' : 'SharedDocumentsScreen'}',
+      name: 'deeplink',
+    );
     nav.push(
       MaterialPageRoute(
-        builder: (_) => SharedDocumentsScreen(token: shareId),
+        builder: (_) => viewOnce
+            ? ViewOnceViewerScreen(token: token)
+            : SharedDocumentsScreen(token: token),
       ),
     );
   }
@@ -144,6 +170,30 @@ class DeepLinkService {
 
     // Custom scheme `ino://share/<token>`.
     if (uri.host == 'share' && segs.isNotEmpty && segs.first.isNotEmpty) {
+      return segs.first;
+    }
+    return null;
+  }
+
+  /// Extracts a **view-once** token from a deep-link [uri], or null when it
+  /// isn't a one-time link.
+  ///
+  /// One-time links live under `/v/` (regular shares use `/s/`), so the two can
+  /// never be confused:
+  ///   • `https://share.inoapp.in/v/<token>`                → `<token>`
+  ///   • `https://<ref>.functions.supabase.co/share/v/<t>`  → `<t>`
+  ///   • `ino://viewonce/<token>`                           → `<token>`
+  static String? parseViewOnceToken(Uri? uri) {
+    if (uri == null) return null;
+    final segs = uri.pathSegments;
+
+    // Match the LAST `v` segment so both `/v/<t>` and `/share/v/<t>` resolve.
+    for (var i = segs.length - 2; i >= 0; i--) {
+      if (segs[i] == 'v' && segs[i + 1].isNotEmpty) return segs[i + 1];
+    }
+
+    // Custom scheme `ino://viewonce/<token>`.
+    if (uri.host == 'viewonce' && segs.isNotEmpty && segs.first.isNotEmpty) {
       return segs.first;
     }
     return null;

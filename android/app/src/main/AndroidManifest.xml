@@ -112,6 +112,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ino" android:host="share" />
             </intent-filter>
+
+            <!-- View Once (one-time links). The https App Link above already
+                 covers /share/v/<token> via its /share/ prefix; this is the
+                 custom-scheme fallback: ino://viewonce/<token>.
+
+                 A one-time link is routed to the GATED viewer, which warns the
+                 recipient before spending their single view - so merely opening
+                 the app from this intent never burns the share. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ino" android:host="viewonce" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -1,14 +1,13 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'config/supabase_config.dart';
 import 'core/responsive/responsive.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/share/shared_documents_screen.dart';
+import 'screens/share/view_once_viewer_screen.dart';
 import 'screens/splash/splash_screen.dart';
 import 'services/account_switcher.dart';
 import 'services/app_settings.dart';
@@ -129,6 +128,11 @@ class _InoAppState extends State<InoApp> {
   /// as the root (resolved once, before the first frame in `main()`).
   final String? _initialShareId = DeepLinkService.instance.initialShareId;
 
+  /// Same idea for a cold start from a **view-once** link. It routes to the
+  /// gated one-time viewer, which warns before spending the single view.
+  final String? _initialViewOnceToken =
+      DeepLinkService.instance.initialViewOnceToken;
+
   @override
   void initState() {
     super.initState();
@@ -147,11 +151,18 @@ class _InoAppState extends State<InoApp> {
     super.dispose();
   }
 
-  /// The root screen: the shared-documents viewer for a deep-link cold start,
-  /// otherwise the normal splash flow.
-  Widget get _home => _initialShareId != null
-      ? SharedDocumentsScreen(token: _initialShareId)
-      : const SplashScreen();
+  /// The root screen: the one-time viewer for a view-once cold start, the
+  /// shared-documents viewer for a regular share link, otherwise the normal
+  /// splash flow.
+  Widget get _home {
+    if (_initialViewOnceToken != null) {
+      return ViewOnceViewerScreen(token: _initialViewOnceToken);
+    }
+    if (_initialShareId != null) {
+      return SharedDocumentsScreen(token: _initialShareId);
+    }
+    return const SplashScreen();
+  }
 
   @override
   Widget build(BuildContext context) {

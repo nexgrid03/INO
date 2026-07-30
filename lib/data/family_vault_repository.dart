@@ -65,6 +65,44 @@ abstract class FamilyVaultRepository {
   /// Re-arms a declined/expired/revoked invitation, optionally with a new role.
   Future<void> resendInvitation(String invitationId, {VaultRole? role});
 
+  // ---- Shared documents ----------------------------------------------------
+
+  /// Every document shared into [vaultId], newest first.
+  ///
+  /// RLS returns rows only while the caller holds a live membership, so this
+  /// comes back empty the moment they are removed — no client-side filtering
+  /// is involved and none is trusted.
+  Future<List<VaultDocument>> documents(String vaultId);
+
+  /// Shares a document the caller already owns into [vaultId]. Requires editor
+  /// or above; the server rejects anything less.
+  Future<VaultDocument> shareDocument({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceId,
+    String? note,
+  });
+
+  /// Withdraws a shared document. Editors may remove only what they shared;
+  /// admins and the owner may remove anything.
+  Future<void> removeDocument(String documentId);
+
+  /// A short-lived URL for opening/downloading a shared document.
+  ///
+  /// The URL is minted against the storage layer, where a policy re-checks
+  /// vault membership on every read — so this throws for a removed member even
+  /// if they somehow still had the row, and previously-issued URLs stop
+  /// resolving too.
+  Future<String> documentUrl(VaultDocument doc, {int expiresInSeconds = 900});
+
+  /// The raw bytes of a shared document, for in-app preview.
+  Future<Uint8List> downloadDocument(VaultDocument doc);
+
   // ---- Audit + realtime ----------------------------------------------------
 
   /// The most recent audit-trail entries for [vaultId] (admin/owner only —
@@ -323,6 +361,77 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     });
   }
 
+  // ---- Shared documents ----------------------------------------------------
+
+  static const String _documents = 'vault_documents';
+
+  /// The bucket shared files live in. Same bucket as personal documents - a
+  /// share does NOT copy the file, it grants read access to the original, which
+  /// is what lets removal revoke access instead of leaving stray copies behind.
+  static const String _bucket = 'documents';
+
+  @override
+  Future<List<VaultDocument>> documents(String vaultId) async {
+    final rows = await _client
+        .from(_documents)
+        .select()
+        .eq('vault_id', vaultId)
+        .order('created_at', ascending: false);
+    debugPrint('[FamilyVault] vault $vaultId documents: ${rows.length}');
+    return [for (final r in rows) VaultDocument.fromRow(r)];
+  }
+
+  @override
+  Future<VaultDocument> shareDocument({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceId,
+    String? note,
+  }) async {
+    // Via the SECURITY DEFINER RPC rather than a direct insert: it makes the
+    // editor check server-side and stamps `shared_by` from auth.uid(), so a
+    // client cannot attribute a share to someone else.
+    final row = await _client.rpc('share_document_to_vault', params: {
+      'p_vault': vaultId,
+      'p_object_path': objectPath,
+      'p_name': name,
+      'p_category': category,
+      'p_size_bytes': sizeBytes,
+      'p_content_type': contentType,
+      'p_source_table': sourceTable,
+      'p_source_id': sourceId,
+      'p_note': note,
+    });
+    return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
+  }
+
+  @override
+  Future<void> removeDocument(String documentId) async {
+    await _client.rpc('remove_vault_document', params: {
+      'p_document': documentId,
+    });
+  }
+
+  @override
+  Future<String> documentUrl(VaultDocument doc,
+      {int expiresInSeconds = 900}) async {
+    // Deliberately short-lived. The storage policy re-checks membership on
+    // every read, so a removed member is cut off immediately regardless - but a
+    // narrow window also limits how long a URL that leaves the app stays useful.
+    return _client.storage
+        .from(_bucket)
+        .createSignedUrl(doc.objectPath, expiresInSeconds);
+  }
+
+  @override
+  Future<Uint8List> downloadDocument(VaultDocument doc) =>
+      _client.storage.from(_bucket).download(doc.objectPath);
+
   // ---- Audit + realtime ----------------------------------------------------
 
   @override
@@ -399,4 +508,71 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       debugPrint('[FamilyVault] unwatch failed: $e');
     }
   }
+}
+
+/// Turns a Family Vault failure into something the user - or you, reading a bug
+/// report - can act on.
+///
+/// This exists because the first version of the share sheets showed
+/// "you may no longer have permission" for EVERY failure. That was actively
+/// misleading: the most common cause is that the vault-documents migration has
+/// not been applied yet, so the RPC does not exist, and the message sent an
+/// Owner hunting for a permissions problem they did not have. Each
+/// distinguishable cause now says what it actually is.
+String describeVaultError(Object e) {
+  if (e is PostgrestException) {
+    final code = e.code ?? '';
+    final message = e.message.toLowerCase();
+
+    // PGRST202: the function isn't in PostgREST's schema cache. Two distinct
+    // causes, and the second is easy to miss: either the migration was never
+    // applied, OR it was applied through the SQL editor and PostgREST is still
+    // serving a snapshot taken before it. The second case looks exactly like
+    // the first from here - the function genuinely exists in the database - so
+    // the message has to name both rather than send the reader hunting for a
+    // migration they already ran.
+    //
+    // Matched NARROWLY, on PostgREST's own code and phrasing. An earlier
+    // version also matched any message containing "does not exist", which
+    // catches half the errors Postgres can raise - a missing column, a missing
+    // relation, a bad cast - and reported every one of them as an unapplied
+    // migration. That masked the real fault and sent the reader to re-run a
+    // migration that was already applied. Breadth in an error matcher is not
+    // helpfulness; it is a wrong answer delivered confidently.
+    if (code == 'PGRST202' || message.contains('could not find the function')) {
+      return 'Sharing is not available yet. Apply the vault-documents '
+          'migration, then reload the API schema cache '
+          "(run: notify pgrst, 'reload schema'). [$code]";
+    }
+    // Raised deliberately by share_document_to_vault() for a non-editor.
+    if (code == '42501' || message.contains('only editors')) {
+      return 'You need editor access in this vault to add documents.';
+    }
+    if (code == '23505') {
+      return 'That document is already in this vault.';
+    }
+    // Anything else: show the real code, message, details and hint rather than
+    // inventing a cause. An unexplained failure the user can quote beats a
+    // wrong guess - and Postgres' `hint` is very often the actual fix.
+    final parts = <String>[
+      'Could not share (${e.code ?? 'error'})',
+      e.message,
+      if ((e.details ?? '').toString().trim().isNotEmpty)
+        'Details: ${e.details}',
+      if ((e.hint ?? '').trim().isNotEmpty) 'Hint: ${e.hint}',
+    ];
+    return parts.join('\n');
+  }
+
+  if (e is StorageException) {
+    return 'Upload failed: ${e.message}';
+  }
+
+  final text = e.toString();
+  if (text.contains('SocketException') ||
+      text.contains('Failed host lookup') ||
+      text.contains('ClientException')) {
+    return 'No connection. Check your internet and try again.';
+  }
+  return 'Could not share: $text';
 }

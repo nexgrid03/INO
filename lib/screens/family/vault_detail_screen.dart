@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show Supabase, RealtimeChannel;
 
@@ -11,6 +14,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
+import 'add_vault_document_sheet.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
 import 'invite_member_sheet.dart';
 
@@ -39,9 +43,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   List<VaultMember> _members = const [];
   List<VaultInvitation> _invitations = const [];
   List<VaultAuditEntry> _audit = const [];
+  List<VaultDocument> _documents = const [];
   bool _loading = true;
   bool _invitesLoading = false;
   bool _auditLoading = false;
+  bool _docsLoading = false;
   String? _error;
 
   /// Search text applied to the members + invitations lists.
@@ -83,9 +89,111 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   Future<void> _refresh() async {
     await _loadMembers();
+    // Documents load for EVERY role - being able to see the family's shared
+    // documents is the point of joining, not an admin privilege.
+    await _loadDocuments();
     if (_myRole.canManageMembers) {
       await _loadInvitations();
       await _loadAudit();
+    }
+  }
+
+  /// Adds a document to this vault - either one already in a wallet, or a file
+  /// uploaded from the device.
+  Future<void> _addDocument() async {
+    final added = await showAddVaultDocumentSheet(
+      context,
+      vaultId: _vaultId,
+      vaultName: _vaultName,
+    );
+    if (!mounted || !added) return;
+    await _loadDocuments();
+    if (!mounted) return;
+    _toast('Added to $_vaultName');
+  }
+
+  /// Opens a shared document in the device's default app.
+  ///
+  /// The bytes are fetched through the storage layer, where a policy re-checks
+  /// vault membership on every read. So a member who was removed a second ago
+  /// gets a clean failure here rather than a stale copy — the revocation is
+  /// enforced server-side, not by hiding a button.
+  Future<void> _openDocument(VaultDocument doc) async {
+    _toast('Opening ${doc.name}…');
+    try {
+      final bytes = await _repo.downloadDocument(doc);
+      final dir = await getTemporaryDirectory();
+      var safe = doc.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      // The extension is load-bearing: OpenFilex resolves the handler app from
+      // it, so a file written without one silently fails to open. Take it from
+      // the stored object path when the display name doesn't carry it.
+      final ext = doc.extension;
+      if (ext.isNotEmpty && !safe.toLowerCase().endsWith('.$ext')) {
+        safe = '$safe.$ext';
+      }
+      final file = File('${dir.path}/vault_${doc.id}_$safe');
+      await file.writeAsBytes(bytes);
+      final result = await OpenFilex.open(file.path);
+      if (!mounted) return;
+      if (result.type != ResultType.done) {
+        _toast('No app on this device can open this file', error: true);
+      }
+    } catch (e) {
+      debugPrint('[FamilyVault] openDocument failed: $e');
+      if (!mounted) return;
+      // The most likely cause of a denial here is exactly the intended one.
+      _toast('You no longer have access to this document', error: true);
+      await _loadDocuments();
+    }
+  }
+
+  Future<void> _removeDocument(VaultDocument doc) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove from vault?'),
+        content: Text(
+          '"${doc.name}" will no longer be visible to members of this vault. '
+          'Your own copy is not deleted.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove',
+                style: TextStyle(color: AppColors.critical)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _repo.removeDocument(doc.id);
+      if (!mounted) return;
+      setState(() =>
+          _documents = _documents.where((d) => d.id != doc.id).toList());
+      _toast('Removed from vault');
+    } catch (e) {
+      debugPrint('[FamilyVault] removeDocument failed: $e');
+      if (!mounted) return;
+      _toast('Could not remove that document', error: true);
+    }
+  }
+
+  Future<void> _loadDocuments() async {
+    setState(() => _docsLoading = true);
+    try {
+      final docs = await _repo.documents(_vaultId);
+      if (mounted) setState(() => _documents = docs);
+    } catch (e) {
+      // Non-fatal: the roster still works. An empty list here is also what a
+      // just-removed member sees, because RLS stops returning the rows.
+      debugPrint('[FamilyVault] loadDocuments failed: $e');
+      if (mounted) setState(() => _documents = const []);
+    } finally {
+      if (mounted) setState(() => _docsLoading = false);
     }
   }
 
@@ -587,6 +695,111 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+
+        // Shared documents — visible to EVERY role. This is what membership is
+        // actually for, so it sits above the roster.
+        Row(
+          children: [
+            Text('Shared documents',
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const Spacer(),
+            if (_docsLoading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryGreen),
+              )
+            // Editors and above get an Add control right here. Requiring them
+            // to go find a document inside a wallet first made an empty vault a
+            // dead end for the very person who owns it.
+            else if (_myRole.canEditDocuments)
+              PressableScale(
+                pressedScale: 0.95,
+                child: GestureDetector(
+                  onTap: _addDocument,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add_rounded,
+                          size: 18, color: AppColors.primaryGreen),
+                      const SizedBox(width: 4),
+                      Text('Add',
+                          style: AppText.subtitle.copyWith(
+                              color: AppColors.primaryGreen, fontSize: 13.5)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_documents.isEmpty && !_docsLoading)
+          InoCard(
+            radius: AppRadius.card,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.folder_shared_outlined,
+                        size: 22, color: palette.textFaint),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _myRole.canEditDocuments
+                            ? 'Nothing shared yet. Add a document and everyone '
+                                'in this vault can view it.'
+                            : 'Nothing has been shared with you yet. Ask an '
+                                'editor or the owner to add documents here.',
+                        style: AppText.caption.copyWith(
+                            color: palette.textSecondary, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+                // The empty state is where the owner actually is when they want
+                // to fill the vault, so the action lives here too - not only in
+                // the section header above.
+                if (_myRole.canEditDocuments) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: FilledButton.icon(
+                      onPressed: _addDocument,
+                      icon: const Icon(Icons.add_rounded, size: 19),
+                      label: const Text('Add a document'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          )
+        else if (_documents.isNotEmpty)
+          InoCard(
+            radius: AppRadius.card,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            child: Column(
+              children: [
+                for (var i = 0; i < _documents.length; i++) ...[
+                  if (i > 0) Divider(height: 1, color: palette.border),
+                  _VaultDocRow(
+                    doc: _documents[i],
+                    // Mirrors remove_vault_document(): your own contributions,
+                    // or anything if you manage the vault. The server decides.
+                    canRemove: _documents[i]
+                        .canBeRemovedBy(_currentUid, _myRole),
+                    onOpen: () => _openDocument(_documents[i]),
+                    onRemove: () => _removeDocument(_documents[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpacing.lg),
 
         // Members.
         Row(
@@ -1155,6 +1368,100 @@ class _InviteButton extends StatelessWidget {
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 15)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One shared document in the vault's list.
+///
+/// The remove control is shown only to someone who may actually remove it, but
+/// that is presentation only — `remove_vault_document()` re-checks server-side,
+/// so hiding the button is never what enforces the rule.
+class _VaultDocRow extends StatelessWidget {
+  const _VaultDocRow({
+    required this.doc,
+    required this.canRemove,
+    required this.onOpen,
+    required this.onRemove,
+  });
+
+  final VaultDocument doc;
+  final bool canRemove;
+  final VoidCallback onOpen;
+  final VoidCallback onRemove;
+
+  IconData get _icon {
+    if (doc.isImage) return Icons.image_rounded;
+    if (doc.isPdf) return Icons.picture_as_pdf_rounded;
+    return Icons.description_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final meta = [
+      if (doc.category != null && doc.category!.isNotEmpty) doc.category!,
+      if (doc.sizeLabel.isNotEmpty) doc.sizeLabel,
+    ].join(' · ');
+
+    return PressableScale(
+      pressedScale: 0.99,
+      child: GestureDetector(
+        onTap: onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(_icon, size: 19, color: AppColors.primaryGreen),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      doc.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.subtitle.copyWith(
+                          color: palette.textPrimary, fontSize: 14.5),
+                    ),
+                    if (meta.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        meta,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (canRemove)
+                IconButton(
+                  onPressed: onRemove,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Remove from vault',
+                  icon: Icon(Icons.remove_circle_outline_rounded,
+                      size: 19, color: palette.textSecondary),
+                )
+              else
+                Icon(Icons.chevron_right_rounded,
+                    size: 20, color: palette.textFaint),
             ],
           ),
         ),

@@ -22,6 +22,43 @@ export interface ShareData {
   message?: string;
 }
 
+// ---- View Once --------------------------------------------------------------
+
+export type ViewOnceStatus = "ready" | "viewed" | "expired" | "revoked" | "not_found" | "error";
+
+export interface ViewOncePeek {
+  status: ViewOnceStatus;
+  name: string;
+  type: string;
+  expiresAt: string | null;
+  message?: string;
+}
+
+/**
+ * NON-CONSUMING status check for a one-time link. Rendering the page must never
+ * burn the share - only the recipient pressing "Open once" does (which POSTs to
+ * `/api/v/<token>/claim`). That keeps chat-app link-preview crawlers, refreshes
+ * and accidental taps from destroying it.
+ */
+export async function peekViewOnce(token: string): Promise<ViewOncePeek> {
+  try {
+    const res = await fetch(`${FUNCTIONS_URL}/share/v/${encodeURIComponent(token)}?format=json`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const json = await res.json();
+    return {
+      status: (json.status ?? "error") as ViewOnceStatus,
+      name: json.name ?? "Document",
+      type: json.type ?? "Document",
+      expiresAt: json.expiresAt ?? null,
+      message: json.message,
+    };
+  } catch {
+    return { status: "error", name: "Document", type: "Document", expiresAt: null };
+  }
+}
+
 /** Fetches share metadata (JSON) from the Edge Function, server-side. */
 export async function fetchShare(token: string): Promise<ShareData> {
   try {

@@ -3,6 +3,7 @@ package com.example.inoapp
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -11,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 // plugin - its BiometricPrompt needs a FragmentActivity host.
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "ino/biometric"
+    private val secureChannelName = "ino/secure_screen"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -24,6 +26,45 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // Screenshot / screen-recording protection for sensitive screens (the
+        // view-once document viewer). FLAG_SECURE is enforced by the OS: the
+        // system refuses to screenshot the window, blanks it in screen
+        // recordings and in the recents thumbnail, and blocks mirroring to
+        // non-secure displays.
+        //
+        // Scoped, not global: it is switched on only while such a screen is up,
+        // so nothing about the rest of the app changes.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, secureChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "enable" -> {
+                        setSecure(true)
+                        result.success(true)
+                    }
+                    "disable" -> {
+                        setSecure(false)
+                        result.success(true)
+                    }
+                    // Android has no "is being captured" query - FLAG_SECURE
+                    // already blanks any capture, so there is nothing to report.
+                    "isCaptured" -> result.success(false)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /// Adds or clears FLAG_SECURE. Window flags must be touched on the UI
+    /// thread; MethodChannel handlers already run there, but runOnUiThread keeps
+    /// it correct if that ever changes.
+    private fun setSecure(secure: Boolean) {
+        runOnUiThread {
+            if (secure) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
     }
 
     /// Opens the OS biometric-enrollment screen so the user can register a

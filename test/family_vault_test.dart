@@ -1,8 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/data/family_vault_repository.dart';
 import 'package:inoapp/models/family_vault_models.dart';
 import 'package:inoapp/services/family_vault_store.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show RealtimeChannel;
+import 'package:supabase_flutter/supabase_flutter.dart' show RealtimeChannel, PostgrestException;
 
 /// An in-memory fake so the store's logic is testable without Supabase.
 class _FakeVaultRepo implements FamilyVaultRepository {
@@ -95,6 +97,80 @@ class _FakeVaultRepo implements FamilyVaultRepository {
   @override
   Future<List<VaultAuditEntry>> auditLog(String vaultId, {int limit = 50}) async =>
       const [];
+
+  // ---- Shared documents ----------------------------------------------------
+  //
+  // Modelled closely enough to exercise the access rules: `documents` returns
+  // only what the caller may see, and `shareDocument` refuses a viewer - the
+  // same two decisions the server makes via RLS and is_vault_editor().
+
+  final Map<String, List<VaultDocument>> docsByVault = {};
+
+  /// Set to simulate the caller having been removed from the vault: reads come
+  /// back empty and writes are refused, exactly as RLS would behave.
+  final Set<String> revokedVaults = {};
+
+  @override
+  Future<List<VaultDocument>> documents(String vaultId) async {
+    if (revokedVaults.contains(vaultId)) return const [];
+    return List.of(docsByVault[vaultId] ?? const []);
+  }
+
+  @override
+  Future<VaultDocument> shareDocument({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceId,
+    String? note,
+  }) async {
+    if (revokedVaults.contains(vaultId)) {
+      throw Exception('not a member');
+    }
+    final role = vaults
+        .where((v) => v.vault.id == vaultId)
+        .map((v) => v.myRole)
+        .firstOrNull;
+    if (role == null || !role.canEditDocuments) {
+      throw Exception('insufficient role');
+    }
+    final doc = VaultDocument(
+      id: 'd${_seq++}',
+      vaultId: vaultId,
+      sharedBy: 'me',
+      objectPath: objectPath,
+      name: name,
+      category: category,
+      sizeBytes: sizeBytes,
+      createdAt: DateTime(2026, 7, 29),
+    );
+    (docsByVault[vaultId] ??= []).insert(0, doc);
+    return doc;
+  }
+
+  @override
+  Future<void> removeDocument(String documentId) async {
+    for (final list in docsByVault.values) {
+      list.removeWhere((d) => d.id == documentId);
+    }
+  }
+
+  @override
+  Future<String> documentUrl(VaultDocument doc,
+      {int expiresInSeconds = 900}) async {
+    if (revokedVaults.contains(doc.vaultId)) throw Exception('403');
+    return 'https://example.test/${doc.objectPath}';
+  }
+
+  @override
+  Future<Uint8List> downloadDocument(VaultDocument doc) async {
+    if (revokedVaults.contains(doc.vaultId)) throw Exception('403');
+    return Uint8List.fromList(const [1, 2, 3]);
+  }
 
   // Realtime is a no-op in tests (no live backend).
   @override
@@ -430,6 +506,194 @@ void main() {
     test('unknown action falls back to a readable default', () {
       expect(entry('some_new_action', actor: 'Ravi').summary,
           contains('some new action'));
+    });
+  });
+
+  group('shared documents — access rules', () {
+    late _FakeVaultRepo repo;
+
+    setUp(() {
+      repo = _FakeVaultRepo();
+      FamilyVaultRepository.instance = repo;
+    });
+
+    VaultSummary vaultAs(VaultRole role, {String id = 'v1'}) => VaultSummary(
+          vault: FamilyVault(
+            id: id,
+            name: 'Family',
+            ownerAuthUserId: 'owner',
+            createdAt: DateTime(2026, 7, 28),
+          ),
+          myRole: role,
+        );
+
+    test('a viewer can see shared documents', () async {
+      repo.vaults.add(vaultAs(VaultRole.viewer));
+      repo.docsByVault['v1'] = [
+        VaultDocument(
+          id: 'd1',
+          vaultId: 'v1',
+          sharedBy: 'owner',
+          objectPath: 'owner/passport.pdf',
+          name: 'Passport',
+          createdAt: DateTime(2026, 7, 29),
+        ),
+      ];
+      final docs = await repo.documents('v1');
+      expect(docs, hasLength(1));
+      expect(docs.single.name, 'Passport');
+    });
+
+    test('a viewer cannot share documents in', () async {
+      repo.vaults.add(vaultAs(VaultRole.viewer));
+      expect(
+        () => repo.shareDocument(
+            vaultId: 'v1', objectPath: 'me/a.pdf', name: 'A'),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('an editor can share documents in', () async {
+      repo.vaults.add(vaultAs(VaultRole.editor));
+      final doc = await repo.shareDocument(
+          vaultId: 'v1', objectPath: 'me/a.pdf', name: 'A');
+      expect(doc.name, 'A');
+      expect(await repo.documents('v1'), hasLength(1));
+    });
+
+    test('removal revokes view AND download immediately', () async {
+      repo.vaults.add(vaultAs(VaultRole.editor));
+      final doc = await repo.shareDocument(
+          vaultId: 'v1', objectPath: 'me/a.pdf', name: 'A');
+      expect(await repo.documents('v1'), hasLength(1));
+      expect(await repo.downloadDocument(doc), isNotEmpty);
+
+      // The owner removes this member.
+      repo.revokedVaults.add('v1');
+
+      // Rule 2: nothing listed, and the bytes are refused - there is no cached
+      // grant and no still-valid URL, because access is re-checked per read.
+      expect(await repo.documents('v1'), isEmpty);
+      expect(() => repo.downloadDocument(doc), throwsA(isA<Exception>()));
+      expect(() => repo.documentUrl(doc), throwsA(isA<Exception>()));
+    });
+
+    test('an editor may withdraw only their own contribution', () {
+      final mine = VaultDocument(
+        id: 'd1',
+        vaultId: 'v1',
+        sharedBy: 'me',
+        objectPath: 'me/a.pdf',
+        name: 'A',
+        createdAt: DateTime(2026, 7, 29),
+      );
+      final theirs = VaultDocument(
+        id: 'd2',
+        vaultId: 'v1',
+        sharedBy: 'someone-else',
+        objectPath: 'other/b.pdf',
+        name: 'B',
+        createdAt: DateTime(2026, 7, 29),
+      );
+
+      expect(mine.canBeRemovedBy('me', VaultRole.editor), isTrue);
+      expect(theirs.canBeRemovedBy('me', VaultRole.editor), isFalse);
+      // Admins and the owner may remove anything.
+      expect(theirs.canBeRemovedBy('me', VaultRole.admin), isTrue);
+      expect(theirs.canBeRemovedBy('me', VaultRole.owner), isTrue);
+    });
+
+    test('file type is derived from the stored object path', () {
+      VaultDocument doc(String path) => VaultDocument(
+            id: 'd',
+            vaultId: 'v1',
+            sharedBy: 'me',
+            objectPath: path,
+            name: 'Doc',
+            createdAt: DateTime(2026, 7, 29),
+          );
+      expect(doc('u/x.PDF').isPdf, isTrue);
+      expect(doc('u/x.jpg').isImage, isTrue);
+      expect(doc('u/x.docx').isImage, isFalse);
+      expect(doc('u/noext').extension, '');
+    });
+  });
+
+  group('describeVaultError — says what actually went wrong', () {
+    // The first version reported "you may no longer have permission" for every
+    // failure. An Owner hit it because the migration had not been applied and
+    // went looking for a permissions problem that did not exist. Each cause
+    // must now be distinguishable.
+
+    test('a missing RPC points at the unapplied migration', () {
+      final e = PostgrestException(
+        message: 'Could not find the function public.share_document_to_vault',
+        code: 'PGRST202',
+      );
+      final msg = describeVaultError(e);
+      expect(msg.toLowerCase(), contains('migration'));
+      // It must also name the stale-cache case: the function can exist and
+      // still be invisible to PostgREST.
+      expect(msg.toLowerCase(), contains('schema cache'));
+      expect(msg.toLowerCase(), isNot(contains('permission')));
+    });
+
+    test('a real permission denial says permission', () {
+      final e = PostgrestException(
+        message: 'Only editors and above can share documents into this vault',
+        code: '42501',
+      );
+      expect(describeVaultError(e).toLowerCase(), contains('editor'));
+    });
+
+    test('a duplicate says it is already there', () {
+      final e = PostgrestException(
+        message: 'duplicate key value violates unique constraint',
+        code: '23505',
+      );
+      expect(describeVaultError(e).toLowerCase(), contains('already'));
+    });
+
+    test('a generic "does not exist" is NOT reported as a missing migration', () {
+      // The matcher used to catch any message containing "does not exist",
+      // which is half of Postgres' vocabulary - a missing column, a bad cast, a
+      // missing relation. Every one of them was reported as an unapplied
+      // migration, masking the real fault.
+      final e = PostgrestException(
+        message: 'column "foo" does not exist',
+        code: '42703',
+      );
+      final msg = describeVaultError(e);
+      expect(msg.toLowerCase(), isNot(contains('migration')));
+      expect(msg, contains('42703'));
+      expect(msg, contains('foo'));
+    });
+
+    test('details and hint are surfaced when present', () {
+      final e = PostgrestException(
+        message: 'boom',
+        code: 'XX000',
+        details: 'some detail',
+        hint: 'try this instead',
+      );
+      final msg = describeVaultError(e);
+      expect(msg, contains('some detail'));
+      expect(msg, contains('try this instead'));
+    });
+
+    test('an unrecognised database error surfaces its code and message', () {
+      final e = PostgrestException(message: 'boom', code: 'XX000');
+      final msg = describeVaultError(e);
+      // Quotable rather than invented — an unexplained failure the user can
+      // report beats a confident wrong guess.
+      expect(msg, contains('XX000'));
+      expect(msg, contains('boom'));
+    });
+
+    test('an offline failure says offline', () {
+      final msg = describeVaultError(
+          Exception('SocketException: Failed host lookup'));
+      expect(msg.toLowerCase(), contains('connection'));
     });
   });
 }
