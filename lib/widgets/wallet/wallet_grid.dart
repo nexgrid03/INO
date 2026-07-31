@@ -7,7 +7,6 @@ import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/shiny_border.dart';
-import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
@@ -203,19 +202,17 @@ class _WalletCard extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    // Classic: a soft, light wash of the card's own accent - premium and airy.
-    // Bold: the accent that used to sit on the icon chip floods the whole card
-    // (run deeper), texts flip white. Soft: an even lighter wash, glass chip.
+    // Divine Glass classic/soft: white glass card - the accent lives only on
+    // the icon chip and the whisper blob. Bold keeps its flooded-card look.
     final fill = bold
         ? InoStyle.boldFill(accent)
-        : Color.alphaBlend(
-            accent.withValues(
-              alpha: palette.isDark ? 0.18 : (soft ? 0.07 : 0.10),
-            ),
-            palette.surface,
-          );
-    // Soft keeps the classic accent edge - the glass sheen comes from the
-    // ShinyBorder overlay below.
+        : (palette.isDark
+              ? Color.alphaBlend(
+                  accent.withValues(alpha: 0.10),
+                  palette.surface,
+                )
+              : palette.surface);
+    // Hairline glass edge in classic/soft; bold keeps its heavier accent edge.
     final edge = bold ? InoStyle.boldBorder(accent) : accent;
     final titleColor = bold ? Colors.white : palette.textPrimary;
     final metricColor = bold
@@ -237,19 +234,21 @@ class _WalletCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: fill,
               borderRadius: BorderRadius.circular(20),
-              // Divine Glass: a soft accent hairline in classic/soft; bold
+              // Divine Glass: a pale glass hairline in classic/soft; bold
               // keeps its heavier flooded-card edge.
               border: Border.all(
-                color: bold ? edge : edge.withValues(alpha: 0.40),
-                width: bold ? 2.5 : 1.3,
+                color: bold ? edge : palette.border,
+                width: bold ? 2.5 : 1.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: bold ? 0.24 : 0.12),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              boxShadow: bold
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.24),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : palette.cardShadow,
             ),
             child: Stack(
               children: [
@@ -272,7 +271,7 @@ class _WalletCard extends StatelessWidget {
                                   // vanishes - drift soft light instead.
                                   color: bold ? Colors.white : accent,
                                   size: 92,
-                                  opacity: 0.20,
+                                  opacity: bold ? 0.20 : 0.10,
                                 ),
                               ),
                               Positioned(
@@ -281,7 +280,7 @@ class _WalletCard extends StatelessWidget {
                                 child: _Blob(
                                   color: bold ? Colors.white : accent,
                                   size: 64,
-                                  opacity: 0.12,
+                                  opacity: bold ? 0.12 : 0.06,
                                 ),
                               ),
                             ],
@@ -317,12 +316,23 @@ class _WalletCard extends StatelessWidget {
                                       size: 30,
                                     ),
                                   )
-                                : ShinyIcon(
-                                    icon: category.icon,
-                                    color: accent,
-                                    size: 38,
-                                    iconSize: 20,
-                                    radius: 12,
+                                : Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: accent.withValues(
+                                        alpha: palette.isDark ? 0.22 : 0.14,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: accent.withValues(alpha: 0.25),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      category.icon,
+                                      color: accent,
+                                      size: 20,
+                                    ),
                                   ),
                             const Spacer(),
                             Icon(
