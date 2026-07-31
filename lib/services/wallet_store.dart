@@ -22,11 +22,11 @@ IconData walletIconFor(String key) => categoryIconFor(key);
 /// the same family of light, premium accents the built-in wallet cards wear
 /// (see `WalletGrid._accents`) so a custom wallet never looks bolted on.
 const List<int> kWalletAccentValues = [
-  0xFF2FB6A6, // teal
+  0xFF14B8A6, // teal
   0xFF4383EA, // blue
   0xFF9B6DE0, // purple
   0xFFF5704A, // coral
-  0xFF37C08A, // green
+  0xFF10B981, // green
   0xFFF2B33D, // amber
   0xFF4E7FE0, // indigo-blue
   0xFF0EA5E9, // brand teal
@@ -35,7 +35,7 @@ const List<int> kWalletAccentValues = [
 ];
 
 const String _kDefaultIconKey = 'folder';
-const int _kDefaultAccent = 0xFF2FB6A6;
+const int _kDefaultAccent = 0xFF14B8A6;
 
 /// A user-created wallet - a vault bucket alongside the eight built-in ones.
 ///

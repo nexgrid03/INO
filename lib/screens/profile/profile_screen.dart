@@ -59,13 +59,13 @@ class _RowAccent {
   _RowAccent._();
 
   static const teal = Color(0xFF0EA5E9);
-  static const cyan = Color(0xFF22B8CF);
+  static const cyan = Color(0xFF06B6D4);
   static const blue = Color(0xFF4383EA);
   static const indigo = Color(0xFF4E7FE0);
   static const violet = Color(0xFF7C6CF0);
   static const purple = Color(0xFF9B6DE0);
-  static const seafoam = Color(0xFF3CB59E);
-  static const green = Color(0xFF37C08A);
+  static const seafoam = Color(0xFF14B8A6);
+  static const green = Color(0xFF10B981);
   static const emerald = Color(0xFF22C55E);
   static const amber = Color(0xFFF2B33D);
   static const coral = Color(0xFFF5704A);

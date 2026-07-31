@@ -91,7 +91,7 @@ class WalletGrid extends StatefulWidget {
     'Property Wallet': Color(0xFF9B6DE0), // purple (swapped with Health)
     'Insurance Wallet': Color(0xFFF5704A), // coral (swapped with Investment)
     'Health Wallet': Color(0xFF22C55E), // mint green (swapped with Property)
-    'Investment Wallet': Color(0xFF37C08A), // green (swapped with Insurance)
+    'Investment Wallet': Color(0xFF10B981), // green (swapped with Insurance)
     'Banking Wallet': Color(0xFF4E7FE0), // blue
     'Password Vault': Color(0xFFF2B33D), // amber
   };

@@ -63,8 +63,8 @@ class CardSkin {
 const List<CardSkin> kCardSkins = [
   CardSkin('ocean', 'Ocean', Color(0xFF3B9BE8), Color(0xFF2F6FD0)),
   CardSkin('midnight', 'Midnight', Color(0xFF1E2A44), Color(0xFF16233C)),
-  CardSkin('emerald', 'Emerald', Color(0xFF3FBE86), Color(0xFF2E9E9B)),
-  CardSkin('teal', 'Teal', Color(0xFF0EA5E9), Color(0xFF1E7F92)),
+  CardSkin('emerald', 'Emerald', Color(0xFF3FBE86), Color(0xFF0D9488)),
+  CardSkin('teal', 'Teal', Color(0xFF0EA5E9), Color(0xFF0E7490)),
   CardSkin('violet', 'Violet', Color(0xFF8B6BE2), Color(0xFF5F46B8)),
   CardSkin('sunset', 'Sunset', Color(0xFFF5804A), Color(0xFFE05563)),
   CardSkin('graphite', 'Graphite', Color(0xFF5A6675), Color(0xFF36404E)),

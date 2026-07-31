@@ -65,9 +65,9 @@ class NetWorthService {
 
   // Current allocation snapshot (₹). Sums to the total net worth.
   static const List<AssetAllocation> _allocations = [
-    AssetAllocation(label: 'Investments', value: 4860000, color: Color(0xFF1B9C85)),
+    AssetAllocation(label: 'Investments', value: 4860000, color: Color(0xFF059669)),
     AssetAllocation(label: 'Property', value: 5200000, color: Color(0xFF8B6CEF)),
-    AssetAllocation(label: 'Bank & Cash', value: 1450000, color: Color(0xFF4FC3F7)),
+    AssetAllocation(label: 'Bank & Cash', value: 1450000, color: Color(0xFF38BDF8)),
     AssetAllocation(label: 'Gold', value: 760000, color: Color(0xFFE0A100)),
     AssetAllocation(label: 'Digital Assets', value: 130000, color: AppColors.secondaryGreen),
   ];

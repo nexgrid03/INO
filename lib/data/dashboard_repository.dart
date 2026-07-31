@@ -361,8 +361,8 @@ class SampleDashboardRepository implements DashboardRepository {
       growth: [38, 39, 40.5, 41, 43, 44.2, 46, 47.1, 48.6],
       allocations: [
         AssetAllocation(
-            label: 'Mutual Funds', value: 1850000, color: Color(0xFF1B9C85)),
-        AssetAllocation(label: 'Stocks', value: 1120000, color: Color(0xFF4FC3F7)),
+            label: 'Mutual Funds', value: 1850000, color: Color(0xFF059669)),
+        AssetAllocation(label: 'Stocks', value: 1120000, color: Color(0xFF38BDF8)),
         AssetAllocation(label: 'Gold', value: 760000, color: Color(0xFFE0A100)),
         AssetAllocation(label: 'Land', value: 820000, color: Color(0xFF8B6CEF)),
         AssetAllocation(label: 'Savings', value: 310000, color: Color(0xFF0EA5E9)),

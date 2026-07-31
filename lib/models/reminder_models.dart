@@ -160,11 +160,11 @@ extension ReminderCategoryX on ReminderCategory {
       case ReminderCategory.insurance:
         return const Color(0xFFF2B33D); // amber - protection/renewal
       case ReminderCategory.health:
-        return const Color(0xFF22B8CF); // cyan
+        return const Color(0xFF06B6D4); // cyan
       case ReminderCategory.property:
         return const Color(0xFF9B6DE0); // purple
       case ReminderCategory.investments:
-        return const Color(0xFF37C08A); // green - growth
+        return const Color(0xFF10B981); // green - growth
       case ReminderCategory.birthdays:
         return const Color(0xFFF5704A); // coral
       case ReminderCategory.anniversaries:

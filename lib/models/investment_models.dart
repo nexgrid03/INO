@@ -73,7 +73,7 @@ extension InvestmentTypeX on InvestmentType {
         InvestmentType.fixedDeposit => const Color(0xFF64748B),
         InvestmentType.gold => AppColors.gold,
         InvestmentType.crypto => const Color(0xFFF5704A),
-        InvestmentType.ppf => const Color(0xFF37C08A),
+        InvestmentType.ppf => const Color(0xFF10B981),
         InvestmentType.nps => const Color(0xFF0891B2),
         InvestmentType.sip => const Color(0xFF7DD3FC),
         InvestmentType.realEstate => const Color(0xFFB45309),

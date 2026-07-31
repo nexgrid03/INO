@@ -471,7 +471,7 @@ class _QuickActionsRow extends StatelessWidget {
       QuickActionButton(
         icon: Icons.offline_pin_rounded,
         label: 'Offline',
-        color: const Color(0xFF3CB59E), // seafoam - always available
+        color: const Color(0xFF14B8A6), // seafoam - always available
         onTap: onOffline,
       ),
     ];
@@ -540,13 +540,13 @@ class _SixFinanceTools extends StatelessWidget {
       _ToolTile(
         title: l10n.t('unitConv'),
         icon: Icons.swap_horiz_rounded,
-        color: const Color(0xFF22B8CF), // cyan
+        color: const Color(0xFF06B6D4), // cyan
         onTap: onOpenUnitConv,
       ),
       _ToolTile(
         title: l10n.t('taxCalc'),
         icon: Icons.receipt_long_rounded,
-        color: const Color(0xFF37C08A), // green
+        color: const Color(0xFF10B981), // green
         onTap: onOpenTax,
       ),
     ];
