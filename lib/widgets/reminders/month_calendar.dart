@@ -6,8 +6,9 @@ import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
 /// A compact monthly calendar. Days with reminders show an accent dot, today is
-/// ringed, and the selected day is a gradient pill. Month navigation is driven
-/// by [onPrev] / [onNext]; day selection by [onSelectDay].
+/// ringed, and the selected day sits in a soft mist circle with a brand
+/// hairline. Month navigation is driven by [onPrev] / [onNext]; day selection
+/// by [onSelectDay].
 class MonthCalendar extends StatelessWidget {
   const MonthCalendar({
     super.key,
@@ -133,11 +134,9 @@ class _DayCell extends StatelessWidget {
     final palette = AppPalette.of(context);
     if (day == null) return const SizedBox(height: 34);
 
-    final Color textColor = isSelected
-        ? Colors.white
-        : isToday
-            ? AppColors.primaryGreen
-            : palette.textPrimary;
+    final Color textColor = isSelected || isToday
+        ? AppColors.primaryGreen
+        : palette.textPrimary;
 
     return GestureDetector(
       onTap: onTap,
@@ -149,9 +148,9 @@ class _DayCell extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              gradient: isSelected ? AppColors.brandGradient : null,
+              color: isSelected ? AppColors.tealMist : null,
               shape: BoxShape.circle,
-              border: isToday && !isSelected
+              border: isSelected || isToday
                   ? Border.all(color: AppColors.primaryGreen, width: 1.4)
                   : null,
             ),
@@ -175,7 +174,9 @@ class _DayCell extends StatelessWidget {
                       width: 5,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.white : AppColors.lightBlue,
+                        color: isSelected
+                            ? AppColors.primaryGreen
+                            : AppColors.lightBlue,
                         shape: BoxShape.circle,
                       ),
                     ),

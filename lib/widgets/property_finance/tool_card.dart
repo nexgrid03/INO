@@ -32,47 +32,30 @@ class ToolGridCard extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    final base = palette.surface;
     // Bold: the badge colour floods the whole card (run deeper) and the glyph
-    // stays put in plain white. Soft: an even lighter wash + glass badge.
+    // stays put in plain white. Classic/soft: a white Divine Glass card with a
+    // hairline border - the pastel colour lives in the icon chip alone.
     final gradient = bold
         ? LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [InoStyle.boldFill(color), InoStyle.deepen(color, 0.18)],
           )
-        : LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.alphaBlend(
-                color.withValues(alpha: soft ? 0.10 : 0.16),
-                base,
-              ),
-              Color.alphaBlend(
-                color.withValues(alpha: soft ? 0.03 : 0.04),
-                base,
-              ),
-            ],
-          );
-    // Soft keeps the classic accent edge - the glass sheen comes from the
-    // ShinyBorder overlay below.
-    final edge = bold ? InoStyle.boldBorder(color) : color;
+        : palette.cardGradient;
+    final edge = bold ? InoStyle.boldBorder(color) : palette.border;
 
     return PressableScale(
       pressedScale: 0.97,
-      // Soft: the classic accent border picks up a glass sheen.
+      // Soft: the hairline border picks up a glass sheen.
       child: ShinyBorder(
         radius: AppRadius.card,
-        width: 2.5,
+        width: 1,
         enabled: soft,
         child: Container(
           decoration: BoxDecoration(
             gradient: gradient,
             borderRadius: BorderRadius.circular(AppRadius.card),
-            // Thick, solid accent edge in the same colour as the filled icon
-            // badge - matching the tool tiles on the Home screen.
-            border: Border.all(color: edge, width: 2.5),
+            border: Border.all(color: edge, width: bold ? 2.5 : 1),
             boxShadow: palette.cardShadow,
           ),
           clipBehavior: Clip.antiAlias,
@@ -85,12 +68,12 @@ class ToolGridCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Bold keeps the glyph in the same 46px slot, plain white -
-                    // the card itself is now the coloured container, so the
-                    // glyph grows to fill the freed slot.
+                    // the card itself is now the coloured container. Classic
+                    // shows a pastel glass chip carrying the accent glyph.
                     bold
                         ? SizedBox(
                             width: 46,
@@ -101,17 +84,18 @@ class ToolGridCard extends StatelessWidget {
                             icon: icon,
                             color: color,
                             size: 46,
-                            iconSize: 26,
+                            iconSize: 24,
                             radius: AppRadius.chip,
-                            style: ShinyIconStyle.filled,
+                            style: ShinyIconStyle.glass,
                           ),
                     const SizedBox(height: AppSpacing.sm),
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
                           title,
                           maxLines: 1,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.subtitle.copyWith(
                             color: bold ? Colors.white : palette.textPrimary,
@@ -122,6 +106,7 @@ class ToolGridCard extends StatelessWidget {
                         Text(
                           subtitle,
                           maxLines: 2,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.caption.copyWith(
                             color: bold

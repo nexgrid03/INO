@@ -328,37 +328,39 @@ class ModuleEmptyState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
       child: Column(
         children: [
-          // Soft halo behind a gradient glyph - the same treatment the wallet
-          // detail empty state uses.
+          // Divine Glass: a white glass chip with a soft brand halo behind it.
           Container(
-            width: 96,
-            height: 96,
+            width: 116,
+            height: 116,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  accent.withValues(alpha: 0.24),
+                  accent.withValues(alpha: 0.16),
                   accent.withValues(alpha: 0),
                 ],
               ),
             ),
             alignment: Alignment.center,
             child: Container(
-              width: 62,
-              height: 62,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: InoStyle.gradient(context, AppColors.brandGradient),
-                boxShadow: AppShadows.glow(accent, opacity: 0.28),
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(
+                    color: AppColors.tealPale.withValues(alpha: 0.6)),
+                boxShadow: AppShadows.floating,
               ),
-              child: Icon(icon, color: Colors.white, size: 28),
+              child: Icon(icon, color: accent, size: 38),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: AppText.title.copyWith(color: palette.textPrimary),
+            style: AppText.headline
+                .copyWith(color: palette.textPrimary, fontSize: 20),
           ),
           const SizedBox(height: 6),
           Text(
@@ -413,7 +415,7 @@ class GradientButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           decoration: BoxDecoration(
             gradient: InoStyle.gradient(context, AppColors.brandGradient),
-            borderRadius: BorderRadius.circular(AppRadius.button),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
             boxShadow: enabled
                 ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.30)
                 : null,

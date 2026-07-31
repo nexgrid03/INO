@@ -161,12 +161,13 @@ class _OtpBoxState extends State<_OtpBox> {
       width: 48,
       height: 58,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        // Translucent glass box over the sky wash, pale-sky hairline at rest.
+        color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _focused || filled
               ? AppColors.primaryGreen
-              : const Color(0xFFE2E8F0),
+              : AppColors.tealPale,
           width: _focused ? 1.8 : 1.2,
         ),
         boxShadow: _focused
@@ -193,7 +194,8 @@ class _OtpBoxState extends State<_OtpBox> {
           maxLength: 6,
           showCursor: true,
           style: const TextStyle(
-            color: AppColors.textDark,
+            // Divine Glass mockup renders the entered digits in brand blue.
+            color: AppColors.primaryGreen,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),

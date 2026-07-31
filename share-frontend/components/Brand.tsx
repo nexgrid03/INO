@@ -1,9 +1,13 @@
-// Presentational, dual-use (server or client). The INO gradient header.
+import { ShieldIcon } from "./icons";
+
+// Presentational, dual-use (server or client). The INO glass header.
 export default function Brand() {
   return (
     <header className="brand">
       <div className="brand-in">
-        <div className="logo">I</div>
+        <div className="logo">
+          <ShieldIcon />
+        </div>
         <div>
           <b>INO</b>
           <span>Secure document share</span>

@@ -430,94 +430,118 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.internal),
       decoration: BoxDecoration(
-        gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        gradient: palette.cardGradient,
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                  child: _stat(l10n.t('totalTransactions'), '$count',
-                      Icons.receipt_long_rounded)),
-              Container(
-                  width: 1,
-                  height: 42,
-                  color: Colors.white.withValues(alpha: 0.25)),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.md),
-                  child: _stat(l10n.t('totalAmount'), rupees(amount.round()),
-                      Icons.account_balance_wallet_rounded),
-                ),
-              ),
-            ],
+          Text(
+            l10n.t('totalAmount'),
+            style: AppText.caption.copyWith(
+              color: palette.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Container(
-                height: 1, color: Colors.white.withValues(alpha: 0.25)),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              rupees(amount.round()),
+              style: AppText.bigNumber
+                  .copyWith(color: palette.textPrimary, fontSize: 32),
+            ),
           ),
-          Row(
-            children: [
-              Expanded(
-                  child: _stat(l10n.t('totalCredited'),
-                      rupees(credited.round()), Icons.south_west_rounded,
-                      fontSize: 19)),
-              Container(
-                  width: 1,
-                  height: 34,
-                  color: Colors.white.withValues(alpha: 0.25)),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.md),
-                  child: _stat(l10n.t('totalDebited'), rupees(debited.round()),
-                      Icons.north_east_rounded,
-                      fontSize: 19),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.receipt_long_rounded,
+                    size: 13, color: AppColors.primaryGreen),
+                const SizedBox(width: 5),
+                Text(
+                  '$count · ${l10n.t('totalTransactions')} · FY $yearLabel',
+                  style: AppText.label.copyWith(
+                      color: AppColors.primaryGreen, fontSize: 11.5),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: palette.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _stat(
+                    context,
+                    l10n.t('totalCredited'),
+                    rupees(credited.round()),
+                    Icons.south_west_rounded,
+                    AppColors.positive,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Container(width: 1, height: 34, color: palette.border),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _stat(
+                    context,
+                    l10n.t('totalDebited'),
+                    rupees(debited.round()),
+                    Icons.north_east_rounded,
+                    AppColors.negative,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _stat(String label, String value, IconData icon,
-      {double fontSize = 24}) {
+  Widget _stat(BuildContext context, String label, String value, IconData icon,
+      Color accent) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
+          Icon(icon, color: accent, size: 14),
+          const SizedBox(width: 5),
           Expanded(
             child: Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.caption
-                    .copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                style: AppText.caption.copyWith(
+                    color: palette.textSecondary, fontSize: 11.5)),
           ),
         ]),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(value,
-              style: AppText.bigNumber
-                  .copyWith(color: Colors.white, fontSize: fontSize)),
+              style: AppText.title
+                  .copyWith(color: palette.textPrimary, fontSize: 17)),
         ),
       ],
     );
@@ -539,20 +563,29 @@ class _ActionChip extends StatelessWidget {
       pressedScale: 0.97,
       child: Material(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
+        borderRadius: BorderRadius.circular(AppRadius.chip + 2),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Container(
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
+              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
               border: Border.all(color: palette.border),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 18, color: AppColors.primaryGreen),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child:
+                      Icon(icon, size: 17, color: AppColors.primaryGreen),
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(label,

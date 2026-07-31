@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ClockIcon } from "./icons";
 
 /** Live "Expires in …" pill; reloads the page when the share lapses so the
  *  server re-renders the expired state. */
@@ -33,5 +34,9 @@ export default function ExpiryPill({ expiresAt }: { expiresAt: string | null }) 
   }, [expiresAt]);
 
   if (!expiresAt) return null;
-  return <span className="pill">⏳ {label}</span>;
+  return (
+    <span className="pill">
+      <ClockIcon /> {label}
+    </span>
+  );
 }

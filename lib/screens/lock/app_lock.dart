@@ -126,27 +126,27 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
 /// The full-screen lock overlay, styled after the vault security-lock design:
 /// a secure-link header, display headline, a tappable concentric biometric
 /// hero (glass ring + gradient disc) and an "Unlock" [PrimaryButton] that
-/// re-invokes the biometric prompt. The surface deliberately commits to the
-/// dark palette in both themes - the standard banking-app lock treatment.
+/// re-invokes the biometric prompt. The surface commits to the Divine Glass
+/// light sky wash in both themes so the lock reads as part of the brand.
 class _LockScreen extends StatelessWidget {
   const _LockScreen({required this.authenticating, required this.onUnlock});
 
   final bool authenticating;
   final VoidCallback onUnlock;
 
-  /// The lock surface is always dark, whatever the ambient theme.
-  static const AppPalette _palette = AppPalette.dark;
+  /// The lock surface always uses the light Divine Glass palette.
+  static const AppPalette _palette = AppPalette.light;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: _palette.bg,
       child: DecoratedBox(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_palette.bgElevated, _palette.bg],
+            colors: [Color(0xFFF8FCFF), AppColors.background],
           ),
         ),
         child: SafeArea(
@@ -165,7 +165,7 @@ class _LockScreen extends StatelessWidget {
                         'INO is locked',
                         textAlign: TextAlign.center,
                         style: AppText.display.copyWith(
-                          color: Colors.white,
+                          color: _palette.textPrimary,
                           fontSize: 32,
                         ),
                       ),
@@ -174,7 +174,7 @@ class _LockScreen extends StatelessWidget {
                         'Unlock with your fingerprint or Face ID to\naccess your vault.',
                         textAlign: TextAlign.center,
                         style: AppText.body.copyWith(
-                          color: Colors.white.withValues(alpha: 0.66),
+                          color: _palette.textSecondary,
                           fontSize: 14.5,
                           height: 1.5,
                         ),
@@ -225,7 +225,7 @@ class _SecureHeader extends StatelessWidget {
         Text(
           'INO',
           style: AppText.headline.copyWith(
-            color: Colors.white,
+            color: _LockScreen._palette.textPrimary,
             letterSpacing: 1.2,
           ),
         ),
@@ -236,9 +236,10 @@ class _SecureHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: _LockScreen._palette.border),
+            boxShadow: AppShadows.card,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -261,7 +262,7 @@ class _SecureHeader extends StatelessWidget {
               Text(
                 'SECURE LINK',
                 style: AppText.label.copyWith(
-                  color: Colors.white.withValues(alpha: 0.75),
+                  color: _LockScreen._palette.textSecondary,
                   fontSize: 11,
                   letterSpacing: 1.2,
                 ),
@@ -293,8 +294,9 @@ class _BiometricHero extends StatelessWidget {
           height: 176,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.04),
-            border: Border.all(color: _LockScreen._palette.border),
+            color: Colors.white,
+            border: Border.all(color: AppColors.tealPale),
+            boxShadow: AppShadows.card,
           ),
           child: Center(
             child: Container(
@@ -330,7 +332,7 @@ class _EncryptionDivider extends StatelessWidget {
     final line = Container(
       width: 44,
       height: 1,
-      color: Colors.white.withValues(alpha: 0.18),
+      color: AppColors.tealPale,
     );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -340,7 +342,7 @@ class _EncryptionDivider extends StatelessWidget {
         Text(
           'VERIFIED ENCRYPTION',
           style: AppText.label.copyWith(
-            color: Colors.white.withValues(alpha: 0.35),
+            color: AppColors.textMuted,
             fontSize: 11,
             letterSpacing: 2,
           ),

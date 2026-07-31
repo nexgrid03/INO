@@ -77,7 +77,7 @@ class WalletGrid extends StatefulWidget {
   static const double _cardHeight = 122;
 
   /// Fallback accent for any wallet not in [_accents].
-  static const Color uniformAccent = Color(0xFF5FCBBF);
+  static const Color uniformAccent = Color(0xFF0EA5E9);
 
   /// Each wallet wears its own light pastel accent. The accent drives the whole
   /// card - the soft fill wash, the border, the drifting blob and the icon -
@@ -86,11 +86,11 @@ class WalletGrid extends StatefulWidget {
   /// Investment Wallet deliberately uses the Home page's "Reminders Today"
   /// coral (0xFFF5704A) - no pink.
   static const Map<String, Color> _accents = {
-    'Identity Wallet': Color(0xFF2FB6A6), // teal
+    'Identity Wallet': Color(0xFF0EA5E9), // brand sky blue
     'Document Wallet': Color(0xFF4383EA), // blue
     'Property Wallet': Color(0xFF9B6DE0), // purple (swapped with Health)
     'Insurance Wallet': Color(0xFFF5704A), // coral (swapped with Investment)
-    'Health Wallet': Color(0xFF3CB59E), // teal-green (swapped with Property)
+    'Health Wallet': Color(0xFF22C55E), // mint green (swapped with Property)
     'Investment Wallet': Color(0xFF37C08A), // green (swapped with Insurance)
     'Banking Wallet': Color(0xFF4E7FE0), // blue
     'Password Vault': Color(0xFFF2B33D), // amber
@@ -237,10 +237,12 @@ class _WalletCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: fill,
               borderRadius: BorderRadius.circular(20),
-              // A thick, solid accent edge - the same treatment the Home
-              // screen's Today's Overview tiles carry, so the card reads as one
-              // coloured object rather than a pastel wash with a hairline.
-              border: Border.all(color: edge, width: 2.5),
+              // Divine Glass: a soft accent hairline in classic/soft; bold
+              // keeps its heavier flooded-card edge.
+              border: Border.all(
+                color: bold ? edge : edge.withValues(alpha: 0.40),
+                width: bold ? 2.5 : 1.3,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: accent.withValues(alpha: bold ? 0.24 : 0.12),

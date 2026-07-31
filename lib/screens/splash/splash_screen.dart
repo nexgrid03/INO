@@ -126,15 +126,15 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  /// Rama Blue backdrop - a soft top-lit teal mist, never plain white.
+  /// Divine Glass backdrop - a soft top-lit sky-blue wash, never plain white.
   static const BoxDecoration _ramaBackground = BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        Color(0xFFF8FFFF), // airy near-white sky
-        Color(0xFFEAF9F9), // soft teal mist
-        Color(0xFFDFF8F8), // gentle teal base
+        Color(0xFFF8FCFF), // airy near-white sky
+        AppColors.tealFoam, // sky foam
+        AppColors.background, // gentle sky-wash base
       ],
       stops: [0.0, 0.5, 1.0],
     ),
@@ -153,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen>
         .toDouble();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FFFF),
+      backgroundColor: const Color(0xFFF8FCFF),
       body: DecoratedBox(
         decoration: _ramaBackground,
         child: Stack(
@@ -232,7 +232,7 @@ class _SplashScreenState extends State<SplashScreen>
                               'YOUR ASSISTANT. SIMPLE LIFE.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: const Color(0xFF303030),
+                                color: AppColors.textMuted,
                                 fontSize: taglineSize,
                                 fontWeight: FontWeight.w500,
                                 letterSpacing: 3.2,

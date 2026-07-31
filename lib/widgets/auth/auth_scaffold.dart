@@ -76,6 +76,27 @@ class _AuthScaffoldState extends State<AuthScaffold>
       backgroundColor: palette.bg,
       body: Stack(
         children: [
+          // Divine Glass sky wash - a soft vertical gradient from mist into a
+          // pale sky-blue so every auth screen floats on the same ethereal
+          // backdrop (light mode only; dark keeps its deep palette bg).
+          if (!palette.isDark)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.tealMist,
+                        AppColors.tealFoam,
+                        AppColors.tealPale,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // Ambient corner glows - a cyan wash bleeding in from the top-left
           // and a teal wash from the bottom-right, both fading into the
           // scaffold background. Works over the light AND dark palettes.

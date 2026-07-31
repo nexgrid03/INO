@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
 import ExpiryPill from "@/components/ExpiryPill";
+import { EyeIcon, LockIcon, ShieldIcon } from "@/components/icons";
 
 // pdf.js / zoom libs are heavy - load the renderer client-only, on demand.
 const OneTimeDoc = dynamic(() => import("./OneTimeDoc"), {
@@ -105,13 +106,15 @@ export default function ViewOnceView({
       <>
         <Brand />
         <div className="state">
-          <div className="circle" style={{ background: "rgba(239,83,80,0.15)" }}>
-            👁️
+          <div className="circle" style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}>
+            <EyeIcon />
           </div>
           <h2>This document has already been viewed</h2>
           <p>{error}</p>
         </div>
-        <div className="foot">🔒 One-time secure view via INO</div>
+        <div className="foot">
+          <LockIcon /> One-time secure view via INO
+        </div>
       </>
     );
   }
@@ -122,10 +125,14 @@ export default function ViewOnceView({
       <div className="single vo-noselect">
         <div className="topstrip">
           <div className="row">
-            <div className="logo-sm">I</div>
+            <div className="logo-sm">
+              <ShieldIcon />
+            </div>
             <b>INO</b>
             <div className="spacer" />
-            <span className="pill">👁️ Viewed once</span>
+            <span className="pill">
+              <EyeIcon /> Viewed once
+            </span>
           </div>
         </div>
         <OneTimeDoc
@@ -142,21 +149,18 @@ export default function ViewOnceView({
   return (
     <>
       <Brand />
-      <div className="wrap">
-        <div className="row">
-          <div>
-            <div className="title">Someone shared a document with you</div>
-            <div className="subtitle">You can open it one time only</div>
+      <div className="wrap" style={{ maxWidth: 520 }}>
+        <div className="card gate">
+          <div className="gate-badge">
+            <LockIcon />
           </div>
-          <div className="spacer" />
-          <ExpiryPill expiresAt={expiresAt} />
-        </div>
+          <div className="title">Someone shared a document with you</div>
+          <div className="subtitle">You can open it one time only</div>
 
-        <div style={{ height: 16 }} />
-
-        <div className="card">
           <div className="file">
-            <div className="ic">👁️</div>
+            <div className="ic">
+              <EyeIcon />
+            </div>
             <div className="meta">
               <b>{name}</b>
               <span>{type} · view once</span>
@@ -164,7 +168,7 @@ export default function ViewOnceView({
           </div>
 
           <div className="vo-warn">
-            ⚠️ This document can be opened <b>only once</b>. The moment you open it, the link
+            This document can be opened <b>only once</b>. The moment you open it, the link
             expires permanently — make sure you are ready to read it now.
           </div>
 
@@ -180,9 +184,13 @@ export default function ViewOnceView({
               {phase === "opening" ? "Opening…" : "Open once"}
             </button>
           </div>
+
+          <ExpiryPill expiresAt={expiresAt} />
         </div>
 
-        <div className="foot">🔒 One-time secure view via INO · nothing is stored on this device</div>
+        <div className="foot">
+          <LockIcon /> One-time secure view via INO · nothing is stored on this device
+        </div>
       </div>
     </>
   );

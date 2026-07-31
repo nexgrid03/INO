@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 /// Section 5 - a single Quick Action.
@@ -36,14 +35,24 @@ class QuickActionButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ShinyIcon(
-                icon: icon,
-                color: color,
-                size: 58,
-                iconSize: 24,
-                // White glyph on a saturated accent body, ringed in the same
-                // accent - the treatment the Overview and Tools tiles use.
-                style: ShinyIconStyle.filled,
+              // A white glass circle with the action's coloured glyph - the
+              // Divine Glass "round action" treatment.
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.18),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(height: AppSpacing.xs),
               // Scale the label down to fit rather than truncating, so full

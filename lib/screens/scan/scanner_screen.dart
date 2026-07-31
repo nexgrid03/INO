@@ -485,15 +485,18 @@ class _ScannerScreenState extends State<ScannerScreen>
                     color: ScanColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 2),
+                // Small-caps teal sub-label (Divine Glass scanner chrome).
                 Text(
-                  l10n.t('positionDocument'),
+                  l10n.t('positionDocument').toUpperCase(),
                   style: const TextStyle(
-                    color: ScanColors.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
+                    color: ScanColors.accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ],
@@ -563,10 +566,23 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Widget _cameraViewport() {
     final controller = _controller;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      // Divine Glass viewport: generous radius, hairline light-blue edge and a
+      // soft brand halo lifting the camera window off the wash.
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: ScanColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: ScanColors.accent.withValues(alpha: 0.10),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: Stack(
           fit: StackFit.expand,
           children: [

@@ -31,36 +31,52 @@ class WalletEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
       child: Column(
         children: [
-          // Glossy illustration badge.
-          const ShinyIcon(
-            icon: Icons.folder_open_rounded,
-            color: AppColors.primaryGreen,
-            size: 110,
-            iconSize: 52,
-            radius: 32,
-            style: ShinyIconStyle.filled,
-          ),
-          const SizedBox(height: 22),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: palette.textPrimary,
+          // Divine Glass: illustration + copy sit inside one big glass card.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+            decoration: BoxDecoration(
+              gradient: palette.cardGradient,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: palette.border),
+              boxShadow: palette.cardShadow,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: palette.textSecondary,
+            child: Column(
+              children: [
+                const ShinyIcon(
+                  icon: Icons.folder_open_rounded,
+                  color: AppColors.primaryGreen,
+                  size: 110,
+                  iconSize: 52,
+                  radius: 32,
+                  style: ShinyIconStyle.filled,
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
-          // Primary action.
+          // Primary action - gradient pill.
           PressableScale(
             child: SizedBox(
               width: double.infinity,
@@ -71,6 +87,7 @@ class WalletEmptyState extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
                 ),
               ),
             ),
@@ -118,9 +135,8 @@ class _SecondaryButton extends StatelessWidget {
     return PressableScale(
       child: Material(
         color: palette.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: palette.border),
+        shape: const StadiumBorder(
+          side: BorderSide(color: AppColors.tealPale, width: 1.2),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

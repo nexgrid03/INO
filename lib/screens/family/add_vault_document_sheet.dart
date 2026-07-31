@@ -174,7 +174,6 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final theme = Theme.of(context);
     final visible = _visible;
     final busy = _uploading || _busyDocId != null;
 
@@ -185,8 +184,9 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
       expand: false,
       builder: (context, scrollController) => Container(
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          color: palette.bgElevated,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: palette.border),
         ),
         child: Column(
           children: [
@@ -195,7 +195,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.dividerColor,
+                color: AppColors.tealPale,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -303,6 +303,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
+                                  color: palette.surfaceVariant,
                                   borderRadius:
                                       BorderRadius.circular(AppRadius.card),
                                   border: Border.all(color: palette.border),
@@ -313,8 +314,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                                       width: 38,
                                       height: 38,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primaryGreen
-                                            .withValues(alpha: 0.13),
+                                        color: AppColors.tealMist,
                                         borderRadius:
                                             BorderRadius.circular(11),
                                       ),

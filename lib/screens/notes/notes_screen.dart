@@ -648,18 +648,13 @@ class _EmptyState extends StatelessWidget {
               width: 104,
               height: 104,
               decoration: BoxDecoration(
-                gradient: AppColors.brandGradient,
+                color: palette.isDark ? palette.surfaceVariant : Colors.white,
                 borderRadius: BorderRadius.circular(AppRadius.large + 8),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.30),
-                    blurRadius: 28,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
+                border: Border.all(color: AppColors.tealPale),
+                boxShadow: AppShadows.card,
               ),
               child: const Icon(Icons.edit_note_rounded,
-                  color: Colors.white, size: 52),
+                  color: AppColors.primaryGreen, size: 52),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('No Notes Yet',

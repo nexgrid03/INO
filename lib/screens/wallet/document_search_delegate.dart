@@ -104,8 +104,19 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
             }
             final d = results[walletFilter.isEmpty ? i : i - 1];
             return ListTile(
-              leading: const Icon(Icons.description_rounded,
-                  color: AppColors.primaryGreen),
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: palette.isDark
+                      ? palette.surfaceVariant
+                      : AppColors.tealMist,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: palette.border),
+                ),
+                child: const Icon(Icons.description_rounded,
+                    color: AppColors.primaryGreen, size: 20),
+              ),
               title: Text(d.name,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
@@ -113,6 +124,8 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              trailing: Icon(Icons.chevron_right_rounded,
+                  size: 20, color: palette.textFaint),
               onTap: () => _open(context, d),
             );
           },
@@ -133,8 +146,13 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
   /// A slim header shown above filtered results, naming the active wallets.
   Widget _filterBanner(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: AppColors.primaryGreen.withValues(alpha: 0.08),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.tealPale),
+      ),
       child: Row(
         children: [
           const Icon(Icons.tune_rounded, size: 16, color: AppColors.primaryGreen),
@@ -161,10 +179,20 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: palette.textSecondary, fontSize: 14.5),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: palette.border),
+            boxShadow: AppShadows.card,
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: palette.textSecondary, fontSize: 14.5),
+          ),
         ),
       ),
     );

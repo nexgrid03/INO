@@ -264,10 +264,11 @@ class _DocRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
+              color: AppColors.tealMist,
               borderRadius: BorderRadius.circular(AppRadius.chip),
+              border: Border.all(color: AppColors.tealPale),
             ),
-            child: Icon(record.icon, color: Colors.white, size: 20),
+            child: Icon(record.icon, color: AppColors.primaryGreen, size: 20),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -344,16 +345,18 @@ class _DurationChip extends StatelessWidget {
         child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         decoration: BoxDecoration(
-          gradient: active ? AppColors.brandGradient : null,
-          color: active ? null : palette.surface,
+          // Divine Glass selection: a soft sky tint with brand text instead of
+          // a flooded gradient (matches the Secure Share mockup's segments).
+          color: active ? AppColors.tealMist : palette.surface,
           borderRadius: BorderRadius.circular(AppRadius.button),
           border: Border.all(
-            color: active ? Colors.transparent : palette.border,
+            color: active ? AppColors.primaryGreen : palette.border,
+            width: active ? 1.4 : 1,
           ),
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.28),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.16),
                     blurRadius: 14,
                     offset: const Offset(0, 6),
                   ),
@@ -366,13 +369,15 @@ class _DurationChip extends StatelessWidget {
             Icon(
               Icons.schedule_rounded,
               size: 18,
-              color: active ? Colors.white : palette.textSecondary,
+              color: active
+                  ? AppColors.primaryGreen
+                  : palette.textSecondary,
             ),
             const SizedBox(width: 8),
             Text(
               duration.label(AppLocalizations.of(context)),
               style: AppText.subtitle.copyWith(
-                color: active ? Colors.white : palette.textPrimary,
+                color: active ? AppColors.primaryGreen : palette.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),

@@ -150,7 +150,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
           const Positioned(
             bottom: -110,
             left: -90,
-            child: _AmbientBlob(color: Color(0xFF22B8CF), size: 320),
+            child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
           ),
           const Positioned(
             top: 190,
@@ -200,12 +200,12 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                                     end: Alignment.bottomRight,
                                     colors: palette.isDark
                                         ? [
-                                            const Color(0xFF1C4147),
-                                            const Color(0xFF123136),
+                                            const Color(0xFF173347),
+                                            const Color(0xFF13293A),
                                           ]
                                         : [
                                             Colors.white,
-                                            const Color(0xFFDFF4F5),
+                                            AppColors.tealMist,
                                           ],
                                   ),
                                   border: Border.all(
@@ -431,8 +431,8 @@ class _RingPainter extends CustomPainter {
         transform: const GradientRotation(start),
         colors: const [
           AppColors.primaryGreen,
-          Color(0xFF22B8CF),
-          Color(0xFF55C2C8),
+          AppColors.secondaryGreen,
+          AppColors.skyBlue,
           AppColors.primaryGreen,
         ],
         stops: const [0.0, 0.45, 0.75, 1.0],
@@ -513,7 +513,7 @@ class _PadlockPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF43BDC3), AppColors.primaryGreen],
+          colors: [AppColors.secondaryGreen, AppColors.primaryGreen],
         ).createShader(body.outerRect),
     );
     // Top-left sheen on the body.
@@ -550,7 +550,7 @@ class _PadlockPainter extends CustomPainter {
         ..strokeWidth = w * 0.11
         ..strokeCap = StrokeCap.round
         ..shader = const LinearGradient(
-          colors: [Color(0xFF2E9AA1), Color(0xFF55C2C8)],
+          colors: [AppColors.primaryGreen, AppColors.secondaryGreen],
         ).createShader(Rect.fromLTWH(0, 0, w, h * 0.5)),
     );
 
@@ -606,7 +606,8 @@ class _GetStartedButton extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         gradient: AppGradients.primary,
-        borderRadius: BorderRadius.circular(18),
+        // Divine Glass: primary CTAs are full pills.
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
@@ -618,7 +619,7 @@ class _GetStartedButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(999),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: busy ? null : onTap,

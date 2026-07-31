@@ -119,7 +119,8 @@ class SettingsPrimaryButton extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: danger ? null : InoStyle.gradient(context, AppColors.brandGradient),
               color: danger ? AppColors.critical : null,
-              borderRadius: BorderRadius.circular(AppRadius.button),
+              // Divine Glass CTA: a full pill, not a rounded rectangle.
+              borderRadius: BorderRadius.circular(AppRadius.pill),
               boxShadow: [
                 BoxShadow(
                   color: (danger ? AppColors.critical : AppColors.primaryGreen)

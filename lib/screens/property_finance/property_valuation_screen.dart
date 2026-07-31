@@ -137,19 +137,14 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
           ),
           if (showProfit) ...[
             const SizedBox(height: AppSpacing.md),
-            HeroResultCard(
-              label: pnl.isProfit
-                  ? '${l10n.t('profit')}  (+${pnl.percent.toStringAsFixed(1)}%)'
-                  : '${l10n.t('loss')}  (${pnl.percent.toStringAsFixed(1)}%)',
+            _ProfitLossCard(
+              isProfit: pnl.isProfit,
+              title: pnl.isProfit ? l10n.t('profit') : l10n.t('loss'),
+              percentLabel: pnl.isProfit
+                  ? '+${pnl.percent.toStringAsFixed(1)}%'
+                  : '${pnl.percent.toStringAsFixed(1)}%',
               value: money(pnl.amount.abs().round(), currency),
               copyText: money(pnl.amount.round(), currency),
-              gradient: LinearGradient(
-                colors: pnl.isProfit
-                    ? const [AppColors.primaryGreen, AppColors.secondaryGreen]
-                    : const [AppColors.critical, Color(0xFFF08A5D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
             ),
             const SizedBox(height: AppSpacing.md),
             ResultBreakdownCard(
@@ -172,6 +167,114 @@ class _PropertyValuationScreenState extends State<PropertyValuationScreen> {
           ],
         ],
       ],
+    );
+  }
+}
+
+/// The profit / loss result on a white glass card: a pastel trend chip, a
+/// tinted percent pill and a copy action - no saturated gradient block, per
+/// the Divine Glass language (the market-value hero above stays the single
+/// brand-gradient card).
+class _ProfitLossCard extends StatelessWidget {
+  const _ProfitLossCard({
+    required this.isProfit,
+    required this.title,
+    required this.percentLabel,
+    required this.value,
+    required this.copyText,
+  });
+
+  final bool isProfit;
+  final String title;
+  final String percentLabel;
+  final String value;
+  final String copyText;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final accent = isProfit ? AppColors.positive : AppColors.negative;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.internal),
+      decoration: BoxDecoration(
+        gradient: palette.cardGradient,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: Icon(
+                  isProfit
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded,
+                  color: accent,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppText.subtitle
+                      .copyWith(color: palette.textSecondary),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: accent.withValues(alpha: 0.30)),
+                ),
+                child: Text(
+                  percentLabel,
+                  style: AppText.label.copyWith(color: accent),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              PressableScale(
+                pressedScale: 0.9,
+                child: Material(
+                  color: accent.withValues(alpha: 0.10),
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => copyToClipboard(context, copyText,
+                        message: '$title copied'),
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(Icons.copy_rounded, color: accent, size: 15),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppText.bigNumber.copyWith(color: palette.textPrimary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

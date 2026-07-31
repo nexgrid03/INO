@@ -119,17 +119,58 @@ class LegalDocumentScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl),
         children: [
-          Text(updated,
-              style: AppText.caption.copyWith(color: palette.textFaint)),
-          const SizedBox(height: AppSpacing.lg),
+          // "Last updated" pill chip - foam fill, hairline, brand glyph.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: palette.isDark
+                    ? palette.surfaceVariant
+                    : AppColors.tealFoam,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: palette.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.verified_user_rounded,
+                      size: 14, color: AppColors.primaryGreen),
+                  const SizedBox(width: 6),
+                  Text(updated,
+                      style: AppText.caption.copyWith(
+                          color: palette.textSecondary,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           for (final s in sections) ...[
-            Text(s.heading,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: AppSpacing.xs),
-            Text(s.body,
-                style: AppText.body
-                    .copyWith(color: palette.textSecondary, height: 1.6)),
-            const SizedBox(height: AppSpacing.lg),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                gradient: palette.cardGradient,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: palette.border),
+                boxShadow: palette.cardShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.heading,
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(s.body,
+                      style: AppText.body.copyWith(
+                          color: palette.textSecondary, height: 1.6)),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ],
       ),

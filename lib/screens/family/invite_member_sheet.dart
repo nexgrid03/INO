@@ -195,7 +195,8 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
                 height: AppSizes.button,
                 decoration: BoxDecoration(
                   gradient: AppColors.brandGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  boxShadow: AppShadows.glow(AppColors.primaryGreen),
                 ),
                 child: Center(
                   child: _sending

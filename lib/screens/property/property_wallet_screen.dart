@@ -9,7 +9,6 @@ import '../../services/app_settings.dart';
 import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
@@ -347,12 +346,14 @@ class _PortfolioCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final up = (appreciation ?? 0) >= 0;
+    final trendColor = up ? AppColors.success : AppColors.critical;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        gradient: InoStyle.gradient(context, AppColors.brandGradient),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.26),
+        gradient: palette.cardGradient,
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +363,8 @@ class _PortfolioCard extends StatelessWidget {
               Text(
                 'Total portfolio value',
                 style: AppText.caption.copyWith(
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color: palette.textSecondary,
+                  letterSpacing: 0.3,
                 ),
               ),
               const Spacer(),
@@ -371,7 +373,7 @@ class _PortfolioCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
+                    color: trendColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Row(
@@ -382,12 +384,12 @@ class _PortfolioCard extends StatelessWidget {
                             ? Icons.arrow_upward_rounded
                             : Icons.arrow_downward_rounded,
                         size: 13,
-                        color: Colors.white,
+                        color: trendColor,
                       ),
                       const SizedBox(width: 3),
                       Text(
                         '${(appreciation!.abs() * 100).toStringAsFixed(1)}%',
-                        style: AppText.label.copyWith(color: Colors.white),
+                        style: AppText.label.copyWith(color: trendColor),
                       ),
                     ],
                   ),
@@ -400,15 +402,16 @@ class _PortfolioCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               money(total, currency),
-              style: AppText.bigNumber.copyWith(color: Colors.white),
+              style: AppText.bigNumber.copyWith(color: palette.textPrimary),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: palette.surface.withValues(alpha: 0.92),
+              color: palette.surfaceVariant,
               borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+              border: Border.all(color: palette.border),
             ),
             child: Row(
               children: [

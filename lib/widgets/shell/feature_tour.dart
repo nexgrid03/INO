@@ -148,12 +148,12 @@ class _FeatureTourState extends State<FeatureTour> {
                               ),
                               decoration: BoxDecoration(
                                 color: palette.bgElevated,
-                                borderRadius: BorderRadius.circular(22),
+                                borderRadius: BorderRadius.circular(24),
                                 border: Border.all(color: palette.border),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.25),
-                                    blurRadius: 24,
+                                    color: Colors.black.withValues(alpha: 0.20),
+                                    blurRadius: 26,
                                     offset: const Offset(0, 10),
                                   ),
                                 ],
@@ -228,6 +228,7 @@ class _FeatureTourState extends State<FeatureTour> {
                                             vertical: 10,
                                           ),
                                           minimumSize: const Size(0, 38),
+                                          shape: const StadiumBorder(),
                                         ),
                                         child: Text(
                                           AppLocalizations.of(context)
@@ -286,7 +287,7 @@ class _SpotlightPainter extends CustomPainter {
         ..shader = const SweepGradient(
           colors: [
             AppColors.primaryGreen,
-            Color(0xFF7FD3D8),
+            Color(0xFF7DD3FC),
             AppColors.primaryGreen,
           ],
         ).createShader(Rect.fromCircle(center: center, radius: radius)),

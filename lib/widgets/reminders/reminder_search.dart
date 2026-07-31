@@ -127,7 +127,17 @@ class _Hint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 40, color: palette.textFaint),
+            Container(
+              width: 64,
+              height: 64,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.surfaceVariant,
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.border),
+              ),
+              child: Icon(icon, size: 28, color: AppColors.primaryGreen),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               text,

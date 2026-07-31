@@ -58,7 +58,7 @@ import 'two_factor_screen.dart';
 class _RowAccent {
   _RowAccent._();
 
-  static const teal = Color(0xFF30ACB3);
+  static const teal = Color(0xFF0EA5E9);
   static const cyan = Color(0xFF22B8CF);
   static const blue = Color(0xFF4383EA);
   static const indigo = Color(0xFF4E7FE0);
@@ -1091,95 +1091,97 @@ class _ProfileHero extends StatelessWidget {
     return InoCard(
       radius: AppRadius.large,
       onTap: onEdit,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 72,
-            height: 72,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Gradient progress-ring treatment around the avatar.
-                Container(
-                  width: 72,
-                  height: 72,
-                  padding: const EdgeInsets.all(2.5),
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppGradients.primary,
-                  ),
-                  child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 84,
+              height: 84,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Gradient progress-ring treatment around the avatar.
+                  Container(
+                    width: 84,
+                    height: 84,
                     padding: const EdgeInsets.all(2.5),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: palette.surface,
-                    ),
-                    child: ClipOval(
-                      child: (photoUrl != null && photoUrl!.isNotEmpty)
-                          ? Image.network(
-                              photoUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  _HeroInitials(initials: _initials),
-                            )
-                          : _HeroInitials(initials: _initials),
-                    ),
-                  ),
-                ),
-                // Floating edit badge (bottom-right, Stitch pencil chip).
-                Positioned(
-                  bottom: -2,
-                  right: -2,
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: AppGradients.primary,
-                      border: Border.all(color: palette.surface, width: 2.5),
-                      boxShadow: AppShadows.glow(AppColors.primaryGreen),
                     ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      size: 12,
-                      color: Colors.white,
+                    child: Container(
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: palette.surface,
+                      ),
+                      child: ClipOval(
+                        child: (photoUrl != null && photoUrl!.isNotEmpty)
+                            ? Image.network(
+                                photoUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _HeroInitials(initials: _initials),
+                              )
+                            : _HeroInitials(initials: _initials),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  fullName.trim().isEmpty ? 'Your Name' : fullName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: palette.textPrimary,
+                  // Floating edit badge (bottom-right, Stitch pencil chip).
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppGradients.primary,
+                        border: Border.all(color: palette.surface, width: 2.5),
+                        boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(color: palette.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const _HeroBadge(),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              fullName.trim().isEmpty ? 'Your Name' : fullName,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+                color: palette.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              email,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.body.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            const _HeroBadge(),
+          ],
+        ),
       ),
     );
   }
@@ -1220,22 +1222,25 @@ class _HeroBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primaryGreen.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: AppColors.primaryGreen.withValues(alpha: 0.22),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
-            Icons.shield_rounded,
+            Icons.verified_rounded,
             size: 13,
             color: AppColors.primaryGreen,
           ),
           const SizedBox(width: 5),
           Text(
-            'Vault protected',
+            'VAULT PROTECTED',
             style: AppText.label.copyWith(
               color: AppColors.primaryGreen,
-              fontSize: 11.5,
-              letterSpacing: 0.3,
+              fontSize: 10.5,
+              letterSpacing: 0.8,
             ),
           ),
         ],

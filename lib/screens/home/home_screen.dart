@@ -19,7 +19,6 @@ import '../../theme/theme_style.dart';
 import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/shiny_border.dart';
-import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
@@ -443,7 +442,7 @@ class _QuickActionsRow extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     // One clearly distinct hue per action. Documents, Notes and Scanner used to
     // be three shades of the same teal (Notes' `lightBlue` and Scanner were the
-    // identical #55C2C8), so the row read as one repeated button.
+    // identical #38BDF8), so the row read as one repeated button.
     final actions = <Widget>[
       QuickActionButton(
         icon: Icons.folder_shared_rounded,
@@ -510,14 +509,14 @@ class _SixFinanceTools extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     // One distinct hue per tool, from the app's curated accent family. Four of
-    // the six used to be teal (two were the same #55C2C8), so the grid read as
+    // the six used to be teal (two were the same #38BDF8), so the grid read as
     // one repeated tile. The tint behind each icon is derived from its own
     // accent, so the two can no longer drift apart.
     final tools = [
       _ToolTile(
         title: l10n.t('areaCalc'),
         icon: Icons.straighten_rounded,
-        color: const Color(0xFF30ACB3), // teal
+        color: const Color(0xFF0EA5E9), // teal
         onTap: onOpenArea,
       ),
       _ToolTile(
@@ -593,27 +592,18 @@ class _ToolTile extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    // The tile's own accent wash, so the fill can never drift from the icon the
-    // way the hardcoded pastels had (the tax tile was green behind a teal glyph).
-    // Bold floods the tile with the accent that used to sit on the icon badge -
-    // exactly the Today's Overview treatment: dark fill, dark edge, bare white
-    // glyph (no badge border) and a bigger label.
-    final fill = bold
-        ? InoStyle.boldFill(color)
-        : Color.alphaBlend(
-            color.withValues(alpha: palette.isDark ? 0.16 : 0.09),
-            palette.surface,
-          );
-    final edge = bold ? InoStyle.boldBorder(color) : color;
+    // Divine Glass: classic/soft tiles are white glass cards with a hairline
+    // light-blue edge and whisper shadow. Bold keeps its accent-flooded fill.
+    final fill = bold ? InoStyle.boldFill(color) : palette.surface;
+    final edge = bold ? InoStyle.boldBorder(color) : palette.border;
 
     final tile = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(16),
-        // A thick, solid accent edge in the same colour the icon badge is
-        // filled with - matching the Today's Overview tiles.
-        border: Border.all(color: edge, width: 2),
+        border: Border.all(color: edge, width: bold ? 2 : 1),
+        boxShadow: bold ? null : palette.cardShadow,
       ),
       // FittedBox around the whole stack: if a tile ever ends up a hair
       // shorter than its content (tight grid aspect ratios on odd widths),
@@ -623,22 +613,23 @@ class _ToolTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // A filled accent badge: white glyph on the tile's own colour, so
-            // the icon carries the same accent the border does. In bold the
-            // badge body drops away and the bare glyph grows into the slot.
+            // A pastel accent chip: the tool's coloured glyph on its own soft
+            // tint. In bold the badge body drops away and the bare glyph
+            // grows into the slot.
             bold
                 ? SizedBox(
                     width: 32,
                     height: 32,
                     child: Icon(icon, color: Colors.white, size: 26),
                   )
-                : ShinyIcon(
-                    icon: icon,
-                    color: color,
-                    size: 32,
-                    iconSize: 18,
-                    radius: 10,
-                    style: ShinyIconStyle.filled,
+                : Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 18),
                   ),
             const SizedBox(height: 3),
             Text(
@@ -659,7 +650,7 @@ class _ToolTile extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       // Soft: the classic accent border picks up the glass sheen.
-      child: ShinyBorder(radius: 16, width: 2, enabled: soft, child: tile),
+      child: ShinyBorder(radius: 16, width: 1, enabled: soft, child: tile),
     );
   }
 }

@@ -187,6 +187,17 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                     final isSelected = c.code == widget.selected.code;
                     return ListTile(
                       onTap: () => Navigator.of(context).pop(c),
+                      tileColor: isSelected
+                          ? AppColors.tealFoam
+                          : Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.tealPale
+                              : Colors.transparent,
+                        ),
+                      ),
                       leading:
                           Text(c.flag, style: const TextStyle(fontSize: 22)),
                       title: Text(

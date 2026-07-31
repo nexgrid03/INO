@@ -188,48 +188,57 @@ class _StatusTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final color = on ? AppColors.primaryGreen : AppColors.warning;
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(AppRadius.button),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onManage,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-            border: Border.all(color: palette.border),
-          ),
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: palette.cardShadow,
+      ),
+      child: Material(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onManage,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: palette.border),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 21),
                 ),
-                child: Icon(icon, color: color, size: 21),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: AppText.subtitle
-                            .copyWith(color: palette.textPrimary)),
-                    const SizedBox(height: 2),
-                    Text(on ? onText : offText,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary)),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: AppText.subtitle
+                              .copyWith(color: palette.textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(on ? onText : offText,
+                          style: AppText.caption
+                              .copyWith(color: palette.textSecondary)),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(on ? Icons.check_circle_rounded : Icons.chevron_right_rounded,
-                  color: on ? AppColors.primaryGreen : palette.textFaint,
-                  size: on ? 22 : 20),
-            ],
+                Icon(
+                    on
+                        ? Icons.check_circle_rounded
+                        : Icons.chevron_right_rounded,
+                    color: on ? AppColors.primaryGreen : palette.textFaint,
+                    size: on ? 22 : 20),
+              ],
+            ),
           ),
         ),
       ),

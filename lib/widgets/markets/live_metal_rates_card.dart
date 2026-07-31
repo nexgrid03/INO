@@ -95,7 +95,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.12),
+        color: AppColors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
@@ -107,7 +107,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
               width: 7,
               height: 7,
               decoration: const BoxDecoration(
-                color: AppColors.primaryGreen,
+                color: AppColors.success,
                 shape: BoxShape.circle,
               ),
             ),
@@ -116,7 +116,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
           Text(
             'LIVE',
             style: AppText.label.copyWith(
-              color: AppColors.primaryGreen,
+              color: AppColors.success,
               fontSize: 10.5,
               letterSpacing: 1.0,
             ),

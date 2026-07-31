@@ -184,24 +184,34 @@ class _DialogButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    // Divine Glass pills: gradient primary, solid critical for danger, and a
+    // quiet foam-filled pill with a hairline for the neutral action.
+    final gradient = filled && !danger ? AppColors.brandGradient : null;
     final bg = filled
-        ? (danger ? AppColors.critical : AppColors.primaryGreen)
+        ? (danger ? AppColors.critical : null)
         : palette.surfaceVariant;
     final fg = filled ? Colors.white : palette.textPrimary;
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(AppRadius.button),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: filled ? null : Border.all(color: palette.border),
+      ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 48,
-          child: Center(
-            child: Text(
-              label,
-              style: AppText.subtitle.copyWith(
-                color: fg,
-                fontWeight: FontWeight.w700,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: Text(
+                label,
+                style: AppText.subtitle.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),

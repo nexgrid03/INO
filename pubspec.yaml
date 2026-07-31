@@ -98,6 +98,8 @@ dependencies:
   # derived on-device and never transmitted, so `w_password_vault.secret` holds
   # ciphertext the server cannot read. See lib/services/vault_crypto.dart.
   cryptography: ^2.9.0
+  # Divine Glass design system typeface (Manrope), fetched/bundled per platform.
+  google_fonts: ^6.2.1
 
 # ---------------------------------------------------------------------------
 # Dependency overrides

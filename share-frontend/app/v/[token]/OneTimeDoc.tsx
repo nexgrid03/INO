@@ -7,6 +7,7 @@ import {
   TransformComponent,
   type ReactZoomPanPinchRef,
 } from "react-zoom-pan-pinch";
+import { EyeIcon, FileTextIcon } from "@/components/icons";
 
 // Same pdf.js worker pin as the regular share viewer.
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -129,9 +130,11 @@ function OtherView({ name, type }: { name: string; type: string }) {
       <Bar name={name} />
       <div className="stage">
         <div className="center">
-          <div style={{ fontSize: 54 }}>📄</div>
+          <div style={{ width: 54, height: 54, color: "#0284c7" }}>
+            <FileTextIcon />
+          </div>
           <div>
-            <div style={{ fontWeight: 700, color: "#fff" }}>{name}</div>
+            <div style={{ fontWeight: 700, color: "#0f172a" }}>{name}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>
               {type} · this file type can’t be previewed in a browser
             </div>
@@ -155,7 +158,9 @@ function Loading() {
 function Expired() {
   return (
     <div className="center">
-      <div style={{ fontSize: 44 }}>👁️</div>
+      <div style={{ width: 44, height: 44, color: "#0284c7" }}>
+        <EyeIcon />
+      </div>
       <div style={{ fontSize: 13 }}>
         This one-time view has ended. Ask the sender for a new link.
       </div>

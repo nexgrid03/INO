@@ -359,7 +359,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
               color: palette.surface,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.button),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 side: BorderSide(color: palette.border),
               ),
               child: InkWell(
@@ -466,13 +466,8 @@ class _QrCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppRadius.large),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.18),
-              blurRadius: 28,
-              offset: const Offset(0, 12),
-            ),
-          ],
+          border: Border.all(color: AppColors.tealPale),
+          boxShadow: AppShadows.floating,
         ),
         child: QrImageView(
           data: url,

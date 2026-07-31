@@ -103,16 +103,17 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 filled: true,
                 fillColor: palette.surface,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                // Pill-shaped glass search bar (Divine Glass).
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide(color: palette.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide(color: palette.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: const BorderSide(
                       color: AppColors.primaryGreen, width: 1.4),
                 ),
@@ -148,8 +149,18 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 SettingsCard(
                   child: Row(
                     children: [
-                      const Icon(Icons.support_agent_rounded,
-                          color: AppColors.primaryGreen),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          // Pastel icon chip (mist fill, coloured glyph).
+                          color:
+                              AppColors.primaryGreen.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.support_agent_rounded,
+                            color: AppColors.primaryGreen, size: 22),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(l10n.t('stillNeedHelp'),
@@ -193,7 +204,8 @@ class _FaqTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.button),
+          // Glass-card curvature (20+) rather than button-level rounding.
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: palette.border),
           boxShadow: palette.cardShadow,
         ),
@@ -201,7 +213,7 @@ class _FaqTile extends StatelessWidget {
         // ExpansionTile's internal ListTile (no colored box in between).
         child: Material(
           color: palette.surface,
-          borderRadius: BorderRadius.circular(AppRadius.button),
+          borderRadius: BorderRadius.circular(20),
           clipBehavior: Clip.antiAlias,
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

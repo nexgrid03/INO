@@ -301,22 +301,37 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.lock_rounded,
-                            size: 13, color: palette.textFaint),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Only the last 4 digits are stored on this device. '
-                            'No CVV, ever.',
-                            textAlign: TextAlign.center,
-                            style: AppText.caption
-                                .copyWith(color: palette.textFaint, fontSize: 11.5),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: palette.isDark
+                            ? palette.surfaceVariant
+                            : AppColors.tealFoam,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(
+                            color: palette.isDark
+                                ? palette.border
+                                : AppColors.tealPale.withValues(alpha: 0.6)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.verified_user_outlined,
+                              size: 16, color: AppColors.primaryGreen),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Only the last 4 digits are stored on this device. '
+                              'No CVV, ever.',
+                              textAlign: TextAlign.center,
+                              style: AppText.caption.copyWith(
+                                  color: palette.textSecondary,
+                                  fontSize: 11.5),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

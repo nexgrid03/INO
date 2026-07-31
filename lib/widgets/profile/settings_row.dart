@@ -90,6 +90,9 @@ class SettingsRow extends StatelessWidget {
             size: 40,
             iconSize: 20,
             radius: 12,
+            // Divine Glass: pastel glass chip carrying a coloured glyph, not a
+            // saturated accent-filled badge.
+            style: ShinyIconStyle.glass,
           ),
           const SizedBox(width: 14),
           Expanded(

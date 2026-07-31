@@ -56,7 +56,7 @@ class _DataConsentSheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: palette.border,
+                  color: AppColors.tealPale,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
@@ -95,7 +95,7 @@ class _DataConsentSheet extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: palette.surfaceVariant,
-                          borderRadius: BorderRadius.circular(AppRadius.chip),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                           border: Border.all(color: palette.border),
                         ),
                         child: Text(

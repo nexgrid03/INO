@@ -47,6 +47,16 @@ Future<AreaUnit?> showAreaUnitPicker(
                 for (final u in AreaUnit.values)
                   ListTile(
                     onTap: () => Navigator.of(context).pop(u),
+                    tileColor:
+                        u == selected ? AppColors.tealFoam : Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                      side: BorderSide(
+                        color: u == selected
+                            ? AppColors.tealPale
+                            : Colors.transparent,
+                      ),
+                    ),
                     title: Text(
                       u.label,
                       style: AppText.subtitle.copyWith(

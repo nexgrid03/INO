@@ -7,8 +7,8 @@ import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 
 /// Horizontally scrolling filter chips - the curated six: All · Documents ·
-/// Insurance · Health · Property · Family. The selected chip uses the brand
-/// green→blue accent.
+/// Insurance · Health · Property · Family. The selected chip is a Divine Glass
+/// tinted pill: mist fill with a brand hairline and brand-coloured glyph.
 class ReminderFilterChips extends StatelessWidget {
   const ReminderFilterChips({
     super.key,
@@ -72,21 +72,12 @@ class _Chip extends StatelessWidget {
               curve: Curves.easeOut,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                gradient: selected ? AppColors.brandGradient : null,
-                color: selected ? null : palette.surface,
+                color: selected ? AppColors.tealMist : palette.surface,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
-                  color: selected ? Colors.transparent : palette.border,
+                  color: selected ? AppColors.primaryGreen : palette.border,
+                  width: selected ? 1.3 : 1,
                 ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.26),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -94,7 +85,9 @@ class _Chip extends StatelessWidget {
                   Icon(
                     icon,
                     size: 15,
-                    color: selected ? Colors.white : palette.textSecondary,
+                    color: selected
+                        ? AppColors.primaryGreen
+                        : palette.textSecondary,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -102,7 +95,9 @@ class _Chip extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : palette.textSecondary,
+                      color: selected
+                          ? AppColors.primaryGreen
+                          : palette.textSecondary,
                     ),
                   ),
                 ],

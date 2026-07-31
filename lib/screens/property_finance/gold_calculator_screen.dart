@@ -122,11 +122,7 @@ class _GoldCalculatorScreenState extends State<GoldCalculatorScreen> {
             label: '${l10n.t('currentGoldValue')} (${_purity.label})',
             value: money(result.totalValue.round(), currency),
             copyText: money(result.totalValue.round(), currency),
-            gradient: const LinearGradient(
-              colors: [AppColors.gold, Color(0xFFF5C542)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: AppColors.brandGradient,
           ),
           const SizedBox(height: AppSpacing.md),
           ResultBreakdownCard(

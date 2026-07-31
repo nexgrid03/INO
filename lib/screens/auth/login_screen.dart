@@ -301,9 +301,38 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: Border.all(color: palette.border),
                 boxShadow: palette.cardShadow,
               ),
+              // Divine Glass mockup order: federated options first, then the
+              // "or email" divider, then the email form and primary CTA.
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  SocialAuthButton(
+                    label: l10n.t('continueWithGoogle'),
+                    brand: const GoogleGlyph(),
+                    busy: _googleBusy,
+                    onPressed: busy ? null : _continueWithGoogle,
+                  ),
+                  const SizedBox(height: 12),
+                  SocialAuthButton(
+                    label: l10n.t('continueWithPhone'),
+                    brand: const Icon(Icons.smartphone_rounded,
+                        color: AppColors.primaryGreen, size: 20),
+                    onPressed: busy ? null : _continueWithPhone,
+                  ),
+                  if (_showApple) ...[
+                    const SizedBox(height: 12),
+                    SocialAuthButton(
+                      label: l10n.t('continueWithApple'),
+                      brand: Icon(Icons.apple,
+                          color: palette.textPrimary, size: 20),
+                      onPressed: busy ? null : _continueWithApple,
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+
+                  _OrDivider(label: l10n.t('orDivider')),
+                  const SizedBox(height: 20),
+
                   Form(
                     key: _formKey,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -368,33 +397,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     busy: _busy,
                     onPressed: busy ? null : _signIn,
                   ),
-                  const SizedBox(height: 22),
-
-                  _OrDivider(label: l10n.t('orDivider')),
-                  const SizedBox(height: 18),
-
-                  SocialAuthButton(
-                    label: l10n.t('continueWithGoogle'),
-                    brand: const GoogleGlyph(),
-                    busy: _googleBusy,
-                    onPressed: busy ? null : _continueWithGoogle,
-                  ),
-                  const SizedBox(height: 12),
-                  SocialAuthButton(
-                    label: l10n.t('continueWithPhone'),
-                    brand: const Icon(Icons.smartphone_rounded,
-                        color: AppColors.primaryGreen, size: 20),
-                    onPressed: busy ? null : _continueWithPhone,
-                  ),
-                  if (_showApple) ...[
-                    const SizedBox(height: 12),
-                    SocialAuthButton(
-                      label: l10n.t('continueWithApple'),
-                      brand: Icon(Icons.apple,
-                          color: palette.textPrimary, size: 20),
-                      onPressed: busy ? null : _continueWithApple,
-                    ),
-                  ],
 
                   // --- Demo-only guest login (hidden when isDemoBuild=false) --
                   if (isDemoBuild) ...[
@@ -451,9 +453,10 @@ class _GuestLoginButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: AppColors.primaryGreen,
-          side: const BorderSide(color: AppColors.secondaryGreen, width: 1.4),
+          side: const BorderSide(color: AppColors.tealPale, width: 1.4),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.button),
+            // Pill outline, mirroring the gradient CTA above it.
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
         ),
         child: busy
@@ -532,9 +535,7 @@ class _RememberMe extends StatelessWidget {
                 color: value ? AppColors.primaryGreen : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: value
-                      ? AppColors.primaryGreen
-                      : const Color(0xFFCBD5E1),
+                  color: value ? AppColors.primaryGreen : AppColors.tealPale,
                   width: 1.6,
                 ),
               ),
@@ -569,7 +570,9 @@ class _OrDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const line = Expanded(child: Divider(color: Color(0xFFE2E8F0), height: 1));
+    const line = Expanded(
+      child: Divider(color: AppColors.tealMist, height: 1),
+    );
     return Row(
       children: [
         line,

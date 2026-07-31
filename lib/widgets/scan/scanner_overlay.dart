@@ -107,7 +107,7 @@ class _FramePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const radius = 20.0;
+    const radius = 24.0;
     final rect = RRect.fromRectAndRadius(
       Offset.zero & size,
       const Radius.circular(radius),

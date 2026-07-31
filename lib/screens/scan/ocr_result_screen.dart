@@ -627,7 +627,7 @@ class _ActionBar extends StatelessWidget {
                   color: palette.surface,
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     side: BorderSide(color: palette.border),
                   ),
                   child: InkWell(
@@ -654,7 +654,7 @@ class _ActionBar extends StatelessWidget {
                     height: AppSizes.button,
                     decoration: BoxDecoration(
                       gradient: AppColors.brandGradient,
-                      borderRadius: BorderRadius.circular(AppRadius.button),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primaryGreen.withValues(alpha: 0.32),
@@ -667,7 +667,7 @@ class _ActionBar extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: onContinue,
-                        borderRadius: BorderRadius.circular(AppRadius.button),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,

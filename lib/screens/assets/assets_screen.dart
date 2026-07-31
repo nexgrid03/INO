@@ -76,7 +76,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
       ],
       child: Column(
         children: [
-          // Hero - gradient performance card (total, trend pill, sparkline).
+          // Hero - glass performance card (total, trend pill, sparkline).
           FadeSlideIn(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -88,10 +88,10 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      gradient: AppGradients.primary,
+                      gradient: palette.cardGradient,
                       borderRadius: BorderRadius.circular(AppRadius.large),
-                      boxShadow:
-                          AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
+                      border: Border.all(color: palette.border),
+                      boxShadow: palette.cardShadow,
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.large),
@@ -110,8 +110,8 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(l10n.t('totalAssets'),
-                                          style: const TextStyle(
-                                              color: Colors.white70,
+                                          style: TextStyle(
+                                              color: palette.textFaint,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,
                                               letterSpacing: 1.1)),
@@ -122,10 +122,12 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.18),
+                                        color: AppColors.primaryGreen
+                                            .withValues(alpha: 0.10),
                                         borderRadius: BorderRadius.circular(
                                             AppRadius.pill),
+                                        border: Border.all(
+                                            color: AppColors.tealPale),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -135,12 +137,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                                   ? Icons.trending_up_rounded
                                                   : Icons.trending_down_rounded,
                                               size: 14,
-                                              color: Colors.white),
+                                              color: AppColors.primaryGreen),
                                           const SizedBox(width: 4),
                                           Text(
                                               '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
                                               style: const TextStyle(
-                                                  color: Colors.white,
+                                                  color:
+                                                      AppColors.primaryGreen,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w800)),
                                         ],
@@ -150,8 +153,8 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(formatInr(total),
-                                    style: const TextStyle(
-                                        color: Colors.white,
+                                    style: TextStyle(
+                                        color: palette.textPrimary,
                                         fontSize: 32,
                                         fontWeight: FontWeight.w800,
                                         letterSpacing: -1.0)),
@@ -171,17 +174,18 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                         l10n
                                             .t('assetClasses')
                                             .replaceAll('{n}', '${all.length}'),
-                                        style: const TextStyle(
-                                            color: Colors.white70,
+                                        style: TextStyle(
+                                            color: palette.textSecondary,
                                             fontSize: 12)),
                                     const Spacer(),
                                     Text(l10n.t('viewAnalytics'),
                                         style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.primaryGreen,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700)),
                                     const Icon(Icons.chevron_right_rounded,
-                                        color: Colors.white, size: 18),
+                                        color: AppColors.primaryGreen,
+                                        size: 18),
                                   ],
                                 ),
                               ],
@@ -256,7 +260,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
   }
 }
 
-/// Soft translucent disc used as a decorative wash inside the gradient hero.
+/// Soft translucent disc used as a decorative wash inside the glass hero.
 class _WashCircle extends StatelessWidget {
   const _WashCircle(this.size);
   final double size;
@@ -268,14 +272,14 @@ class _WashCircle extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.10),
+        color: AppColors.skyBlue.withValues(alpha: 0.16),
       ),
     );
   }
 }
 
-/// A compact white sparkline of the real 30-day net-worth series, drawn inside
-/// the gradient hero (mirrors the Stitch wealth-graph treatment).
+/// A compact brand-teal sparkline of the real 30-day net-worth series, drawn
+/// inside the glass hero (mirrors the Stitch wealth-graph treatment).
 class _HeroSparklinePainter extends CustomPainter {
   _HeroSparklinePainter({required this.values});
 
@@ -314,21 +318,22 @@ class _HeroSparklinePainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withValues(alpha: 0.30),
-            Colors.white.withValues(alpha: 0.0),
+            AppColors.primaryGreen.withValues(alpha: 0.18),
+            AppColors.primaryGreen.withValues(alpha: 0.0),
           ],
         ).createShader(Offset.zero & size),
     );
     canvas.drawPath(
       path,
       Paint()
-        ..color = Colors.white
+        ..color = AppColors.primaryGreen
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
-    canvas.drawCircle(at(values.length - 1), 3.5, Paint()..color = Colors.white);
+    canvas.drawCircle(at(values.length - 1), 3.5,
+        Paint()..color = AppColors.primaryGreen);
   }
 
   @override

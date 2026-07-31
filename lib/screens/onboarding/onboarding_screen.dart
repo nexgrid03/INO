@@ -173,6 +173,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: palette.bg,
       body: Stack(
         children: [
+          // Divine Glass ethereal sky wash (light mode only) - matches the
+          // auth flow backdrop so the hand-off feels seamless.
+          if (!palette.isDark)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.tealMist,
+                        AppColors.tealFoam,
+                        AppColors.tealPale,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // Full-bleed soft gradient wash (Stitch "gradient mesh"): one warm
           // teal bloom top-right, one cyan bloom bottom-left.
           const Positioned(
@@ -193,32 +213,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Skip button (hidden on the last page).
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4, right: 12),
-                    child: AnimatedOpacity(
-                      opacity: _isLastPage ? 0 : 1,
-                      duration: const Duration(milliseconds: 250),
-                      child: TextButton(
-                        onPressed: _isLastPage
-                            ? null
-                            : () {
-                                HapticFeedback.selectionClick();
-                                _goToLogin();
-                              },
-                        child: Text(
-                          'Skip',
-                          style: TextStyle(
-                            color: palette.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 12),
 
                 // Slides - each owns its own entrance animation.
                 Expanded(
@@ -236,14 +231,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
 
-                // Bottom bar (Stitch arrangement): left-aligned progress dots
-                // above a full-width gradient pill CTA.
+                // Bottom bar (Divine Glass arrangement): centred progress dots
+                // above a full-width gradient pill CTA, with Skip beneath.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     12,
                     AppSpacing.screen,
-                    28,
+                    16,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -269,7 +264,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           child: ScaleTransition(
                             scale: _arrowScale,
                             child: PressableScale(
-                              child: _GradientNextButton(onTap: _onNextPressed),
+                              child: _GradientNextButton(
+                                onTap: _onNextPressed,
+                                label:
+                                    _isLastPage ? 'Get Started' : 'Continue',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Skip (hidden on the last page), under the CTA as in
+                      // the mockup.
+                      AnimatedOpacity(
+                        opacity: _isLastPage ? 0 : 1,
+                        duration: const Duration(milliseconds: 250),
+                        child: TextButton(
+                          onPressed: _isLastPage
+                              ? null
+                              : () {
+                                  HapticFeedback.selectionClick();
+                                  _goToLogin();
+                                },
+                          child: Text(
+                            'Skip',
+                            style: TextStyle(
+                              color: palette.textSecondary,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -528,15 +550,31 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Illustration (with parallax + swipe scale on top), now
-                // floating on the background - no panel behind it.
+                // Illustration (with parallax + swipe scale on top), seated
+                // inside a Divine Glass panel. The FittedBox lets the panel
+                // shrink gracefully on short screens.
                 Expanded(
                   child: Center(
                     child: Transform.translate(
                       offset: Offset(iconShift, 0),
                       child: Transform.scale(
                         scale: swipeScale,
-                        child: _illustration(),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Container(
+                            padding: const EdgeInsets.all(58),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(40),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                width: 1.2,
+                              ),
+                              boxShadow: AppShadows.card,
+                            ),
+                            child: _illustration(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -592,24 +630,26 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   }
 }
 
-/// Full-width gradient pill CTA (Stitch "Next" treatment, icon-only).
+/// Full-width gradient pill CTA (Divine Glass "Continue / Get Started"
+/// treatment: label + trailing arrow).
 ///
-/// Brand-gradient fill, white arrow, soft brand glow + a faint glass highlight
-/// border. Ripple comes from the [InkWell]; the press "squish" is applied by
-/// the [PressableScale] that wraps it in the parent.
+/// Brand-gradient fill, soft brand glow + a faint glass highlight border.
+/// Ripple comes from the [InkWell]; the press "squish" is applied by the
+/// [PressableScale] that wraps it in the parent.
 class _GradientNextButton extends StatelessWidget {
-  const _GradientNextButton({required this.onTap});
+  const _GradientNextButton({required this.onTap, required this.label});
 
   final VoidCallback onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 62,
-      width: 62,
+      height: 56,
+      width: double.infinity,
       decoration: BoxDecoration(
         gradient: AppGradients.primary,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         // Subtle glass highlight.
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
         boxShadow: [
@@ -623,16 +663,30 @@ class _GradientNextButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        shape: const CircleBorder(),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: const Center(
-            child: Icon(
-              Icons.arrow_forward_rounded,
-              color: Colors.white,
-              size: 25,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
             ),
           ),
         ),

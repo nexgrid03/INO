@@ -13,6 +13,7 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/dashboard/sparkline.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../wallet/wallet_detail_screen.dart';
@@ -366,6 +367,14 @@ class _OverviewTab extends StatelessWidget {
     final allocation = store.allocation;
     final maturing = store.maturingWithin(60);
     final ret = store.totalReturn;
+    final up = store.totalProfit >= 0;
+
+    // A decorative growth line for the hero: the portfolio's cumulative value
+    // in the order holdings were added.
+    final byDate = [...store.items]
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    var running = 0.0;
+    final growth = <double>[for (final i in byDate) running += i.value];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
@@ -374,20 +383,61 @@ class _OverviewTab extends StatelessWidget {
         // ---- Total investments hero ----
         FadeSlideIn(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
             decoration: BoxDecoration(
               gradient: palette.cardGradient,
-              borderRadius: BorderRadius.circular(AppRadius.card),
+              borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(color: palette.border),
               boxShadow: palette.cardShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total investments',
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Total Portfolio Value',
+                        style: AppText.caption.copyWith(
+                          color: palette.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (ret != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: (up ? AppColors.success : AppColors.critical)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              up
+                                  ? Icons.trending_up_rounded
+                                  : Icons.trending_down_rounded,
+                              size: 14,
+                              color:
+                                  up ? AppColors.success : AppColors.critical,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${up ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
+                              style: AppText.label.copyWith(
+                                color:
+                                    up ? AppColors.success : AppColors.critical,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -396,37 +446,25 @@ class _OverviewTab extends StatelessWidget {
                     style: AppText.bigNumber.copyWith(color: palette.textPrimary),
                   ),
                 ),
-                const SizedBox(height: 6),
-                if (ret != null)
-                  Row(
-                    children: [
-                      Icon(
-                        store.totalProfit >= 0
-                            ? Icons.arrow_upward_rounded
-                            : Icons.arrow_downward_rounded,
-                        size: 15,
-                        color: store.totalProfit >= 0
-                            ? AppColors.success
-                            : AppColors.critical,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(ret.abs() * 100).toStringAsFixed(1)}%  ·  ${money(store.totalProfit.abs(), currency)}',
-                        style: AppText.subtitle.copyWith(
-                          color: store.totalProfit >= 0
-                              ? AppColors.success
-                              : AppColors.critical,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        store.totalProfit >= 0 ? 'overall gain' : 'overall loss',
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary),
-                      ),
-                    ],
+                if (ret != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${money(store.totalProfit.abs(), currency)} ${up ? 'overall gain' : 'overall loss'}',
+                    style:
+                        AppText.caption.copyWith(color: palette.textSecondary),
                   ),
+                ],
+                if (growth.length >= 2) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: 64,
+                    width: double.infinity,
+                    child: Sparkline(
+                      values: growth,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
@@ -695,29 +733,47 @@ class _LegendRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.chip),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
             Container(
-              width: 9,
-              height: 9,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                color: slice.type.color,
-                shape: BoxShape.circle,
+                color: slice.type.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: Icon(slice.type.icon, size: 15, color: slice.type.color),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                slice.type.shortLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: palette.textPrimary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    slice.type.shortLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  Text(
+                    moneyWords(slice.value, currency),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
               ),
             ),
             Text(
               '${(slice.share * 100).round()}%',
-              style: AppText.label.copyWith(color: palette.textPrimary),
+              style: AppText.label.copyWith(color: AppColors.primaryGreen),
             ),
           ],
         ),

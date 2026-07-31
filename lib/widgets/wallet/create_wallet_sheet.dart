@@ -122,32 +122,47 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Header: live preview badge + titles.
-                Row(
-                  children: [
-                    ShinyIcon(
-                      icon: walletIconFor(_iconKey),
-                      color: color,
-                      size: AppSizes.iconContainer,
-                      iconSize: 26,
-                      radius: AppRadius.chip,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(l10n.t('newWallet'),
-                              style: AppText.headline.copyWith(
-                                  color: palette.textPrimary, fontSize: 19)),
-                          const SizedBox(height: 2),
-                          Text(l10n.t('newWalletSubtitle'),
-                              style: AppText.caption
-                                  .copyWith(color: palette.textSecondary)),
-                        ],
+                // Header: a live-preview glass card of the wallet being made.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    gradient: palette.cardGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                    border: Border.all(color: palette.border),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: Row(
+                    children: [
+                      ShinyIcon(
+                        icon: walletIconFor(_iconKey),
+                        color: color,
+                        size: AppSizes.iconContainer,
+                        iconSize: 26,
+                        radius: AppRadius.chip,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                _controller.text.trim().isEmpty
+                                    ? l10n.t('newWallet')
+                                    : _controller.text.trim(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.headline.copyWith(
+                                    color: palette.textPrimary, fontSize: 19)),
+                            const SizedBox(height: 2),
+                            Text(l10n.t('newWalletSubtitle'),
+                                style: AppText.caption
+                                    .copyWith(color: palette.textSecondary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 // Name field.
@@ -231,20 +246,14 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
                     height: AppSizes.button,
                     decoration: BoxDecoration(
                       gradient: AppColors.brandGradient,
-                      borderRadius: BorderRadius.circular(AppRadius.button),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.32),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      boxShadow: AppShadows.glow(AppColors.primaryGreen),
                     ),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _saving ? null : _save,
-                        borderRadius: BorderRadius.circular(AppRadius.button),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: Center(
                           child: _saving
                               ? const SizedBox(

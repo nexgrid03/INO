@@ -175,11 +175,16 @@ class _StatusCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  // Pastel glass chip: mist fill + coloured glyph, per the
+                  // Divine Glass icon-chip language.
+                  color: AppColors.primaryGreen.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.18),
+                  ),
                 ),
                 child: const Icon(Icons.cloud_done_rounded,
-                    color: Colors.white, size: 24),
+                    color: AppColors.primaryGreen, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(

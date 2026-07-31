@@ -159,11 +159,16 @@ class _SignupScreenState extends State<SignupScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
+          // Divine Glass header: floating glass shield chip above a centred
+          // title + subtitle (mockup "Join the Vault" arrangement).
+          FadeSlideIn(child: const _ShieldBadge()),
+          const SizedBox(height: 20),
           FadeSlideIn(
             child: Text(
               l10n.t('createAccount'),
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 27,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
               ),
@@ -174,9 +179,11 @@ class _SignupScreenState extends State<SignupScreen> {
             delay: const Duration(milliseconds: 60),
             child: Text(
               l10n.t('signupSubtitle'),
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 14.5,
                 color: AppColors.textMuted,
+                height: 1.5,
               ),
             ),
           ),
@@ -325,6 +332,33 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+/// The floating glass shield chip above the signup header - a translucent
+/// white circle with a pale-sky hairline and the brand shield glyph.
+class _ShieldBadge extends StatelessWidget {
+  const _ShieldBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.6),
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.tealPale, width: 1.2),
+          boxShadow: AppShadows.card,
+        ),
+        child: const Icon(
+          Icons.shield_rounded,
+          color: AppColors.primaryGreen,
+          size: 38,
+        ),
       ),
     );
   }

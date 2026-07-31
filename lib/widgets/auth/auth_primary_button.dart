@@ -39,7 +39,8 @@ class AuthPrimaryButton extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               gradient: AppColors.brandGradient,
-              borderRadius: BorderRadius.circular(16),
+              // Divine Glass: primary CTAs are full pills.
+              borderRadius: BorderRadius.circular(999),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primaryGreen.withValues(alpha: 0.35),

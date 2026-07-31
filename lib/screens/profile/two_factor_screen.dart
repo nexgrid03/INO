@@ -357,11 +357,17 @@ class _StepTile extends StatelessWidget {
             width: 26,
             height: 26,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-                gradient: AppColors.brandGradient, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                // Pastel chip + coloured numeral (Divine Glass), instead of a
+                // saturated gradient disc.
+                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.22),
+                ),
+                shape: BoxShape.circle),
             child: Text(n,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w800,
                     fontSize: 13)),
           ),

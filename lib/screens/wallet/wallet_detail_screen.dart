@@ -975,7 +975,7 @@ class _SelectionBar extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: AppColors.brandGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     boxShadow: enabled
                         ? [
                             BoxShadow(
@@ -992,13 +992,13 @@ class _SelectionBar extends StatelessWidget {
                       ? null
                       : BoxDecoration(
                           color: palette.bg.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: enabled ? onShare : null,
-                      borderRadius: BorderRadius.circular(AppRadius.button),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 18,
@@ -1056,6 +1056,6 @@ const List<QuickAction> _detailFabActions = [
   QuickAction(
     label: 'Create Category',
     icon: Icons.new_label_rounded,
-    color: Color(0xFF30ACB3),
+    color: Color(0xFF0EA5E9),
   ),
 ];

@@ -8,6 +8,7 @@ import {
   TransformComponent,
   type ReactZoomPanPinchRef,
 } from "react-zoom-pan-pinch";
+import { FileTextIcon } from "@/components/icons";
 import type { SharedDoc } from "@/lib/config";
 
 // Load the pdf.js worker from a CDN matching the bundled version.
@@ -159,9 +160,11 @@ function OtherView({ name, type, download, onBack }: { name: string; type: strin
       <Bar name={name} download={download} onBack={onBack} />
       <div className="stage">
         <div className="center">
-          <div style={{ fontSize: 54 }}>📄</div>
+          <div style={{ width: 54, height: 54, color: "#0284c7" }}>
+            <FileTextIcon />
+          </div>
           <div>
-            <div style={{ fontWeight: 700, color: "#fff" }}>{name}</div>
+            <div style={{ fontWeight: 700, color: "#0f172a" }}>{name}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>{type} · preview not available</div>
           </div>
           <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
@@ -183,7 +186,9 @@ function Loading() {
 function Fallback({ download }: { download: string }) {
   return (
     <div className="center">
-      <div style={{ fontSize: 44 }}>📄</div>
+      <div style={{ width: 44, height: 44, color: "#0284c7" }}>
+        <FileTextIcon />
+      </div>
       <div style={{ fontSize: 13 }}>Couldn’t preview this file.</div>
       <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
     </div>

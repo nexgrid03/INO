@@ -124,15 +124,26 @@ class _NoReminderNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: palette.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Row(
         children: [
-          Icon(Icons.event_available_rounded,
-              size: 18, color: palette.textFaint),
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppRadius.chip - 2),
+            ),
+            child: const Icon(Icons.event_available_rounded,
+                size: 18, color: AppColors.primaryGreen),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

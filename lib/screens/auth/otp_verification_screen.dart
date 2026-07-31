@@ -242,7 +242,48 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
               ),
             ),
+          const SizedBox(height: 36),
+
+          // Decorative trust badge from the Divine Glass mockup footer.
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: const Center(child: _SecuredFooterChip()),
+          ),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+/// The "Secured by INO Vault Encryption" glass pill from the mockup footer -
+/// purely decorative reassurance.
+class _SecuredFooterChip extends StatelessWidget {
+  const _SecuredFooterChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.tealPale, width: 1),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_rounded, size: 15, color: AppColors.textMuted),
+          SizedBox(width: 8),
+          Text(
+            'SECURED BY INO VAULT ENCRYPTION',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: AppColors.textMuted,
+            ),
+          ),
         ],
       ),
     );

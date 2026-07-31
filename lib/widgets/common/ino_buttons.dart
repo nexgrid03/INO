@@ -36,7 +36,8 @@ class PrimaryButton extends StatelessWidget {
       decoration: BoxDecoration(
         // Deeper in the bold theme, lighter in soft.
         gradient: InoStyle.gradient(context, AppGradients.primary),
-        borderRadius: BorderRadius.circular(AppRadius.button),
+        // Divine Glass: primary CTAs are full pills.
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         boxShadow: enabled ? AppShadows.glow(AppColors.primaryGreen) : null,
       ),
       child: Opacity(
@@ -83,7 +84,7 @@ class PrimaryButton extends StatelessWidget {
 }
 
 /// The secondary action: white (surface) fill, light hairline border, same
-/// 56dp/radius-18 geometry so button pairs read as one family.
+/// 56dp pill geometry so button pairs read as one family.
 class SecondaryButton extends StatelessWidget {
   const SecondaryButton({
     super.key,
@@ -106,7 +107,7 @@ class SecondaryButton extends StatelessWidget {
         color: palette.surface,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           side: BorderSide(color: palette.border),
         ),
         child: InkWell(

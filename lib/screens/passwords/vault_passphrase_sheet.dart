@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/vault_crypto.dart';
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
 /// Sets up or unlocks the Password Vault's encryption passphrase.
@@ -105,15 +106,17 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
     final insets = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
       padding: EdgeInsets.only(bottom: insets),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          color: palette.bgElevated,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+          border: Border.all(color: palette.border),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: SingleChildScrollView(
@@ -126,24 +129,32 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    borderRadius: BorderRadius.circular(2),
+                    color: AppColors.tealPale,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(Icons.lock_rounded,
-                      color: AppColors.primaryGreen, size: 24),
-                  const SizedBox(width: 10),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.tealMist,
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                      border: Border.all(color: AppColors.tealPale),
+                    ),
+                    child: const Icon(Icons.lock_rounded,
+                        color: AppColors.primaryGreen, size: 21),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       widget.isFirstTime
                           ? 'Set a vault passphrase'
                           : 'Unlock your vault',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: AppText.title.copyWith(color: palette.textPrimary),
                     ),
                   ),
                 ],
@@ -155,8 +166,8 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                         'are saved, so nobody else - not even we - can read '
                         'them. This passphrase is the key.'
                     : 'Enter your passphrase to decrypt your saved passwords.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodySmall?.color,
+                style: AppText.body.copyWith(
+                  color: palette.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -170,9 +181,10 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                     ? TextInputAction.next
                     : TextInputAction.done,
                 onSubmitted: widget.isFirstTime ? null : (_) => _submit(),
+                style: AppText.body.copyWith(color: palette.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Vault passphrase',
-                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.key_rounded, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure
                         ? Icons.visibility_rounded
@@ -189,9 +201,10 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   enabled: !_busy,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
+                  style: AppText.body.copyWith(color: palette.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Confirm passphrase',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.key_rounded, size: 20),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -202,9 +215,15 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   onTap: _busy
                       ? null
                       : () => setState(() => _acknowledged = !_acknowledged),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                      border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.30)),
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -222,8 +241,10 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                               'I understand that if I forget this passphrase, '
                               'my saved passwords cannot be recovered by '
                               'anyone.',
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(height: 1.35),
+                              style: AppText.caption.copyWith(
+                                color: palette.textSecondary,
+                                height: 1.35,
+                              ),
                             ),
                           ),
                         ),
@@ -237,14 +258,14 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.error_outline_rounded,
+                    const Icon(Icons.error_outline_rounded,
                         size: 18, color: AppColors.critical),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _error!,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: AppColors.critical),
+                        style: AppText.caption
+                            .copyWith(color: AppColors.critical),
                       ),
                     ),
                   ],
@@ -252,14 +273,21 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
               ],
               const SizedBox(height: 20),
               SizedBox(
-                height: 50,
+                height: 52,
                 child: FilledButton(
                   onPressed: _busy ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    shape: const StadiumBorder(),
+                  ),
                   child: _busy
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         )
                       : Text(widget.isFirstTime
                           ? 'Create vault'

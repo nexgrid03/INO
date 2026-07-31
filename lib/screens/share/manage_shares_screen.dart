@@ -523,16 +523,16 @@ class _ShareCard extends StatelessWidget {
                 width: AppSizes.iconContainerSm,
                 height: AppSizes.iconContainerSm,
                 decoration: BoxDecoration(
-                  gradient: isActive ? AppGradients.primary : null,
-                  color: isActive ? null : palette.surfaceVariant,
+                  color: isActive ? AppColors.tealMist : palette.surfaceVariant,
                   borderRadius: BorderRadius.circular(AppRadius.chip),
-                  boxShadow: isActive
-                      ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.25)
-                      : null,
+                  border: Border.all(
+                    color: isActive ? AppColors.tealPale : palette.border,
+                  ),
                 ),
                 child: Icon(
                   Icons.qr_code_2_rounded,
-                  color: isActive ? Colors.white : palette.textFaint,
+                  color:
+                      isActive ? AppColors.primaryGreen : palette.textFaint,
                   size: 22,
                 ),
               ),
@@ -788,17 +788,15 @@ class _EmptyState extends StatelessWidget {
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        gradient: AppGradients.primary,
+                        color: AppColors.tealMist,
                         borderRadius: BorderRadius.circular(AppRadius.card),
-                        boxShadow: AppShadows.glow(
-                          AppColors.primaryGreen,
-                          opacity: 0.30,
-                        ),
+                        border: Border.all(color: AppColors.tealPale),
+                        boxShadow: AppShadows.card,
                       ),
                       child: const Icon(
                         Icons.qr_code_2_rounded,
                         size: 36,
-                        color: Colors.white,
+                        color: AppColors.primaryGreen,
                       ),
                     ),
                   ],

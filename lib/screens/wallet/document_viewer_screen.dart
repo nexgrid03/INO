@@ -778,17 +778,14 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                       width: AppSizes.iconContainer,
                       height: AppSizes.iconContainer,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: widget.accent,
-                        ),
+                        color: widget.accent.first.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow:
-                            AppShadows.glow(widget.accent.first, opacity: 0.25),
+                        border: Border.all(
+                            color:
+                                widget.accent.first.withValues(alpha: 0.25)),
                       ),
-                      child:
-                          Icon(_record.icon, color: Colors.white, size: 26),
+                      child: Icon(_record.icon,
+                          color: widget.accent.first, size: 26),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
@@ -1415,20 +1412,20 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                         width: 92,
                         height: 92,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: widget.accent,
-                          ),
+                          color: palette.isDark
+                              ? palette.surfaceVariant
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.card),
-                          boxShadow: AppShadows.glow(widget.accent.first,
-                              opacity: 0.35),
+                          border: Border.all(
+                              color: widget.accent.first
+                                  .withValues(alpha: 0.30)),
+                          boxShadow: AppShadows.card,
                         ),
                         child: Icon(
                           isPdf
                               ? Icons.picture_as_pdf_rounded
                               : Icons.insert_drive_file_rounded,
-                          color: Colors.white,
+                          color: widget.accent.first,
                           size: 44,
                         ),
                       ),

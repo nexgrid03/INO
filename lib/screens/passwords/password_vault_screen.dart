@@ -551,27 +551,32 @@ class _LockedState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 92,
+            height: 92,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.brandGradient,
-              boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(
+                  color: AppColors.tealPale.withValues(alpha: 0.6)),
+              boxShadow: AppShadows.floating,
             ),
-            child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28),
+            child: const Icon(Icons.lock_outline_rounded,
+                color: AppColors.primaryGreen, size: 40),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text('Vault locked',
-              style: AppText.title.copyWith(color: palette.textPrimary)),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Vault Locked',
+              style: AppText.headline
+                  .copyWith(color: palette.textPrimary, fontSize: 22)),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'Authenticate to view your saved passwords.',
+            'Use your biometrics to access your secure credentials.',
             textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(color: palette.textSecondary),
+            style: AppText.body
+                .copyWith(color: palette.textSecondary, height: 1.5),
           ),
           const SizedBox(height: AppSpacing.lg),
           GradientButton(
-            label: 'Unlock',
+            label: 'Unlock Vault',
             icon: Icons.fingerprint_rounded,
             expand: false,
             onTap: onRetry,

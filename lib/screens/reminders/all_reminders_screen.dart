@@ -197,8 +197,18 @@ class _EmptyList extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_outline_rounded,
-                size: 44, color: palette.textFaint),
+            Container(
+              width: 72,
+              height: 72,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.surfaceVariant,
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.border),
+              ),
+              child: const Icon(Icons.check_circle_outline_rounded,
+                  size: 32, color: AppColors.primaryGreen),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               l10n.t('nothingHere'),

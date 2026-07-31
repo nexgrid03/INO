@@ -53,17 +53,12 @@ class PlaceholderTab extends StatelessWidget {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
+                    color: AppColors.tealMist,
                     borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.35),
-                        blurRadius: 26,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
+                    border: Border.all(color: AppColors.tealPale),
+                    boxShadow: AppShadows.card,
                   ),
-                  child: Icon(icon, color: Colors.white, size: 44),
+                  child: Icon(icon, color: AppColors.primaryGreen, size: 44),
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -109,12 +104,12 @@ class PlaceholderTab extends StatelessWidget {
                       icon: const Icon(Icons.logout_rounded, size: 18),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.critical,
-                        side: const BorderSide(color: AppColors.critical),
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                            color: AppColors.critical.withValues(alpha: 0.4)),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: const StadiumBorder(),
                       ),
                       label: Text(l10n.t('signOut'),
                           style: const TextStyle(fontWeight: FontWeight.w700)),

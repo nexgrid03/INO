@@ -155,14 +155,17 @@ class _FilterChip extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primaryGreen : palette.surface,
+          color: selected ? AppColors.tealMist : palette.surface,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-              color: selected ? AppColors.primaryGreen : palette.border),
+              color: selected ? AppColors.primaryGreen : palette.border,
+              width: selected ? 1.3 : 1),
         ),
         child: Text(label,
             style: AppText.caption.copyWith(
-                color: selected ? Colors.white : palette.textSecondary,
+                color: selected
+                    ? AppColors.primaryGreen
+                    : palette.textSecondary,
                 fontWeight: FontWeight.w700)),
       ),
     );
@@ -181,8 +184,9 @@ class _HistoryTile extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.button),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Row(
         children: [

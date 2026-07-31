@@ -673,24 +673,20 @@ class _ChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final on = active && enabled;
+    // Divine Glass selection: a mist-filled chip with a sky border and brand
+    // glyph/label (matching the reference), instead of a saturated gradient.
     final content = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        gradient: on ? AppColors.brandGradient : null,
-        color: on ? null : palette.surface,
+        color: on ? AppColors.tealMist : palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.button),
-        border: Border.all(color: on ? Colors.transparent : palette.border),
-        boxShadow: on
-            ? [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.28),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        border: Border.all(
+          color: on ? AppColors.primaryGreen : palette.border,
+          width: on ? 1.4 : 1,
+        ),
+        boxShadow: on ? null : AppShadows.card,
       ),
       child: Opacity(
         opacity: enabled ? 1 : 0.4,
@@ -698,7 +694,8 @@ class _ChoiceChip extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                size: 18, color: on ? Colors.white : palette.textSecondary),
+                size: 18,
+                color: on ? AppColors.primaryGreen : palette.textSecondary),
             const SizedBox(width: 8),
             Flexible(
               // Shrink the label to fit one line instead of ellipsizing it -
@@ -711,7 +708,8 @@ class _ChoiceChip extends StatelessWidget {
                   maxLines: 1,
                   softWrap: false,
                   style: AppText.subtitle.copyWith(
-                    color: on ? Colors.white : palette.textPrimary,
+                    color:
+                        on ? AppColors.primaryGreen : palette.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 13.5,
                   ),
@@ -749,10 +747,9 @@ class _QrLinkButton extends StatelessWidget {
         child: Container(
           height: AppSizes.button,
           decoration: BoxDecoration(
-            color: AppColors.primaryGreen.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(AppRadius.button),
-            border: Border.all(
-                color: AppColors.primaryGreen.withValues(alpha: 0.4)),
+            color: AppColors.tealFoam,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: AppColors.tealPale),
           ),
           child: Center(
             child: Row(
@@ -812,7 +809,7 @@ class _ActionBar extends StatelessWidget {
                   color: palette.surface,
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     side: BorderSide(color: palette.border),
                   ),
                   child: InkWell(
@@ -838,7 +835,7 @@ class _ActionBar extends StatelessWidget {
                       height: AppSizes.button,
                       decoration: BoxDecoration(
                         gradient: AppColors.brandGradient,
-                        borderRadius: BorderRadius.circular(AppRadius.button),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.primaryGreen.withValues(alpha: 0.32),

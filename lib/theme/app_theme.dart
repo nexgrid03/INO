@@ -2,14 +2,15 @@
 // longer re-exported by material.dart), so it needs its own import.
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'theme_style.dart';
 
 /// Central color palette and theme for the INO app.
 ///
-/// Premium Teal design system built around the brand anchor **#30ACB3** and a
+/// Premium Teal design system built around the brand anchor **#0EA5E9** and a
 /// ladder of lighter tints only (never darker):
-///   #30ACB3 → #55C2C8 → #7FD3D8 → #A7E2E5 → #D5F3F4 → white.
+///   #0EA5E9 → #38BDF8 → #7DD3FC → #BAE6FD → #E0F2FE → white.
 ///
 /// Three layers:
 ///   • [AppColors] - brand constants (teal tints + status colours). Theme-
@@ -24,32 +25,32 @@ import 'theme_style.dart';
 class AppColors {
   AppColors._();
 
-  // --- Brand: the #30ACB3 tint ladder ---------------------------------------
+  // --- Brand: the #0EA5E9 tint ladder ---------------------------------------
 
-  /// Primary brand teal - #30ACB3. (Legacy name kept for app-wide reach.)
-  static const Color primaryGreen = Color(0xFF30ACB3);
+  /// Primary brand teal - #0EA5E9. (Legacy name kept for app-wide reach.)
+  static const Color primaryGreen = Color(0xFF0EA5E9);
 
-  /// Tint 1 - #55C2C8. Secondary fills, gradient partner, soft accents.
-  static const Color secondaryGreen = Color(0xFF55C2C8);
+  /// Tint 1 - #38BDF8. Secondary fills, gradient partner, soft accents.
+  static const Color secondaryGreen = Color(0xFF38BDF8);
 
   /// Text/icons sitting on tinted fills. Per the brand rule the primary is
   /// never darkened, so this aliases the anchor itself.
-  static const Color darkGreen = Color(0xFF30ACB3);
+  static const Color darkGreen = Color(0xFF0EA5E9);
 
-  /// Tint 1 - #55C2C8. (Legacy "cyan partner" name; now the first tint.)
-  static const Color lightBlue = Color(0xFF55C2C8);
+  /// Tint 1 - #38BDF8. (Legacy "cyan partner" name; now the first tint.)
+  static const Color lightBlue = Color(0xFF38BDF8);
 
-  /// Tint 2 - #7FD3D8. Washes, glows and dark-mode accents.
-  static const Color skyBlue = Color(0xFF7FD3D8);
+  /// Tint 2 - #7DD3FC. Washes, glows and dark-mode accents.
+  static const Color skyBlue = Color(0xFF7DD3FC);
 
-  /// Tint 3 - #A7E2E5. Chip strokes, decorative shapes.
-  static const Color tealPale = Color(0xFFA7E2E5);
+  /// Tint 3 - #BAE6FD. Chip strokes, decorative shapes.
+  static const Color tealPale = Color(0xFFBAE6FD);
 
-  /// Tint 4 - #D5F3F4. Mist fills, progress tracks, chip backgrounds.
-  static const Color tealMist = Color(0xFFD5F3F4);
+  /// Tint 4 - #E0F2FE. Mist fills, progress tracks, chip backgrounds.
+  static const Color tealMist = Color(0xFFE0F2FE);
 
-  /// Near-white teal - #EFF9FA. Section washes and inset surfaces.
-  static const Color tealFoam = Color(0xFFEFF9FA);
+  /// Near-white teal - #F0F9FF. Section washes and inset surfaces.
+  static const Color tealFoam = Color(0xFFF0F9FF);
 
   // --- Semantic status colours ----------------------------------------------
 
@@ -63,14 +64,14 @@ class AppColors {
 
   // --- Light neutrals (splash / login / onboarding) --------------------------
 
-  static const Color background = Color(0xFFF3FAFB);
+  static const Color background = Color(0xFFEAF4FC);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF0F172A);
   static const Color textMuted = Color(0xFF64748B);
 
   // --- Premium gradient system (legacy aliases → AppGradients) ---------------
 
-  /// Hero gradient - buttons, FAB, avatars, splash. #30ACB3 → #55C2C8.
+  /// Hero gradient - buttons, FAB, avatars, splash. #0EA5E9 → #38BDF8.
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -97,17 +98,17 @@ class AppColors {
 class AppGradients {
   AppGradients._();
 
-  /// The primary brand gradient (#30ACB3 → #55C2C8) - primary buttons, the
+  /// The primary brand gradient (#0EA5E9 → #38BDF8) - primary buttons, the
   /// active nav pill, avatars, hero chips.
   static const LinearGradient primary = AppColors.brandGradient;
 
-  /// Softer companion (#55C2C8 → #7FD3D8) - wallet tiles, secondary heroes.
+  /// Softer companion (#38BDF8 → #7DD3FC) - wallet tiles, secondary heroes.
   static const LinearGradient soft = AppColors.walletGradient;
 
-  /// The widest in-family sweep (#30ACB3 → #7FD3D8) - hero banners.
+  /// The widest in-family sweep (#0EA5E9 → #7DD3FC) - hero banners.
   static const LinearGradient hero = AppColors.insightGradient;
 
-  /// Airy mist gradient (white → #D5F3F4) - screen washes, empty states.
+  /// Airy mist gradient (white → #E0F2FE) - screen washes, empty states.
   static const LinearGradient mist = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -181,7 +182,7 @@ class AppBorders {
   AppBorders._();
 
   /// The spec card border: 1px solid rgba(48,172,179,0.15).
-  static const Color line = Color(0x2630ACB3);
+  static const Color line = Color(0x260EA5E9);
 
   /// The standard 1px hairline against the ambient palette.
   static Border hairline(AppPalette palette) =>
@@ -256,18 +257,18 @@ class AppPalette {
   // Light is the PRIMARY theme - bright, airy, teal-washed, never plain white.
   static const AppPalette light = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFF3FAFB), // soft teal-white wash
+    bg: Color(0xFFEAF4FC), // soft teal-white wash
     bgElevated: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF), // card background
     cardTop: Color(0xFFFFFFFF), // top-lit glass card
-    cardBottom: Color(0xFFFAFDFE), // whisper of mist at the base
-    surfaceVariant: Color(0xFFEFF9FA), // teal foam inset
+    cardBottom: Color(0xFFFAFCFF), // whisper of mist at the base
+    surfaceVariant: Color(0xFFF0F9FF), // teal foam inset
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF64748B),
     textFaint: Color(0xFF94A3B8), // slate-400
-    border: Color(0x2630ACB3), // spec: rgba(48,172,179,0.15)
-    shadow: Color(0xFF30ACB3),
-    ambient: Color(0xFF30ACB3),
+    border: Color(0x260EA5E9), // spec: rgba(48,172,179,0.15)
+    shadow: Color(0xFF0EA5E9),
+    ambient: Color(0xFF0EA5E9),
     shadowStrength: 1.0,
   );
 
@@ -276,18 +277,18 @@ class AppPalette {
   /// so the accent-flooded cards sit in a correspondingly deeper scene.
   static const AppPalette lightBold = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFE7F2F3), // deeper teal wash
+    bg: Color(0xFFDCEEFA), // deeper teal wash
     bgElevated: Color(0xFFF9FDFD),
     surface: Color(0xFFFCFEFE),
     cardTop: Color(0xFFFCFEFE),
-    cardBottom: Color(0xFFF1F9FA),
-    surfaceVariant: Color(0xFFE0EFF0),
+    cardBottom: Color(0xFFE8F3FC),
+    surfaceVariant: Color(0xFFD8EBF8),
     textPrimary: Color(0xFF0B1220),
     textSecondary: Color(0xFF56636F),
     textFaint: Color(0xFF8593A2),
-    border: Color(0x4030ACB3), // rgba(48,172,179,0.25) - firmer hairline
-    shadow: Color(0xFF30ACB3),
-    ambient: Color(0xFF30ACB3),
+    border: Color(0x400EA5E9), // rgba(48,172,179,0.25) - firmer hairline
+    shadow: Color(0xFF0EA5E9),
+    ambient: Color(0xFF0EA5E9),
     shadowStrength: 1.2,
   );
 
@@ -296,35 +297,35 @@ class AppPalette {
   /// colourful glyphs.
   static const AppPalette lightSoft = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFF8FCFD), // lighter, near-white wash
+    bg: Color(0xFFF5FAFE), // lighter, near-white wash
     bgElevated: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
     cardTop: Color(0xFFFFFFFF),
     cardBottom: Color(0xFFFCFEFE),
-    surfaceVariant: Color(0xFFF3FAFB),
+    surfaceVariant: Color(0xFFEAF4FC),
     textPrimary: Color(0xFF1E293B),
     textSecondary: Color(0xFF6E7F94),
     textFaint: Color(0xFFA0ACBC),
-    border: Color(0x1F30ACB3), // rgba(48,172,179,0.12) - lighter hairline
-    shadow: Color(0xFF30ACB3),
-    ambient: Color(0xFF30ACB3),
+    border: Color(0x1F0EA5E9), // rgba(48,172,179,0.12) - lighter hairline
+    shadow: Color(0xFF0EA5E9),
+    ambient: Color(0xFF0EA5E9),
     shadowStrength: 0.8,
   );
 
   static const AppPalette dark = AppPalette(
     brightness: Brightness.dark,
-    bg: Color(0xFF0A1B1E),
-    bgElevated: Color(0xFF102529),
-    surface: Color(0xFF132B2F),
-    cardTop: Color(0xFF17343A),
-    cardBottom: Color(0xFF132B2F),
-    surfaceVariant: Color(0xFF17343A),
-    textPrimary: Color(0xFFEDF8F7),
-    textSecondary: Color(0xFFA8C8C7),
-    textFaint: Color(0xFF6F9391),
-    border: Color(0x247FD3D8), // rgba(tint2, 0.14)
+    bg: Color(0xFF0A1926),
+    bgElevated: Color(0xFF102331),
+    surface: Color(0xFF13293A),
+    cardTop: Color(0xFF173347),
+    cardBottom: Color(0xFF13293A),
+    surfaceVariant: Color(0xFF173347),
+    textPrimary: Color(0xFFEDF5FB),
+    textSecondary: Color(0xFFA8C2D6),
+    textFaint: Color(0xFF6F8BA3),
+    border: Color(0x247DD3FC), // rgba(tint2, 0.14)
     shadow: Color(0xFF000000),
-    ambient: Color(0xFF7FD3D8),
+    ambient: Color(0xFF7DD3FC),
     shadowStrength: 0.5,
   );
 
@@ -401,6 +402,7 @@ class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
     final palette = AppPalette.resolve(brightness: brightness, style: style);
+    final fontFamily = GoogleFonts.manrope().fontFamily;
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primaryGreen,
@@ -413,61 +415,63 @@ class AppTheme {
     );
 
     // Strong hierarchy: large expressive headings, comfortable body text.
-    final textTheme = Typography.material2021(platform: TargetPlatform.android)
-        .englishLike
+    // Divine Glass spec: everything is set in Manrope.
+    final textTheme = GoogleFonts.manropeTextTheme(
+      Typography.material2021(platform: TargetPlatform.android).englishLike,
+    )
         .apply(
           bodyColor: palette.textPrimary,
           displayColor: palette.textPrimary,
         )
         .copyWith(
-          displaySmall: TextStyle(
+          displaySmall: TextStyle(fontFamily: fontFamily, 
             fontSize: 34,
             fontWeight: FontWeight.w800,
             letterSpacing: -1.0,
             color: palette.textPrimary,
           ),
-          headlineMedium: TextStyle(
+          headlineMedium: TextStyle(fontFamily: fontFamily, 
             fontSize: 26,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.6,
             color: palette.textPrimary,
           ),
-          headlineSmall: TextStyle(
+          headlineSmall: TextStyle(fontFamily: fontFamily, 
             fontSize: 22,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
             color: palette.textPrimary,
           ),
-          titleLarge: TextStyle(
+          titleLarge: TextStyle(fontFamily: fontFamily, 
             fontSize: 18,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
             color: palette.textPrimary,
           ),
-          titleMedium: TextStyle(
+          titleMedium: TextStyle(fontFamily: fontFamily, 
             fontSize: 16,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
             color: palette.textPrimary,
           ),
-          bodyLarge: TextStyle(
+          bodyLarge: TextStyle(fontFamily: fontFamily, 
             fontSize: 16,
             fontWeight: FontWeight.w500,
             height: 1.45,
             color: palette.textPrimary,
           ),
-          bodyMedium: TextStyle(
+          bodyMedium: TextStyle(fontFamily: fontFamily, 
             fontSize: 14,
             fontWeight: FontWeight.w500,
             height: 1.45,
             color: palette.textPrimary,
           ),
-          bodySmall: TextStyle(
+          bodySmall: TextStyle(fontFamily: fontFamily, 
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
             color: palette.textSecondary,
           ),
-          labelLarge: TextStyle(
+          labelLarge: TextStyle(fontFamily: fontFamily, 
             fontSize: 14,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -479,6 +483,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
+      fontFamily: fontFamily,
       textTheme: textTheme,
       scaffoldBackgroundColor: palette.bg,
       canvasColor: palette.bg,
@@ -500,7 +505,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 17,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
@@ -529,7 +534,7 @@ class AppTheme {
           disabledForegroundColor: AppColors.textMuted,
           elevation: 0,
           shadowColor: AppColors.primaryGreen.withValues(alpha: 0.35),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(fontFamily: fontFamily, 
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -544,7 +549,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primaryGreen,
           foregroundColor: Colors.white,
-          textStyle: const TextStyle(
+          textStyle: TextStyle(fontFamily: fontFamily, 
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -564,7 +569,7 @@ class AppTheme {
             color: isDark ? palette.border : AppColors.tealPale,
             width: 1.2,
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(fontFamily: fontFamily, 
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -578,7 +583,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primaryGreen,
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          textStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -595,12 +600,12 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark ? palette.surfaceVariant : Colors.white,
-        hintStyle: TextStyle(
+        hintStyle: TextStyle(fontFamily: fontFamily, 
           color: palette.textFaint,
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
-        labelStyle: TextStyle(
+        labelStyle: TextStyle(fontFamily: fontFamily, 
           color: palette.textSecondary,
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
@@ -640,12 +645,12 @@ class AppTheme {
         backgroundColor: isDark ? palette.surfaceVariant : AppColors.tealFoam,
         selectedColor: AppColors.primaryGreen,
         disabledColor: palette.surfaceVariant,
-        labelStyle: TextStyle(
+        labelStyle: TextStyle(fontFamily: fontFamily, 
           color: palette.textPrimary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        secondaryLabelStyle: const TextStyle(
+        secondaryLabelStyle: TextStyle(fontFamily: fontFamily, 
           color: Colors.white,
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -663,13 +668,13 @@ class AppTheme {
           borderRadius: BorderRadius.circular(28),
           side: BorderSide(color: palette.border),
         ),
-        titleTextStyle: TextStyle(
+        titleTextStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 19,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.3,
           color: palette.textPrimary,
         ),
-        contentTextStyle: TextStyle(
+        contentTextStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
           height: 1.5,
@@ -690,7 +695,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.primaryGreen,
-        contentTextStyle: const TextStyle(
+        contentTextStyle: TextStyle(fontFamily: fontFamily, 
           color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -703,8 +708,8 @@ class AppTheme {
       tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primaryGreen,
         unselectedLabelColor: palette.textFaint,
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: const TextStyle(
+        labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
@@ -735,7 +740,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: palette.border),
         ),
-        textStyle: TextStyle(
+        textStyle: TextStyle(fontFamily: fontFamily, 
           color: palette.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -788,7 +793,7 @@ class AppTheme {
           color: AppColors.primaryGreen,
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: const TextStyle(
+        textStyle: TextStyle(fontFamily: fontFamily, 
           color: Colors.white,
           fontSize: 12.5,
           fontWeight: FontWeight.w600,

@@ -291,9 +291,9 @@ class _WalletBackdrop extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFFD6EBEF), // cool blue-mist crown
-            Color(0xFFE4F3F0), // seafoam middle
-            Color(0xFFF1FAF6), // near-white base
+            Color(0xFFDCEEFA), // sky-blue crown
+            Color(0xFFEAF4FC), // brand wash middle
+            Color(0xFFF5FAFE), // near-white base
           ],
           stops: [0.0, 0.45, 1.0],
         ),
@@ -316,8 +316,8 @@ class _WalletBackdrop extends StatelessWidget {
             left: -80,
             child: DecorBlob(
               size: 240,
-              color: Color(0xFF5FCBBF),
-              opacity: 0.22,
+              color: AppColors.secondaryGreen,
+              opacity: 0.18,
             ),
           ),
           child,
@@ -576,7 +576,7 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
                         color: palette.surfaceVariant,
                         clipBehavior: Clip.antiAlias,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                           side: BorderSide(color: palette.border),
                         ),
                         child: InkWell(
@@ -605,7 +605,7 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
                         height: AppSizes.button,
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                           boxShadow: AppShadows.glow(
                             AppColors.primaryGreen,
                             opacity: 0.28,

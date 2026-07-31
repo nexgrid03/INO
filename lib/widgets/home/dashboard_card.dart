@@ -8,7 +8,6 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/shiny_border.dart';
-import '../common/shiny_icon.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
@@ -76,47 +75,23 @@ class _DashboardCardState extends State<DashboardCard>
 
   @override
   Widget build(BuildContext context) {
-    // The picked app theme re-tones the whole teal section: bold runs the
-    // gradient deeper (the user-sanctioned "darker" theme), soft lifts it a
-    // touch lighter. Classic keeps the primary-only, never-darker ladder.
-    final themeStyle = InoStyle.of(context);
-    final List<Color> backdrop;
-    switch (themeStyle) {
-      case ThemeStyle.bold:
-        backdrop = [
-          InoStyle.deepen(const Color(0xFF4FBEC4), 0.10),
-          InoStyle.deepen(AppColors.primaryGreen, 0.10),
-          InoStyle.deepen(const Color(0xFF3BB6BC), 0.10),
-        ];
-      case ThemeStyle.soft:
-        backdrop = [
-          InoStyle.soften(const Color(0xFF4FBEC4), 0.06),
-          InoStyle.soften(AppColors.primaryGreen, 0.06),
-          InoStyle.soften(const Color(0xFF3BB6BC), 0.06),
-        ];
-      case ThemeStyle.classic:
-        backdrop = const [
-          Color(0xFF4FBEC4), // lighter tint highlight
-          AppColors.primaryGreen, // #30ACB3 anchor
-          Color(0xFF3BB6BC), // gentle lighter base
-        ];
-    }
+    // Divine Glass: the hero is a luminous white glass card - a hairline
+    // light-blue edge, whisper shadow and a slowly drifting sky wash behind
+    // the content (in place of the old saturated teal flood).
+    final palette = AppPalette.of(context);
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        gradient: palette.cardGradient,
         borderRadius: BorderRadius.circular(AppRadius.large),
-        boxShadow: [
-          BoxShadow(
-            color: backdrop[1].withValues(alpha: 0.28),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Stack(
         children: [
-          // Animated teal backdrop (gradient shift + drifting graphics). Only
-          // this layer repaints each frame; the content in front is static.
+          // Animated sky-wash backdrop (gradient shift + drifting graphics).
+          // Only this layer repaints each frame; the content in front is
+          // static.
           Positioned.fill(
             child: RepaintBoundary(
               child: AnimatedBuilder(
@@ -127,11 +102,15 @@ class _DashboardCardState extends State<DashboardCard>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         // A gentle 0→1 drift of the light source keeps the
-                        // primary gradient alive without changing its hue.
+                        // wash alive without changing its hue.
                         begin: Alignment(-1 + t * 0.4, -1),
                         end: Alignment(1, 1 - t * 0.4),
-                        colors: backdrop,
-                        stops: const [0.0, 0.58, 1.0],
+                        colors: [
+                          AppColors.tealFoam.withValues(
+                              alpha: palette.isDark ? 0.0 : 0.35),
+                          AppColors.tealMist.withValues(
+                              alpha: palette.isDark ? 0.06 : 0.55),
+                        ],
                       ),
                     ),
                     child: CustomPaint(painter: _OverviewBackdrop(t: t)),
@@ -174,6 +153,7 @@ class _DashboardCardState extends State<DashboardCard>
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 15, 18, 10),
       child: Row(
@@ -189,10 +169,10 @@ class _Header extends StatelessWidget {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: const Text(
+                        child: Text(
                           "Today's Overview",
                           style: TextStyle(
-                            color: Colors.white,
+                            color: palette.textPrimary,
                             fontSize: 21,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.4,
@@ -208,7 +188,7 @@ class _Header extends StatelessWidget {
                 Text(
                   'Your important summary for today',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: palette.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -249,9 +229,9 @@ class _LiveChipState extends State<_LiveChip>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
+        color: AppColors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -265,7 +245,7 @@ class _LiveChipState extends State<_LiveChip>
               width: 6,
               height: 6,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.success,
                 shape: BoxShape.circle,
               ),
             ),
@@ -274,7 +254,7 @@ class _LiveChipState extends State<_LiveChip>
           const Text(
             'Live',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.success,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
@@ -332,7 +312,8 @@ class _MascotBadgeState extends State<_MascotBadge>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.22 * (1 - t)),
+                      color: AppColors.primaryGreen
+                          .withValues(alpha: 0.30 * (1 - t)),
                       width: 1.5,
                     ),
                   ),
@@ -349,7 +330,7 @@ class _MascotBadgeState extends State<_MascotBadge>
                 left: 3,
                 child: _Sparkle(size: 5, opacity: 0.9 * (1 - t) + 0.1),
               ),
-              // The glassy shield badge, bobbing.
+              // The glassy shield badge, bobbing - a brand-gradient chip.
               Transform.translate(
                 offset: Offset(0, -bob),
                 child: Container(
@@ -357,18 +338,19 @@ class _MascotBadgeState extends State<_MascotBadge>
                   height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.35),
-                        Colors.white.withValues(alpha: 0.16),
-                      ],
-                    ),
+                    gradient: AppColors.brandGradient,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.45),
+                      color: Colors.white.withValues(alpha: 0.55),
                       width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            AppColors.primaryGreen.withValues(alpha: 0.30),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.verified_user_rounded,
@@ -396,7 +378,7 @@ class _Sparkle extends StatelessWidget {
     return Icon(
       Icons.auto_awesome_rounded,
       size: size + 6,
-      color: Colors.white.withValues(alpha: opacity.clamp(0.0, 1.0)),
+      color: AppColors.skyBlue.withValues(alpha: opacity.clamp(0.0, 1.0)),
     );
   }
 }
@@ -538,10 +520,12 @@ class _OverviewTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: tileFill,
         borderRadius: BorderRadius.circular(20),
-        // A thick, solid accent edge - the same colour the icon badge is
-        // filled with, so the tile reads as one coloured object rather than a
-        // pastel card with a hairline around it.
-        border: Border.all(color: edge, width: 2.5),
+        // Bold keeps its thick accent edge; classic/soft wear the Divine
+        // Glass hairline in the tile's own accent.
+        border: Border.all(
+          color: bold ? edge : edge.withValues(alpha: 0.30),
+          width: bold ? 2.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: accent.withValues(alpha: bold ? 0.24 : 0.10),
@@ -582,15 +566,16 @@ class _OverviewTile extends StatelessWidget {
                       height: badgeSize,
                       child: Icon(icon, color: Colors.white, size: glyphSize),
                     )
-                  : ShinyIcon(
-                      icon: icon,
-                      color: accent,
-                      size: badgeSize,
-                      iconSize: glyphSize,
-                      radius: 12,
-                      // Saturated accent body + white glyph, matching the
-                      // border (glass + colourful glyph in the soft theme).
-                      style: ShinyIconStyle.filled,
+                  : Container(
+                      width: badgeSize,
+                      height: badgeSize,
+                      decoration: BoxDecoration(
+                        // Pastel chip: the accent as a soft tint behind its
+                        // own coloured glyph.
+                        color: accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: accent, size: glyphSize),
                     ),
             ],
           ),
@@ -610,10 +595,10 @@ class _OverviewTile extends StatelessWidget {
       ),
     );
 
-    // Soft: the classic accent border picks up a glass sheen.
+    // Soft: the hairline accent border picks up a glass sheen.
     final styled = ShinyBorder(
       radius: 20,
-      width: 2.5,
+      width: 1,
       enabled: soft,
       child: tile,
     );
@@ -642,13 +627,13 @@ class _OverviewBackdrop extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final drift = (t - 0.5) * 22; // −11 → +11 px slow travel
 
-    // Soft radial blobs - layered translucent light.
+    // Soft radial blobs - layered translucent sky light.
     void blob(Offset c, double r, double alpha) {
       final paint = Paint()
         ..shader = RadialGradient(
           colors: [
-            Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: 0),
+            AppColors.skyBlue.withValues(alpha: alpha),
+            AppColors.skyBlue.withValues(alpha: 0),
           ],
         ).createShader(Rect.fromCircle(center: c, radius: r));
       canvas.drawCircle(c, r, paint);
@@ -665,7 +650,7 @@ class _OverviewBackdrop extends CustomPainter {
     final ring = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
-      ..color = Colors.white.withValues(alpha: 0.14);
+      ..color = AppColors.skyBlue.withValues(alpha: 0.30);
     canvas.drawCircle(
       Offset(size.width * 0.82, size.height * 0.30 + drift * 0.5),
       30,
@@ -674,11 +659,11 @@ class _OverviewBackdrop extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.82, size.height * 0.30 + drift * 0.5),
       46,
-      ring..color = Colors.white.withValues(alpha: 0.08),
+      ring..color = AppColors.skyBlue.withValues(alpha: 0.16),
     );
 
     // A gentle wave band across the lower third.
-    final wave = Paint()..color = Colors.white.withValues(alpha: 0.06);
+    final wave = Paint()..color = AppColors.skyBlue.withValues(alpha: 0.10);
     final path = Path();
     final baseY = size.height * 0.62;
     final amp = 12.0;
@@ -695,7 +680,7 @@ class _OverviewBackdrop extends CustomPainter {
     canvas.drawPath(path, wave);
 
     // Faint dotted accent cluster, mid-left.
-    final dot = Paint()..color = Colors.white.withValues(alpha: 0.12);
+    final dot = Paint()..color = AppColors.skyBlue.withValues(alpha: 0.25);
     for (var r = 0; r < 3; r++) {
       for (var c = 0; c < 3; c++) {
         canvas.drawCircle(

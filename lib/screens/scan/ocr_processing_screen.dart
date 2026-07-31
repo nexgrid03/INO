@@ -208,11 +208,22 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
                     .copyWith(color: palette.textSecondary, height: 1.5),
               ),
               const SizedBox(height: AppSpacing.lg),
-              _StageChecklist(
-                stages: OcrStage.values,
-                current: _stage,
-                done: _done,
-                labelOf: (s) => _label(l10n, s),
+              // Divine Glass card housing the live stage checklist.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  gradient: palette.cardGradient,
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  border: Border.all(color: palette.border),
+                  boxShadow: palette.cardShadow,
+                ),
+                child: _StageChecklist(
+                  stages: OcrStage.values,
+                  current: _stage,
+                  done: _done,
+                  labelOf: (s) => _label(l10n, s),
+                ),
               ),
               const Spacer(),
               // The "taking longer" notice replaces the old fake countdown,

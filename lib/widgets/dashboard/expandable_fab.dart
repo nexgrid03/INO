@@ -65,7 +65,8 @@ class _ExpandableFabState extends State<ExpandableFab>
       alignment: Alignment.bottomRight,
       clipBehavior: Clip.none,
       children: [
-        // Scrim - only hit-testable while open.
+        // Scrim - only hit-testable while open. A luminous sky wash (rather
+        // than a dark dim) per the Divine Glass action-sheet language.
         if (_open || _c.value > 0)
           Positioned.fill(
             child: IgnorePointer(
@@ -75,7 +76,17 @@ class _ExpandableFabState extends State<ExpandableFab>
                 child: GestureDetector(
                   onTap: _toggle,
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.45),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          palette.bg.withValues(alpha: 0.82),
+                          AppColors.tealMist.withValues(
+                              alpha: palette.isDark ? 0.10 : 0.92),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -155,10 +166,10 @@ class _MiniAction extends StatelessWidget {
           children: [
             // Label pill.
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: palette.surface,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: palette.border),
                 boxShadow: palette.cardShadow,
               ),
@@ -175,18 +186,29 @@ class _MiniAction extends StatelessWidget {
             const SizedBox(width: 12),
             PressableScale(
               pressedScale: 0.9,
-              child: Material(
-                color: action.color,
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                elevation: 3,
-                shadowColor: action.color.withValues(alpha: 0.5),
-                child: InkWell(
-                  onTap: onTap,
-                  child: SizedBox(
-                    width: 46,
-                    height: 46,
-                    child: Icon(action.icon, color: Colors.white, size: 22),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: action.color.withValues(alpha: 0.22),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: palette.surface,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: onTap,
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(action.icon, color: action.color, size: 22),
+                    ),
                   ),
                 ),
               ),

@@ -195,8 +195,13 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                             _busy ? null : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white24),
+                          backgroundColor:
+                              Colors.white.withValues(alpha: 0.08),
+                          side: BorderSide(
+                              color:
+                                  AppColors.tealPale.withValues(alpha: 0.45)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: const StadiumBorder(),
                         ),
                         child: Text(l10n.t('cancel')),
                       ),
@@ -209,6 +214,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primaryGreen,
                           padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: const StadiumBorder(),
                         ),
                         icon: const Icon(Icons.check_rounded),
                         label: Text(l10n.t('applyCrop'),

@@ -54,65 +54,94 @@ class _MarketRow extends StatelessWidget {
     final palette = AppPalette.of(context);
     final up = quote.changePercent >= 0;
     final changeColor = up ? AppColors.positive : AppColors.negative;
+    final accent = quote.gradient.first;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.button),
+        gradient: palette.cardGradient,
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: palette.border),
         boxShadow: palette.cardShadow,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: quote.gradient),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(quote.icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(quote.label,
-                  style: AppText.subtitle.copyWith(color: palette.textPrimary)),
-              const SizedBox(height: 2),
-              Text(quote.location ?? quote.unit,
-                  style: AppText.caption.copyWith(color: palette.textSecondary)),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(quote.icon, color: accent, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(quote.label,
+                        style: AppText.subtitle
+                            .copyWith(color: palette.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text(quote.location ?? quote.unit,
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary)),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: changeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                        up
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 12,
+                        color: changeColor),
+                    const SizedBox(width: 2),
+                    Text('${quote.changePercent.abs().toStringAsFixed(2)}%',
+                        style: AppText.label.copyWith(color: changeColor)),
+                  ],
+                ),
+              ),
             ],
           ),
-          const Spacer(),
-          SizedBox(
-            width: 56,
-            height: 34,
-            child: Sparkline(
-              values: quote.spark,
-              color: changeColor,
-              strokeWidth: 2,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
+          const SizedBox(height: 12),
+          Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(quote.price,
-                  style: AppText.subtitle.copyWith(color: palette.textPrimary)),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                      up
-                          ? Icons.arrow_upward_rounded
-                          : Icons.arrow_downward_rounded,
-                      size: 12,
-                      color: changeColor),
-                  Text('${quote.changePercent.abs().toStringAsFixed(2)}%',
-                      style: AppText.label.copyWith(color: changeColor)),
-                ],
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    quote.price,
+                    style: AppText.headline.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 22,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 76,
+                height: 36,
+                child: Sparkline(
+                  values: quote.spark,
+                  color: changeColor,
+                  strokeWidth: 2,
+                ),
               ),
             ],
           ),

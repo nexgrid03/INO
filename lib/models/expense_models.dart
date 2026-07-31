@@ -190,7 +190,7 @@ extension TxnCategoryX on TxnCategory {
       case TxnCategory.business:
         return AppColors.secondaryGreen;
       case TxnCategory.investment:
-        return const Color(0xFF30ACB3);
+        return const Color(0xFF0EA5E9);
       case TxnCategory.rent:
         return const Color(0xFF8B6CEF);
       case TxnCategory.insurance:

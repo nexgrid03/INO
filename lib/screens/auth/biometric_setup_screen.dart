@@ -98,20 +98,22 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Divine Glass layout: glass frame illustration, title + copy, two glass
+    // feature tiles, then the pill CTA / skip / trust badge. Scrolls (fixed
+    // gaps instead of Spacers) so the richer content fits every screen size.
     return AuthScaffold(
-      scrollable: false,
       child: Column(
         children: [
-          const Spacer(flex: 2),
+          const SizedBox(height: 24),
           FadeSlideIn(child: _BiometricArt(kind: _kind)),
-          const Spacer(flex: 2),
+          const SizedBox(height: 28),
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),
             child: const Text(
               'Secure Your Vault',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 27,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
               ),
@@ -135,7 +137,25 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               ),
             ),
           ),
-          const Spacer(flex: 3),
+          const SizedBox(height: 26),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 150),
+            child: const _FeatureTile(
+              icon: Icons.lock_open_rounded,
+              title: 'Quick Access',
+              subtitle: 'Unlock in less than a second',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 170),
+            child: const _FeatureTile(
+              icon: Icons.shield_rounded,
+              title: 'Enhanced Privacy',
+              subtitle: 'Your biometric data stays on your device',
+            ),
+          ),
+          const SizedBox(height: 32),
           FadeSlideIn(
             delay: const Duration(milliseconds: 180),
             child: AuthPrimaryButton(
@@ -147,7 +167,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               onPressed: _busy ? null : _enable,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 220),
             child: TextButton(
@@ -165,15 +185,21 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 260),
+            child: const _EncryptionBadge(),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 }
 
-/// The large biometric illustration: a gradient ring cradling a fingerprint
-/// (or face) glyph, with a soft halo - premium but calm.
+/// The biometric illustration in the Divine Glass language: a large
+/// translucent glass frame (rounded 44) with soft pastel light blobs and the
+/// brand-blue fingerprint / face glyph at its centre.
 class _BiometricArt extends StatelessWidget {
   const _BiometricArt({required this.kind});
 
@@ -181,75 +207,167 @@ class _BiometricArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 200,
-      height: 200,
+    return Container(
+      width: 176,
+      height: 176,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(44),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.8),
+          width: 1.5,
+        ),
+        boxShadow: AppShadows.card,
+      ),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Soft outer halo.
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primaryGreen.withValues(alpha: 0.06),
-            ),
+          // Decorative pastel light blobs bleeding in from the corners.
+          const Positioned(
+            top: -36,
+            right: -36,
+            child: _GlowDot(color: AppColors.skyBlue, size: 116),
           ),
-          Container(
-            width: 150,
-            height: 150,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primaryGreen.withValues(alpha: 0.10),
-            ),
+          const Positioned(
+            bottom: -36,
+            left: -36,
+            child: _GlowDot(color: AppColors.tealPale, size: 116),
           ),
-          // Gradient core.
+          Icon(
+            kind == BiometricKind.faceId
+                ? Icons.face_rounded
+                : Icons.fingerprint_rounded,
+            color: AppColors.primaryGreen,
+            size: 84,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A soft radial light blob used inside the glass frame.
+class _GlowDot extends StatelessWidget {
+  const _GlowDot({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.5),
+            color.withValues(alpha: 0.0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A glass feature row (pastel icon chip + title + supporting line) from the
+/// Divine Glass biometric mockup - purely informational.
+class _FeatureTile extends StatelessWidget {
+  const _FeatureTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.tealPale, width: 1),
+      ),
+      child: Row(
+        children: [
           Container(
-            width: 108,
-            height: 108,
-            decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.tealMist,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.4),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
+            ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
-            child: Icon(
-              kind == BiometricKind.faceId
-                  ? Icons.face_rounded
-                  : Icons.fingerprint_rounded,
-              color: Colors.white,
-              size: 60,
-            ),
           ),
-          // A small "lock" accent badge, bottom-right of the core.
-          Positioned(
-            right: 30,
-            bottom: 30,
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.lock_rounded,
-                color: AppColors.primaryGreen,
-                size: 18,
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The decorative "military-grade AES encryption" trust pill from the mockup.
+class _EncryptionBadge extends StatelessWidget {
+  const _EncryptionBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+          width: 1,
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.verified_user_rounded,
+            size: 14,
+            color: AppColors.primaryGreen,
+          ),
+          SizedBox(width: 8),
+          Text(
+            'MILITARY-GRADE AES ENCRYPTION',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: AppColors.primaryGreen,
             ),
           ),
         ],

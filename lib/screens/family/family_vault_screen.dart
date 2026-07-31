@@ -235,14 +235,8 @@ class _InviteCard extends StatelessWidget {
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
-            color: AppColors.primaryGreen.withValues(alpha: 0.4), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+            color: AppColors.tealPale.withValues(alpha: 0.9), width: 1.2),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,11 +346,13 @@ class _VaultCard extends StatelessWidget {
             width: AppSizes.iconContainer,
             height: AppSizes.iconContainer,
             decoration: BoxDecoration(
-              gradient: AppColors.brandGradient,
-              borderRadius: BorderRadius.circular(AppRadius.chip),
+              color: AppColors.tealMist,
+              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+              border: Border.all(
+                  color: AppColors.tealPale.withValues(alpha: 0.7)),
             ),
             child: const Icon(Icons.family_restroom_rounded,
-                color: Colors.white, size: 26),
+                color: AppColors.primaryGreen, size: 26),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -512,7 +508,8 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                   height: AppSizes.button,
                   decoration: BoxDecoration(
                     gradient: AppColors.brandGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    boxShadow: AppShadows.glow(AppColors.primaryGreen),
                   ),
                   child: const Center(
                     child: Text('Create Vault',
@@ -554,19 +551,14 @@ class _EmptyState extends StatelessWidget {
                     width: 104,
                     height: 104,
                     decoration: BoxDecoration(
-                      gradient: AppColors.brandGradient,
-                      borderRadius: BorderRadius.circular(AppRadius.large + 8),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              AppColors.primaryGreen.withValues(alpha: 0.30),
-                          blurRadius: 28,
-                          offset: const Offset(0, 14),
-                        ),
-                      ],
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.large),
+                      border: Border.all(
+                          color: AppColors.tealPale.withValues(alpha: 0.6)),
+                      boxShadow: AppShadows.floating,
                     ),
                     child: const Icon(Icons.family_restroom_rounded,
-                        color: Colors.white, size: 52),
+                        color: AppColors.primaryGreen, size: 52),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text('No Family Vaults Yet',
@@ -588,15 +580,8 @@ class _EmptyState extends StatelessWidget {
                             horizontal: AppSpacing.lg, vertical: 14),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius: BorderRadius.circular(AppRadius.button),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryGreen
-                                  .withValues(alpha: 0.32),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          boxShadow: AppShadows.glow(AppColors.primaryGreen),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -663,7 +648,7 @@ class _ErrorState extends StatelessWidget {
                             horizontal: AppSpacing.lg, vertical: 12),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,

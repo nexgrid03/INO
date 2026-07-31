@@ -21,62 +21,80 @@ class FloatingMenu {
     final palette = AppPalette.of(context);
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: palette.surface,
+      backgroundColor: Colors.transparent,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
-                AppSpacing.lg, AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: palette.border,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
+        return Container(
+          decoration: BoxDecoration(
+            // Luminous sky wash - white light at the top settling into the
+            // ambient background tint.
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [palette.bgElevated, palette.bg],
+            ),
+            borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.large)),
+            border: Border.all(color: palette.border),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
+                  AppSpacing.lg, AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: palette.border,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  title,
-                  style: AppText.title.copyWith(color: palette.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = constraints.maxWidth >= 420 ? 4 : 3;
-                    const gap = AppSpacing.sm;
-                    final itemW = (constraints.maxWidth - gap * (cols - 1)) / cols;
-                    return Wrap(
-                      spacing: gap,
-                      runSpacing: AppSpacing.md,
-                      children: [
-                        for (final a in actions)
-                          SizedBox(
-                            width: itemW,
-                            child: _MenuItem(
-                              action: a,
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                onSelect(a);
-                              },
+                  const SizedBox(height: AppSpacing.md),
+                  Center(
+                    child: Text(
+                      title,
+                      style: AppText.headline
+                          .copyWith(color: palette.textPrimary, fontSize: 20),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cols = constraints.maxWidth >= 420 ? 4 : 3;
+                      const gap = AppSpacing.sm;
+                      final itemW =
+                          (constraints.maxWidth - gap * (cols - 1)) / cols;
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: AppSpacing.md,
+                        children: [
+                          for (final a in actions)
+                            SizedBox(
+                              width: itemW,
+                              child: _MenuItem(
+                                action: a,
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  onSelect(a);
+                                },
+                              ),
                             ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -99,16 +117,29 @@ class _MenuItem extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Material(
-            color: action.color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: Icon(action.icon, color: action.color, size: 24),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: palette.border),
+              boxShadow: [
+                BoxShadow(
+                  color: action.color.withValues(alpha: 0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Material(
+              color: palette.surface,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: Icon(action.icon, color: action.color, size: 26),
+                ),
               ),
             ),
           ),
@@ -118,7 +149,10 @@ class _MenuItem extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: palette.textSecondary),
+            style: AppText.caption.copyWith(
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

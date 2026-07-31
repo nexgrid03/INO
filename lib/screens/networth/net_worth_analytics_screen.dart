@@ -34,38 +34,59 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [
-          // Total + growth.
-          Text(l10n.t('netWorthTotalLabel'),
-              style: AppText.caption.copyWith(color: palette.textSecondary)),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(formatInr(data.total),
-                      maxLines: 1,
-                      style: AppText.display.copyWith(
-                          color: palette.textPrimary, fontSize: 34)),
+          // Total + growth hero card.
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            decoration: BoxDecoration(
+              gradient: palette.cardGradient,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(color: palette.border),
+              boxShadow: palette.cardShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t('netWorthTotalLabel').toUpperCase(),
+                  style: AppText.label.copyWith(
+                    color: palette.textSecondary,
+                    fontSize: 11,
+                    letterSpacing: 0.8,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: _GrowthPill(percent: data.growthPercent),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(formatInr(data.total),
+                            maxLines: 1,
+                            style: AppText.display.copyWith(
+                                color: palette.textPrimary, fontSize: 34)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: _GrowthPill(percent: data.growthPercent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
+                  style: AppText.caption.copyWith(
+                      color:
+                          data.isUp ? AppColors.positive : AppColors.negative,
+                      fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
-            style: AppText.caption.copyWith(
-                color: data.isUp ? AppColors.positive : AppColors.negative,
-                fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
 
           // Interactive chart.
           SettingsCard(
@@ -198,7 +219,15 @@ class _TrendCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: palette.textSecondary, size: 20),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
           const SizedBox(height: 10),
           Text('${up ? '+' : ''}${percent.toStringAsFixed(1)}%',
               style: AppText.headline.copyWith(color: color, fontSize: 20)),
@@ -226,21 +255,40 @@ class _LegendRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 10,
-            height: 10,
-            decoration:
-                BoxDecoration(color: allocation.color, shape: BoxShape.circle),
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: allocation.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                  color: allocation.color, shape: BoxShape.circle),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(allocation.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: palette.textPrimary)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(allocation.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary, fontSize: 12.5)),
+                Text(formatInr(allocation.value),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                        color: palette.textSecondary, fontSize: 10.5)),
+              ],
+            ),
           ),
           Text('${pct.toStringAsFixed(0)}%',
-              style: AppText.caption.copyWith(
-                  color: palette.textSecondary, fontWeight: FontWeight.w700)),
+              style: AppText.label.copyWith(color: AppColors.primaryGreen)),
         ],
       ),
     );

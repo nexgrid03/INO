@@ -394,12 +394,13 @@ class _ModeSelector extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: m == mode
-                        ? AppColors.primaryGreen.withValues(alpha: 0.16)
-                        : _chrome.surfaceVariant,
+                        ? AppColors.tealMist
+                        : AppColors.tealFoam,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     border: Border.all(
-                      color:
-                          m == mode ? AppColors.primaryGreen : _chrome.border,
+                      color: m == mode
+                          ? AppColors.primaryGreen
+                          : AppBorders.line,
                     ),
                   ),
                   child: Text(
@@ -407,7 +408,7 @@ class _ModeSelector extends StatelessWidget {
                     style: AppText.caption.copyWith(
                       color: m == mode
                           ? AppColors.primaryGreen
-                          : _chrome.textSecondary,
+                          : AppColors.textMuted,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -622,8 +623,9 @@ class _PlaceholderPage extends StatelessWidget {
   }
 }
 
-/// The dark rounded-top control sheet hosting the tools and the CTA - the
-/// Stitch "preview & filter" panel, translated to the teal system.
+/// The rounded-top control sheet hosting the tools and the CTA - the
+/// Stitch "preview & filter" panel. The stage above stays dark, but the
+/// chrome itself is a Divine Glass white sheet with a hairline sky border.
 class _ControlSheet extends StatelessWidget {
   const _ControlSheet({required this.children});
 
@@ -634,11 +636,11 @@ class _ControlSheet extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _chrome.bgElevated,
+        color: Colors.white,
         borderRadius:
             const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-        border: Border.all(color: _chrome.border),
-        boxShadow: _chrome.cardShadow,
+        border: Border.all(color: AppBorders.line),
+        boxShadow: AppShadows.floating,
       ),
       child: SafeArea(
         top: false,
@@ -653,7 +655,7 @@ class _ControlSheet extends StatelessWidget {
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: _chrome.border,
+                  color: AppColors.tealPale,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
@@ -690,21 +692,21 @@ class _Tool extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Circular glass control (Stitch capture chrome).
+            // Circular pastel glass control (Divine Glass icon chip).
             Container(
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: _chrome.surfaceVariant,
+                color: AppColors.tealFoam,
                 shape: BoxShape.circle,
-                border: Border.all(color: _chrome.border),
+                border: Border.all(color: AppColors.tealPale),
               ),
-              child: Icon(icon, color: _chrome.textPrimary, size: 22),
+              child: Icon(icon, color: AppColors.primaryGreen, size: 22),
             ),
             const SizedBox(height: 7),
             Text(label,
                 style: AppText.caption.copyWith(
-                    color: _chrome.textSecondary,
+                    color: AppColors.textMuted,
                     fontWeight: FontWeight.w600)),
           ],
         ),

@@ -36,12 +36,17 @@ class SocialAuthButton extends StatelessWidget {
           height: AppSizes.button,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: palette.surface,
+            // "Glass button" treatment: translucent white over the sky wash
+            // with a pale-sky hairline (dark mode keeps its tinted border).
+            color: palette.isDark
+                ? palette.surface
+                : Colors.white.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(AppRadius.button),
             border: Border.all(
-              color: AppColors.primaryGreen
-                  .withValues(alpha: palette.isDark ? 0.30 : 0.14),
-              width: 1.4,
+              color: palette.isDark
+                  ? AppColors.primaryGreen.withValues(alpha: 0.30)
+                  : AppColors.tealPale,
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(

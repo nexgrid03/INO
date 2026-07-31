@@ -355,11 +355,12 @@ class _DocCard extends StatelessWidget {
                 width: AppSizes.iconContainerSm,
                 height: AppSizes.iconContainerSm,
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  color: AppColors.tealMist,
                   borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(color: AppColors.tealPale),
                 ),
                 child: const Icon(Icons.description_rounded,
-                    color: Colors.white, size: 22),
+                    color: AppColors.primaryGreen, size: 22),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -459,13 +460,17 @@ class _ActionButton extends StatelessWidget {
                 height: AppSizes.button,
                 decoration: BoxDecoration(
                   gradient: AppColors.brandGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  boxShadow: AppShadows.glow(
+                    AppColors.primaryGreen,
+                    opacity: 0.22,
+                  ),
                 ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: onTap,
-                    borderRadius: BorderRadius.circular(AppRadius.button),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     child: Center(child: content),
                   ),
                 ),
@@ -474,7 +479,7 @@ class _ActionButton extends StatelessWidget {
                 color: palette.surface,
                 clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   side: BorderSide(color: palette.border),
                 ),
                 child: InkWell(
@@ -537,7 +542,7 @@ class _TerminalState extends StatelessWidget {
                 child: Material(
                   color: AppColors.primaryGreen,
                   clipBehavior: Clip.antiAlias,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   child: InkWell(
                     onTap: onRetry,
                     child: Padding(

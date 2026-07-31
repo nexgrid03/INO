@@ -29,7 +29,7 @@ const List<int> kWalletAccentValues = [
   0xFF37C08A, // green
   0xFFF2B33D, // amber
   0xFF4E7FE0, // indigo-blue
-  0xFF30ACB3, // brand teal
+  0xFF0EA5E9, // brand teal
   0xFFE0699B, // rose
   0xFF64748B, // slate
 ];

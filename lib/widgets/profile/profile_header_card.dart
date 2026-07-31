@@ -50,42 +50,52 @@ class ProfileHeaderCard extends StatelessWidget {
               boxShadow: palette.cardShadow,
             ),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg),
+              child: Stack(
                 children: [
-                  _Avatar(initials: _initials, photoUrl: photoUrl),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
+                  // Centered Divine Glass identity block: avatar with a small
+                  // verified badge, name, email and the trust pill. The
+                  // full-width SizedBox keeps the card spanning the screen.
+                  SizedBox(
+                    width: double.infinity,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          fullName.trim().isEmpty ? 'Your Name' : fullName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
-                            color: palette.textPrimary,
-                          ),
+                      _Avatar(initials: _initials, photoUrl: photoUrl),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        fullName.trim().isEmpty ? 'Your Name' : fullName,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: palette.textPrimary,
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          email,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.body
-                              .copyWith(color: palette.textSecondary),
-                        ),
-                        const SizedBox(height: 7),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        email,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body
+                            .copyWith(color: palette.textSecondary),
+                      ),
+                        const SizedBox(height: 10),
                         const _VaultBadge(),
                       ],
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Icon(Icons.edit_outlined,
-                      size: 19, color: palette.textFaint),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Icon(Icons.edit_outlined,
+                        size: 19, color: palette.textFaint),
+                  ),
                 ],
               ),
             ),
@@ -104,30 +114,52 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: InoStyle.gradient(context, AppColors.brandGradient),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.26),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 76,
+          height: 76,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: InoStyle.gradient(context, AppColors.brandGradient),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.26),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(3),
-      child: ClipOval(
-        child: (photoUrl != null && photoUrl!.isNotEmpty)
-            ? Image.network(
-                photoUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _InitialsFill(initials: initials),
-              )
-            : _InitialsFill(initials: initials),
-      ),
+          padding: const EdgeInsets.all(3),
+          child: ClipOval(
+            child: (photoUrl != null && photoUrl!.isNotEmpty)
+                ? Image.network(
+                    photoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        _InitialsFill(initials: initials),
+                  )
+                : _InitialsFill(initials: initials),
+          ),
+        ),
+        // Small verified badge riding the avatar's bottom-right edge.
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(Icons.check_rounded,
+                size: 14, color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -155,26 +187,36 @@ class _InitialsFill extends StatelessWidget {
   }
 }
 
-/// The single, subtle trust cue allowed in the header.
+/// The single, subtle trust cue allowed in the header - a Divine Glass pastel
+/// pill with the shield glyph and small-caps label.
 class _VaultBadge extends StatelessWidget {
   const _VaultBadge();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.shield_rounded,
-            size: 13, color: AppColors.primaryGreen.withValues(alpha: 0.9)),
-        const SizedBox(width: 4),
-        Text(
-          'Vault protected',
-          style: AppText.label.copyWith(
-            color: AppColors.primaryGreen.withValues(alpha: 0.9),
-            fontSize: 11.5,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.tealFoam,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.tealPale),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.verified_rounded,
+              size: 13, color: AppColors.primaryGreen),
+          const SizedBox(width: 5),
+          Text(
+            'VAULT PROTECTED',
+            style: AppText.label.copyWith(
+              color: AppColors.primaryGreen,
+              fontSize: 10.5,
+              letterSpacing: 0.8,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

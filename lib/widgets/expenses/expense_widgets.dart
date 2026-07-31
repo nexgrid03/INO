@@ -4,7 +4,6 @@ import '../../models/expense_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
-import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 const _months = [
@@ -56,12 +55,14 @@ class TransactionTile extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    ShinyIcon(
-                      icon: txn.category.icon,
-                      color: accent,
-                      size: AppSizes.iconContainerSm,
-                      iconSize: 21,
-                      radius: AppRadius.chip,
+                    Container(
+                      width: AppSizes.iconContainerSm,
+                      height: AppSizes.iconContainerSm,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                      ),
+                      child: Icon(txn.category.icon, size: 21, color: accent),
                     ),
                     if (txn.hasReceipt)
                       Positioned(
@@ -104,10 +105,9 @@ class TransactionTile extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  '${credited ? '+' : ''}${rupees(txn.amount.round())}',
+                  '${credited ? '+' : '-'}${rupees(txn.amount.round())}',
                   style: AppText.subtitle.copyWith(
-                    color:
-                        credited ? AppColors.primaryGreen : palette.textPrimary,
+                    color: credited ? AppColors.positive : palette.textPrimary,
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
                   ),

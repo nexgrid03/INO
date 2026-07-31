@@ -167,11 +167,13 @@ class _MessageField extends StatelessWidget {
         labelText: l10n.t('message'),
         alignLabelWithHint: true,
         filled: true,
-        fillColor: AppColors.surface,
+        // Match AuthTextField's glass recipe: translucent white fill with a
+        // pale-sky hairline, so both inputs on this form read identically.
+        fillColor: Colors.white.withValues(alpha: 0.85),
         labelStyle: const TextStyle(color: AppColors.textMuted),
         floatingLabelStyle: const TextStyle(color: AppColors.primaryGreen),
-        border: _border(const Color(0xFFE2E8F0)),
-        enabledBorder: _border(const Color(0xFFE2E8F0)),
+        border: _border(AppColors.tealPale),
+        enabledBorder: _border(AppColors.tealPale),
         focusedBorder: _border(AppColors.primaryGreen, width: 1.6),
         errorBorder: _border(AppColors.critical),
         focusedErrorBorder: _border(AppColors.critical, width: 1.6),
@@ -181,7 +183,7 @@ class _MessageField extends StatelessWidget {
 
   OutlineInputBorder _border(Color color, {double width = 1.2}) =>
       OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: color, width: width),
       );
 }

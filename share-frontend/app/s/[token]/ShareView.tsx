@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
 import ExpiryPill from "@/components/ExpiryPill";
+import { FileTextIcon, ImageIcon, LockIcon, ShieldIcon } from "@/components/icons";
 import type { SharedDoc } from "@/lib/config";
 
 // The viewer pulls in pdf.js / zoom libs - load it client-only, on demand.
@@ -16,7 +17,11 @@ const DocViewer = dynamic(() => import("./DocViewer"), {
   ),
 });
 
-const ICON: Record<string, string> = { pdf: "📕", image: "🖼️", other: "📄" };
+const ICON: Record<string, React.ReactNode> = {
+  pdf: <FileTextIcon />,
+  image: <ImageIcon />,
+  other: <FileTextIcon />,
+};
 
 export default function ShareView({
   token,
@@ -35,7 +40,9 @@ export default function ShareView({
       <div className="single">
         <div className="topstrip">
           <div className="row">
-            <div className="logo-sm">I</div>
+            <div className="logo-sm">
+              <ShieldIcon />
+            </div>
             <b>INO</b>
             <div className="spacer" />
             <ExpiryPill expiresAt={expiresAt} />
@@ -67,7 +74,7 @@ export default function ShareView({
         {documents.map((d) => (
           <div className="card" key={d.id}>
             <div className="file">
-              <div className="ic">{ICON[d.kind] ?? "📄"}</div>
+              <div className="ic">{ICON[d.kind] ?? <FileTextIcon />}</div>
               <div className="meta">
                 <b>{d.name}</b>
                 <span>{d.type}</span>
@@ -84,7 +91,9 @@ export default function ShareView({
           </div>
         ))}
 
-        <div className="foot">🔒 Shared securely via INO · you can only view these documents</div>
+        <div className="foot">
+          <LockIcon /> Shared securely via INO · you can only view these documents
+        </div>
       </div>
 
       {open && (

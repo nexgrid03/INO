@@ -963,9 +963,12 @@ class _EmptyState extends StatelessWidget {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
+                    color: palette.isDark
+                        ? palette.surfaceVariant
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(AppRadius.card),
-                    boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                    border: Border.all(color: AppColors.tealPale),
+                    boxShadow: AppShadows.card,
                   ),
                   child: busy
                       ? const Center(
@@ -974,13 +977,13 @@ class _EmptyState extends StatelessWidget {
                             height: 34,
                             child: CircularProgressIndicator(
                               strokeWidth: 3,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.primaryGreen),
                             ),
                           ),
                         )
                       : const Icon(Icons.cloud_upload_rounded,
-                          color: Colors.white, size: 44),
+                          color: AppColors.primaryGreen, size: 44),
                 ),
                 Positioned(
                   right: -8,
@@ -989,12 +992,12 @@ class _EmptyState extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: AppColors.secondaryGreen,
+                      color: AppColors.tealMist,
                       shape: BoxShape.circle,
                       border: Border.all(color: palette.bg, width: 2),
                     ),
                     child: const Icon(Icons.lock_rounded,
-                        size: 16, color: Colors.white),
+                        size: 16, color: AppColors.primaryGreen),
                   ),
                 ),
               ],

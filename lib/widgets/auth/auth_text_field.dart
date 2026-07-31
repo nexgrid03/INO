@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../theme/app_theme.dart';
 
-/// The INO hairline border colour (slate-200) used by the auth inputs.
-const Color _borderColor = Color(0xFFE2E8F0);
+/// The Divine Glass hairline border colour (pale sky) used by the auth inputs.
+const Color _borderColor = AppColors.tealPale;
 
 /// A premium text field with a smooth focus glow, used across every auth screen.
 ///
@@ -76,7 +76,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: _focused
             ? [
                 BoxShadow(
@@ -107,10 +107,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: widget.hint,
-          prefixIcon: Icon(widget.icon, color: AppColors.textMuted),
+          prefixIcon: Icon(
+            widget.icon,
+            color: AppColors.primaryGreen.withValues(alpha: 0.65),
+          ),
           suffixIcon: widget.suffix,
           filled: true,
-          fillColor: AppColors.surface,
+          // Translucent white "glass" fill over the sky-gradient backdrop.
+          fillColor: Colors.white.withValues(alpha: 0.85),
           labelStyle: const TextStyle(color: AppColors.textMuted),
           floatingLabelStyle: const TextStyle(color: AppColors.primaryGreen),
           border: _border(_borderColor),
@@ -125,7 +129,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
 
   OutlineInputBorder _border(Color color, {double width = 1.2}) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: color, width: width),
     );
   }

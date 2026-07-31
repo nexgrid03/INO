@@ -68,14 +68,14 @@ extension InvestmentTypeX on InvestmentType {
   Color get color => switch (this) {
         InvestmentType.stocks => const Color(0xFF4383EA),
         InvestmentType.mutualFunds => AppColors.primaryGreen,
-        InvestmentType.etf => const Color(0xFF55C2C8),
+        InvestmentType.etf => const Color(0xFF38BDF8),
         InvestmentType.bonds => const Color(0xFF9B6DE0),
         InvestmentType.fixedDeposit => const Color(0xFF64748B),
         InvestmentType.gold => AppColors.gold,
         InvestmentType.crypto => const Color(0xFFF5704A),
         InvestmentType.ppf => const Color(0xFF37C08A),
         InvestmentType.nps => const Color(0xFF0891B2),
-        InvestmentType.sip => const Color(0xFF7FD3D8),
+        InvestmentType.sip => const Color(0xFF7DD3FC),
         InvestmentType.realEstate => const Color(0xFFB45309),
         InvestmentType.other => const Color(0xFF94A3B8),
       };

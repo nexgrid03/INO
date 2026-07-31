@@ -298,9 +298,10 @@ class _CountrySelector extends StatelessWidget {
         height: 58,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          // Matches the glass text field beside it.
+          color: Colors.white.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.tealPale, width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -358,7 +359,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: AppColors.tealPale,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -383,7 +384,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                   prefixIcon:
                       const Icon(Icons.search_rounded, color: AppColors.textMuted),
                   filled: true,
-                  fillColor: const Color(0xFFF1F5F9),
+                  fillColor: AppColors.tealFoam,
                   contentPadding:
                       const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                   border: OutlineInputBorder(

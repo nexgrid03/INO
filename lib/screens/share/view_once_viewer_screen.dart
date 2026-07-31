@@ -326,10 +326,29 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.lg),
       children: [
+        const SizedBox(height: AppSpacing.lg),
+        // Divine Glass secure-gate hero: a pastel lock chip above the centered
+        // title and explainer, floating over the glass card below.
+        Center(
+          child: Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              color: AppColors.tealMist,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.tealPale),
+            ),
+            child: const Icon(Icons.lock_outline_rounded,
+                color: AppColors.primaryGreen, size: 38),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
         Text(l10n.t('viewOnceGateTitle'),
+            textAlign: TextAlign.center,
             style: AppText.headline.copyWith(color: palette.textPrimary)),
         const SizedBox(height: AppSpacing.xs),
         Text(l10n.t('viewOnceGateSubtitle'),
+            textAlign: TextAlign.center,
             style: AppText.subtitle.copyWith(color: palette.textSecondary)),
         const SizedBox(height: AppSpacing.lg),
         InoCard(
@@ -342,11 +361,12 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
                     width: AppSizes.iconContainerSm,
                     height: AppSizes.iconContainerSm,
                     decoration: BoxDecoration(
-                      gradient: AppColors.brandGradient,
+                      color: AppColors.tealMist,
                       borderRadius: BorderRadius.circular(AppRadius.chip),
+                      border: Border.all(color: AppColors.tealPale),
                     ),
                     child: const Icon(Icons.visibility_rounded,
-                        color: Colors.white, size: 22),
+                        color: AppColors.primaryGreen, size: 22),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

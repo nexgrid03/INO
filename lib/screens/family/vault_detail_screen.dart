@@ -651,36 +651,42 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.xl * 2),
       children: [
-        // Vault hero.
+        // Vault hero - Divine Glass: white card, pastel icon chip, centered.
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(AppSpacing.internal),
           decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.28),
-                blurRadius: 22,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(color: palette.border),
+            boxShadow: AppShadows.card,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.family_restroom_rounded,
-                  color: Colors.white, size: 30),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.tealMist,
+                  borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+                  border: Border.all(
+                      color: AppColors.tealPale.withValues(alpha: 0.7)),
+                ),
+                child: const Icon(Icons.family_restroom_rounded,
+                    color: AppColors.primaryGreen, size: 30),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Text(_vaultName,
+                  textAlign: TextAlign.center,
                   style: AppText.headline
-                      .copyWith(color: Colors.white, fontSize: 22)),
-              const SizedBox(height: 2),
+                      .copyWith(color: palette.textPrimary, fontSize: 22)),
+              const SizedBox(height: 4),
               Text(
                 '${_members.length} member${_members.length == 1 ? '' : 's'} · '
                 'you are ${_myRole.label}',
+                textAlign: TextAlign.center,
                 style: AppText.caption
-                    .copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                    .copyWith(color: palette.textSecondary),
               ),
             ],
           ),

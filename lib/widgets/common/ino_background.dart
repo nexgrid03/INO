@@ -10,7 +10,7 @@ import '../../theme/app_theme.dart';
 ///   1. A vertical mist gradient (teal-white wash → white → faint foam) so no
 ///      screen ever sits on plain flat white.
 ///   2. Two or three large organic blobs in the light tint ladder
-///      (#55C2C8 / #7FD3D8 / #A7E2E5 at very low alpha) that drift slowly.
+///      (#38BDF8 / #7DD3FC / #BAE6FD at very low alpha) that drift slowly.
 ///   3. An optional whisper-subtle dot grid near the top for texture.
 ///
 /// Wrap any screen body with it:
@@ -125,9 +125,9 @@ class _AuroraPainter extends CustomPainter {
         colors: dark
             ? [palette.bg, palette.bgElevated, palette.bg]
             : const [
-                Color(0xFFEAF7F8), // faint teal sky at the top
+                Color(0xFFD8EDFA), // faint teal sky at the top
                 Color(0xFFFDFFFF),
-                Color(0xFFF3FAFB),
+                Color(0xFFEAF4FC),
               ],
         stops: const [0.0, 0.45, 1.0],
       ).createShader(rect);
