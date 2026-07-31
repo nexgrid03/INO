@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
+import '../../../theme/app_theme.dart';
 import '../section_header.dart';
 import '../../pressable_scale.dart';
 
 /// Section 6 - Wallet Ecosystem Overview.
 ///
-/// A horizontal row of gradient wallet tiles (Identity, Documents, Insurance …)
-/// - the Apple/Google Wallet metaphor. Each shows item count, last activity and
-/// a status chip on a brand-tinted gradient so the section feels like a deck of
-/// premium cards.
+/// A horizontal row of wallet tiles (Identity, Documents, Insurance …) - the
+/// Apple/Google Wallet metaphor. Each is a white glass card with a pastel
+/// accent icon chip, item count, last activity and a tinted status chip so the
+/// section reads as a deck of premium Divine Glass cards.
 class WalletSection extends StatelessWidget {
   const WalletSection({super.key, required this.wallets});
 
@@ -52,51 +53,48 @@ class _WalletCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    final accent = wallet.gradient.first;
     return PressableScale(
       child: Container(
         width: 168,
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: wallet.gradient,
-          ),
+          color: palette.surface,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: wallet.gradient.first.withValues(alpha: 0.32),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          border: Border.all(color: palette.border),
+          boxShadow: palette.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                // Pastel accent chip: tinted fill, coloured glyph, subtle edge.
                 Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.30),
+                    ),
                   ),
-                  child: Icon(wallet.icon, color: Colors.white, size: 20),
+                  child: Icon(wallet.icon, color: accent, size: 20),
                 ),
                 const Spacer(),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     wallet.status,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: accent,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -111,8 +109,8 @@ class _WalletCard extends StatelessWidget {
               children: [
                 Text(
                   '${wallet.itemCount}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: palette.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
@@ -123,7 +121,7 @@ class _WalletCard extends StatelessWidget {
                   child: Text(
                     l10n.t('itemsLabel'),
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: palette.textSecondary,
                       fontSize: 11,
                     ),
                   ),
@@ -132,8 +130,8 @@ class _WalletCard extends StatelessWidget {
             ),
             Text(
               wallet.name,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: palette.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -144,7 +142,7 @@ class _WalletCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: palette.textFaint,
                 fontSize: 10.5,
               ),
             ),

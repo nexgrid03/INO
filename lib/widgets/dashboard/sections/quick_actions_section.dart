@@ -77,8 +77,8 @@ class _ActionTile extends StatelessWidget {
     final soft = themeStyle == ThemeStyle.soft;
 
     // These are the "small badge" tiles: they keep their shape in every theme.
-    // Bold simply runs the colour deeper (white glyph stays); soft lifts the
-    // body to a light wash so the glyph can show in its own colour.
+    // Bold runs a deep accent flood with a white glyph; classic and soft are
+    // pastel chips - a light accent wash carrying the glyph in its own colour.
     final Color body = bold
         ? InoStyle.deepen(action.color, 0.14)
         : soft
@@ -86,8 +86,11 @@ class _ActionTile extends StatelessWidget {
             action.color.withValues(alpha: 0.16),
             palette.surface,
           )
-        : action.color;
-    final Color glyph = soft ? action.color : Colors.white;
+        : Color.alphaBlend(
+            action.color.withValues(alpha: 0.14),
+            palette.surface,
+          );
+    final Color glyph = bold ? Colors.white : action.color;
 
     return PressableScale(
       pressedScale: 0.92,
@@ -99,7 +102,9 @@ class _ActionTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: action.color.withValues(alpha: soft ? 0.18 : 0.30),
+                  color: action.color.withValues(
+                    alpha: bold ? 0.30 : (soft ? 0.18 : 0.12),
+                  ),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -117,7 +122,11 @@ class _ActionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   side: soft
                       ? BorderSide(color: action.color, width: 1.6)
-                      : BorderSide.none,
+                      : bold
+                      ? BorderSide.none
+                      : BorderSide(
+                          color: action.color.withValues(alpha: 0.35),
+                        ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(

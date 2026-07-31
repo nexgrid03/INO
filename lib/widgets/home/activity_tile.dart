@@ -25,27 +25,23 @@ class ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
     final card = Container(
       margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Row(
-        children: [
+        children: [
           ShinyIcon(
             icon: item.icon,
             color: item.color,
             size: 40,
-            iconSize: 20,
+            iconSize: 20,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -56,8 +52,8 @@ class ActivityTile extends StatelessWidget {
                   item.localizedTitle(l10n),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textDark,
+                  style: TextStyle(
+                    color: palette.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -65,8 +61,8 @@ class ActivityTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   item.localizedTime(l10n),
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: palette.textSecondary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -75,10 +71,10 @@ class ActivityTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             size: 20,
-            color: AppColors.textMuted,
+            color: palette.textFaint,
           ),
         ],
       ),

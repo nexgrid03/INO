@@ -52,11 +52,12 @@ class _EventCard extends StatelessWidget {
   final FamilyEvent event;
 
   List<Color> _gradient() {
+    // Accents stay inside the approved sky / emerald / amber family.
     switch (event.type) {
       case FamilyEventType.birthday:
-        return const [Color(0xFFEC6A8C), Color(0xFFF59BB3)];
+        return const [AppColors.warning, Color(0xFFFBBF24)];
       case FamilyEventType.anniversary:
-        return const [Color(0xFF8B6CEF), Color(0xFFB59BF5)];
+        return const [AppColors.success, Color(0xFF4ADE80)];
       case FamilyEventType.event:
         return const [AppColors.primaryGreen, AppColors.lightBlue];
     }

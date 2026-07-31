@@ -105,7 +105,7 @@ class HealthSection extends StatelessWidget {
                 children: [
                   _StatCell(
                     icon: Icons.bloodtype_rounded,
-                    color: const Color(0xFF3B82F6),
+                    color: AppColors.critical,
                     value: summary.bloodGroup,
                     label: l10n.t('bloodGroup'),
                   ),

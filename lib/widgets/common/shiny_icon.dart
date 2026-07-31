@@ -7,12 +7,12 @@ import '../../theme/theme_style.dart';
 
 /// How the badge body is filled.
 enum ShinyIconStyle {
-  /// A bright glass body carrying the accent glyph - opt-in; the app default
-  /// is [filled].
+  /// A bright glass body carrying the accent glyph - the Divine Glass default
+  /// for classic/soft themes.
   glass,
 
   /// A saturated accent body with a white glyph inside a thick accent ring -
-  /// the default treatment everywhere (matches the Home tiles).
+  /// used by the bold theme (and any call site that opts in under classic).
   filled,
 }
 
@@ -35,7 +35,7 @@ class ShinyIcon extends StatelessWidget {
     this.size = 44,
     this.iconSize,
     this.radius,
-    this.style = ShinyIconStyle.filled,
+    this.style = ShinyIconStyle.glass,
   }) : child = null;
 
   /// Same badge, but wrapping an arbitrary glyph (an animated icon, an image,
@@ -46,7 +46,7 @@ class ShinyIcon extends StatelessWidget {
     required this.color,
     this.size = 44,
     this.radius,
-    this.style = ShinyIconStyle.filled,
+    this.style = ShinyIconStyle.glass,
   }) : icon = null,
        iconSize = null;
 
@@ -73,13 +73,13 @@ class ShinyIcon extends StatelessWidget {
     final palette = AppPalette.of(context);
 
     // The picked app theme re-skins every badge from this one place:
-    //  • bold - the accent runs deeper (badges darken with the rest of the UI),
-    //  • soft - badges go glass, so the glyph shows in its own colour instead
-    //    of white.
+    //  • classic / soft - Divine Glass pastel chip (glass body, coloured glyph),
+    //    remapping any legacy `filled` call sites automatically,
+    //  • bold - saturated accent body with a white glyph.
     final themeStyle = InoStyle.of(context);
-    final effectiveStyle = themeStyle == ThemeStyle.soft
-        ? ShinyIconStyle.glass
-        : style;
+    final effectiveStyle = themeStyle == ThemeStyle.bold
+        ? ShinyIconStyle.filled
+        : (style == ShinyIconStyle.filled ? ShinyIconStyle.glass : style);
     final effectiveColor = themeStyle == ThemeStyle.bold
         ? InoStyle.deepen(color, 0.12)
         : color;
