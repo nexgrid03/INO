@@ -5,6 +5,7 @@ import '../../models/document_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -59,7 +60,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _Header(onBack: () => Navigator.of(context).maybePop()),
+              const _Header(),
               Expanded(
                 child: FutureBuilder<List<DocumentShare>>(
                   future: _future,
@@ -165,9 +166,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
 // Header
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +181,7 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _CircleButton(icon: Icons.arrow_back_rounded, onTap: onBack),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -206,34 +205,6 @@ class _Header extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return PressableScale(
-      pressedScale: 0.9,
-      child: Material(
-        color: palette.surface,
-        shape: CircleBorder(side: BorderSide(color: palette.border)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: AppSizes.iconContainerSm,
-            height: AppSizes.iconContainerSm,
-            child: Icon(icon, size: 20, color: palette.textPrimary),
-          ),
-        ),
       ),
     );
   }

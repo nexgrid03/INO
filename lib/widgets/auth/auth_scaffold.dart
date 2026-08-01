@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../common/ino_back_button.dart';
 import '../floating_particles.dart';
 
 /// Shared premium backdrop + layout for every authentication screen.
@@ -123,11 +124,10 @@ class _AuthScaffoldState extends State<AuthScaffold>
                     child: Row(
                       children: [
                         if (widget.showBack)
-                          _CircleIconButton(
-                            icon: Icons.arrow_back_rounded,
-                            onTap: widget.onBack ??
-                                () => Navigator.of(context).maybePop(),
-                          )
+                          // The canonical glass back circle; renders nothing
+                          // when the route can't pop, so it is safe even when
+                          // this screen is a stack-cleared root.
+                          InoBackButton(onTap: widget.onBack)
                         else
                           const SizedBox(width: 44),
                         const Spacer(),
@@ -166,32 +166,6 @@ class _AmbientBlob extends StatelessWidget {
             color.withValues(alpha: palette.isDark ? 0.14 : 0.12),
             color.withValues(alpha: 0),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A soft, glassy circular icon button used for the back affordance.
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Material(
-      color: palette.surface.withValues(alpha: 0.75),
-      shape: CircleBorder(side: BorderSide(color: palette.border)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, color: palette.textPrimary, size: 22),
         ),
       ),
     );

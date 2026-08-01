@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_back_button.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
@@ -40,11 +41,7 @@ class WalletHeader extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Row(
       children: [
-        _CircleIcon(
-          icon: Icons.arrow_back_rounded,
-          tooltip: l10n.t('back'),
-          onTap: onBack,
-        ),
+        InoBackButton(size: 42, onTap: onBack),
         const SizedBox(width: 12),
         if (icon != null) ...[
           ShinyIcon(

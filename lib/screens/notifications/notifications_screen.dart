@@ -5,6 +5,7 @@ import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/home/empty_state.dart';
 
@@ -37,9 +38,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: palette.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
-          onPressed: () => Navigator.of(context).maybePop(),
+        leadingWidth: 60,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Center(child: InoBackButton(size: 42)),
         ),
         title: Text(l10n.t('notifications'),
             style: AppText.title.copyWith(color: palette.textPrimary)),

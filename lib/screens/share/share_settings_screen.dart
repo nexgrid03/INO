@@ -15,6 +15,7 @@ import '../../services/document_processor.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
@@ -407,26 +408,7 @@ class _Header extends StatelessWidget {
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          InoBackButton(onTap: onBack),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

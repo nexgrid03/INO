@@ -23,6 +23,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -999,9 +1000,21 @@ class _Title extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 0),
-      child: Text(
-        AppLocalizations.of(context).t('profile'),
-        style: AppText.display.copyWith(color: palette.textPrimary),
+      child: Row(
+        children: [
+          // The gap only exists when the button can render (pushed route), so
+          // the tab-root header keeps its exact original alignment.
+          if (Navigator.of(context).canPop()) ...[
+            const InoBackButton(size: 42),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context).t('profile'),
+              style: AppText.display.copyWith(color: palette.textPrimary),
+            ),
+          ),
+        ],
       ),
     );
   }

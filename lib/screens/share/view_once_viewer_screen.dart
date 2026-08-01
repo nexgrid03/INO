@@ -14,6 +14,7 @@ import '../../repositories/view_once_repository.dart';
 import '../../services/screen_security_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -660,6 +661,8 @@ class _Brand extends StatelessWidget {
           AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.sm),
       child: Row(
         children: [
+          const InoBackButton(size: 42),
+          const SizedBox(width: AppSpacing.sm),
           Container(
             width: 38,
             height: 38,

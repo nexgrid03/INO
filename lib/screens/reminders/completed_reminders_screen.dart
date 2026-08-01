@@ -4,6 +4,7 @@ import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/reminders/completed_reminder_tile.dart';
@@ -35,6 +36,11 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
+        leadingWidth: 60,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Center(child: InoBackButton(size: 42)),
+        ),
         title: Text(l10n.t('completed'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
       ),

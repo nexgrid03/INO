@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_back_button.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
@@ -42,11 +43,7 @@ class DetailHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            _IconButton(
-              icon: Icons.arrow_back_rounded,
-              tooltip: 'Back',
-              onTap: onBack,
-            ),
+            InoBackButton(size: 42, onTap: onBack),
             const Spacer(),
             _IconButton(
               icon: Icons.search_rounded,

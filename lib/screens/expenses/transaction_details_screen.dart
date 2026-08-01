@@ -11,6 +11,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/expenses/expense_widgets.dart';
@@ -84,7 +85,6 @@ class TransactionDetailsScreen extends StatelessWidget {
             return Column(
               children: [
                 _Header(
-                  onBack: () => Navigator.of(context).maybePop(),
                   onEdit: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => AddExpenseScreen(existing: t))),
                   onDelete: () => _confirmDelete(context),
@@ -333,6 +333,11 @@ class _ReceiptView extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.black,
           iconTheme: const IconThemeData(color: Colors.white),
+          leadingWidth: 60,
+          leading: const Padding(
+            padding: EdgeInsets.only(left: 12),
+            child: Center(child: InoBackButton(size: 42)),
+          ),
         ),
         body: Center(
           child: InteractiveViewer(child: Image.file(File(path))),
@@ -381,12 +386,10 @@ class _ShareButton extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   const _Header({
-    required this.onBack,
     required this.onEdit,
     required this.onDelete,
   });
 
-  final VoidCallback onBack;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -418,7 +421,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.md),
       child: Row(
         children: [
-          btn(Icons.arrow_back_rounded, onBack),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(AppLocalizations.of(context).t('transaction'),

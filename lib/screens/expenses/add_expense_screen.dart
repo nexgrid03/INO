@@ -12,6 +12,7 @@ import '../../services/pdf_import_service.dart';
 import '../../services/receipt_scan_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/expenses/direction_toggle.dart';
@@ -492,8 +493,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Column(
           children: [
             _Header(
-                title: l10n.t(editing ? 'editTransaction' : 'addTransaction'),
-                onBack: () => Navigator.of(context).maybePop()),
+                title: l10n.t(editing ? 'editTransaction' : 'addTransaction')),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -1275,10 +1275,9 @@ class _SaveBar extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title, required this.onBack});
+  const _Header({required this.title});
 
   final String title;
-  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -1288,26 +1287,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.lg),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Text(title,
               style: AppText.headline

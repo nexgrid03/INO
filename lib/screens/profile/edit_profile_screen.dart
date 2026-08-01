@@ -10,6 +10,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_text_field.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../auth/auth_validators.dart';
 
@@ -103,9 +104,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: palette.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
-          onPressed: _busy ? null : () => Navigator.of(context).maybePop(),
+        leadingWidth: 60,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Center(
+            child: InoBackButton(
+              size: 42,
+              onTap: () {
+                if (!_busy) Navigator.of(context).maybePop();
+              },
+            ),
+          ),
         ),
         title: Text(
           l10n.t('editProfile'),

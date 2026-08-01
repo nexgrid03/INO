@@ -9,6 +9,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -209,26 +210,7 @@ class _Header extends StatelessWidget {
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onClose,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          InoBackButton(onTap: onClose),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

@@ -6,6 +6,7 @@ import '../../services/expense_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/expenses/expense_widgets.dart';
 import '../../widgets/pressable_scale.dart';
@@ -129,7 +130,6 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
               children: [
                 _Header(
                   yearLabel: fy.label,
-                  onBack: () => Navigator.of(context).maybePop(),
                   onPickYear: _pickYear,
                 ),
                 Padding(
@@ -684,12 +684,10 @@ class _AddButton extends StatelessWidget {
 class _Header extends StatelessWidget {
   const _Header({
     required this.yearLabel,
-    required this.onBack,
     required this.onPickYear,
   });
 
   final String yearLabel;
-  final VoidCallback onBack;
   final VoidCallback onPickYear;
 
   @override
@@ -700,26 +698,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.md),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(AppLocalizations.of(context).t('transactionVault'),

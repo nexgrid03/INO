@@ -7,6 +7,7 @@ import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -115,7 +116,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
         child: SafeArea(
         child: Column(
           children: [
-            _Header(onBack: () => Navigator.of(context).maybePop()),
+            const _Header(),
             // Pending invitations addressed to this user — shown above the
             // vault list (and even when the user has no vaults yet).
             ListenableBuilder(
@@ -722,9 +723,7 @@ class _CreateButton extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
@@ -734,26 +733,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.sm),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

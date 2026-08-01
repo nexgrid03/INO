@@ -19,6 +19,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -517,7 +518,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         child: SafeArea(
         child: Column(
           children: [
-            _Header(onBack: () => Navigator.of(context).maybePop()),
+            const _Header(),
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -721,9 +722,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 // ---------------------------------------------------------------------------
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
@@ -733,26 +732,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.lg),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

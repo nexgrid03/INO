@@ -102,6 +102,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
     // feature tiles, then the pill CTA / skip / trust badge. Scrolls (fixed
     // gaps instead of Spacers) so the richer content fits every screen size.
     return AuthScaffold(
+      showBack: true,
       child: Column(
         children: [
           const SizedBox(height: 24),

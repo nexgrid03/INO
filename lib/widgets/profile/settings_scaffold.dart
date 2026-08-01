@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
 import '../pressable_scale.dart';
 
@@ -33,9 +34,10 @@ class SettingsScaffold extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
-          onPressed: () => Navigator.of(context).maybePop(),
+        leadingWidth: 60,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Center(child: InoBackButton(size: 42)),
         ),
         title: Text(
           title,

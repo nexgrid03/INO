@@ -10,6 +10,7 @@ import '../../models/ocr_stage.dart';
 import '../../models/scan_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 
 /// Screen 3 - OCR processing.
@@ -196,6 +197,12 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
           padding: const EdgeInsets.all(AppSpacing.screen),
           child: Column(
             children: [
+              // Back returns to the review stage (the flow's PopScope maps the
+              // pop request to the previous stage rather than exiting).
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: InoBackButton(),
+              ),
               const Spacer(),
               _ProgressRing(progress: progress),
               const SizedBox(height: AppSpacing.xl),
@@ -342,8 +349,12 @@ class _FailureView extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.screen),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: InoBackButton(),
+              ),
+              const Spacer(),
               Container(
                 width: 72,
                 height: 72,
@@ -386,6 +397,7 @@ class _FailureView extends StatelessWidget {
                   child: Text(l10n.t('manualEntry')),
                 ),
               ),
+              const Spacer(),
             ],
           ),
         ),

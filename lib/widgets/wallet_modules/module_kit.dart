@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/ino_back_button.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
@@ -867,11 +868,7 @@ class ModuleHeader extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Row(
       children: [
-        ModuleIconButton(
-          icon: Icons.arrow_back_rounded,
-          onTap: onBack ?? () => Navigator.of(context).maybePop(),
-          tooltip: 'Back',
-        ),
+        InoBackButton(size: 42, onTap: onBack),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(

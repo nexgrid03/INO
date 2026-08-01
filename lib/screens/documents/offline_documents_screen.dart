@@ -9,6 +9,7 @@ import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
@@ -318,6 +319,11 @@ class _OfflineImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        leadingWidth: 60,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Center(child: InoBackButton(size: 42)),
+        ),
         title: Text(
           title,
           maxLines: 1,

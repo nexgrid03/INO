@@ -9,6 +9,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -72,9 +73,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
             final net = s.totalIncome - s.totalExpenses;
             return Column(
               children: [
-                _Header(
-                    yearLabel: s.year.label,
-                    onBack: () => Navigator.of(context).maybePop()),
+                _Header(yearLabel: s.year.label),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -263,10 +262,9 @@ class _ExportButton extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.yearLabel, required this.onBack});
+  const _Header({required this.yearLabel});
 
   final String yearLabel;
-  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -276,26 +274,7 @@ class _Header extends StatelessWidget {
           AppSpacing.screen, AppSpacing.md),
       child: Row(
         children: [
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: palette.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                side: BorderSide(color: palette.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onBack,
-                child: SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 21, color: palette.textPrimary),
-                ),
-              ),
-            ),
-          ),
+          const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

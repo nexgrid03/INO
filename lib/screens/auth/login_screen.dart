@@ -257,6 +257,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final validate = AuthValidators.of(context);
     final busy = _busy || _googleBusy || _guestBusy;
     return AuthScaffold(
+      // Login is sometimes pushed (guest-mode "Sign In") and sometimes a
+      // stack-cleared root (after sign-out); the back button hides itself
+      // whenever the route can't pop.
+      showBack: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

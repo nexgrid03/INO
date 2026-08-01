@@ -9,6 +9,7 @@ import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/scan/scan_controls.dart';
 import '../../widgets/scan/scan_detection_toast.dart';
 import '../../widgets/scan/scanner_overlay.dart';
@@ -470,12 +471,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
       child: Row(
         children: [
-          IconButton(
-            onPressed: widget.onClose,
-            icon: const Icon(Icons.close_rounded,
-                color: ScanColors.textPrimary, size: 26),
-            tooltip: l10n.t('close'),
-          ),
+          InoBackButton(onTap: widget.onClose),
           Expanded(
             child: Column(
               children: [

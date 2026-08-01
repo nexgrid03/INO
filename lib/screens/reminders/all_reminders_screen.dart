@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/reminders/add_reminder_sheet.dart';
 import '../../widgets/reminders/reminder_card.dart';
@@ -69,6 +70,11 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       appBar: AppBar(
+        leadingWidth: 60,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Center(child: InoBackButton(size: 42)),
+        ),
         title: Text(widget.scope.localizedTitle(l10n),
             style: AppText.title.copyWith(color: palette.textPrimary)),
         actions: [

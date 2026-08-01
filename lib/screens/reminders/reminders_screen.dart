@@ -6,6 +6,7 @@ import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
@@ -116,14 +117,27 @@ class _RemindersScreenState extends State<RemindersScreen> {
                               AppSpacing.screen,
                               AppSpacing.md,
                             ),
-                            child: RemindersHeader(
-                              fullName: widget.profile.fullName,
-                              notificationCount: _store.isLoaded
-                                  ? _store.summary.dueToday
-                                  : 0,
-                              onSearch: _search,
-                              onNotifications: () =>
-                                  _openScope(RemindersScope.today),
+                            child: Row(
+                              children: [
+                                // The gap only exists when the button can
+                                // render (pushed route), so the tab-root
+                                // header keeps its original alignment.
+                                if (Navigator.of(context).canPop()) ...[
+                                  const InoBackButton(size: 42),
+                                  const SizedBox(width: 12),
+                                ],
+                                Expanded(
+                                  child: RemindersHeader(
+                                    fullName: widget.profile.fullName,
+                                    notificationCount: _store.isLoaded
+                                        ? _store.summary.dueToday
+                                        : 0,
+                                    onSearch: _search,
+                                    onNotifications: () =>
+                                        _openScope(RemindersScope.today),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
