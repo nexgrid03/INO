@@ -100,10 +100,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final validate = AuthValidators.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
+      // Let the sky gradient flow up behind the transparent app bar - no flat
+      // colour band above the content (matches SettingsScaffold chrome).
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: palette.bg,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leadingWidth: 60,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -128,12 +132,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: ListView(
+          // A centred, width-capped column so the form reads as one tidy
+          // block on any screen instead of stretching edge to edge.
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: ListView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-                AppSpacing.screen, AppSpacing.xl),
+            padding: EdgeInsets.fromLTRB(
+                AppSpacing.screen,
+                // Re-apply the inset the extended body no longer receives.
+                kToolbarHeight +
+                    MediaQuery.paddingOf(context).top +
+                    AppSpacing.md,
+                AppSpacing.screen,
+                AppSpacing.xl),
             children: [
-              const SizedBox(height: AppSpacing.xs),
               _AvatarEditor(
                 initials: _initials,
                 photoUrl: widget.profile.profilePhoto,
@@ -186,6 +200,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: _busy ? null : _save,
               ),
             ],
+              ),
+            ),
           ),
         ),
         ),
