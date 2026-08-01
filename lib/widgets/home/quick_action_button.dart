@@ -35,24 +35,24 @@ class QuickActionButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // A white glass circle with the action's coloured glyph - the
-              // Divine Glass "round action" treatment.
+              // A solid brand-gradient circle with a white glyph - the
+              // reference "round action" treatment: one uniform brand hue
+              // across the row.
               Container(
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: palette.surface,
+                  gradient: AppColors.brandGradient,
                   shape: BoxShape.circle,
-                  border: Border.all(color: palette.border),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.18),
+                      color: AppColors.primaryGreen.withValues(alpha: 0.30),
                       blurRadius: 14,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
               const SizedBox(height: AppSpacing.xs),
               // Scale the label down to fit rather than truncating, so full

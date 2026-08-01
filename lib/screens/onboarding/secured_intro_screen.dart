@@ -11,6 +11,7 @@ import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
+import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
 import '../shell/main_shell.dart';
 
@@ -138,7 +139,8 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: Stack(
+      body: InoBackground(
+        child: Stack(
         children: [
           // Soft ambient colour washes - teal top-right, cyan bottom-left, a
           // whisper of purple behind the lock so the scene isn't monochrome.
@@ -328,6 +330,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

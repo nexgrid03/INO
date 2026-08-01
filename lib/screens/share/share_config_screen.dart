@@ -9,6 +9,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
@@ -132,7 +133,8 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
     final docs = widget.documents;
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(count: docs.length, onClose: () => Navigator.of(context).pop()),
@@ -180,6 +182,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
               onGenerate: _generate,
             ),
           ],
+        ),
         ),
       ),
     );

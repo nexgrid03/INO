@@ -10,6 +10,7 @@ import '../../models/ocr_stage.dart';
 import '../../models/scan_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 
 /// Screen 3 - OCR processing.
 ///
@@ -189,7 +190,8 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
     final progress = _progress;
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.screen),
           child: Column(
@@ -251,6 +253,7 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
               const SizedBox(height: AppSpacing.sm),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -334,7 +337,8 @@ class _FailureView extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.screen),
           child: Column(
@@ -384,6 +388,7 @@ class _FailureView extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

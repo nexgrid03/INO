@@ -287,15 +287,18 @@ class _WalletBackdrop extends StatelessWidget {
     }
     return Container(
       decoration: const BoxDecoration(
+        // Matches the app-wide hero-sky wash (see InoBackground): the full
+        // brand skyBlue at the top melting to the pale base past mid-screen.
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFFDCEEFA), // sky-blue crown
-            Color(0xFFEAF4FC), // brand wash middle
-            Color(0xFFF5FAFE), // near-white base
+            Color(0xFF7DD3FC), // brand skyBlue crown
+            Color(0xFFB2E2FC), // deep melt through the hero
+            Color(0xFFE3F3FD), // pale wash past mid-screen
+            Color(0xFFEAF4FC), // brand base
           ],
-          stops: [0.0, 0.45, 1.0],
+          stops: [0.0, 0.28, 0.62, 1.0],
         ),
       ),
       child: Stack(

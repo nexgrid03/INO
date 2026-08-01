@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/reminders/month_calendar.dart';
 import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
@@ -51,7 +52,8 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
         title: Text(l10n.t('calendar'),
             style: AppText.title.copyWith(color: palette.textPrimary)),
       ),
-      body: ListenableBuilder(
+      body: InoBackground(
+        child: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
@@ -110,6 +112,7 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }

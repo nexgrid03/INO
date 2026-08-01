@@ -7,6 +7,7 @@ import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -110,7 +111,8 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
         builder: (context, _) =>
             _store.isEmpty ? const SizedBox.shrink() : _CreateButton(onTap: _create),
       ),
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(onBack: () => Navigator.of(context).maybePop()),
@@ -152,6 +154,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

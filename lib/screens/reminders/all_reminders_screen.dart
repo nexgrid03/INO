@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/reminders/add_reminder_sheet.dart';
 import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
@@ -85,7 +86,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add_rounded),
       ),
-      body: ListenableBuilder(
+      body: InoBackground(
+        child: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
@@ -139,6 +141,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }

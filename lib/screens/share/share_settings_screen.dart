@@ -15,6 +15,7 @@ import '../../services/document_processor.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
@@ -278,7 +279,8 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     final docs = widget.documents;
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(count: docs.length, onBack: () => Navigator.of(context).pop()),
@@ -362,6 +364,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
               onGenerate: _isViewOnce ? _generateViewOnce : _generateAndShare,
             ),
           ],
+        ),
         ),
       ),
     );

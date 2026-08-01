@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property/area_conversion_summary.dart';
@@ -62,7 +63,8 @@ class _AreaConverterScreenState extends State<AreaConverterScreen> {
 
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(onBack: () => Navigator.of(context).maybePop()),
@@ -96,6 +98,7 @@ class _AreaConverterScreenState extends State<AreaConverterScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 
@@ -42,7 +43,8 @@ class PlaceholderTab extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -119,6 +121,7 @@ class PlaceholderTab extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

@@ -76,9 +76,9 @@ class _AuthScaffoldState extends State<AuthScaffold>
       backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // Divine Glass sky wash - a soft vertical gradient from mist into a
-          // pale sky-blue so every auth screen floats on the same ethereal
-          // backdrop (light mode only; dark keeps its deep palette bg).
+          // App-wide hero-sky wash (matches InoBackground): the full brand
+          // skyBlue at the top melting to the pale base past mid-screen
+          // (light mode only; dark keeps its deep palette bg).
           if (!palette.isDark)
             const Positioned.fill(
               child: IgnorePointer(
@@ -88,10 +88,12 @@ class _AuthScaffoldState extends State<AuthScaffold>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.tealMist,
-                        AppColors.tealFoam,
-                        AppColors.tealPale,
+                        Color(0xFF7DD3FC), // brand skyBlue crown
+                        Color(0xFFB2E2FC), // deep melt through the hero
+                        Color(0xFFE3F3FD), // pale wash past mid-screen
+                        Color(0xFFEAF4FC), // brand base
                       ],
+                      stops: [0.0, 0.28, 0.62, 1.0],
                     ),
                   ),
                 ),

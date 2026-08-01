@@ -12,6 +12,7 @@ import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'add_vault_document_sheet.dart';
@@ -605,7 +606,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       backgroundColor: palette.bg,
       floatingActionButton:
           _myRole.canManageMembers ? _InviteButton(onTap: _invite) : null,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _header(palette),
@@ -621,6 +623,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

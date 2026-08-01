@@ -10,6 +10,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_text_field.dart';
+import '../../widgets/common/ino_background.dart';
 import '../auth/auth_validators.dart';
 
 /// Edit Profile - the primary action of the Profile settings page.
@@ -112,7 +113,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         top: false,
         child: Form(
           key: _formKey,
@@ -176,6 +178,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

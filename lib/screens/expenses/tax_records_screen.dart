@@ -11,6 +11,7 @@ import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 
@@ -158,7 +159,8 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Stack(
           children: [
             ListenableBuilder(
@@ -203,6 +205,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
                 child: const Center(child: CircularProgressIndicator()),
               ),
           ],
+        ),
         ),
       ),
     );

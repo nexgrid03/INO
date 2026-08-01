@@ -2,23 +2,22 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/responsive/responsive_extensions.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
-import '../common/shiny_border.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
-/// Today's Overview - the hero highlight of the INO Home Screen.
+/// The Home hero block, replicating the reference vault layout:
 ///
-/// A living teal section: a primary-only gradient washed with slowly drifting
-/// organic blobs, a soft wave, and geometric ring accents (all painted, no
-/// assets), fronted by a gently bobbing "shield mascot" badge. The four summary
-/// tiles break away from the section with their own soft pastel fills, hairline
-/// borders and staggered entrance - connected to the teal world, yet clearly
-/// lifted off it.
+///   1. A luminous glass hero card - the bobbing shield mascot on the left,
+///      an eyebrow / headline / subtitle column with a gradient CTA on the
+///      right ("Your Vault is … / View Documents →").
+///   2. A strip of four compact summary tiles beneath it (label on top, big
+///      count + icon chip below) - the reference "Reminders" tile alignment.
+///
+/// All counts and tap targets are the same as before; only the arrangement
+/// changed.
 class DashboardCard extends StatefulWidget {
   const DashboardCard({
     super.key,
@@ -59,7 +58,7 @@ class DashboardCard extends StatefulWidget {
 
 class _DashboardCardState extends State<DashboardCard>
     with SingleTickerProviderStateMixin {
-  // One slow, perpetual loop drives every ambient motion in the section - the
+  // One slow, perpetual loop drives every ambient motion in the hero - the
   // drifting backdrop and the subtle gradient shift - so the whole surface
   // breathes together at ~12s per cycle.
   late final AnimationController _ambient = AnimationController(
@@ -75,192 +74,188 @@ class _DashboardCardState extends State<DashboardCard>
 
   @override
   Widget build(BuildContext context) {
-    // Divine Glass: the hero is a luminous white glass card - a hairline
-    // light-blue edge, whisper shadow and a slowly drifting sky wash behind
-    // the content (in place of the old saturated teal flood).
     final palette = AppPalette.of(context);
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: palette.cardGradient,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
-      child: Stack(
-        children: [
-          // Animated sky-wash backdrop (gradient shift + drifting graphics).
-          // Only this layer repaints each frame; the content in front is
-          // static.
-          Positioned.fill(
-            child: RepaintBoundary(
-              child: AnimatedBuilder(
-                animation: _ambient,
-                builder: (context, _) {
-                  final t = Curves.easeInOut.transform(_ambient.value);
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        // A gentle 0→1 drift of the light source keeps the
-                        // wash alive without changing its hue.
-                        begin: Alignment(-1 + t * 0.4, -1),
-                        end: Alignment(1, 1 - t * 0.4),
-                        colors: [
-                          AppColors.tealFoam.withValues(
-                              alpha: palette.isDark ? 0.0 : 0.35),
-                          AppColors.tealMist.withValues(
-                              alpha: palette.isDark ? 0.06 : 0.55),
-                        ],
-                      ),
-                    ),
-                    child: CustomPaint(painter: _OverviewBackdrop(t: t)),
-                  );
-                },
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // --- 1. Hero card: mascot left, copy + CTA right -------------------
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: palette.cardGradient,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(color: palette.border),
+            boxShadow: palette.cardShadow,
           ),
-
-          // Foreground content.
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              _Header(),
+              // Animated sky-wash backdrop (gradient shift + drifting
+              // graphics). Only this layer repaints each frame.
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _ambient,
+                    builder: (context, _) {
+                      final t = Curves.easeInOut.transform(_ambient.value);
+                      return DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment(-1 + t * 0.4, -1),
+                            end: Alignment(1, 1 - t * 0.4),
+                            colors: [
+                              AppColors.tealFoam.withValues(
+                                  alpha: palette.isDark ? 0.0 : 0.35),
+                              AppColors.tealMist.withValues(
+                                  alpha: palette.isDark ? 0.06 : 0.55),
+                            ],
+                          ),
+                        ),
+                        child: CustomPaint(painter: _OverviewBackdrop(t: t)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // Foreground hero row. IntrinsicHeight lets the mascot column
+              // stretch to exactly the text column's height, so the
+              // illustration is always vertically centred against the copy
+              // (no empty corner above it).
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                child: _SummaryGrid(
-                  documentsExpiring: widget.documentsExpiring,
-                  remindersToday: widget.remindersToday,
-                  insuranceRenewals: widget.insuranceRenewals,
-                  emiDue: widget.emiDue,
-                  onDocumentsExpiring:
-                      widget.onDocumentsExpiring ?? widget.onPending,
-                  onEmiDues: widget.onEmiDues ?? widget.onCta,
-                  onRemindersToday: widget.onRemindersToday ?? widget.onCta,
-                  onInsuranceRenewals:
-                      widget.onInsuranceRenewals ?? widget.onProtected,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // The shield mascot, enlarged into the reference's
+                      // illustration slot and centred on the card's height.
+                      SizedBox(
+                        width: 118,
+                        child: Center(
+                          child: Transform.scale(
+                            scale: 2.1,
+                            child: const _MascotBadge(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // The copy column is anchored to the card's RIGHT edge:
+                      // every line and the CTA share one clean right-aligned
+                      // axis, balancing the mascot on the left.
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Eyebrow - small caps in the brand teal.
+                            const Text(
+                              'YOUR VAULT',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                color: AppColors.primaryGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Your Vault is 100% Protected',
+                              textAlign: TextAlign.right,
+                              maxLines: 2,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'All your documents are safe and backed up',
+                              textAlign: TextAlign.right,
+                              maxLines: 2,
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _HeroCta(onTap: widget.onCta),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // --- 2. Compact summary strip: four tiles in one row ---------------
+        _SummaryStrip(
+          documentsExpiring: widget.documentsExpiring,
+          remindersToday: widget.remindersToday,
+          insuranceRenewals: widget.insuranceRenewals,
+          emiDue: widget.emiDue,
+          onDocumentsExpiring: widget.onDocumentsExpiring ?? widget.onPending,
+          onEmiDues: widget.onEmiDues ?? widget.onCta,
+          onRemindersToday: widget.onRemindersToday ?? widget.onCta,
+          onInsuranceRenewals:
+              widget.onInsuranceRenewals ?? widget.onProtected,
+        ),
+      ],
     );
   }
 }
 
-/// Section header: title + subtitle on the left, a bobbing shield mascot on the
-/// right.
-class _Header extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 15, 18, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Today's Overview",
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _LiveChip(),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your important summary for today',
-                  style: TextStyle(
-                    color: palette.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          const _MascotBadge(),
-        ],
-      ),
-    );
-  }
-}
+/// The hero's gradient pill CTA - "View Documents →".
+class _HeroCta extends StatelessWidget {
+  const _HeroCta({this.onTap});
 
-/// A small translucent "Live" pill with a pulsing dot - a soft accent graphic
-/// that flags the section as up-to-date.
-class _LiveChip extends StatefulWidget {
-  @override
-  State<_LiveChip> createState() => _LiveChipState();
-}
-
-class _LiveChipState extends State<_LiveChip>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1500),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FadeTransition(
-            opacity: Tween(
-              begin: 0.45,
-              end: 1.0,
-            ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: AppColors.success,
-                shape: BoxShape.circle,
+    return PressableScale(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: AppColors.brandGradient,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 5),
-          const Text(
-            'Live',
-            style: TextStyle(
-              color: AppColors.success,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-            ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'View Documents',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(width: 6),
+              Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -383,9 +378,11 @@ class _Sparkle extends StatelessWidget {
   }
 }
 
-/// The 2×2 block of pastel summary tiles, each entering on a small stagger.
-class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({
+/// The four summary counts as one compact row - the reference "Reminders"
+/// strip alignment: small label on top, big count bottom-left, a pastel icon
+/// chip bottom-right. Same counts, same taps as the old 2×2 grid.
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({
     required this.documentsExpiring,
     required this.remindersToday,
     required this.insuranceRenewals,
@@ -408,139 +405,100 @@ class _SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tiles = <Widget>[
-      _OverviewTile(
-        title: 'Documents Expiring',
+      _StripTile(
+        label: 'Expiring',
         value: '$documentsExpiring',
         icon: Icons.warning_amber_rounded,
         accent: const Color(0xFFF59E0B),
-        fill: const Color(0xFFFFF6E9),
         onTap: onDocumentsExpiring,
       ),
-      _OverviewTile(
-        title: 'EMI Due Tomorrow',
+      _StripTile(
+        label: 'EMI Due',
         value: '$emiDue',
         icon: Icons.account_balance_wallet_rounded,
-        // Blue, not the brand teal: a teal border here disappeared into the
-        // section's own teal backdrop. Also clear of the other three tiles
-        // (amber / coral / purple).
         accent: const Color(0xFF2563EB),
-        fill: const Color(0xFFE9EFFD),
         onTap: onEmiDues,
       ),
-      _OverviewTile(
-        title: 'Reminders Today',
+      _StripTile(
+        label: 'Reminders',
         value: '$remindersToday',
         icon: Icons.alarm_rounded,
         accent: const Color(0xFFF5704A),
-        fill: const Color(0xFFFFF1EC),
         onTap: onRemindersToday,
       ),
-      _OverviewTile(
-        title: 'Insurance Renewals',
+      _StripTile(
+        label: 'Insurance',
         value: '$insuranceRenewals',
         icon: Icons.shield_rounded,
         accent: const Color(0xFF8B6CEF),
-        fill: const Color(0xFFF1ECFF),
         onTap: onInsuranceRenewals,
       ),
     ];
 
-    Widget cell(int i) => FadeSlideIn(
-      delay: Duration(milliseconds: 120 + i * 90),
-      offset: 18,
-      child: tiles[i],
-    );
-
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: cell(0)),
-            const SizedBox(width: 10),
-            Expanded(child: cell(1)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(child: cell(2)),
-            const SizedBox(width: 10),
-            Expanded(child: cell(3)),
-          ],
-        ),
+        for (var i = 0; i < tiles.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: FadeSlideIn(
+              delay: Duration(milliseconds: 120 + i * 90),
+              offset: 18,
+              child: tiles[i],
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-/// One pastel summary tile: soft fill, hairline accent border, a rounded icon
-/// badge, big value and muted label.
-class _OverviewTile extends StatelessWidget {
-  const _OverviewTile({
-    required this.title,
+/// One compact summary tile: label on top, count + icon chip below.
+class _StripTile extends StatelessWidget {
+  const _StripTile({
+    required this.label,
     required this.value,
     required this.icon,
     required this.accent,
-    required this.fill,
     this.onTap,
   });
 
-  final String title;
+  final String label;
   final String value;
   final IconData icon;
   final Color accent;
-  final Color fill;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isSmall = context.isMobileSmall;
-    final themeStyle = InoStyle.of(context);
-    final bold = themeStyle == ThemeStyle.bold;
-    final soft = themeStyle == ThemeStyle.soft;
-
-    // Bold: the colour that used to live on the small inner icon badge floods
-    // the whole tile (run deeper), and the glyph stays in place in plain
-    // white. Soft: the pastel fill lifts lighter and the badge goes glass, so
-    // the glyph shows in its own colour (handled inside ShinyIcon); the border
-    // keeps the classic accent and gains a glass sheen (ShinyBorder below).
-    final Color tileFill = bold
-        ? InoStyle.boldFill(accent)
-        : soft
-        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.45), fill)
-        : fill;
-    final Color edge = bold ? InoStyle.boldBorder(accent) : accent;
-    final badgeSize = isSmall ? 34.0 : 38.0;
-    // With the badge body gone in bold the bare glyph reads small - let it
-    // grow into the freed slot.
-    final glyphSize = bold ? (isSmall ? 26.0 : 30.0) : (isSmall ? 18.0 : 20.0);
+    final palette = AppPalette.of(context);
 
     final tile = Container(
-      padding: EdgeInsets.all(isSmall ? 11 : 13),
+      padding: const EdgeInsets.fromLTRB(10, 9, 9, 9),
       decoration: BoxDecoration(
-        color: tileFill,
-        borderRadius: BorderRadius.circular(20),
-        // Bold keeps its thick accent edge; classic/soft wear the Divine
-        // Glass hairline in the tile's own accent.
-        border: Border.all(
-          color: bold ? edge : edge.withValues(alpha: 0.30),
-          width: bold ? 2.5 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: bold ? 0.24 : 0.10),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top row: the number sits beside the icon badge.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: palette.textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: FittedBox(
@@ -549,75 +507,46 @@ class _OverviewTile extends StatelessWidget {
                   child: Text(
                     value,
                     style: TextStyle(
-                      color: bold ? Colors.white : AppColors.textDark,
-                      fontSize: isSmall ? 22.rsp : 25.rsp,
+                      color: palette.textPrimary,
+                      fontSize: 21,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
+                      letterSpacing: -0.5,
+                      height: 1,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Bold keeps the glyph in exactly the same slot but drops the
-              // badge body - the tile itself is now the coloured container.
-              bold
-                  ? SizedBox(
-                      width: badgeSize,
-                      height: badgeSize,
-                      child: Icon(icon, color: Colors.white, size: glyphSize),
-                    )
-                  : Container(
-                      width: badgeSize,
-                      height: badgeSize,
-                      decoration: BoxDecoration(
-                        // Pastel chip: the accent as a soft tint behind its
-                        // own coloured glyph.
-                        color: accent.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon, color: accent, size: glyphSize),
-                    ),
+              const SizedBox(width: 6),
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accent, size: 15),
+              ),
             ],
-          ),
-          const SizedBox(height: 8),
-          // Label below, exactly as before.
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: bold ? InoStyle.boldTextSecondary : AppColors.textMuted,
-              fontSize: isSmall ? 11 : 12,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ],
       ),
     );
 
-    // Soft: the hairline accent border picks up a glass sheen.
-    final styled = ShinyBorder(
-      radius: 20,
-      width: 1,
-      enabled: soft,
-      child: tile,
-    );
-
-    if (onTap == null) return styled;
+    if (onTap == null) return tile;
     return PressableScale(
       pressedScale: 0.96,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: styled,
+        child: tile,
       ),
     );
   }
 }
 
-/// Paints the drifting abstract graphics over the teal gradient: soft white
-/// blobs, a gentle wave band and thin geometric ring accents. Everything moves
-/// with [t] (0→1→0) so the section feels alive without distracting.
+/// Paints the drifting abstract graphics over the hero wash: soft blobs, a
+/// gentle wave band and thin geometric ring accents. Everything moves with
+/// [t] (0→1→0) so the section feels alive without distracting.
 class _OverviewBackdrop extends CustomPainter {
   _OverviewBackdrop({required this.t});
 
@@ -666,7 +595,7 @@ class _OverviewBackdrop extends CustomPainter {
     final wave = Paint()..color = AppColors.skyBlue.withValues(alpha: 0.10);
     final path = Path();
     final baseY = size.height * 0.62;
-    final amp = 12.0;
+    const amp = 12.0;
     path.moveTo(0, baseY);
     for (double x = 0; x <= size.width; x += 1) {
       final y =

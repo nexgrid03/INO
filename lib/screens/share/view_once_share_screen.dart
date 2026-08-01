@@ -16,6 +16,7 @@ import '../../repositories/view_once_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart' show remainingShareLabel;
@@ -236,7 +237,8 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
     final live = _share.isLive;
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(status: _share.status, onClose: () => Navigator.of(context).pop()),
@@ -251,6 +253,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

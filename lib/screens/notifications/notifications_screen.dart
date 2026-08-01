@@ -5,6 +5,7 @@ import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/home/empty_state.dart';
 
 /// Notifications - a real, categorised feed generated from app state (due
@@ -59,7 +60,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         top: false,
         child: ListenableBuilder(
           listenable: _center,
@@ -98,6 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             );
           },
+        ),
         ),
       ),
     );

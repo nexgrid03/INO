@@ -6,6 +6,7 @@ import '../../services/expense_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/expenses/expense_widgets.dart';
 import '../../widgets/pressable_scale.dart';
 import 'add_expense_screen.dart';
@@ -113,7 +114,8 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
       backgroundColor: palette.bg,
       floatingActionButton:
           _AddButton(onTap: () => _push(const AddExpenseScreen())),
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
@@ -198,6 +200,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
               ],
             );
           },
+        ),
         ),
       ),
     );

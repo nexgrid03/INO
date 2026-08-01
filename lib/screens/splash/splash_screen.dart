@@ -126,17 +126,19 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  /// Divine Glass backdrop - a soft top-lit sky-blue wash, never plain white.
+  /// App-wide hero-sky backdrop (matches InoBackground): the full brand
+  /// skyBlue at the top melting to the pale base past mid-screen.
   static const BoxDecoration _ramaBackground = BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        Color(0xFFF8FCFF), // airy near-white sky
-        AppColors.tealFoam, // sky foam
-        AppColors.background, // gentle sky-wash base
+        Color(0xFF7DD3FC), // brand skyBlue crown
+        Color(0xFFB2E2FC), // deep melt through the hero
+        Color(0xFFE3F3FD), // pale wash past mid-screen
+        Color(0xFFEAF4FC), // brand base
       ],
-      stops: [0.0, 0.5, 1.0],
+      stops: [0.0, 0.28, 0.62, 1.0],
     ),
   );
 

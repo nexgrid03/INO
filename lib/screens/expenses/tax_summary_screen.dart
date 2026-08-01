@@ -9,6 +9,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 
@@ -62,7 +63,8 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
@@ -175,6 +177,7 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
               ],
             );
           },
+        ),
         ),
       ),
     );

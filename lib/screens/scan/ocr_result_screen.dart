@@ -6,6 +6,7 @@ import '../../services/category_store.dart';
 import '../../utils/date_normalizer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
@@ -181,7 +182,8 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     final r = widget.result;
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(onBack: widget.onClose),
@@ -349,6 +351,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
             ),
             _ActionBar(onContinue: _continue, onRetake: widget.onRetake),
           ],
+        ),
         ),
       ),
     );

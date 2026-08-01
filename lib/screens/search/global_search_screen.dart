@@ -5,6 +5,7 @@ import '../../data/wallet_repository.dart';
 import '../../services/global_search_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/home/empty_state.dart';
 import '../shell/shell_controller.dart';
 import '../wallet/wallet_detail_screen.dart';
@@ -121,7 +122,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           },
         ),
       ),
-      body: SafeArea(top: false, child: _body(palette)),
+      body: InoBackground(
+        child: SafeArea(top: false, child: _body(palette)),
+      ),
     );
   }
 

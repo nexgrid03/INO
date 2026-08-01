@@ -20,6 +20,7 @@ import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/shiny_border.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/pressable_scale.dart';
 import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/dashboard_card.dart';
@@ -97,6 +98,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<_HomeData> _future;
+
+  /// Session-local dismissal of the expiry alert banner.
+  bool _bannerDismissed = false;
 
   @override
   void initState() {
@@ -209,6 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: true,
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -277,34 +282,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 1. Greeting Header Card - pinned at the top of the screen.
+  /// 1. Greeting Header - pinned at the top of the screen. It sits directly
+  /// on the hero-sky gradient (no card of its own), so the brand-blue band
+  /// flows from the status bar down behind the greeting, like the reference
+  /// vault design.
   Widget _header(AppPalette palette) {
     final sidePadding = context.responsivePadding;
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(AppRadius.card),
-        ),
-        boxShadow: palette.cardShadow,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        sidePadding,
+        AppSpacing.sm,
+        sidePadding,
+        AppSpacing.md,
       ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          sidePadding,
-          AppSpacing.sm,
-          sidePadding,
-          AppSpacing.md,
-        ),
-        child: ListenableBuilder(
-          listenable: NotificationCenter.instance,
-          builder: (context, _) => WelcomeHeader(
-            fullName: widget.profile.fullName,
-            photoUrl: widget.profile.profilePhoto,
-            notificationCount: NotificationCenter.instance.unreadCount,
-            onProfile: () => _goToTab(4),
-            onNotifications: () => _push(const NotificationsScreen()),
-            voiceButtonKey: widget.voiceTourKey,
-          ),
+      child: ListenableBuilder(
+        listenable: NotificationCenter.instance,
+        builder: (context, _) => WelcomeHeader(
+          fullName: widget.profile.fullName,
+          photoUrl: widget.profile.profilePhoto,
+          notificationCount: NotificationCenter.instance.unreadCount,
+          onProfile: () => _goToTab(4),
+          onNotifications: () => _push(const NotificationsScreen()),
+          voiceButtonKey: widget.voiceTourKey,
         ),
       ),
     );
@@ -328,14 +327,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onEmiDues: () => _push(const EmiCalculatorScreen()),
         onRemindersToday: () => _push(RemindersScreen(profile: widget.profile)),
         onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
+        onCta: () => _openWallet('Document Wallet'),
       ),
 
       // 2. Quick Actions - four symmetric shortcuts.
       _Section(
         header: SectionHeader(
           title: l10n.t('quickActions'),
-          icon: Icons.bolt_rounded,
-          iconColor: AppColors.lightBlue,
           actionLabel: l10n.t('viewAll'),
           onAction: () => _goToTab(1),
         ),
@@ -348,12 +346,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
+      // 2b. Expiry alert banner (reference alignment): only when documents
+      // are actually expiring, dismissible for the session.
+      if (data.documentsExpiring > 0 && !_bannerDismissed)
+        _ExpiryBanner(
+          count: data.documentsExpiring,
+          onReview: () => _push(const PendingActionsScreen()),
+          onDismiss: () => setState(() => _bannerDismissed = true),
+        ),
+
       // 3. Property & Finance Tools (Adaptive grid columns)
       _Section(
         header: SectionHeader(
           title: l10n.t('propertyFinanceTools'),
-          icon: Icons.calculate_rounded,
-          iconColor: AppColors.primaryGreen,
           actionLabel: l10n.t('viewAll'),
           onAction: () => _push(const PropertyFinanceToolsScreen()),
         ),
@@ -371,7 +376,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _Section(
         header: SectionHeader(
           title: l10n.t('marketSnapshot'),
-          icon: Icons.trending_up_rounded,
           actionLabel: l10n.t('viewMarkets'),
           onAction: () => _push(MarketsScreen(quotes: data.market)),
         ),
@@ -399,6 +403,122 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
     ];
+  }
+}
+
+/// The dismissible alert banner (reference "Passport expires in 5 days" row):
+/// a brand-gradient icon disc, title + hint, a gradient "Review →" pill and a
+/// dismiss cross - all on one white glass card.
+class _ExpiryBanner extends StatelessWidget {
+  const _ExpiryBanner({
+    required this.count,
+    required this.onReview,
+    required this.onDismiss,
+  });
+
+  final int count;
+  final VoidCallback onReview;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.shield_rounded,
+              color: Colors.white,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  count == 1
+                      ? '1 document expiring soon'
+                      : '$count documents expiring soon',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Review now to stay on track',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.textSecondary,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          PressableScale(
+            child: GestureDetector(
+              onTap: onReview,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Review',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 13, color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            icon: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: palette.textSecondary,
+            ),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
   }
 }
 

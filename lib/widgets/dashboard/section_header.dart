@@ -70,13 +70,24 @@ class SectionHeader extends StatelessWidget {
                 minimumSize: const Size(0, 0),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Text(
-                actionLabel!,
-                style: const TextStyle(
-                  color: AppColors.primaryGreen,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 14,
+                    color: AppColors.primaryGreen,
+                  ),
+                ],
               ),
             ),
         ],

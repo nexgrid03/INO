@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/ino_background.dart';
 import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
@@ -46,22 +47,24 @@ class CalculatorScaffold extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _CalcHeader(title: title, subtitle: subtitle, trailing: trailing),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                    AppSpacing.screen, AppSpacing.xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
+      body: InoBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _CalcHeader(title: title, subtitle: subtitle, trailing: trailing),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
+                      AppSpacing.screen, AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -19,6 +19,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -512,7 +513,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(onBack: () => Navigator.of(context).maybePop()),
@@ -573,6 +575,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
       bottomNavigationBar: _hasFile

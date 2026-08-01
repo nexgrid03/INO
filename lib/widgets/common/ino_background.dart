@@ -26,6 +26,7 @@ class InoBackground extends StatefulWidget {
     this.animate = true,
     this.showDots = true,
     this.intensity = 1.0,
+    this.sky = true,
   });
 
   final Widget child;
@@ -38,6 +39,11 @@ class InoBackground extends StatefulWidget {
 
   /// Scales blob opacity (use <1.0 behind dense content).
   final double intensity;
+
+  /// Hero-sky variant (light mode): a saturated brand-blue band at the top
+  /// that melts into white by mid-screen - the app-wide backdrop (pass false
+  /// for the softer legacy wash). Ignored in dark mode.
+  final bool sky;
 
   @override
   State<InoBackground> createState() => _InoBackgroundState();
@@ -88,6 +94,7 @@ class _InoBackgroundState extends State<InoBackground>
                   palette: palette,
                   showDots: widget.showDots,
                   intensity: widget.intensity,
+                  sky: widget.sky,
                 ),
               ),
             ),
@@ -105,31 +112,44 @@ class _AuroraPainter extends CustomPainter {
     required this.palette,
     required this.showDots,
     required this.intensity,
+    required this.sky,
   });
 
   final double t;
   final AppPalette palette;
   final bool showDots;
   final double intensity;
+  final bool sky;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final dark = palette.isDark;
 
-    // 1. Base mist wash - never plain white.
+    // 1. Base mist wash - never plain white. The hero-sky variant leads with
+    // a saturated brand-blue band (skyBlue → tealMist) that melts into the
+    // standard wash by mid-screen.
     final wash = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: dark
             ? [palette.bg, palette.bgElevated, palette.bg]
-            : const [
-                Color(0xFFD8EDFA), // faint teal sky at the top
-                Color(0xFFFDFFFF),
-                Color(0xFFEAF4FC),
-              ],
-        stops: const [0.0, 0.45, 1.0],
+            : sky
+                ? const [
+                    Color(0xFF7DD3FC), // brand skyBlue - full tint at the top
+                    Color(0xFFB2E2FC), // deep melt holds through the hero
+                    Color(0xFFE3F3FD), // pale wash past mid-screen
+                    Color(0xFFEAF4FC),
+                  ]
+                : const [
+                    Color(0xFFD8EDFA), // faint teal sky at the top
+                    Color(0xFFFDFFFF),
+                    Color(0xFFEAF4FC),
+                  ],
+        stops: sky && !dark
+            ? const [0.0, 0.28, 0.62, 1.0]
+            : const [0.0, 0.45, 1.0],
       ).createShader(rect);
     canvas.drawRect(rect, wash);
 
@@ -192,7 +212,8 @@ class _AuroraPainter extends CustomPainter {
       old.t != t ||
       old.palette != palette ||
       old.showDots != showDots ||
-      old.intensity != intensity;
+      old.intensity != intensity ||
+      old.sky != sky;
 }
 
 /// A standalone soft gradient circle for ad-hoc decoration inside cards,

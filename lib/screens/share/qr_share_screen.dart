@@ -17,6 +17,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import 'shared_documents_screen.dart';
@@ -225,7 +226,8 @@ class _QrShareScreenState extends State<QrShareScreen> {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      body: SafeArea(
+      body: InoBackground(
+        child: SafeArea(
         child: Column(
           children: [
             _Header(
@@ -246,6 +248,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

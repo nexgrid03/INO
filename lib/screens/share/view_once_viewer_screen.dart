@@ -14,6 +14,7 @@ import '../../repositories/view_once_repository.dart';
 import '../../services/screen_security_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 
@@ -257,13 +258,15 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
       },
       child: Scaffold(
         backgroundColor: palette.bg,
-        body: SafeArea(
+        body: InoBackground(
+          child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _Brand(),
               Expanded(child: _body(palette)),
             ],
+          ),
           ),
         ),
       ),
