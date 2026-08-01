@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
 import '../dashboard/sparkline.dart';
 import '../pressable_scale.dart';
@@ -43,13 +44,9 @@ class MarketCard extends StatelessWidget {
         ? '${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toStringAsFixed(2)}%'
         : fallback;
 
-    final card = Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
+    final card = LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      blur: 20,
       child: Column(
         children: [
           // Header strip: pulsing live dot + caption, over a faint teal wash.

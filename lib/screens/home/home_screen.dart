@@ -18,6 +18,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/common/shiny_border.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
@@ -423,14 +424,10 @@ class _ExpiryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(18),
+      blur: 18,
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
       child: Row(
         children: [
           Container(
@@ -712,23 +709,10 @@ class _ToolTile extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    // Divine Glass: classic/soft tiles are white glass cards with a hairline
-    // light-blue edge and whisper shadow. Bold keeps its accent-flooded fill.
-    final fill = bold ? InoStyle.boldFill(color) : palette.surface;
-    final edge = bold ? InoStyle.boldBorder(color) : palette.border;
-
-    final tile = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: edge, width: bold ? 2 : 1),
-        boxShadow: bold ? null : palette.cardShadow,
-      ),
-      // FittedBox around the whole stack: if a tile ever ends up a hair
-      // shorter than its content (tight grid aspect ratios on odd widths),
-      // the content scales down imperceptibly instead of overflowing red.
-      child: FittedBox(
+    // FittedBox around the whole stack: if a tile ever ends up a hair
+    // shorter than its content (tight grid aspect ratios on odd widths),
+    // the content scales down imperceptibly instead of overflowing red.
+    final content = FittedBox(
         fit: BoxFit.scaleDown,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -763,8 +747,25 @@ class _ToolTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
+
+    // Bold keeps its accent-flooded fill; classic/soft tiles are Liquid Glass.
+    final tile = bold
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: InoStyle.boldFill(color),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: InoStyle.boldBorder(color), width: 2),
+            ),
+            child: content,
+          )
+        : LiquidGlass(
+            borderRadius: BorderRadius.circular(16),
+            blur: 16,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: content,
+          );
 
     return GestureDetector(
       onTap: onTap,

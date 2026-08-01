@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
@@ -79,14 +80,11 @@ class _DashboardCardState extends State<DashboardCard>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // --- 1. Hero card: mascot left, copy + CTA right -------------------
-        Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            gradient: palette.cardGradient,
-            borderRadius: BorderRadius.circular(AppRadius.large),
-            border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
-          ),
+        // Liquid Glass hero: the sky gradient refracts through the frosted
+        // card; the animated wash below now paints *over* the glass fill.
+        LiquidGlass(
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          blur: 24,
           child: Stack(
             children: [
               // Animated sky-wash backdrop (gradient shift + drifting
@@ -472,14 +470,10 @@ class _StripTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    final tile = Container(
+    final tile = LiquidGlass(
+      borderRadius: BorderRadius.circular(16),
+      blur: 18,
       padding: const EdgeInsets.fromLTRB(10, 9, 9, 9),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 import 'quick_actions.dart';
 import 'quick_menu_editor.dart';
 
@@ -291,35 +292,19 @@ class _InoBottomNavState extends State<InoBottomNav>
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final isDark = palette.isDark;
-
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Container(
-          height: 66,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            // Pure white (elevated surface in dark) - no glass, no gradient.
-            color: isDark ? palette.bgElevated : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              // Soft ambient lift - deliberately gentle, never harsh.
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.07),
-                blurRadius: 26,
-                offset: const Offset(0, 12),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.035),
-                blurRadius: 7,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Stack(
+        // iOS 26 Liquid Glass tab bar: the page refracts through the pill as
+        // it scrolls beneath (MainShell sets extendBody for exactly this).
+        child: LiquidGlass(
+          borderRadius: BorderRadius.circular(26),
+          blur: 26,
+          child: Container(
+            height: 66,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Stack(
             clipBehavior: Clip.none,
             children: [
               // The sliding active-indicator line, centred under the live tab.
@@ -384,6 +369,7 @@ class _InoBottomNavState extends State<InoBottomNav>
                 ],
               ),
             ],
+            ),
           ),
         ),
       ),

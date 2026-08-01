@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/liquid_glass.dart';
 import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
@@ -252,11 +253,16 @@ class _HeaderIcon extends StatelessWidget {
       pressedScale: 0.9,
       child: Tooltip(
         message: tooltip,
-        child: Material(
-          color: palette.surfaceVariant,
-          shape: CircleBorder(side: BorderSide(color: palette.border)),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
+        // Liquid Glass chrome: the sky gradient refracts through the circle.
+        child: LiquidGlass(
+          circle: true,
+          blur: 16,
+          shadow: false,
+          child: Material(
+            type: MaterialType.transparency,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
             onTap: onTap,
             child: SizedBox(
               width: 42,
@@ -298,6 +304,7 @@ class _HeaderIcon extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
             ),
           ),
         ),
