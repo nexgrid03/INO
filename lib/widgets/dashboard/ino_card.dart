@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
 /// The premium surface primitive every dashboard section sits on.
 ///
-/// Rounded, softly shadowed, hairline-bordered card that reads correctly in
-/// both light and dark mode (it draws from [AppPalette], never hard-coded
-/// white). When [onTap] is provided it gains an ink ripple + the brand
-/// [PressableScale] "squish", matching the tactility used on the login screen.
+/// Frosted [LiquidGlass] by default. When [gradient] is set (hero cards),
+/// falls back to a painted gradient surface.
 class InoCard extends StatelessWidget {
   const InoCard({
     super.key,
@@ -26,7 +25,7 @@ class InoCard extends StatelessWidget {
   final VoidCallback? onTap;
   final double radius;
 
-  /// Optional gradient fill (e.g. hero cards). Falls back to the surface colour.
+  /// Optional gradient fill (e.g. hero cards). Falls back to glass frost.
   final Gradient? gradient;
 
   /// Override the hairline border (e.g. a coloured status edge).
@@ -37,11 +36,27 @@ class InoCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final shape = BorderRadius.circular(radius);
 
+    if (gradient == null) {
+      final glass = LiquidGlass(
+        borderRadius: shape,
+        blur: 20,
+        frost: palette.isDark ? 1.05 : 0.72,
+        padding: padding,
+        child: child,
+      );
+      if (onTap == null) return glass;
+      return PressableScale(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: glass,
+        ),
+      );
+    }
+
     final decorated = Container(
       decoration: BoxDecoration(
-        // Default fill is a subtle top-lit glass gradient; callers can override
-        // with a solid/branded [gradient].
-        gradient: gradient ?? palette.cardGradient,
+        gradient: gradient,
         borderRadius: shape,
         border: Border.all(
           color: borderColor ?? palette.border,

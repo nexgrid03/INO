@@ -8,6 +8,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/expense_widgets.dart';
 import '../../widgets/pressable_scale.dart';
 import 'add_expense_screen.dart';
@@ -116,8 +118,10 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
       floatingActionButton:
           _AddButton(onTap: () => _push(const AddExpenseScreen())),
       body: InoBackground(
+        sky: divineGlassEnabled(context),
         child: SafeArea(
-        child: ListenableBuilder(
+          top: !divineGlassEnabled(context),
+          child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
             final fy = _store.selectedYear;
@@ -435,14 +439,9 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Container(
+    return AdaptiveGlassCard(
       padding: const EdgeInsets.all(AppSpacing.internal),
-      decoration: BoxDecoration(
-        gradient: palette.cardGradient,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
+      radius: AppRadius.large,
       child: Column(
         children: [
           Text(
@@ -562,48 +561,61 @@ class _ActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return PressableScale(
-      pressedScale: 0.97,
-      child: Material(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-              border: Border.all(color: palette.border),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child:
-                      Icon(icon, size: 17, color: AppColors.primaryGreen),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                          color: palette.textPrimary, fontSize: 13.5)),
-                ),
-                Icon(Icons.chevron_right_rounded,
-                    size: 18, color: palette.textFaint),
-              ],
-            ),
+    final launcher = divineGlassEnabled(context);
+    final content = Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: AppColors.primaryGreen),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.subtitle
+                .copyWith(color: palette.textPrimary, fontSize: 13.5),
           ),
         ),
-      ),
+        Icon(Icons.chevron_right_rounded, size: 18, color: palette.textFaint),
+      ],
+    );
+    return PressableScale(
+      pressedScale: 0.97,
+      child: launcher
+          ? GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: LiquidGlass(
+                borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+                blur: 14,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: SizedBox(height: 52, child: content),
+              ),
+            )
+          : Material(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: content,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -693,49 +705,105 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.md),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(AppLocalizations.of(context).t('transactionVault'),
-                style: AppText.headline
-                    .copyWith(color: palette.textPrimary, fontSize: 21)),
-          ),
-          PressableScale(
-            pressedScale: 0.95,
-            child: Material(
-              color: AppColors.primaryGreen.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onPickYear,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 9),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_month_rounded,
-                          size: 16, color: AppColors.darkGreen),
-                      const SizedBox(width: 5),
-                      Text('FY $yearLabel',
-                          style: AppText.subtitle.copyWith(
-                              color: AppColors.darkGreen,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 18, color: AppColors.darkGreen),
-                    ],
-                  ),
-                ),
-              ),
+    final launcher = divineGlassEnabled(context);
+    final row = Row(
+      children: [
+        const InoBackButton(),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            AppLocalizations.of(context).t('transactionVault'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: palette.textPrimary,
+              fontSize: launcher ? 18 : 21,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.35,
+              height: 1.15,
             ),
           ),
-        ],
+        ),
+        PressableScale(
+          pressedScale: 0.95,
+          child: launcher
+              ? GestureDetector(
+                  onTap: onPickYear,
+                  behavior: HitTestBehavior.opaque,
+                  child: LiquidGlass(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    blur: 12,
+                    frost: 0.95,
+                    shadow: false,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          yearLabel,
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.expand_more_rounded,
+                            size: 18, color: palette.textSecondary),
+                      ],
+                    ),
+                  ),
+                )
+              : Material(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: InkWell(
+                    onTap: onPickYear,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            yearLabel,
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.expand_more_rounded,
+                              size: 18, color: palette.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
+
+    if (!launcher) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+            AppSpacing.screen, AppSpacing.md),
+        child: row,
+      );
+    }
+
+    final top = MediaQuery.viewPaddingOf(context).top;
+    return DivineGlassHeaderBar(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        top + 8,
+        AppSpacing.screen,
+        10,
       ),
+      child: row,
     );
   }
 }

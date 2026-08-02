@@ -6,20 +6,17 @@ import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../navigation/wallet_module_router.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/create_wallet_sheet.dart';
 import '../../widgets/wallet/wallet_grid.dart';
-import '../cards/cards_wallet_screen.dart';
-import '../investments/investment_wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../passwords/password_vault_screen.dart';
-import '../property/property_wallet_screen.dart';
 import 'document_search_delegate.dart';
-import 'wallet_detail_screen.dart';
 
 /// The INO Wallet Hub - a premium, fast-access vault launcher.
 ///
@@ -136,20 +133,7 @@ class _WalletScreenState extends State<WalletScreen> {
   /// The four wallets that are data modules rather than document folders. Each
   /// opens its own experience; the wallet's *documents* are still one tap away
   /// inside it, so nothing that worked before has moved out of reach.
-  Widget _screenFor(WalletCategory category) {
-    switch (category.name) {
-      case 'Property Wallet':
-        return PropertyWalletScreen(category: category);
-      case 'Investment Wallet':
-        return InvestmentWalletScreen(category: category);
-      case 'Banking Wallet':
-        return CardsWalletScreen(category: category);
-      case 'Password Vault':
-        return PasswordVaultScreen(category: category);
-      default:
-        return WalletDetailScreen(category: category);
-    }
-  }
+  Widget _screenFor(WalletCategory category) => walletScreenFor(category);
 
   /// Opens a wallet with a premium slide + fade, then refreshes the hub - a
   /// property or card added inside a module changes that wallet's count.
@@ -357,12 +341,12 @@ class _HubHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 46,
-          height: 46,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: AppGradients.primary,
-            boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.26),
+            boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -381,17 +365,17 @@ class _HubHeader extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
               color: palette.textPrimary,
-              letterSpacing: -0.6,
+              letterSpacing: -0.7,
+              height: 1.05,
             ),
           ),
         ),
         const SizedBox(width: 10),
-        // Voice assistant - highlighted icon beside the bell.
         const VoiceMicIconButton(size: 44),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         _BellButton(
           badge: notificationCount,
           tooltip: l10n.t('notifications'),
@@ -417,47 +401,47 @@ class _BellButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final iconStack = Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(
+          Icons.notifications_none_rounded,
+          size: 20,
+          color: palette.textPrimary,
+        ),
+        if (badge > 0)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: AppColors.critical,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
         message: tooltip,
-        child: Material(
-          color: palette.surface,
-          shape: CircleBorder(side: BorderSide(color: palette.border)),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: SizedBox(
-              width: 44,
-              height: 44,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_none_rounded,
-                    size: 21,
-                    color: palette.textPrimary,
-                  ),
-                  if (badge > 0)
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: AppColors.critical,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: palette.surface,
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: LiquidGlass(
+            circle: true,
+            blur: 12,
+            frost: palette.isDark ? 1.0 : 0.72,
+            shadow: false,
+            padding: EdgeInsets.zero,
+            child: SizedBox(width: 44, height: 44, child: iconStack),
           ),
         ),
       ),
@@ -515,82 +499,107 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
     final palette = AppPalette.of(context);
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.all(AppSpacing.sm),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          AppSpacing.lg,
-        ),
-        decoration: BoxDecoration(
-          color: palette.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: LiquidGlass(
           borderRadius: BorderRadius.circular(AppRadius.large),
-          border: Border.all(color: palette.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: palette.border,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
+          blur: 24,
+          frost: palette.isDark ? 1.1 : 0.78,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Filter documents',
-              style: AppText.title.copyWith(color: palette.textPrimary),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Search within the wallets you choose.',
-              style: AppText.caption.copyWith(color: palette.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final c in widget.categories)
-                  _FilterChip(
-                    label: c.name,
-                    selected: _selected.contains(c.name),
-                    onTap: () => setState(() {
-                      _selected.contains(c.name)
-                          ? _selected.remove(c.name)
-                          : _selected.add(c.name);
-                    }),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                if (_selected.isNotEmpty)
-                  Expanded(
-                    child: PressableScale(
-                      child: Material(
-                        color: palette.surfaceVariant,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          side: BorderSide(color: palette.border),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Filter documents',
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final c in widget.categories)
+                    _FilterChip(
+                      label: c.name,
+                      selected: _selected.contains(c.name),
+                      onTap: () => setState(() {
+                        _selected.contains(c.name)
+                            ? _selected.remove(c.name)
+                            : _selected.add(c.name);
+                      }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  if (_selected.isNotEmpty)
+                    Expanded(
+                      child: PressableScale(
+                        child: Material(
+                          color: Colors.transparent,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                            side: BorderSide(color: palette.border),
+                          ),
+                          child: InkWell(
+                            onTap: () => setState(_selected.clear),
+                            child: SizedBox(
+                              height: AppSizes.button,
+                              child: Center(
+                                child: Text(
+                                  'Clear',
+                                  style: AppText.subtitle
+                                      .copyWith(color: palette.textSecondary),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        child: InkWell(
-                          onTap: () => setState(_selected.clear),
-                          child: SizedBox(
-                            height: AppSizes.button,
-                            child: Center(
-                              child: Text(
-                                'Clear',
-                                style: AppText.subtitle
-                                    .copyWith(color: palette.textSecondary),
+                      ),
+                    ),
+                  if (_selected.isNotEmpty) const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    flex: 2,
+                    child: PressableScale(
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).pop(_selected),
+                        child: Container(
+                          height: AppSizes.button,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.brandGradient,
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                            boxShadow: AppShadows.glow(
+                              AppColors.primaryGreen,
+                              opacity: 0.28,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _selected.isEmpty
+                                  ? 'Search all documents'
+                                  : 'Show results (${_selected.length})',
+                              style: AppText.subtitle.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -598,40 +607,10 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
                       ),
                     ),
                   ),
-                if (_selected.isNotEmpty) const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  flex: 2,
-                  child: PressableScale(
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(_selected),
-                      child: Container(
-                        height: AppSizes.button,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.brandGradient,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          boxShadow: AppShadows.glow(
-                            AppColors.primaryGreen,
-                            opacity: 0.28,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _selected.isEmpty
-                                ? 'Search all documents'
-                                : 'Show results (${_selected.length})',
-                            style: AppText.subtitle.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

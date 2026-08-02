@@ -100,6 +100,7 @@ dependencies:
   cryptography: ^2.9.0
   # Divine Glass design system typeface (Manrope), fetched/bundled per platform.
   google_fonts: ^6.2.1
+  flutter_svg: ^2.3.0
 
 # ---------------------------------------------------------------------------
 # Dependency overrides
@@ -154,6 +155,7 @@ flutter:
   # of the launcher icon - regenerate with: dart run tool/make_splash_icon.dart
   assets:
     - assets/icon/ino_icon_splash.png
+    - assets/icons/home/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// The three visual styles ("app themes") pickable from Profile → App theme.
+/// The visual styles ("app themes") pickable from Profile → App theme.
 /// Orthogonal to light/dark [ThemeMode] - each style works in both.
 ///
-///  • [classic] - the current UI: airy white/pastel cards carrying filled
+///  • [classic]  - the current UI: airy white/pastel cards carrying filled
 ///    accent icon badges with white glyphs.
-///  • [bold]    - the accent floods the whole container: the colour that used
+///  • [bold]     - the accent floods the whole container: the colour that used
 ///    to live on the small inner icon badge shifts onto the outer card, the
 ///    glyph stays in place but goes plain white, and every colour runs deeper.
 ///    Small standalone badges (e.g. Quick Actions) keep their shape and simply
 ///    darken.
-///  • [soft]    - a lighter take on classic: fills a touch airier and the icon
+///  • [soft]     - a lighter take on classic: fills a touch airier and the icon
 ///    badges go glass with **colourful** glyphs instead of white.
-enum ThemeStyle { classic, bold, soft }
+///  • [launcher] - PhonePe-style Home launcher (quick actions → vaults →
+///    needs-attention) plus Divine Glass frosted chrome on feature screens.
+///    Colour rules match classic.
+enum ThemeStyle { classic, bold, soft, launcher }
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
 /// widget that consults the active style - directly via [InoStyle.of] or
@@ -41,6 +44,8 @@ class InoStyle {
 
   static bool isBold(BuildContext context) => of(context) == ThemeStyle.bold;
   static bool isSoft(BuildContext context) => of(context) == ThemeStyle.soft;
+  static bool isLauncher(BuildContext context) =>
+      of(context) == ThemeStyle.launcher;
 
   /// Deepens a colour, gaining a little saturation on the way down so it stays
   /// vivid instead of turning muddy (same curve as the badge painter's shade).
@@ -61,7 +66,7 @@ class InoStyle {
   }
 
   /// An accent resolved for the active style: deeper in bold, a touch lighter
-  /// in soft, untouched in classic.
+  /// in soft, untouched in classic / launcher.
   static Color accent(BuildContext context, Color c) {
     switch (of(context)) {
       case ThemeStyle.bold:
@@ -69,6 +74,7 @@ class InoStyle {
       case ThemeStyle.soft:
         return soften(c, 0.06);
       case ThemeStyle.classic:
+      case ThemeStyle.launcher:
         return c;
     }
   }
@@ -86,12 +92,14 @@ class InoStyle {
 
   /// A branded gradient resolved for the active style: every stop runs deeper
   /// in bold and a touch lighter in soft. Non-linear gradients pass through
-  /// untouched. Use this wherever a surface is filled with a brand/accent
-  /// gradient (hero cards, primary buttons, calculator results …) so the bold
-  /// theme genuinely reaches everything.
+  /// untouched. Classic and launcher leave the gradient as authored.
   static Gradient gradient(BuildContext context, Gradient g) {
     final style = of(context);
-    if (style == ThemeStyle.classic || g is! LinearGradient) return g;
+    if (style == ThemeStyle.classic ||
+        style == ThemeStyle.launcher ||
+        g is! LinearGradient) {
+      return g;
+    }
     final shift = style == ThemeStyle.bold
         ? (Color c) => deepen(c, 0.10)
         : (Color c) => soften(c, 0.05);

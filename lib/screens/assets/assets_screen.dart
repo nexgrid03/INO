@@ -29,10 +29,12 @@ class AssetsScreen extends StatefulWidget {
 class _AssetsScreenState extends State<AssetsScreen> {
   final _query = TextEditingController();
   String _term = '';
+  late Future<void> _ready;
 
   @override
   void initState() {
     super.initState();
+    _ready = NetWorthService.instance.ensureReady();
     _query.addListener(() {
       final t = _query.text.trim().toLowerCase();
       if (t != _term) setState(() => _term = t);
@@ -54,16 +56,6 @@ class _AssetsScreenState extends State<AssetsScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final service = NetWorthService.instance;
-    final total = service.total;
-    final all = service.allocations;
-    final growthPercent = service.data.growthPercent;
-    final trend =
-        service.seriesFor(NetWorthRange.month).map((p) => p.value).toList();
-    final filtered = _term.isEmpty
-        ? all
-        : all.where((a) => a.label.toLowerCase().contains(_term)).toList();
-
     final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
       title: l10n.t('assets'),
@@ -74,7 +66,37 @@ class _AssetsScreenState extends State<AssetsScreen> {
           onPressed: _addAsset,
         ),
       ],
-      child: Column(
+      child: FutureBuilder<void>(
+        future: _ready,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return ListenableBuilder(
+            listenable: NetWorthService.instance,
+            builder: (context, _) => _body(context, palette, l10n),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context,
+    AppPalette palette,
+    AppLocalizations l10n,
+  ) {
+    final service = NetWorthService.instance;
+    final total = service.total;
+    final all = service.allocations;
+    final growthPercent = service.data.growthPercent;
+    final trend =
+        service.seriesFor(NetWorthRange.month).map((p) => p.value).toList();
+    final filtered = _term.isEmpty
+        ? all
+        : all.where((a) => a.label.toLowerCase().contains(_term)).toList();
+
+    return Column(
         children: [
           // Hero - glass performance card (total, trend pill, sparkline).
           FadeSlideIn(
@@ -255,8 +277,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 

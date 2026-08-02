@@ -8,6 +8,7 @@ import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
 import '../dashboard/ino_card.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// Copies [text] to the clipboard with haptic + snackbar feedback. Shared by
@@ -46,6 +47,40 @@ class CalculatorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
+
+    final scrollBody = SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+
+    if (launcher) {
+      // Scaffold.appBar owns status-bar + bar height — body never overlaps.
+      return Scaffold(
+        backgroundColor: palette.bg,
+        appBar: DivineGlassAppBar.asPreferredSize(
+          context,
+          title: title,
+          subtitle: subtitle,
+          centerTitle: false,
+          trailing: trailing,
+        ),
+        body: InoBackground(
+          sky: true,
+          child: scrollBody,
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
@@ -53,17 +88,7 @@ class CalculatorScaffold extends StatelessWidget {
           child: Column(
             children: [
               _CalcHeader(title: title, subtitle: subtitle, trailing: trailing),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                      AppSpacing.screen, AppSpacing.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: children,
-                  ),
-                ),
-              ),
+              Expanded(child: scrollBody),
             ],
           ),
         ),
@@ -75,12 +100,12 @@ class CalculatorScaffold extends StatelessWidget {
 class _CalcHeader extends StatelessWidget {
   const _CalcHeader({
     required this.title,
-    required this.subtitle,
+    // Kept for call-site compatibility; section headings are title-only.
+    String? subtitle,
     this.trailing,
   });
 
   final String title;
-  final String subtitle;
   final Widget? trailing;
 
   @override
@@ -94,17 +119,12 @@ class _CalcHeader extends StatelessWidget {
           const InoBackButton(size: 42),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: AppText.headline.copyWith(
-                        color: palette.textPrimary, fontSize: 21)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
+            child: Text(
+              title,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 21,
+              ),
             ),
           ),
           if (trailing != null) ...[

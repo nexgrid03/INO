@@ -11,7 +11,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 
@@ -321,54 +323,65 @@ class _DurationChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
+    final row = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.schedule_rounded,
+          size: 18,
+          color: active ? AppColors.primaryGreen : palette.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          duration.label(AppLocalizations.of(context)),
+          style: AppText.subtitle.copyWith(
+            color: active ? AppColors.primaryGreen : palette.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
       },
       child: PressableScale(
-        child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        decoration: BoxDecoration(
-          // Divine Glass selection: a soft sky tint with brand text instead of
-          // a flooded gradient (matches the Secure Share mockup's segments).
-          color: active ? AppColors.tealMist : palette.surface,
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          border: Border.all(
-            color: active ? AppColors.primaryGreen : palette.border,
-            width: active ? 1.4 : 1,
-          ),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.16),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+        child: launcher && !active
+            ? LiquidGlass(
+                borderRadius: BorderRadius.circular(AppRadius.button),
+                blur: 12,
+                frost: 0.95,
+                shadow: false,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                child: row,
+              )
+            : AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.tealMist : palette.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.button),
+                  border: Border.all(
+                    color: active ? AppColors.primaryGreen : palette.border,
+                    width: active ? 1.4 : 1,
                   ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.schedule_rounded,
-              size: 18,
-              color: active
-                  ? AppColors.primaryGreen
-                  : palette.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              duration.label(AppLocalizations.of(context)),
-              style: AppText.subtitle.copyWith(
-                color: active ? AppColors.primaryGreen : palette.textPrimary,
-                fontWeight: FontWeight.w700,
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color:
+                                AppColors.primaryGreen.withValues(alpha: 0.16),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: row,
               ),
-            ),
-          ],
-        ),
-      ),
       ),
     );
   }
@@ -381,6 +394,29 @@ class _SecurityNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (divineGlassEnabled(context)) {
+      return AdaptiveGlassCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        radius: AppRadius.card,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.verified_user_rounded,
+                color: AppColors.lightBlue, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context).t('shareSecurityNote'),
+                style: AppText.caption.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -437,26 +473,49 @@ class _ActionBar extends StatelessWidget {
           child: Row(
             children: [
               PressableScale(
-                child: Material(
-                  color: palette.surface,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.button),
-                    side: BorderSide(color: palette.border),
-                  ),
-                  child: InkWell(
-                    onTap: generating ? null : onCancel,
-                    child: SizedBox(
-                      height: AppSizes.button,
-                      width: 104,
-                      child: Center(
-                        child: Text(l10n.t('cancel'),
-                            style: AppText.subtitle
-                                .copyWith(color: palette.textSecondary)),
+                child: divineGlassEnabled(context)
+                    ? GestureDetector(
+                        onTap: generating ? null : onCancel,
+                        behavior: HitTestBehavior.opaque,
+                        child: LiquidGlass(
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
+                          blur: 12,
+                          frost: 0.95,
+                          shadow: false,
+                          padding: EdgeInsets.zero,
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            width: 104,
+                            child: Center(
+                              child: Text(l10n.t('cancel'),
+                                  style: AppText.subtitle.copyWith(
+                                      color: palette.textSecondary)),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Material(
+                        color: palette.surface,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
+                          side: BorderSide(color: palette.border),
+                        ),
+                        child: InkWell(
+                          onTap: generating ? null : onCancel,
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            width: 104,
+                            child: Center(
+                              child: Text(l10n.t('cancel'),
+                                  style: AppText.subtitle.copyWith(
+                                      color: palette.textSecondary)),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

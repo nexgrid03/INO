@@ -18,6 +18,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../../services/guest_mode.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/ino_svg_icon.dart';
 import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/common/shiny_border.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -27,8 +28,14 @@ import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/dashboard_card.dart';
 import '../../widgets/home/empty_state.dart';
 import '../../widgets/home/market_card.dart';
+import '../../widgets/home/my_vaults_row.dart';
+import '../../widgets/home/pending_actions_row.dart';
 import '../../widgets/home/quick_action_button.dart';
+import '../../widgets/home/launcher_finance_tools.dart';
+import '../../widgets/home/launcher_hub_shortcuts.dart';
+import '../../widgets/home/launcher_quick_actions.dart';
 import '../../widgets/home/skeletons.dart';
+import '../../widgets/home/voice_mic_button.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
@@ -36,6 +43,7 @@ import '../home/pending_actions_screen.dart';
 import '../markets/markets_screen.dart';
 import '../notes/notes_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../profile/help_center_screen.dart';
 import '../property/area_converter_screen.dart';
 import '../property_finance/emi_calculator_screen.dart';
 import '../property_finance/property_finance_tools_screen.dart';
@@ -44,29 +52,46 @@ import '../property_finance/sip_calculator_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
-import '../wallet/wallet_detail_screen.dart';
+import '../../navigation/wallet_module_router.dart';
+import '../networth/net_worth_analytics_screen.dart';
 
-/// The read model the Home screen renders: a real-data hero and the market
-/// snapshot (realistic fallback) - assembled in one load.
+/// The read model the Home screen renders: a real-data hero, vault counts for
+/// My Vaults, reminder buckets for Launcher, and the market snapshot.
 class _HomeData {
   const _HomeData({
     required this.hero,
     required this.market,
     required this.documentsExpiring,
     required this.remindersToday,
+    required this.remindersTomorrow,
+    required this.remindersThisWeek,
+    required this.remindersCompleted,
     required this.insuranceRenewals,
     required this.emiDue,
+    required this.identityCount,
+    required this.propertyCount,
+    required this.investmentCount,
+    required this.cardsCount,
+    required this.pendingItems,
   });
 
   final HomeHero hero;
   final List<MarketQuote> market;
 
-  // Real "Today's Overview" tile counts - sourced from the user's documents
-  // and reminders, never fabricated. Any with no data source read as 0.
   final int documentsExpiring;
   final int remindersToday;
+  final int remindersTomorrow;
+  final int remindersThisWeek;
+  final int remindersCompleted;
   final int insuranceRenewals;
   final int emiDue;
+
+  final int identityCount;
+  final int propertyCount;
+  final int investmentCount;
+  final int cardsCount;
+
+  final List<LauncherPendingItem> pendingItems;
 }
 
 /// The INO Home - Premium Responsive Fintech & Digital Life Management Dashboard.
@@ -132,13 +157,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     var pending = expiringDocuments;
     var remindersToday = 0;
+    var remindersTomorrow = 0;
+    var remindersThisWeek = 0;
+    var remindersCompleted = 0;
     var insuranceRenewals = 0;
+    final pendingItems = <LauncherPendingItem>[];
     try {
       await ReminderStore.instance.ensureLoaded();
       final today = ReminderStore.instance.today;
       final active = ReminderStore.instance.active;
       pending += active.where((r) => r.daysFrom(today) <= 7).length;
       remindersToday = active.where((r) => r.daysFrom(today) == 0).length;
+      remindersTomorrow = active.where((r) => r.daysFrom(today) == 1).length;
+      remindersThisWeek = active
+          .where((r) => r.daysFrom(today) >= 0 && r.daysFrom(today) <= 7)
+          .length;
+      remindersCompleted = ReminderStore.instance.completed.length;
       insuranceRenewals = active
           .where(
             (r) =>
@@ -147,24 +181,94 @@ class _HomeScreenState extends State<HomeScreen> {
                 r.daysFrom(today) <= 30,
           )
           .length;
+
+      for (final r in active.where((r) => r.daysFrom(today) <= 7).take(6)) {
+        final d = r.daysFrom(today);
+        pendingItems.add(
+          LauncherPendingItem(
+            title: r.title,
+            status: d < 0
+                ? 'Overdue'
+                : (d <= 3 ? 'Due Soon' : 'On Track'),
+            icon: r.category.icon,
+            accent: reminderUrgencyColor(r, today),
+          ),
+        );
+      }
     } catch (_) {}
 
-    final hero = NetWorthService.instance.heroFrom(
-      assets: documentCount,
-      documents: documentCount,
-      pendingTasks: pending,
-      protectedItems: DocumentProtectionStore.instance.protectedCount,
-    );
+    // Expiring docs also feed the pending strip when reminders are sparse.
+    if (pendingItems.length < 3 && expiringDocuments > 0) {
+      pendingItems.add(
+        LauncherPendingItem(
+          title: expiringDocuments == 1
+              ? '1 document expiring'
+              : '$expiringDocuments documents expiring',
+          status: 'Due Soon',
+          icon: Icons.description_rounded,
+          accent: AppColors.warning,
+        ),
+      );
+    }
+
+    var identityCount = 0;
+    var propertyCount = 0;
+    var investmentCount = 0;
+    var cardsCount = 0;
+    try {
+      final hub = await WalletRepository.instance.load();
+      for (final c in hub.categories) {
+        final n = int.tryParse(c.metric) ?? 0;
+        switch (c.name) {
+          case 'Identity Wallet':
+            identityCount = n;
+          case 'Property Wallet':
+            propertyCount = n;
+          case 'Investment Wallet':
+            investmentCount = n;
+          case 'Banking Wallet':
+            cardsCount = n;
+        }
+      }
+    } catch (_) {}
+
+    HomeHero hero;
+    try {
+      await NetWorthService.instance.ensureReady();
+      hero = NetWorthService.instance.heroFrom(
+        assets: documentCount,
+        documents: documentCount,
+        pendingTasks: pending,
+        protectedItems: DocumentProtectionStore.instance.protectedCount,
+      );
+    } catch (_) {
+      hero = HomeHero(
+        netWorth: '₹0',
+        growthPercent: 0,
+        growthAmount: '₹0',
+        trend: const [0, 0, 0, 0, 0, 0, 0],
+        assets: documentCount,
+        documents: documentCount,
+        pendingTasks: pending,
+        protectedItems: DocumentProtectionStore.instance.protectedCount,
+      );
+    }
 
     return _HomeData(
       hero: hero,
       market: market,
       documentsExpiring: expiringDocuments,
       remindersToday: remindersToday,
+      remindersTomorrow: remindersTomorrow,
+      remindersThisWeek: remindersThisWeek,
+      remindersCompleted: remindersCompleted,
       insuranceRenewals: insuranceRenewals,
-      // No EMI/loan data source exists in the app yet, so this reads 0 rather
-      // than a fabricated figure. Wire a loan store here when one lands.
       emiDue: 0,
+      identityCount: identityCount,
+      propertyCount: propertyCount,
+      investmentCount: investmentCount,
+      cardsCount: cardsCount,
+      pendingItems: pendingItems,
     );
   }
 
@@ -203,13 +307,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openWallet(String name) {
     final category = SupabaseWalletRepository.categoryFor(name);
-    if (category != null) _push(WalletDetailScreen(category: category));
+    if (category == null) return;
+    _push(walletScreenFor(category));
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final sidePadding = context.responsivePadding;
+    // Rebuild Home when Profile → App theme changes (classic vs launcher layout).
+    final style = InoStyle.of(context);
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -265,8 +372,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 120.rh,
                               ),
                               sliver: SliverList(
+                                key: ValueKey(style),
                                 delegate: SliverChildListDelegate(
-                                  _sections(data),
+                                  _sections(data, style),
                                 ),
                               ),
                             ),
@@ -283,12 +391,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 1. Greeting Header - pinned at the top of the screen. It sits directly
-  /// on the hero-sky gradient (no card of its own), so the brand-blue band
-  /// flows from the status bar down behind the greeting, like the reference
-  /// vault design.
   Widget _header(AppPalette palette) {
     final sidePadding = context.responsivePadding;
+    final launcher = InoStyle.of(context) == ThemeStyle.launcher;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         sidePadding,
@@ -305,19 +410,46 @@ class _HomeScreenState extends State<HomeScreen> {
           onProfile: () => _goToTab(4),
           onNotifications: () => _push(const NotificationsScreen()),
           voiceButtonKey: widget.voiceTourKey,
+          launcherStyle: launcher,
+          onHelp: () => _push(const HelpCenterScreen()),
         ),
       ),
     );
   }
 
-  List<Widget> _sections(_HomeData data) {
+  List<Widget> _sections(_HomeData data, ThemeStyle style) {
     final l10n = AppLocalizations.of(context);
+    if (style == ThemeStyle.launcher) {
+      return _wrapSections(_launcherSections(data, l10n));
+    }
+    return _wrapSections(_classicSections(data, l10n));
+  }
 
-    // Four balanced sections with one consistent rhythm: hero → actions →
-    // tools → market. Each is separated by the same generous gap so the page
-    // reads as an intentional, evenly-weighted composition.
-    final sections = <Widget>[
-      // 1. Today's Overview (Main Hero Section)
+  List<Widget> _wrapSections(List<Widget> sections) {
+    const sectionGap = 22.0;
+    // Launcher: no staggered FadeSlideIn — each section starts a ticker and
+    // on Flutter web that + many glass tiles left content stuck at opacity 0
+    // (blank Home) and flooded mouse_tracker assertions.
+    final animate = InoStyle.of(context) != ThemeStyle.launcher;
+    return [
+      for (var i = 0; i < sections.length; i++)
+        Padding(
+          padding: EdgeInsets.only(
+            bottom: i == sections.length - 1 ? 0 : sectionGap,
+          ),
+          child: animate
+              ? FadeSlideIn(
+                  delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
+                  child: sections[i],
+                )
+              : sections[i],
+        ),
+    ];
+  }
+
+  /// Classic / Bold / Soft — original Home (unchanged structure).
+  List<Widget> _classicSections(_HomeData data, AppLocalizations l10n) {
+    return [
       DashboardCard(
         hero: data.hero,
         documentsExpiring: data.documentsExpiring,
@@ -326,19 +458,15 @@ class _HomeScreenState extends State<HomeScreen> {
         emiDue: data.emiDue,
         onDocumentsExpiring: () => _push(const PendingActionsScreen()),
         onEmiDues: () => _push(const EmiCalculatorScreen()),
-        onRemindersToday: () => _push(RemindersScreen(profile: widget.profile)),
+        onRemindersToday: () =>
+            _push(RemindersScreen(profile: widget.profile)),
         onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
         onCta: () => _openWallet('Document Wallet'),
       ),
-
-      // 2. Quick Actions - four symmetric shortcuts.
       _Section(
-        header: SectionHeader(
-          title: l10n.t('quickActions'),
-          actionLabel: l10n.t('viewAll'),
-          onAction: () => _goToTab(1),
-        ),
+        header: SectionHeader(title: l10n.t('quickActions')),
         child: _QuickActionsRow(
+          useSvg: false,
           onDocuments: () => _openWallet('Document Wallet'),
           onNotes: () => _push(const NotesScreen()),
           onExpenses: () => _push(const ExpenseDashboardScreen()),
@@ -346,17 +474,12 @@ class _HomeScreenState extends State<HomeScreen> {
           onOffline: () => _push(const OfflineDocumentsScreen()),
         ),
       ),
-
-      // 2b. Expiry alert banner (reference alignment): only when documents
-      // are actually expiring, dismissible for the session.
       if (data.documentsExpiring > 0 && !_bannerDismissed)
         _ExpiryBanner(
           count: data.documentsExpiring,
           onReview: () => _push(const PendingActionsScreen()),
           onDismiss: () => setState(() => _bannerDismissed = true),
         ),
-
-      // 3. Property & Finance Tools (Adaptive grid columns)
       _Section(
         header: SectionHeader(
           title: l10n.t('propertyFinanceTools'),
@@ -372,8 +495,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onOpenTax: () => _push(const TaxRecordsScreen()),
         ),
       ),
-
-      // 4. Market Snapshot (Gold & Silver, single scannable card)
       _Section(
         header: SectionHeader(
           title: l10n.t('marketSnapshot'),
@@ -386,23 +507,130 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ];
+  }
 
-    // One consistent vertical rhythm for the whole screen: an identical, tight
-    // gap between every section (fixed, so it never over-scales on tall
-    // devices), and no trailing gap on the last one - the sliver's bottom
-    // padding owns the clearance above the floating nav.
-    const sectionGap = 22.0;
+  /// Launcher theme — first fold: hero → quick actions → vaults.
+  /// One "Needs attention" module merges expiry / pending / summary strip.
+  /// Hub shortcuts (Expenses · Net Worth) sit after tools, below the fold.
+  List<Widget> _launcherSections(_HomeData data, AppLocalizations l10n) {
+    final pendingCount = data.pendingItems.length;
+    void openPending() {
+      _push(const PendingActionsScreen());
+    }
     return [
-      for (var i = 0; i < sections.length; i++)
-        Padding(
-          padding: EdgeInsets.only(
-            bottom: i == sections.length - 1 ? 0 : sectionGap,
-          ),
-          child: FadeSlideIn(
-            delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
-            child: sections[i],
-          ),
+      // 1. Vault hero
+      DashboardCard(
+        hero: data.hero,
+        showSummaryStrip: false,
+        onCta: () => _openWallet('Document Wallet'),
+      ),
+
+      // 2. Quick Actions — Scan / Documents / Reminder / Voice
+      _Section(
+        header: SectionHeader(title: l10n.t('quickActions')),
+        child: LauncherQuickActions(
+          onScan: _scan,
+          onAddDocument: () => _openWallet('Document Wallet'),
+          onAddReminder: () =>
+              _push(RemindersScreen(profile: widget.profile)),
+          onVoice: () => showVoiceCommandSheet(context),
         ),
+      ),
+
+      // 3. My Vaults
+      _Section(
+        header: SectionHeader(
+          title: l10n.t('myVaults'),
+          actionLabel: l10n.t('viewAll'),
+          onAction: () => _goToTab(1),
+        ),
+        child: MyVaultsRow(
+          identityCount: data.identityCount,
+          propertyCount: data.propertyCount,
+          investmentCount: data.investmentCount,
+          cardsCount: data.cardsCount,
+          onIdentity: () => _openWallet('Identity Wallet'),
+          onProperty: () => _openWallet('Property Wallet'),
+          onInvestments: () => _openWallet('Investment Wallet'),
+          onCards: () => _openWallet('Banking Wallet'),
+        ),
+      ),
+
+      // 4. Needs attention — summary strip + pending cards (single module)
+      _Section(
+        header: SectionHeader(
+          title: l10n.t('needsAttention'),
+          actionLabel: l10n.t('viewAll'),
+          onAction: openPending,
+        ),
+        child: Column(
+          children: [
+            HomeSummaryStrip(
+              documentsExpiring: data.documentsExpiring,
+              remindersToday: data.remindersToday,
+              insuranceRenewals: data.insuranceRenewals,
+              emiDue: data.emiDue,
+              pendingCount: pendingCount,
+              replaceRemindersWithPending: true,
+              enlargedIcons: true,
+              onDocumentsExpiring: openPending,
+              onEmiDues: () => _push(const EmiCalculatorScreen()),
+              onPending: openPending,
+              onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
+            ),
+            const SizedBox(height: 12),
+            PendingActionsRow(
+              items: [
+                for (final p in data.pendingItems)
+                  LauncherPendingItem(
+                    title: p.title,
+                    status: p.status,
+                    icon: p.icon,
+                    accent: p.accent,
+                    onTap: openPending,
+                  ),
+              ],
+              onViewAll: openPending,
+            ),
+          ],
+        ),
+      ),
+
+      // 5. Property & Finance Tools
+      _Section(
+        header: SectionHeader(
+          title: l10n.t('propertyFinanceTools'),
+          actionLabel: l10n.t('viewAll'),
+          onAction: () => _push(const PropertyFinanceToolsScreen()),
+        ),
+        child: LauncherFinanceTools(
+          onOpenArea: () => _push(const AreaConverterScreen()),
+          onOpenEmi: () => _push(const EmiCalculatorScreen()),
+          onOpenSip: () => _push(const SipCalculatorScreen()),
+          onOpenStampDuty: () => _push(const PropertyValuationScreen()),
+          onOpenUnitConv: () => _push(const AreaConverterScreen()),
+          onOpenTax: () => _push(const TaxRecordsScreen()),
+        ),
+      ),
+
+      // 6. Secondary hubs (below the fold)
+      LauncherHubShortcuts(
+        onExpenses: () => _push(const ExpenseDashboardScreen()),
+        onNetWorth: () => _push(const NetWorthAnalyticsScreen()),
+      ),
+
+      // 7. Market Snapshot
+      _Section(
+        header: SectionHeader(
+          title: l10n.t('marketSnapshot'),
+          actionLabel: l10n.t('viewMarkets'),
+          onAction: () => _push(MarketsScreen(quotes: data.market)),
+        ),
+        child: MarketCard(
+          quotes: data.market,
+          onTap: () => _push(MarketsScreen(quotes: data.market)),
+        ),
+      ),
     ];
   }
 }
@@ -535,12 +763,10 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// 2. Quick Actions - four symmetric shortcuts in one balanced row.
-///
-/// Exactly four actions means every tile gets an identical flex slice on any
-/// screen width - no horizontal scrolling, no ragged trailing gap.
+/// Quick Actions row for Classic / Bold / Soft themes.
 class _QuickActionsRow extends StatelessWidget {
   const _QuickActionsRow({
+    required this.useSvg,
     required this.onDocuments,
     required this.onNotes,
     required this.onExpenses,
@@ -548,6 +774,7 @@ class _QuickActionsRow extends StatelessWidget {
     required this.onOffline,
   });
 
+  final bool useSvg;
   final VoidCallback onDocuments;
   final VoidCallback onNotes;
   final VoidCallback onExpenses;
@@ -557,38 +784,40 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // One clearly distinct hue per action. Documents, Notes and Scanner used to
-    // be three shades of the same teal (Notes' `lightBlue` and Scanner were the
-    // identical #38BDF8), so the row read as one repeated button.
     final actions = <Widget>[
       QuickActionButton(
-        icon: Icons.folder_shared_rounded,
+        icon: useSvg ? null : Icons.folder_shared_rounded,
+        svgAsset: useSvg ? InoHomeIcons.documents : null,
         label: l10n.t('documents'),
-        color: AppColors.primaryGreen, // teal - the brand anchor
+        color: AppColors.primaryGreen,
         onTap: onDocuments,
       ),
       QuickActionButton(
-        icon: Icons.edit_note_rounded,
+        icon: useSvg ? null : Icons.edit_note_rounded,
+        svgAsset: useSvg ? InoHomeIcons.notes : null,
         label: l10n.t('notes'),
-        color: const Color(0xFFF2B33D), // amber - paper & pencil
+        color: AppColors.accentAmber,
         onTap: onNotes,
       ),
       QuickActionButton(
-        icon: Icons.account_balance_wallet_rounded,
+        icon: useSvg ? null : Icons.account_balance_wallet_rounded,
+        svgAsset: useSvg ? InoHomeIcons.expenses : null,
         label: l10n.t('expenses'),
-        color: const Color(0xFF8B6CEF), // purple - money
+        color: AppColors.vaultIdentity,
         onTap: onExpenses,
       ),
       QuickActionButton(
-        icon: Icons.document_scanner_rounded,
+        icon: useSvg ? null : Icons.document_scanner_rounded,
+        svgAsset: useSvg ? InoHomeIcons.scan : null,
         label: l10n.t('scanner'),
-        color: const Color(0xFF4383EA), // blue - capture / tech
+        color: AppColors.accentIndigo,
         onTap: onScanner,
       ),
       QuickActionButton(
-        icon: Icons.offline_pin_rounded,
+        icon: useSvg ? null : Icons.offline_pin_rounded,
+        svgAsset: useSvg ? InoHomeIcons.offline : null,
         label: 'Offline',
-        color: const Color(0xFF14B8A6), // seafoam - always available
+        color: AppColors.accentCyan,
         onTap: onOffline,
       ),
     ];
@@ -604,7 +833,7 @@ class _QuickActionsRow extends StatelessWidget {
   }
 }
 
-/// 5. Property & Finance Tools (Adaptive Grid Columns & Aspect Ratios)
+/// Property & Finance Tools grid for Classic / Bold / Soft.
 class _SixFinanceTools extends StatelessWidget {
   const _SixFinanceTools({
     required this.onOpenArea,
@@ -625,65 +854,55 @@ class _SixFinanceTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // One distinct hue per tool, from the app's curated accent family. Four of
-    // the six used to be teal (two were the same #38BDF8), so the grid read as
-    // one repeated tile. The tint behind each icon is derived from its own
-    // accent, so the two can no longer drift apart.
+    final columns = context.toolsColumns;
+
     final tools = [
       _ToolTile(
         title: l10n.t('areaCalc'),
         icon: Icons.straighten_rounded,
-        color: const Color(0xFF0EA5E9), // teal
+        color: AppColors.primaryGreen,
         onTap: onOpenArea,
       ),
       _ToolTile(
         title: l10n.t('emiCalc'),
         icon: Icons.account_balance_rounded,
-        color: const Color(0xFF4383EA), // blue
+        color: AppColors.accentIndigo,
         onTap: onOpenEmi,
       ),
       _ToolTile(
         title: l10n.t('sipCalc'),
         icon: Icons.trending_up_rounded,
-        color: const Color(0xFF9B6DE0), // purple
+        color: AppColors.accentViolet,
         onTap: onOpenSip,
       ),
       _ToolTile(
         title: l10n.t('stampDuty'),
         icon: Icons.gavel_rounded,
-        color: const Color(0xFFF2B33D), // amber
+        color: AppColors.accentAmber,
         onTap: onOpenStampDuty,
       ),
       _ToolTile(
         title: l10n.t('unitConv'),
         icon: Icons.swap_horiz_rounded,
-        color: const Color(0xFF06B6D4), // cyan
+        color: AppColors.accentCyan,
         onTap: onOpenUnitConv,
       ),
       _ToolTile(
         title: l10n.t('taxCalc'),
         icon: Icons.receipt_long_rounded,
-        color: const Color(0xFF10B981), // green
+        color: AppColors.accentEmerald,
         onTap: onOpenTax,
       ),
     ];
-
-    final columns = context.toolsColumns;
-    final aspectRatio = context.toolsAspectRatio;
 
     return GridView.count(
       crossAxisCount: columns,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      // CRITICAL: with no explicit padding a GridView absorbs the ambient
-      // MediaQuery insets (inflated by the extendBody nav bar) as its own
-      // bottom padding - which rendered as a huge blank band between this
-      // section and Market Snapshot. Zero it so the section-gap system is the
-      // only source of vertical rhythm.
       padding: EdgeInsets.zero,
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
-      childAspectRatio: aspectRatio,
+      childAspectRatio: context.toolsAspectRatio,
       children: tools,
     );
   }
@@ -709,47 +928,50 @@ class _ToolTile extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    // FittedBox around the whole stack: if a tile ever ends up a hair
-    // shorter than its content (tight grid aspect ratios on odd widths),
-    // the content scales down imperceptibly instead of overflowing red.
-    final content = FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // A pastel accent chip: the tool's coloured glyph on its own soft
-            // tint. In bold the badge body drops away and the bare glyph
-            // grows into the slot.
-            bold
-                ? SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: Icon(icon, color: Colors.white, size: 26),
-                  )
-                : Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: color, size: 18),
-                  ),
-            const SizedBox(height: 3),
-            Text(
-              title,
-              maxLines: 1,
-              style: TextStyle(
-                color: bold ? Colors.white : palette.textPrimary,
-                fontSize: bold ? 14 : 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+    final iconBox = 32.0;
+    final iconSize = bold ? 26.0 : 18.0;
+
+    final Widget glyph = Icon(
+      icon,
+      color: bold ? Colors.white : color,
+      size: iconSize,
     );
 
-    // Bold keeps its accent-flooded fill; classic/soft tiles are Liquid Glass.
+    final content = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          bold
+              ? SizedBox(
+                  width: iconBox,
+                  height: iconBox,
+                  child: Center(child: glyph),
+                )
+              : Container(
+                  width: iconBox,
+                  height: iconBox,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: glyph,
+                ),
+          const SizedBox(height: 3),
+          Text(
+            title,
+            maxLines: 1,
+            style: TextStyle(
+              color: bold ? Colors.white : palette.textPrimary,
+              fontSize: bold ? 14 : 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+
     final tile = bold
         ? Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -770,7 +992,6 @@ class _ToolTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      // Soft: the classic accent border picks up the glass sheen.
       child: ShinyBorder(radius: 16, width: 1, enabled: soft, child: tile),
     );
   }

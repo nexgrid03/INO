@@ -150,15 +150,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           const SizedBox(height: 26),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
-            child: Text(
-              l10n.t('completeProfile'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            child: AuthPageTitle(l10n.t('completeProfile')),
           ),
           const SizedBox(height: 10),
           FadeSlideIn(

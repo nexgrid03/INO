@@ -5,6 +5,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
 import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
+import '../divine_glass/divine_glass.dart';
 
 /// Section 5 - a single document record card.
 ///
@@ -99,6 +100,14 @@ class DocumentCard extends StatelessWidget {
     Color? borderColor,
     required Widget trailing,
   }) {
+    if (divineGlassEnabled(context)) {
+      return _launcherCard(
+        context,
+        onTap: onTap,
+        borderColor: borderColor,
+        trailing: trailing,
+      );
+    }
     return InoCard(
       padding: const EdgeInsets.all(14),
       onTap: onTap,
@@ -114,7 +123,7 @@ class DocumentCard extends StatelessWidget {
                 color: _iconColor,
                 size: 46,
                 iconSize: 23,
-                radius: 13,
+                radius: 13,
               ),
               if (record.isFavorite)
                 Positioned(
@@ -184,6 +193,133 @@ class DocumentCard extends StatelessWidget {
           ),
           trailing,
         ],
+      ),
+    );
+  }
+
+  /// Figma Identity Wallet glass card (Launcher only).
+  Widget _launcherCard(
+    BuildContext context, {
+    VoidCallback? onTap,
+    Color? borderColor,
+    required Widget trailing,
+  }) {
+    final accent = _accentFor(record);
+    final meta = _launcherMeta(context);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        DivineGlassDocumentCard(
+          title: record.name,
+          subtitle: '${record.category} · ${inoFormatDate(record.uploadedAt)}',
+          icon: record.icon,
+          accent: accent,
+          status: record.status,
+          leftMeta: meta.$1,
+          rightMeta: meta.$2,
+          onTap: onTap,
+          trailing: selectionMode
+              ? trailing
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DivineGlassStatusChip.fromStatus(record.status),
+                    trailing,
+                  ],
+                ),
+        ),
+        if (record.isFavorite)
+          const Positioned(
+            top: 10,
+            left: 52,
+            child: Icon(Icons.star_rounded, size: 14, color: AppColors.warning),
+          ),
+      ],
+    );
+  }
+
+  Color _accentFor(DocumentRecord record) {
+    final type = record.extraction.documentType?.toLowerCase() ?? '';
+    if (type.contains('pan')) return const Color(0xFFCC9200);
+    if (type.contains('passport')) return const Color(0xFF6B7FD7);
+    if (type.contains('driving') || type.contains('license')) {
+      return AppColors.primaryGreen;
+    }
+    if (type.contains('aadhaar') || type.contains('aadhar')) {
+      return AppColors.primaryGreen;
+    }
+    final name = record.name.toLowerCase();
+    if (name.contains('pan')) return const Color(0xFFCC9200);
+    if (name.contains('passport')) return const Color(0xFF6B7FD7);
+    if (name.contains('license') || name.contains('driving')) {
+      return const Color(0xFF89F3F9);
+    }
+    return _iconColor;
+  }
+
+  (DivineGlassMetaCell, Widget) _launcherMeta(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final data = record.extraction.data;
+    final number = data['number'] ?? record.recordNumber;
+    final masked = number == null || number.isEmpty
+        ? '—'
+        : _ExtractedSummary._maskedNumber(number);
+
+    final left = DivineGlassMetaCell(
+      label: record.expiresAt != null ? 'Expiry Date' : 'Number',
+      value: record.expiresAt != null
+          ? inoFormatDate(record.expiresAt!)
+          : masked,
+    );
+
+    if (protected) {
+      return (
+        left,
+        DivineGlassMetaCell(
+          label: 'Security',
+          value: 'Encrypted',
+          alignEnd: true,
+          valueColor: AppColors.primaryGreen,
+          leading: const Icon(
+            Icons.lock_rounded,
+            size: 14,
+            color: AppColors.primaryGreen,
+          ),
+        ),
+      );
+    }
+
+    final name = data['name'];
+    if (name != null && name.trim().isNotEmpty) {
+      return (
+        left,
+        DivineGlassMetaCell(
+          label: 'Linked To',
+          value: name.trim(),
+          alignEnd: true,
+        ),
+      );
+    }
+
+    if (record.status == DocumentStatus.active) {
+      return (
+        left,
+        DivineGlassMetaCell(
+          label: 'Status',
+          value: 'Verified',
+          alignEnd: true,
+          valueColor: AppColors.primaryGreen,
+        ),
+      );
+    }
+
+    return (
+      left,
+      DivineGlassMetaCell(
+        label: 'Updated',
+        value: inoFormatDate(record.updatedAt),
+        alignEnd: true,
+        valueColor: palette.textPrimary,
       ),
     );
   }

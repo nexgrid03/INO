@@ -81,6 +81,8 @@ class ThemeController {
         return ThemeStyle.bold;
       case 'soft':
         return ThemeStyle.soft;
+      case 'launcher':
+        return ThemeStyle.launcher;
       case 'classic':
       default:
         return ThemeStyle.classic;

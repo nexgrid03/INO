@@ -13,6 +13,7 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/dashboard/sparkline.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
@@ -186,13 +187,13 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                child: ModuleHeader(
+              ModuleHeader(
                   title: 'Investments',
                   subtitle: hasAny
                       ? '${_store.count} holding${_store.count == 1 ? '' : 's'} · ${moneyWords(_store.totalValue, _currency)}'
@@ -210,7 +211,6 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                     ),
                   ],
                 ),
-              ),
               if (hasAny)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -382,14 +382,9 @@ class _OverviewTab extends StatelessWidget {
       children: [
         // ---- Total investments hero ----
         FadeSlideIn(
-          child: Container(
+          child: AdaptiveGlassCard(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            decoration: BoxDecoration(
-              gradient: palette.cardGradient,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: palette.border),
-              boxShadow: palette.cardShadow,
-            ),
+            radius: AppRadius.large,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -982,14 +977,9 @@ class InvestmentCard extends StatelessWidget {
         onTap: onTap,
         onLongPress: onMore,
         behavior: HitTestBehavior.opaque,
-        child: Container(
+        child: AdaptiveGlassCard(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: palette.cardGradient,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
-          ),
+          radius: AppRadius.card,
           child: Column(
             children: [
               Row(
@@ -1189,13 +1179,9 @@ class _ActivityTab extends StatelessWidget {
           child: InkWell(
             onTap: () => onTap(e.investment),
             borderRadius: BorderRadius.circular(AppRadius.card),
-            child: Container(
+            child: AdaptiveGlassCard(
               padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                gradient: palette.cardGradient,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: palette.border),
-              ),
+              radius: AppRadius.card,
               child: Row(
                 children: [
                   Container(

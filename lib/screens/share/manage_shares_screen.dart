@@ -9,6 +9,7 @@ import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 
@@ -415,42 +416,53 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final child = Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.chip - 2),
+          ),
+          child: Icon(icon, color: color, size: 19),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '$value',
+          style: AppText.headline.copyWith(
+            color: palette.textPrimary,
+            fontSize: 20,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppText.caption.copyWith(
+            color: palette.textSecondary,
+            fontSize: 11.5,
+          ),
+        ),
+      ],
+    );
+    if (divineGlassEnabled(context)) {
+      return AdaptiveGlassCard(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.md,
+        ),
+        radius: AppRadius.card,
+        child: child,
+      );
+    }
     return InoCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.md,
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.chip - 2),
-            ),
-            child: Icon(icon, color: color, size: 19),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$value',
-            style: AppText.headline.copyWith(
-              color: palette.textPrimary,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(
-              color: palette.textSecondary,
-              fontSize: 11.5,
-            ),
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 }

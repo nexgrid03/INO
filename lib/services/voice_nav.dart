@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/wallet_repository.dart';
 import '../main.dart' show InoApp;
+import '../navigation/wallet_module_router.dart';
 import '../screens/scan/scan_flow_screen.dart';
 import '../screens/shell/shell_controller.dart';
-import '../screens/wallet/wallet_detail_screen.dart';
 
 /// Global navigation entry points for the voice assistant.
 ///
@@ -36,7 +36,7 @@ class VoiceNav {
     final category = SupabaseWalletRepository.categoryFor(walletName);
     if (category == null) return;
     _nav?.push(
-      MaterialPageRoute(builder: (_) => WalletDetailScreen(category: category)),
+      MaterialPageRoute(builder: (_) => walletScreenFor(category)),
     );
   }
 

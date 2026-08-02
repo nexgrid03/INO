@@ -177,15 +177,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             const SizedBox(height: 26),
             FadeSlideIn(
               delay: const Duration(milliseconds: 60),
-              child: Text(
-                l10n.t('signInWithPhone'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
-              ),
+              child: AuthPageTitle(l10n.t('signInWithPhone')),
             ),
             const SizedBox(height: 10),
             FadeSlideIn(

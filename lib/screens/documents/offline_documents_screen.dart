@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
@@ -134,7 +135,9 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
@@ -142,15 +145,12 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
             ),
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                  child: ModuleHeader(
+                child: ModuleHeader(
                     title: 'Offline documents',
                     subtitle: docs.isEmpty
                         ? 'Saved to this device, viewable anytime'
                         : '${docs.length} saved · no internet needed',
                   ),
-                ),
               ),
               if (!_store.isLoaded)
                 const SliverPadding(

@@ -5,11 +5,16 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
+import '../common/liquid_glass.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// A consistent page chrome for every Profile sub-screen (Change Password,
 /// Cloud Backup, About, …): a transparent back-button app bar over the themed
 /// background, with the content laid out by the caller.
+///
+/// Under Launcher (Divine Glass), uses the Figma frosted Top App Bar with a
+/// sky wash so headings always have a proper glass background and back control.
 class SettingsScaffold extends StatelessWidget {
   const SettingsScaffold({
     super.key,
@@ -25,6 +30,29 @@ class SettingsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = InoStyle.isLauncher(context);
+
+    if (launcher) {
+      return Scaffold(
+        backgroundColor: palette.bg,
+        extendBodyBehindAppBar: false,
+        appBar: DivineGlassAppBar.asPreferredSize(
+          context,
+          title: title,
+          centerTitle: false,
+          actions: actions,
+        ),
+        body: InoBackground(
+          showDots: false,
+          sky: true,
+          child: SafeArea(
+            top: false,
+            child: child,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: palette.bg,
       // Let the aurora backdrop flow up behind the transparent app bar.
@@ -74,6 +102,17 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = InoStyle.isLauncher(context);
+
+    if (launcher) {
+      return LiquidGlass(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        blur: 20,
+        padding: padding ?? const EdgeInsets.all(AppSpacing.md),
+        child: SizedBox(width: double.infinity, child: child),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(AppSpacing.md),

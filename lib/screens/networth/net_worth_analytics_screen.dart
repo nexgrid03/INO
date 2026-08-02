@@ -7,19 +7,60 @@ import '../../models/dashboard_models.dart';
 import '../../services/net_worth_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/net_worth_chart.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 
-/// Net Worth Analytics - total wealth, an interactive multi-range trend chart,
-/// the asset distribution (donut + legend) and month/year growth, all from the
-/// [NetWorthService].
-class NetWorthAnalyticsScreen extends StatelessWidget {
+/// Net Worth Analytics — live totals from Property + Investment wallets,
+/// history-backed chart, and allocation from real holdings only.
+class NetWorthAnalyticsScreen extends StatefulWidget {
   const NetWorthAnalyticsScreen({super.key});
+
+  @override
+  State<NetWorthAnalyticsScreen> createState() =>
+      _NetWorthAnalyticsScreenState();
+}
+
+class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await NetWorthService.instance.ensureReady();
+    if (!mounted) return;
+    NetWorthService.instance.addListener(_onChanged);
+    setState(() => _loading = false);
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    NetWorthService.instance.removeListener(_onChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+
+    return SettingsScaffold(
+      title: l10n.t('netWorth'),
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _body(palette, l10n),
+    );
+  }
+
+  Widget _body(AppPalette palette, AppLocalizations l10n) {
     final service = NetWorthService.instance;
     final data = service.data;
     final monthSeries = service.seriesFor(NetWorthRange.month);
@@ -27,95 +68,113 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
     final monthChange = _percentChange(monthSeries);
     final yearChange = _percentChange(yearSeries);
 
-    return SettingsScaffold(
-      title: l10n.t('netWorth'),
-      child: ListView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
-        children: [
-          // Total + growth hero card.
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            decoration: BoxDecoration(
-              gradient: palette.cardGradient,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: palette.border),
-              boxShadow: palette.cardShadow,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.t('netWorthTotalLabel').toUpperCase(),
-                  style: AppText.label.copyWith(
-                    color: palette.textSecondary,
-                    fontSize: 11,
-                    letterSpacing: 0.8,
-                  ),
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.xl,
+      ),
+      children: [
+        AdaptiveGlassCard(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          radius: AppRadius.large,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.t('netWorthTotalLabel').toUpperCase(),
+                style: AppText.label.copyWith(
+                  color: palette.textSecondary,
+                  fontSize: 11,
+                  letterSpacing: 0.8,
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(formatInr(data.total),
-                            maxLines: 1,
-                            style: AppText.display.copyWith(
-                                color: palette.textPrimary, fontSize: 34)),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        formatInr(data.total),
+                        maxLines: 1,
+                        style: AppText.display.copyWith(
+                          color: palette.textPrimary,
+                          fontSize: 34,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _GrowthPill(percent: data.growthPercent),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _GrowthPill(percent: data.growthPercent),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
+                style: AppText.caption.copyWith(
+                  color: data.isUp ? AppColors.positive : AppColors.negative,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
-                  style: AppText.caption.copyWith(
-                      color:
-                          data.isUp ? AppColors.positive : AppColors.negative,
-                      fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Interactive chart.
-          SettingsCard(
-            child: const NetWorthChart(height: 200),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Trend cards.
-          Row(
-            children: [
-              Expanded(
-                  child: _TrendCard(
-                      label: l10n.t('monthlyTrend'),
-                      percent: monthChange,
-                      icon: Icons.calendar_view_month_rounded)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                  child: _TrendCard(
-                      label: l10n.t('yearlyTrend'),
-                      percent: yearChange,
-                      icon: Icons.timeline_rounded)),
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.section),
-
-          // Asset distribution.
-          Text(l10n.t('assetDistribution'),
-              style: AppText.title.copyWith(color: palette.textPrimary)),
-          const SizedBox(height: AppSpacing.md),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SettingsCard(
+          child: NetWorthChart(
+            height: 200,
+            pointsFor: (range) => service.seriesFor(range),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _TrendCard(
+                label: l10n.t('monthlyTrend'),
+                percent: monthChange,
+                icon: Icons.calendar_view_month_rounded,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _TrendCard(
+                label: l10n.t('yearlyTrend'),
+                percent: yearChange,
+                icon: Icons.timeline_rounded,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.section),
+        Text(
+          l10n.t('assetDistribution'),
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (data.allocations.isEmpty)
+          SettingsCard(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Add properties or investments to build your net worth. '
+                'Totals come from your Property and Investment wallets.',
+                style: AppText.caption.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          )
+        else
           SettingsCard(
             child: Row(
               children: [
@@ -124,18 +183,23 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
                   height: 120,
                   child: CustomPaint(
                     painter: _DonutPainter(
-                        allocations: data.allocations,
-                        track: palette.surfaceVariant),
+                      allocations: data.allocations,
+                      track: palette.surfaceVariant,
+                    ),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('${data.allocations.length}',
-                              style: AppText.title
-                                  .copyWith(color: palette.textPrimary)),
-                          Text('classes',
-                              style: AppText.label
-                                  .copyWith(color: palette.textFaint)),
+                          Text(
+                            '${data.allocations.length}',
+                            style: AppText.title
+                                .copyWith(color: palette.textPrimary),
+                          ),
+                          Text(
+                            'classes',
+                            style: AppText.label
+                                .copyWith(color: palette.textFaint),
+                          ),
                         ],
                       ),
                     ),
@@ -153,14 +217,16 @@ class NetWorthAnalyticsScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Figures are illustrative until you connect live bank / brokerage '
-            'feeds. Add assets to personalise your net worth.',
-            style: AppText.caption.copyWith(color: palette.textFaint, height: 1.4),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Based on your Property and Investment wallets. '
+          'The chart updates from daily snapshots as your holdings change.',
+          style: AppText.caption.copyWith(
+            color: palette.textFaint,
+            height: 1.4,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -190,11 +256,16 @@ class _GrowthPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-              size: 13, color: color),
+          Icon(
+            up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            size: 13,
+            color: color,
+          ),
           const SizedBox(width: 2),
-          Text('${percent.abs().toStringAsFixed(1)}%',
-              style: AppText.label.copyWith(color: color)),
+          Text(
+            '${percent.abs().toStringAsFixed(1)}%',
+            style: AppText.label.copyWith(color: color),
+          ),
         ],
       ),
     );
@@ -202,8 +273,11 @@ class _GrowthPill extends StatelessWidget {
 }
 
 class _TrendCard extends StatelessWidget {
-  const _TrendCard(
-      {required this.label, required this.percent, required this.icon});
+  const _TrendCard({
+    required this.label,
+    required this.percent,
+    required this.icon,
+  });
 
   final String label;
   final double percent;
@@ -229,11 +303,15 @@ class _TrendCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(height: 10),
-          Text('${up ? '+' : ''}${percent.toStringAsFixed(1)}%',
-              style: AppText.headline.copyWith(color: color, fontSize: 20)),
+          Text(
+            '${up ? '+' : ''}${percent.toStringAsFixed(1)}%',
+            style: AppText.headline.copyWith(color: color, fontSize: 20),
+          ),
           const SizedBox(height: 2),
-          Text(label,
-              style: AppText.caption.copyWith(color: palette.textSecondary)),
+          Text(
+            label,
+            style: AppText.caption.copyWith(color: palette.textSecondary),
+          ),
         ],
       ),
     );
@@ -266,7 +344,9 @@ class _LegendRow extends StatelessWidget {
               width: 10,
               height: 10,
               decoration: BoxDecoration(
-                  color: allocation.color, shape: BoxShape.circle),
+                color: allocation.color,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -274,21 +354,31 @@ class _LegendRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(allocation.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.subtitle.copyWith(
-                        color: palette.textPrimary, fontSize: 12.5)),
-                Text(formatInr(allocation.value),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
-                        color: palette.textSecondary, fontSize: 10.5)),
+                Text(
+                  allocation.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 12.5,
+                  ),
+                ),
+                Text(
+                  formatInr(allocation.value),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(
+                    color: palette.textSecondary,
+                    fontSize: 10.5,
+                  ),
+                ),
               ],
             ),
           ),
-          Text('${pct.toStringAsFixed(0)}%',
-              style: AppText.label.copyWith(color: AppColors.primaryGreen)),
+          Text(
+            '${pct.toStringAsFixed(0)}%',
+            style: AppText.label.copyWith(color: AppColors.primaryGreen),
+          ),
         ],
       ),
     );
@@ -310,7 +400,6 @@ class _DonutPainter extends CustomPainter {
     const stroke = 18.0;
     final rect = Rect.fromCircle(center: center, radius: radius - stroke / 2);
 
-    // Track.
     canvas.drawCircle(
       center,
       radius - stroke / 2,

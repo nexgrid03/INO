@@ -15,6 +15,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'add_vault_document_sheet.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
@@ -985,6 +986,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   Widget _header(AppPalette palette) {
     final canOwn = _myRole.canManageVault;
+    final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
           AppSpacing.screen, AppSpacing.md),
@@ -993,9 +995,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           const InoBackButton(),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text('Vault',
-                style: AppText.headline
-                    .copyWith(color: palette.textPrimary, fontSize: 21)),
+            child: Text(
+              'Vault',
+              style: launcher
+                  ? TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      height: 1.1,
+                    )
+                  : AppText.headline
+                      .copyWith(color: palette.textPrimary, fontSize: 21),
+            ),
           ),
           if (canOwn)
             PopupMenuButton<String>(

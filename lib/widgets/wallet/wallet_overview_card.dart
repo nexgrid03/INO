@@ -41,6 +41,7 @@ class WalletOverviewCard extends StatelessWidget {
           ],
         );
       case ThemeStyle.classic:
+      case ThemeStyle.launcher:
         heroGradient = AppColors.brandGradient;
     }
     return PressableScale(

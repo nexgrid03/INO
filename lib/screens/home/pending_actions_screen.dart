@@ -10,8 +10,10 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/home/empty_state.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/common/liquid_glass.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../navigation/wallet_module_router.dart';
 import '../shell/shell_controller.dart';
-import '../wallet/wallet_detail_screen.dart';
 
 /// A pending item - either a due reminder or an expiring document.
 class _Pending {
@@ -109,7 +111,7 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
       final category = SupabaseWalletRepository.categoryFor(p.wallet!);
       if (category != null) {
         Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => WalletDetailScreen(category: category)));
+            builder: (_) => walletScreenFor(category)));
         return;
       }
     }
@@ -162,67 +164,48 @@ class _PendingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: palette.cardShadow,
-      ),
-      child: Material(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              border: Border.all(color: palette.border),
-            ),
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(item.icon, color: item.color, size: 21),
+    return PressableScale(
+      pressedScale: 0.98,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: LiquidGlass(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          blur: 16,
+          frost: palette.isDark ? 1.05 : 0.72,
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.subtitle
-                              .copyWith(color: palette.textPrimary)),
-                      const SizedBox(height: 2),
-                      Text(item.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption
-                              .copyWith(color: palette.textSecondary)),
-                    ],
-                  ),
+                child: Icon(item.icon, color: item.color, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle
+                        .copyWith(color: palette.textPrimary)),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                  ),
-                  child: Text(item.urgency,
-                      style: AppText.label.copyWith(
-                          color: item.color, fontSize: 11)),
-                ),
-              ],
-            ),
+                child: Text(item.urgency,
+                    style: AppText.label.copyWith(
+                        color: item.color, fontSize: 11)),
+              ),
+            ],
           ),
         ),
       ),

@@ -6,6 +6,8 @@ import '../../l10n/app_localizations.dart';
 import '../../services/image_enhancer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import 'document_crop_editor.dart';
@@ -633,6 +635,44 @@ class _ControlSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final launcher = InoStyle.isLauncher(context);
+    final body = SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+            AppSpacing.screen, AppSpacing.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppColors.tealPale,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ...children,
+          ],
+        ),
+      ),
+    );
+    if (launcher) {
+      return ClipRRect(
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        child: LiquidGlass(
+          borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.large)),
+          blur: 24,
+          frost: 1.05,
+          shadow: false,
+          padding: EdgeInsets.zero,
+          child: body,
+        ),
+      );
+    }
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -642,29 +682,7 @@ class _ControlSheet extends StatelessWidget {
         border: Border.all(color: AppBorders.line),
         boxShadow: AppShadows.floating,
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-              AppSpacing.screen, AppSpacing.sm),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Sheet grabber accent.
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.tealPale,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              ...children,
-            ],
-          ),
-        ),
-      ),
+      child: body,
     );
   }
 }

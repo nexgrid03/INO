@@ -233,9 +233,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToSignup() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SignupScreen()));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
+    );
   }
 
   void _goToForgotPassword() {

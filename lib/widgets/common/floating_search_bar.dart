@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
+import 'liquid_glass.dart';
 
-/// The design-system floating search bar: 52dp tall, radius 16, white surface
-/// with a soft floating shadow and a leading search icon.
+/// The design-system floating search bar: 52dp tall, radius 16, frosted glass
+/// surface with a soft floating shadow and a leading search icon.
 ///
 /// Two modes:
 ///   • **Launcher** - pass [onTap] (and no [controller]); the bar is a tappable
@@ -41,44 +42,48 @@ class FloatingSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final bar = Container(
-      height: height ?? AppSizes.search,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.search),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _isLauncher
-                ? Text(
-                    hint,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.body.copyWith(color: palette.textFaint),
-                  )
-                : TextField(
-                    controller: controller,
-                    onChanged: onChanged,
-                    autofocus: autofocus,
-                    style: AppText.body.copyWith(color: palette.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: hint,
-                      hintStyle: AppText.body.copyWith(
-                        color: palette.textFaint,
+    final bar = LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.search),
+      blur: 18,
+      frost: palette.isDark ? 1.0 : 0.72,
+      shadow: true,
+      padding: EdgeInsets.zero,
+      child: SizedBox(
+        height: height ?? AppSizes.search,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _isLauncher
+                    ? Text(
+                        hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body.copyWith(color: palette.textFaint),
+                      )
+                    : TextField(
+                        controller: controller,
+                        onChanged: onChanged,
+                        autofocus: autofocus,
+                        style:
+                            AppText.body.copyWith(color: palette.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: hint,
+                          hintStyle: AppText.body.copyWith(
+                            color: palette.textFaint,
+                          ),
+                          border: InputBorder.none,
+                          isCollapsed: true,
+                        ),
                       ),
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                    ),
-                  ),
+              ),
+              ?trailing,
+            ],
           ),
-          ?trailing,
-        ],
+        ),
       ),
     );
 

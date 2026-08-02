@@ -25,6 +25,7 @@ import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
@@ -300,6 +301,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeBold');
       case ThemeStyle.soft:
         return l10n.t('themeSoft');
+      case ThemeStyle.launcher:
+        return l10n.t('themeLauncher');
     }
   }
 
@@ -311,6 +314,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeBoldDesc');
       case ThemeStyle.soft:
         return l10n.t('themeSoftDesc');
+      case ThemeStyle.launcher:
+        return l10n.t('themeLauncherDesc');
     }
   }
 
@@ -998,23 +1003,60 @@ class _Title extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Padding(
+    final launcher = InoStyle.isLauncher(context);
+    final dark = palette.isDark;
+    final canPop = Navigator.of(context).canPop();
+    final row = Padding(
       padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 0),
       child: Row(
         children: [
-          // The gap only exists when the button can render (pushed route), so
-          // the tab-root header keeps its exact original alignment.
-          if (Navigator.of(context).canPop()) ...[
+          if (canPop) ...[
             const InoBackButton(size: 42),
             const SizedBox(width: 12),
           ],
           Expanded(
             child: Text(
               AppLocalizations.of(context).t('profile'),
-              style: AppText.display.copyWith(color: palette.textPrimary),
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: launcher ? 28 : 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                height: 1.1,
+              ),
             ),
           ),
         ],
+      ),
+    );
+
+    if (!launcher) return row;
+
+    return Material(
+      color: dark
+          ? palette.surface.withValues(alpha: 0.94)
+          : Colors.white.withValues(alpha: 0.88),
+      child: LiquidGlass(
+        borderRadius: BorderRadius.zero,
+        blur: 20,
+        frost: dark ? 0.85 : 0.75,
+        tint: dark ? palette.surface : Colors.white,
+        shadow: false,
+        padding: EdgeInsets.zero,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : palette.border,
+              ),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: row,
+        ),
       ),
     );
   }
@@ -1412,6 +1454,10 @@ class _ThemeSwatch extends StatelessWidget {
         fill = AppColors.tealFoam;
         edge = accent; // classic edge; soft only adds the glass sheen
         glyph = const Icon(Icons.star_rounded, color: accent, size: 16);
+      case ThemeStyle.launcher:
+        fill = Colors.white;
+        edge = accent;
+        glyph = const Icon(Icons.apps_rounded, color: accent, size: 18);
     }
     return Container(
       width: 42,

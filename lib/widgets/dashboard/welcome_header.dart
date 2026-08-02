@@ -24,6 +24,8 @@ class WelcomeHeader extends StatefulWidget {
     this.photoUrl,
     this.notificationCount = 0,
     this.voiceButtonKey,
+    this.launcherStyle = false,
+    this.onHelp,
   });
 
   final String fullName;
@@ -40,6 +42,13 @@ class WelcomeHeader extends StatefulWidget {
   final String? photoUrl;
 
   final int notificationCount;
+
+  /// Launcher theme: subtitle becomes vault-protected status; trailing shows
+  /// help instead of the header mic (voice lives in Quick Actions).
+  final bool launcherStyle;
+
+  /// Shown when [launcherStyle] is true (Help Center).
+  final VoidCallback? onHelp;
 
   @override
   State<WelcomeHeader> createState() => _WelcomeHeaderState();
@@ -168,7 +177,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${_greeting(l10n)}, $_firstName 👋',
+                widget.launcherStyle
+                    ? 'Hi, $_firstName 👋'
+                    : '${_greeting(l10n)}, $_firstName 👋',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -180,54 +191,94 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                 ),
               ),
               const SizedBox(height: 2),
-              // Status-line treatment: a small live brand dot ahead of the
-              // localized full date (weekday + month follow the app locale).
-              Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+              if (widget.launcherStyle)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      size: 14,
                       color: AppColors.primaryGreen,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.35),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      MaterialLocalizations.of(
-                        context,
-                      ).formatFullDate(DateTime.now()),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textSecondary,
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        l10n.t('vaultFullyProtected'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
+              else
+                // Status-line treatment: a small live brand dot ahead of the
+                // localized full date (weekday + month follow the app locale).
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primaryGreen,
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                AppColors.primaryGreen.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        MaterialLocalizations.of(
+                          context,
+                        ).formatFullDate(DateTime.now()),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
-        // Voice assistant - a small icon beside the bell (replaces search).
-        VoiceMicIconButton(key: widget.voiceButtonKey, size: 42),
-        const SizedBox(width: 8),
-        _HeaderIcon(
-          icon: Icons.notifications_none_rounded,
-          onTap: widget.onNotifications,
-          tooltip: AppLocalizations.of(context).t('notifications'),
-          badge: widget.notificationCount,
-        ),
+        if (widget.launcherStyle) ...[
+          _HeaderIcon(
+            icon: Icons.notifications_none_rounded,
+            onTap: widget.onNotifications,
+            tooltip: AppLocalizations.of(context).t('notifications'),
+            badge: widget.notificationCount,
+          ),
+          const SizedBox(width: 8),
+          _HeaderIcon(
+            icon: Icons.help_outline_rounded,
+            onTap: widget.onHelp ?? () {},
+            tooltip: AppLocalizations.of(context).t('helpCenter'),
+          ),
+        ] else ...[
+          // Voice assistant - a small icon beside the bell (replaces search).
+          VoiceMicIconButton(key: widget.voiceButtonKey, size: 42),
+          const SizedBox(width: 8),
+          _HeaderIcon(
+            icon: Icons.notifications_none_rounded,
+            onTap: widget.onNotifications,
+            tooltip: AppLocalizations.of(context).t('notifications'),
+            badge: widget.notificationCount,
+          ),
+        ],
       ],
     );
   }

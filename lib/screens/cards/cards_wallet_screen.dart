@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../wallet/wallet_detail_screen.dart';
 import 'card_form_screen.dart';
@@ -131,7 +132,9 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
@@ -139,9 +142,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
             ),
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                  child: ModuleHeader(
+                child: ModuleHeader(
                     title: 'My Cards',
                     subtitle: hasAny
                         ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
@@ -159,7 +160,6 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                       ),
                     ],
                   ),
-                ),
               ),
               if (!_store.isLoaded)
                 const SliverPadding(

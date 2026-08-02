@@ -153,13 +153,16 @@ class _AuroraPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, wash);
 
-    // 2. Drifting organic blobs - light tints only, whisper alphas.
+    // 2. Drifting organic blobs - whisper alphas; much quieter in dark so
+    // theme toggles never leave a teal cast over the whole shell (nav blur
+    // would otherwise amplify it via extendBody).
     final drift = 18.0 * (t - 0.5); // −9 → +9 px of slow travel
+    final blobScale = dark ? 0.12 : 1.0;
     void blob(Offset c, double r, Color color, double alpha) {
       final paint = Paint()
         ..shader = RadialGradient(
           colors: [
-            color.withValues(alpha: alpha * intensity * (dark ? 0.5 : 1.0)),
+            color.withValues(alpha: alpha * intensity * blobScale),
             color.withValues(alpha: 0),
           ],
         ).createShader(Rect.fromCircle(center: c, radius: r));

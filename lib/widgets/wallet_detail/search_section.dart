@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
+import '../divine_glass/divine_glass.dart';
 
 /// Section 3 - Smart Search.
 ///
@@ -24,54 +26,76 @@ class DetailSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.search),
-        boxShadow: palette.cardShadow,
-      ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        onChanged: onChanged,
-        textInputAction: TextInputAction.search,
-        style: TextStyle(fontSize: 14, color: palette.textPrimary),
-        decoration: InputDecoration(
-          isDense: true,
-          hintText: AppLocalizations.of(context).t('searchDocumentsHint'),
-          hintStyle: TextStyle(fontSize: 14, color: palette.textFaint),
-          prefixIcon: Icon(Icons.search_rounded, color: palette.textFaint),
-          suffixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (context, value, _) {
-              if (value.text.isEmpty) return const SizedBox.shrink();
-              return IconButton(
-                icon: Icon(Icons.close_rounded,
-                    color: palette.textFaint, size: 20),
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-              );
-            },
-          ),
-          filled: true,
-          fillColor: palette.surface,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.search),
-            borderSide: BorderSide(color: palette.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.search),
-            borderSide: BorderSide(color: palette.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.search),
-            borderSide:
-                const BorderSide(color: AppColors.primaryGreen, width: 1.6),
+    final launcher = divineGlassEnabled(context);
+    final field = TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      style: TextStyle(fontSize: launcher ? 16 : 14, color: palette.textPrimary),
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: AppLocalizations.of(context).t('searchDocumentsHint'),
+        hintStyle: TextStyle(fontSize: launcher ? 16 : 14, color: palette.textFaint),
+        prefixIcon: Icon(Icons.search_rounded, color: palette.textFaint),
+        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, _) {
+            if (value.text.isEmpty) return const SizedBox.shrink();
+            return IconButton(
+              icon: Icon(Icons.close_rounded,
+                  color: palette.textFaint, size: 20),
+              onPressed: () {
+                controller.clear();
+                onChanged('');
+              },
+            );
+          },
+        ),
+        filled: true,
+        fillColor: launcher ? Colors.transparent : palette.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(launcher ? 12 : AppRadius.search),
+          borderSide: BorderSide(
+            color: launcher
+                ? Colors.white.withValues(alpha: 0.8)
+                : palette.border,
           ),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(launcher ? 12 : AppRadius.search),
+          borderSide: BorderSide(
+            color: launcher
+                ? Colors.white.withValues(alpha: 0.8)
+                : palette.border,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(launcher ? 12 : AppRadius.search),
+          borderSide:
+              const BorderSide(color: AppColors.primaryGreen, width: 1.6),
+        ),
       ),
+    );
+
+    if (!launcher) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.search),
+          boxShadow: palette.cardShadow,
+        ),
+        child: field,
+      );
+    }
+
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(12),
+      blur: 6,
+      frost: 0.85,
+      shadow: false,
+      padding: EdgeInsets.zero,
+      child: field,
     );
   }
 }

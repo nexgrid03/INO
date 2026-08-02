@@ -6,9 +6,11 @@ import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/biometric_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import 'auth_flow.dart';
 
 /// Screen 7 - Biometric Setup.
@@ -110,15 +112,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
           const SizedBox(height: 28),
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),
-            child: const Text(
-              'Secure Your Vault',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            child: AuthPageTitle('Secure Your Vault'),
           ),
           const SizedBox(height: 12),
           FadeSlideIn(
@@ -288,6 +282,52 @@ class _FeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final launcher = InoStyle.isLauncher(context);
+    final row = Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            color: AppColors.tealMist,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.primaryGreen, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (launcher) {
+      return DivineGlassCard(
+        radius: 18,
+        blur: 14,
+        padding: const EdgeInsets.all(14),
+        child: row,
+      );
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -296,43 +336,7 @@ class _FeatureTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.tealPale, width: 1),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.tealMist,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.primaryGreen, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: row,
     );
   }
 }

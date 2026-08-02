@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/liquid_glass.dart';
 import 'quick_actions.dart';
 import 'quick_menu_editor.dart';
@@ -957,35 +958,51 @@ class _QuickWheel extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 140),
-                    curve: Curves.easeOut,
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: hot
-                          ? AppColors.primaryGreen
-                          : (palette.isDark
-                              ? palette.bgElevated
-                              : Colors.white),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: hot
-                              ? AppColors.primaryGreen.withValues(alpha: 0.45)
-                              : Colors.black.withValues(
-                                  alpha: palette.isDark ? 0.4 : 0.10),
-                          blurRadius: hot ? 20 : 16,
-                          offset: const Offset(0, 6),
+                  if (InoStyle.isLauncher(context) && !hot)
+                    LiquidGlass(
+                      circle: true,
+                      blur: 16,
+                      padding: EdgeInsets.zero,
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: Icon(
+                          action.icon,
+                          color: AppColors.primaryGreen,
+                          size: 26,
                         ),
-                      ],
+                      ),
+                    )
+                  else
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      curve: Curves.easeOut,
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: hot
+                            ? AppColors.primaryGreen
+                            : (palette.isDark
+                                ? palette.bgElevated
+                                : Colors.white),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: hot
+                                ? AppColors.primaryGreen.withValues(alpha: 0.45)
+                                : Colors.black.withValues(
+                                    alpha: palette.isDark ? 0.4 : 0.10),
+                            blurRadius: hot ? 20 : 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        action.icon,
+                        color: hot ? Colors.white : AppColors.primaryGreen,
+                        size: InoStyle.isLauncher(context) ? 26 : 24,
+                      ),
                     ),
-                    child: Icon(
-                      action.icon,
-                      color: hot ? Colors.white : AppColors.primaryGreen,
-                      size: 24,
-                    ),
-                  ),
                   const SizedBox(height: 7),
                   Text(
                     action.label(AppLocalizations.of(context)),

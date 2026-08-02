@@ -1,5 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
@@ -37,6 +38,7 @@ class LiquidGlass extends StatelessWidget {
     this.tint,
     this.padding,
     this.shadow = true,
+    this.enableBlur = true,
     this.clipBehavior = Clip.antiAlias,
   });
 
@@ -63,12 +65,19 @@ class LiquidGlass extends StatelessWidget {
   /// Soft ambient drop shadow lifting the glass off the page.
   final bool shadow;
 
+  /// When false, skips [BackdropFilter] and paints an opaque frost fill —
+  /// use for dense icon grids (performance on Android / web).
+  final bool enableBlur;
+
   final Clip clipBehavior;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
+    // Flutter web: BackdropFilter is extremely expensive and can leave Home
+    // blank under load. Keep real blur for native; web uses frosted fill only.
+    final useBlur = enableBlur && blur > 0 && !kIsWeb;
 
     final BorderRadius? radius = circle
         ? null
@@ -76,7 +85,10 @@ class LiquidGlass extends StatelessWidget {
             Directionality.of(context),
           );
 
-    double a(double v) => (v * frost).clamp(0.0, 1.0);
+    // Without real blur, slightly milk the frost — but keep light-mode tiles
+    // translucent so the sky wash reads through (opaque white looked solid).
+    final frostScale = useBlur ? frost : (dark ? frost * 1.35 : frost * 1.05);
+    double a(double v) => (v * frostScale).clamp(0.0, 1.0);
 
     final base = tint ?? Colors.white;
 
@@ -87,17 +99,20 @@ class LiquidGlass extends StatelessWidget {
       end: Alignment.bottomRight,
       colors: dark
           ? [
-              Colors.white.withValues(alpha: a(0.14)),
-              Colors.white.withValues(alpha: a(0.06)),
+              Colors.white.withValues(alpha: a(useBlur ? 0.14 : 0.20)),
+              Colors.white.withValues(alpha: a(useBlur ? 0.06 : 0.12)),
             ]
           : [
-              base.withValues(alpha: a(0.62)),
-              base.withValues(alpha: a(0.30)),
+              // Glassier light frost: translucent so sky wash shows through.
+              base.withValues(alpha: a(useBlur ? 0.55 : 0.58)),
+              base.withValues(alpha: a(useBlur ? 0.28 : 0.36)),
             ],
     );
 
     final rim = Border.all(
-      color: Colors.white.withValues(alpha: dark ? 0.16 : 0.65),
+      color: dark
+          ? Colors.white.withValues(alpha: 0.16)
+          : Colors.white.withValues(alpha: useBlur ? 0.85 : 0.70),
       width: 1,
     );
 
@@ -118,24 +133,28 @@ class LiquidGlass extends StatelessWidget {
       ),
     );
 
-    Widget surface = BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: fill,
-          border: rim,
-          shape: circle ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: radius,
-        ),
-        child: Stack(
-          fit: StackFit.passthrough,
-          children: [
-            Positioned.fill(child: sheen),
-            if (padding != null) Padding(padding: padding!, child: child) else child,
-          ],
-        ),
+    Widget body = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: fill,
+        border: rim,
+        shape: circle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: radius,
+      ),
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          Positioned.fill(child: sheen),
+          if (padding != null) Padding(padding: padding!, child: child) else child,
+        ],
       ),
     );
+
+    Widget surface = useBlur
+        ? BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: body,
+          )
+        : body;
 
     surface = circle
         ? ClipOval(clipBehavior: clipBehavior, child: surface)

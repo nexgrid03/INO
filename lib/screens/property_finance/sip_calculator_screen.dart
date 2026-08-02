@@ -9,6 +9,7 @@ import '../../services/sip_calculator_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/currency_selector.dart';
 
@@ -149,15 +150,9 @@ class _EstimatedWealthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
-      width: double.infinity,
+    return AdaptiveGlassCard(
       padding: const EdgeInsets.all(AppSpacing.internal),
-      decoration: BoxDecoration(
-        gradient: palette.cardGradient,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
+      radius: AppRadius.card,
       child: Column(
         children: [
           Text(

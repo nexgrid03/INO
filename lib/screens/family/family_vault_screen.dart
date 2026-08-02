@@ -11,6 +11,7 @@ import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'vault_detail_screen.dart';
 
@@ -340,6 +341,15 @@ class _VaultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    if (divineGlassEnabled(context)) {
+      return DivineGlassListRow(
+        title: summary.vault.name,
+        subtitle: summary.myRole.label,
+        icon: Icons.family_restroom_rounded,
+        accent: AppColors.primaryGreen,
+        onTap: onTap,
+      );
+    }
     return InoCard(
       radius: AppRadius.card,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -728,6 +738,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
           AppSpacing.screen, AppSpacing.sm),
@@ -739,12 +750,24 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Family Vault',
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 24)),
-                Text('Shared vaults for your family',
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
+                Text(
+                  'Family Vault',
+                  style: launcher
+                      ? TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          height: 1.1,
+                        )
+                      : AppText.headline
+                          .copyWith(color: palette.textPrimary, fontSize: 24),
+                ),
+                Text(
+                  'Shared vaults for your family',
+                  style:
+                      AppText.caption.copyWith(color: palette.textSecondary),
+                ),
               ],
             ),
           ),

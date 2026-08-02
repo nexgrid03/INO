@@ -155,15 +155,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           const SizedBox(height: 26),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
-            child: Text(
-              widget.title ?? l10n.t('verificationCode'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            child: AuthPageTitle(widget.title ?? l10n.t('verificationCode')),
           ),
           const SizedBox(height: 10),
           FadeSlideIn(

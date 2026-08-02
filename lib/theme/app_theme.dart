@@ -62,6 +62,21 @@ class AppColors {
   static const Color gold = Color(0xFFE0A100);
   static const Color silver = Color(0xFF8C9BA5);
 
+  // --- Category accents (launcher vaults / tools / attention tiles) ---------
+
+  static const Color vaultIdentity = Color(0xFF8B6CEF);
+  static const Color vaultProperty = Color(0xFF22C55E);
+  static const Color vaultInvestments = Color(0xFFF59E0B);
+  static const Color vaultCards = Color(0xFF4383EA);
+
+  static const Color accentCoral = Color(0xFFF5704A);
+  static const Color accentBlue = Color(0xFF2563EB);
+  static const Color accentIndigo = Color(0xFF4383EA);
+  static const Color accentViolet = Color(0xFF9B6DE0);
+  static const Color accentAmber = Color(0xFFF2B33D);
+  static const Color accentCyan = Color(0xFF06B6D4);
+  static const Color accentEmerald = Color(0xFF10B981);
+
   // --- Light neutrals (splash / login / onboarding) --------------------------
 
   static const Color background = Color(0xFFEAF4FC);
@@ -351,6 +366,7 @@ class AppPalette {
       case ThemeStyle.soft:
         return lightSoft;
       case ThemeStyle.classic:
+      case ThemeStyle.launcher:
         return light;
     }
   }

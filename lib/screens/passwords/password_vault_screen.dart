@@ -12,7 +12,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import 'password_form_screen.dart';
@@ -205,7 +207,9 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
@@ -213,9 +217,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
             ),
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                  child: ModuleHeader(
+                child: ModuleHeader(
                     title: 'Passwords',
                     subtitle: hasAny
                         ? '${_store.count} saved · unlocked'
@@ -233,7 +235,6 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                       ),
                     ],
                   ),
-                ),
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
@@ -352,14 +353,8 @@ class PasswordTile extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
+        child: AdaptiveGlassCard(
           padding: const EdgeInsets.fromLTRB(12, 11, 8, 11),
-          decoration: BoxDecoration(
-            gradient: palette.cardGradient,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
-          ),
           child: Column(
             children: [
               Row(
@@ -478,33 +473,44 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final color = danger ? AppColors.critical : AppColors.primaryGreen;
+    final launcher = divineGlassEnabled(context);
+    final body = Column(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppText.caption.copyWith(
+            color: palette.textSecondary,
+            fontSize: 10.5,
+          ),
+        ),
+      ],
+    );
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: palette.surfaceVariant,
-            borderRadius: BorderRadius.circular(AppRadius.chip),
-            border: Border.all(color: palette.border),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(
-                  color: palette.textSecondary,
-                  fontSize: 10.5,
+        child: launcher
+            ? LiquidGlass(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                blur: 12,
+                frost: 0.95,
+                shadow: false,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                child: body,
+              )
+            : Container(
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: palette.surfaceVariant,
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(color: palette.border),
                 ),
+                child: body,
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -545,35 +551,47 @@ class _LockedState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(
-                  color: AppColors.tealPale.withValues(alpha: 0.6)),
-              boxShadow: AppShadows.floating,
+          if (launcher)
+            const DivineGlassEmptyPanel(
+              title: 'Vault Locked',
+              subtitle:
+                  'Use your biometrics to access your secure credentials.',
+              icon: Icons.lock_outline_rounded,
+            )
+          else ...[
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(
+                    color: AppColors.tealPale.withValues(alpha: 0.6)),
+                boxShadow: AppShadows.floating,
+              ),
+              child: const Icon(Icons.lock_outline_rounded,
+                  color: AppColors.primaryGreen, size: 40),
             ),
-            child: const Icon(Icons.lock_outline_rounded,
-                color: AppColors.primaryGreen, size: 40),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Vault Locked',
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Vault Locked',
               style: AppText.headline
-                  .copyWith(color: palette.textPrimary, fontSize: 22)),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Use your biometrics to access your secure credentials.',
-            textAlign: TextAlign.center,
-            style: AppText.body
-                .copyWith(color: palette.textSecondary, height: 1.5),
-          ),
+                  .copyWith(color: palette.textPrimary, fontSize: 22),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Use your biometrics to access your secure credentials.',
+              textAlign: TextAlign.center,
+              style: AppText.body
+                  .copyWith(color: palette.textSecondary, height: 1.5),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           GradientButton(
             label: 'Unlock Vault',

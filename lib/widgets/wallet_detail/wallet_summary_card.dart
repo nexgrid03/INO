@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../divine_glass/divine_glass.dart';
 
 /// Section 3 - the Wallet Summary stat-card row.
 ///
@@ -28,6 +29,18 @@ class WalletSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    if (divineGlassEnabled(context)) {
+      return DivineGlassHeroStrip(
+        items: [
+          (label: l10n.t('documents'), value: '$totalDocuments'),
+          (label: l10n.t('expiring'), value: '$expiring'),
+          (
+            label: protected ? l10n.t('protected') : l10n.t('atRisk'),
+            value: protected ? '✓' : '!',
+          ),
+        ],
+      );
+    }
     final protectedColor = protected
         ? AppColors.primaryGreen
         : palette.textFaint;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
 /// The compact identity header at the top of the Profile settings page.
@@ -37,68 +38,57 @@ class ProfileHeaderCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     return PressableScale(
       pressedScale: 0.99,
-      child: Material(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onEdit,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              border: Border.all(color: palette.border),
-              boxShadow: palette.cardShadow,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg),
-              child: Stack(
-                children: [
-                  // Centered Divine Glass identity block: avatar with a small
-                  // verified badge, name, email and the trust pill. The
-                  // full-width SizedBox keeps the card spanning the screen.
-                  SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                      _Avatar(initials: _initials, photoUrl: photoUrl),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        fullName.trim().isEmpty ? 'Your Name' : fullName,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                          color: palette.textPrimary,
-                        ),
+      child: GestureDetector(
+        onTap: onEdit,
+        behavior: HitTestBehavior.opaque,
+        child: LiquidGlass(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          blur: 20,
+          frost: palette.isDark ? 1.05 : 0.72,
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg),
+          child: Stack(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _Avatar(initials: _initials, photoUrl: photoUrl),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      fullName.trim().isEmpty ? 'Your Name' : fullName,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: palette.textPrimary,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        email,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body
-                            .copyWith(color: palette.textSecondary),
-                      ),
-                        const SizedBox(height: 10),
-                        const _VaultBadge(),
-                      ],
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Icon(Icons.edit_outlined,
-                        size: 19, color: palette.textFaint),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      email,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body
+                          .copyWith(color: palette.textSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    const _VaultBadge(),
+                  ],
+                ),
               ),
-            ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Icon(Icons.edit_outlined,
+                    size: 19, color: palette.textFaint),
+              ),
+            ],
           ),
         ),
       ),

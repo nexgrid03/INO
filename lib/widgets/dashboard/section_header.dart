@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 
-/// Consistent header above every dashboard section: a title, optional subtitle,
-/// and an optional trailing "See all" action. Keeps vertical rhythm uniform so
-/// the long scroll reads as one organised system rather than stacked widgets.
+/// Consistent header above every dashboard section: a title and an optional
+/// trailing "See all" action. Keeps vertical rhythm uniform so the long scroll
+/// reads as one organised system rather than stacked widgets.
+///
+/// [subtitle] is retained for call-site compatibility but is never rendered —
+/// section headings are title-only across the app.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -36,30 +39,14 @@ class SectionHeader extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: palette.textPrimary,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      subtitle!,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: palette.textSecondary,
-                      ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+                letterSpacing: -0.2,
+              ),
             ),
           ),
           if (actionLabel != null)

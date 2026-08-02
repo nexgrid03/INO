@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A device that has signed in on this install.
@@ -158,6 +159,7 @@ class TrustedDeviceService {
       p.setString(_kDevices, jsonEncode([for (final d in devices) d.toJson()]));
 
   String _platform() {
+    if (kIsWeb) return 'Web';
     if (Platform.isAndroid) return 'Android';
     if (Platform.isIOS) return 'iOS';
     if (Platform.isMacOS) return 'macOS';
@@ -167,6 +169,7 @@ class TrustedDeviceService {
   }
 
   String _deviceName() {
+    if (kIsWeb) return 'Web browser';
     try {
       final host = Platform.localHostname;
       if (host.isNotEmpty) return '${_platform()} · $host';

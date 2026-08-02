@@ -17,6 +17,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
@@ -658,53 +660,61 @@ class _ChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final on = active && enabled;
+    final launcher = divineGlassEnabled(context);
     // Divine Glass selection: a mist-filled chip with a sky border and brand
     // glyph/label (matching the reference), instead of a saturated gradient.
-    final content = AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: on ? AppColors.tealMist : palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-        border: Border.all(
-          color: on ? AppColors.primaryGreen : palette.border,
-          width: on ? 1.4 : 1,
-        ),
-        boxShadow: on ? null : AppShadows.card,
-      ),
-      child: Opacity(
-        opacity: enabled ? 1 : 0.4,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                size: 18,
-                color: on ? AppColors.primaryGreen : palette.textSecondary),
-            const SizedBox(width: 8),
-            Flexible(
-              // Shrink the label to fit one line instead of ellipsizing it -
-              // long copy-style / expiry labels must never show trailing dots.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: AppText.subtitle.copyWith(
-                    color:
-                        on ? AppColors.primaryGreen : palette.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
-                  ),
+    final row = Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon,
+              size: 18,
+              color: on ? AppColors.primaryGreen : palette.textSecondary),
+          const SizedBox(width: 8),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: AppText.subtitle.copyWith(
+                  color: on ? AppColors.primaryGreen : palette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+    final content = launcher && !on
+        ? LiquidGlass(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+            blur: 12,
+            frost: 0.95,
+            shadow: false,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: SizedBox(height: 52, child: row),
+          )
+        : AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: on ? AppColors.tealMist : palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.button),
+              border: Border.all(
+                color: on ? AppColors.primaryGreen : palette.border,
+                width: on ? 1.4 : 1,
+              ),
+              boxShadow: on ? null : AppShadows.card,
+            ),
+            child: row,
+          );
     return PressableScale(
       child: GestureDetector(
         onTap: enabled
@@ -790,26 +800,49 @@ class _ActionBar extends StatelessWidget {
           child: Row(
             children: [
               PressableScale(
-                child: Material(
-                  color: palette.surface,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    side: BorderSide(color: palette.border),
-                  ),
-                  child: InkWell(
-                    onTap: busy ? null : onCancel,
-                    child: SizedBox(
-                      height: AppSizes.button,
-                      width: 96,
-                      child: Center(
-                        child: Text(l10n.t('cancel'),
-                            style: AppText.subtitle
-                                .copyWith(color: palette.textSecondary)),
+                child: divineGlassEnabled(context)
+                    ? GestureDetector(
+                        onTap: busy ? null : onCancel,
+                        behavior: HitTestBehavior.opaque,
+                        child: LiquidGlass(
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
+                          blur: 12,
+                          frost: 0.95,
+                          shadow: false,
+                          padding: EdgeInsets.zero,
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            width: 96,
+                            child: Center(
+                              child: Text(l10n.t('cancel'),
+                                  style: AppText.subtitle.copyWith(
+                                      color: palette.textSecondary)),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Material(
+                        color: palette.surface,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
+                          side: BorderSide(color: palette.border),
+                        ),
+                        child: InkWell(
+                          onTap: busy ? null : onCancel,
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            width: 96,
+                            child: Center(
+                              child: Text(l10n.t('cancel'),
+                                  style: AppText.subtitle.copyWith(
+                                      color: palette.textSecondary)),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

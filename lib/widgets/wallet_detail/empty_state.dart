@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// Empty state shown when a wallet (or the active filter/search) yields no
@@ -27,56 +29,58 @@ class WalletEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
       child: Column(
         children: [
-          // Divine Glass: illustration + copy sit inside one big glass card.
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-            decoration: BoxDecoration(
-              gradient: palette.cardGradient,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: palette.border),
-              boxShadow: palette.cardShadow,
-            ),
-            child: Column(
-              children: [
-                const ShinyIcon(
-                  icon: Icons.folder_open_rounded,
-                  color: AppColors.primaryGreen,
-                  size: 110,
-                  iconSize: 52,
-                  radius: 32,
-                  style: ShinyIconStyle.filled,
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: palette.textPrimary,
+          if (launcher)
+            DivineGlassEmptyPanel(title: title, subtitle: subtitle)
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+              decoration: BoxDecoration(
+                gradient: palette.cardGradient,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: palette.border),
+                boxShadow: palette.cardShadow,
+              ),
+              child: Column(
+                children: [
+                  const ShinyIcon(
+                    icon: Icons.folder_open_rounded,
+                    color: AppColors.primaryGreen,
+                    size: 110,
+                    iconSize: 52,
+                    radius: 32,
+                    style: ShinyIconStyle.filled,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: palette.textSecondary,
+                  const SizedBox(height: 22),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: palette.textPrimary,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 24),
-          // Primary action - gradient pill.
           PressableScale(
             child: SizedBox(
               width: double.infinity,
@@ -132,6 +136,40 @@ class _SecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
+    final child = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: AppColors.primaryGreen),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (launcher) {
+      return PressableScale(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: LiquidGlass(
+            borderRadius: BorderRadius.circular(999),
+            blur: 10,
+            frost: 0.95,
+            padding: EdgeInsets.zero,
+            child: child,
+          ),
+        ),
+      );
+    }
     return PressableScale(
       child: Material(
         color: palette.surface,
@@ -139,27 +177,7 @@ class _SecondaryButton extends StatelessWidget {
           side: BorderSide(color: AppColors.tealPale, width: 1.2),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18, color: AppColors.primaryGreen),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: palette.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: InkWell(onTap: onTap, child: child),
       ),
     );
   }

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
 import 'floating_satellites.dart';
@@ -563,19 +565,27 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                         scale: swipeScale,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Container(
-                            padding: const EdgeInsets.all(58),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(40),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                width: 1.2,
-                              ),
-                              boxShadow: AppShadows.card,
-                            ),
-                            child: _illustration(),
-                          ),
+                          child: InoStyle.isLauncher(context)
+                              ? LiquidGlass(
+                                  borderRadius: BorderRadius.circular(40),
+                                  blur: 22,
+                                  padding: const EdgeInsets.all(58),
+                                  child: _illustration(),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.all(58),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(40),
+                                    border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: AppShadows.card,
+                                  ),
+                                  child: _illustration(),
+                                ),
                         ),
                       ),
                     ),

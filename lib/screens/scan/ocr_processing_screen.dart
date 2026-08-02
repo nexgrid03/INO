@@ -12,6 +12,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 
 /// Screen 3 - OCR processing.
 ///
@@ -218,15 +219,9 @@ class _OcrProcessingScreenState extends State<OcrProcessingScreen>
               ),
               const SizedBox(height: AppSpacing.lg),
               // Divine Glass card housing the live stage checklist.
-              Container(
-                width: double.infinity,
+              AdaptiveGlassCard(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  gradient: palette.cardGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  border: Border.all(color: palette.border),
-                  boxShadow: palette.cardShadow,
-                ),
+                radius: AppRadius.card,
                 child: _StageChecklist(
                   stages: OcrStage.values,
                   current: _stage,

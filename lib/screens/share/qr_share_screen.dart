@@ -19,7 +19,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'shared_documents_screen.dart';
 
@@ -333,24 +335,40 @@ class _QrShareScreenState extends State<QrShareScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
           PressableScale(
-            child: Material(
-              color: palette.surface,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                side: BorderSide(color: palette.border),
-              ),
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
-                  child: Text(l10n.t('done'),
-                      style: AppText.subtitle
-                          .copyWith(color: palette.textPrimary)),
-                ),
-              ),
-            ),
+            child: divineGlassEnabled(context)
+                ? GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    behavior: HitTestBehavior.opaque,
+                    child: LiquidGlass(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      blur: 12,
+                      frost: 0.95,
+                      shadow: false,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
+                      child: Text(l10n.t('done'),
+                          style: AppText.subtitle
+                              .copyWith(color: palette.textPrimary)),
+                    ),
+                  )
+                : Material(
+                    color: palette.surface,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      side: BorderSide(color: palette.border),
+                    ),
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
+                        child: Text(l10n.t('done'),
+                            style: AppText.subtitle
+                                .copyWith(color: palette.textPrimary)),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -640,6 +658,35 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final color = danger ? AppColors.critical : AppColors.primaryGreen;
+    final body = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: AppText.caption.copyWith(
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (divineGlassEnabled(context)) {
+      return PressableScale(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AdaptiveGlassCard(
+            padding: EdgeInsets.zero,
+            radius: AppRadius.button,
+            child: body,
+          ),
+        ),
+      );
+    }
     return PressableScale(
       child: Material(
         color: palette.surface,
@@ -653,22 +700,7 @@ class _ActionButton extends StatelessWidget {
         ),
         child: InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Column(
-              children: [
-                Icon(icon, color: color, size: 22),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  style: AppText.caption.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child: body,
         ),
       ),
     );

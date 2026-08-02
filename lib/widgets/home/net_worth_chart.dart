@@ -8,10 +8,20 @@ import '../pressable_scale.dart';
 /// An interactive net-worth line chart: a range selector (7D / 30D / 3M / 6M /
 /// 1Y), an animated draw-in, and tap-to-inspect with a tooltip that snaps to the
 /// nearest point. Pure `CustomPaint` - no charting dependency.
+///
+/// [pointsFor] supplies live series data (parent must have called
+/// [NetWorthService.ensureReady] first).
 class NetWorthChart extends StatefulWidget {
-  const NetWorthChart({super.key, this.height = 200});
+  const NetWorthChart({
+    super.key,
+    this.height = 200,
+    this.pointsFor,
+  });
 
   final double height;
+
+  /// Optional override for series lookup. Defaults to [NetWorthService.seriesFor].
+  final List<NetWorthPoint> Function(NetWorthRange range)? pointsFor;
 
   @override
   State<NetWorthChart> createState() => _NetWorthChartState();
@@ -20,13 +30,32 @@ class NetWorthChart extends StatefulWidget {
 class _NetWorthChartState extends State<NetWorthChart>
     with SingleTickerProviderStateMixin {
   NetWorthRange _range = NetWorthRange.month;
-  late List<NetWorthPoint> _points = NetWorthService.instance.seriesFor(_range);
+  late List<NetWorthPoint> _points;
   int? _selected;
 
   late final AnimationController _draw = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
-  )..forward();
+  );
+
+  List<NetWorthPoint> _series(NetWorthRange range) =>
+      widget.pointsFor?.call(range) ??
+      NetWorthService.instance.seriesFor(range);
+
+  @override
+  void initState() {
+    super.initState();
+    _points = _series(_range);
+    _draw.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant NetWorthChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pointsFor != widget.pointsFor) {
+      setState(() => _points = _series(_range));
+    }
+  }
 
   @override
   void dispose() {
@@ -38,7 +67,7 @@ class _NetWorthChartState extends State<NetWorthChart>
     if (range == _range) return;
     setState(() {
       _range = range;
-      _points = NetWorthService.instance.seriesFor(range);
+      _points = _series(range);
       _selected = null;
     });
     _draw
@@ -129,7 +158,8 @@ class _RangeSelector extends StatelessWidget {
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: r == selected ? palette.surface : Colors.transparent,
+                      color:
+                          r == selected ? palette.surface : Colors.transparent,
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       boxShadow: r == selected ? palette.cardShadow : null,
                     ),
@@ -154,8 +184,11 @@ class _RangeSelector extends StatelessWidget {
 }
 
 class _AxisLabels extends StatelessWidget {
-  const _AxisLabels(
-      {required this.points, required this.range, required this.palette});
+  const _AxisLabels({
+    required this.points,
+    required this.range,
+    required this.palette,
+  });
 
   final List<NetWorthPoint> points;
   final NetWorthRange range;
@@ -182,12 +215,14 @@ class _AxisLabels extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(_fmt(points.first.date),
-            style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11)),
-        Text(_fmt(points.last.date),
-            style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11)),
+        Text(
+          _fmt(points.first.date),
+          style: AppText.label.copyWith(color: palette.textFaint, fontSize: 11),
+        ),
+        Text(
+          _fmt(points.last.date),
+          style: AppText.label.copyWith(color: palette.textFaint, fontSize: 11),
+        ),
       ],
     );
   }
@@ -238,7 +273,6 @@ class _ChartPainter extends CustomPainter {
       return Offset(x, y);
     }
 
-    // Horizontal grid lines.
     final gridPaint = Paint()
       ..color = grid
       ..strokeWidth = 1;
@@ -247,7 +281,6 @@ class _ChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // Build the full path, then reveal it by [progress].
     final full = Path()..moveTo(at(0).dx, at(0).dy);
     for (var i = 1; i < points.length; i++) {
       final p0 = at(i - 1);
@@ -260,7 +293,6 @@ class _ChartPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, revealWidth, size.height));
 
-    // Gradient fill under the line.
     final fillPath = Path.from(full)
       ..lineTo(at(points.length - 1).dx, size.height)
       ..lineTo(0, size.height)
@@ -275,7 +307,6 @@ class _ChartPainter extends CustomPainter {
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
     );
 
-    // The line.
     canvas.drawPath(
       full,
       Paint()
@@ -287,7 +318,6 @@ class _ChartPainter extends CustomPainter {
     );
     canvas.restore();
 
-    // Selected point → vertical guide, dot and tooltip.
     if (selected != null && selected! >= 0 && selected! < points.length) {
       final p = at(selected!);
       canvas.drawLine(
@@ -299,10 +329,13 @@ class _ChartPainter extends CustomPainter {
       );
       canvas.drawCircle(p, 6, Paint()..color = line);
       canvas.drawCircle(
-          p, 6, Paint()
-        ..color = dotBorder
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5);
+        p,
+        6,
+        Paint()
+          ..color = dotBorder
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
       _paintTooltip(canvas, size, p, points[selected!]);
     }
   }
@@ -313,7 +346,10 @@ class _ChartPainter extends CustomPainter {
       text: TextSpan(
         text: label,
         style: TextStyle(
-            color: tooltipFg, fontSize: 12, fontWeight: FontWeight.w800),
+          color: tooltipFg,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -328,7 +364,9 @@ class _ChartPainter extends CustomPainter {
     if (top < 0) top = p.dy + 12;
 
     final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(left, top, w, h), const Radius.circular(8));
+      Rect.fromLTWH(left, top, w, h),
+      const Radius.circular(8),
+    );
     canvas.drawRRect(rect, Paint()..color = tooltipBg);
     tp.paint(canvas, Offset(left + padH, top + padV));
   }

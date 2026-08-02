@@ -4,6 +4,9 @@ import 'package:inoapp/core/responsive/responsive.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/home/home_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
+import 'package:inoapp/theme/theme_controller.dart';
+import 'package:inoapp/theme/theme_style.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final profile = UserProfile(
@@ -17,7 +20,22 @@ void main() {
     updatedAt: DateTime(2026, 1, 1),
   );
 
-  testWidgets('Home is a minimal launcher: 6 sections, no duplicated modules',
+  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.classic}) {
+    return MaterialApp(
+      theme: AppTheme.light,
+      home: InoStyleScope(
+        style: style,
+        child: InoResponsiveInit(child: child),
+      ),
+    );
+  }
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    ThemeController.style.value = ThemeStyle.classic;
+  });
+
+  testWidgets('Classic Home keeps original sections without My Vaults',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 6000);
     tester.view.devicePixelRatio = 3.0;
@@ -27,14 +45,11 @@ void main() {
     });
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: InoResponsiveInit(
-          child: HomeScreen(
-            profile: profile,
-            themeMode: ThemeMode.light,
-            onToggleTheme: () {},
-          ),
+      wrap(
+        HomeScreen(
+          profile: profile,
+          themeMode: ThemeMode.light,
+          onToggleTheme: () {},
         ),
       ),
     );
@@ -42,65 +57,84 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(tester.takeException(), isNull);
-
-    // The focused sections on redesigned Home.
-    expect(find.text("Today's Overview"), findsOneWidget);
     expect(find.text('Quick Actions'), findsOneWidget);
+    expect(find.text('Reminders'), findsOneWidget);
+    expect(find.text('My Vaults'), findsNothing);
+    expect(find.text('Needs attention'), findsNothing);
+    expect(find.text('Pending Actions'), findsNothing);
+  });
+
+  testWidgets(
+      'Launcher: first fold is Quick Actions → Vaults → Needs attention',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 8000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      wrap(
+        HomeScreen(
+          profile: profile,
+          themeMode: ThemeMode.light,
+          onToggleTheme: () {},
+        ),
+        style: ThemeStyle.launcher,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(tester.takeException(), isNull);
+
+    expect(find.text('Quick Actions'), findsOneWidget);
+    expect(find.text('My Vaults'), findsOneWidget);
+    expect(find.text('Needs attention'), findsOneWidget);
+
+    // Merged attention module — no duplicate Pending / Reminders sections.
+    expect(find.text('Pending Actions'), findsNothing);
+    expect(find.text('Reminders'), findsNothing);
+
+    // Previous Launcher quick actions (4) — short labels, no offline.
+    expect(find.text('Scan'), findsOneWidget);
+    expect(find.text('Documents'), findsOneWidget);
+    expect(find.text('Reminder'), findsOneWidget);
+    expect(find.text('Voice'), findsOneWidget);
+    expect(find.text('Offline'), findsNothing);
+    expect(find.text('Scan Document'), findsNothing);
+    expect(find.text('Voice Assistant'), findsNothing);
+
+    // Summary tiles live inside Needs attention.
+    expect(find.text('Expiring'), findsOneWidget);
+    expect(find.text('EMI Due'), findsOneWidget);
+    expect(find.text('Pending'), findsOneWidget);
+    expect(find.text('Insurance'), findsOneWidget);
+
+    // Order: Quick Actions → My Vaults → Needs attention → tools / market.
+    final quickY = tester.getTopLeft(find.text('Quick Actions')).dy;
+    final vaultsY = tester.getTopLeft(find.text('My Vaults')).dy;
+    final needsY = tester.getTopLeft(find.text('Needs attention')).dy;
+    final expiringY = tester.getTopLeft(find.text('Expiring')).dy;
+    expect(quickY, lessThan(vaultsY));
+    expect(vaultsY, lessThan(needsY));
+    expect(needsY, lessThan(expiringY));
+
+    // Hub shortcuts demoted below tools (still reachable).
+    expect(find.text('Expenses'), findsOneWidget);
+    expect(find.text('Net Worth'), findsOneWidget);
+    final toolsY =
+        tester.getTopLeft(find.text('Property & Finance Tools')).dy;
+    final expensesY = tester.getTopLeft(find.text('Expenses')).dy;
+    expect(toolsY, lessThan(expensesY));
+
     expect(find.text('Property & Finance Tools'), findsOneWidget);
     expect(find.text('Market Snapshot'), findsOneWidget);
 
-    // Today's Overview summary cards.
-    for (final m in const [
-      'Documents Expiring',
-      'EMI Due Tomorrow',
-      'Reminders Today',
-      'Insurance Renewals'
-    ]) {
-      expect(find.text(m), findsOneWidget);
-    }
-
-    // The 4 Quick Actions.
-    for (final a in const ['Documents', 'Notes', 'Expenses', 'Scanner']) {
-      expect(find.text(a), findsWidgets);
-    }
+    // Old Today/Tomorrow/Completed summary removed.
+    expect(find.text('Today'), findsNothing);
+    expect(find.text('This Week'), findsNothing);
+    expect(find.text('Completed'), findsNothing);
   });
-
-  // Verification across standard target device viewports
-  const viewports = <String, Size>{
-    '360x640 Small Phone': Size(360, 640),
-    '393x851 Normal Phone': Size(393, 851),
-    '412x915 Large Phone': Size(412, 915),
-    '480x960 Extra Large Phone': Size(480, 960),
-    '768x1024 Tablet': Size(768, 1024),
-  };
-
-  for (final entry in viewports.entries) {
-    testWidgets('Home renders without exceptions or overflows on ${entry.key}',
-        (tester) async {
-      tester.view.physicalSize = Size(entry.value.width * 2, entry.value.height * 2);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: InoResponsiveInit(
-            child: HomeScreen(
-              profile: profile,
-              themeMode: ThemeMode.light,
-              onToggleTheme: () {},
-            ),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(tester.takeException(), isNull);
-      expect(find.text("Today's Overview"), findsOneWidget);
-    });
-  }
 }

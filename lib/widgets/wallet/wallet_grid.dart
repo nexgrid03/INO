@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/liquid_glass.dart';
 import '../common/shiny_border.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
@@ -202,8 +203,8 @@ class _WalletCard extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    // Divine Glass classic/soft: white glass card - the accent lives only on
-    // the icon chip and the whisper blob. Bold keeps its flooded-card look.
+    // Frosted glass cards: accent lives on the icon chip and whisper blobs.
+    // Bold keeps its flooded-card look.
     final fill = bold
         ? InoStyle.boldFill(accent)
         : (palette.isDark
@@ -218,163 +219,161 @@ class _WalletCard extends StatelessWidget {
     final metricColor = bold
         ? InoStyle.boldTextSecondary
         : palette.textSecondary;
-    return PressableScale(
-      pressedScale: 0.97,
-      child: GestureDetector(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        behavior: HitTestBehavior.opaque,
-        // Soft: the classic accent border picks up a glass sheen.
-        child: ShinyBorder(
-          radius: 20,
-          width: 2.5,
-          enabled: soft,
-          child: Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: BorderRadius.circular(20),
-              // Divine Glass: a pale glass hairline in classic/soft; bold
-              // keeps its heavier flooded-card edge.
-              border: Border.all(
-                color: bold ? edge : palette.border,
-                width: bold ? 2.5 : 1.0,
+
+    final content = Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: drift,
+                builder: (context, _) {
+                  final t = math.sin(drift.value * math.pi * 2 + phase);
+                  return Stack(
+                    children: [
+                      Positioned(
+                        top: -24 + t * 5,
+                        right: -20,
+                        child: _Blob(
+                          color: bold ? Colors.white : accent,
+                          size: 92,
+                          opacity: bold ? 0.20 : 0.10,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: -28 - t * 4,
+                        left: -22,
+                        child: _Blob(
+                          color: bold ? Colors.white : accent,
+                          size: 64,
+                          opacity: bold ? 0.12 : 0.06,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              boxShadow: bold
-                  ? [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.24),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ]
-                  : palette.cardShadow,
             ),
-            child: Stack(
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.25,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Decorative drifting blob - the "graphic" that gives each card
-                // depth. Isolated in its own AnimatedBuilder so only it repaints.
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: drift,
-                        builder: (context, _) {
-                          final t = math.sin(drift.value * math.pi * 2 + phase);
-                          return Stack(
-                            children: [
-                              Positioned(
-                                top: -24 + t * 5,
-                                right: -20,
-                                child: _Blob(
-                                  // Over the bold accent fill the accent blob
-                                  // vanishes - drift soft light instead.
-                                  color: bold ? Colors.white : accent,
-                                  size: 92,
-                                  opacity: bold ? 0.20 : 0.10,
-                                ),
+                Row(
+                  children: [
+                    bold
+                        ? SizedBox(
+                            width: 38,
+                            height: 38,
+                            child: Icon(
+                              category.icon,
+                              color: Colors.white,
+                              size: 30,
+                            ),
+                          )
+                        : Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: accent.withValues(
+                                alpha: palette.isDark ? 0.22 : 0.14,
                               ),
-                              Positioned(
-                                bottom: -28 - t * 4,
-                                left: -22,
-                                child: _Blob(
-                                  color: bold ? Colors.white : accent,
-                                  size: 64,
-                                  opacity: bold ? 0.12 : 0.06,
-                                ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: accent.withValues(alpha: 0.25),
                               ),
-                            ],
-                          );
-                        },
-                      ),
+                            ),
+                            child: Icon(
+                              category.icon,
+                              color: accent,
+                              size: 22,
+                            ),
+                          ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_outward_rounded,
+                      color: bold
+                          ? Colors.white.withValues(alpha: 0.85)
+                          : accent.withValues(alpha: 0.6),
+                      size: 18,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  localizedWalletName(l10n, category.name),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                    letterSpacing: -0.2,
                   ),
                 ),
-
-                // Card content.
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: MediaQuery.withClampedTextScaling(
-                    maxScaleFactor: 1.25,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            // Bold keeps the glyph in the same slot, plain
-                            // white - the card itself is the coloured chip now.
-                            bold
-                                ? SizedBox(
-                                    width: 38,
-                                    height: 38,
-                                    // Bigger than the old badge glyph - with the
-                                    // badge body gone it can fill the slot.
-                                    child: Icon(
-                                      category.icon,
-                                      color: Colors.white,
-                                      size: 30,
-                                    ),
-                                  )
-                                : Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: accent.withValues(
-                                        alpha: palette.isDark ? 0.22 : 0.14,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: accent.withValues(alpha: 0.25),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      category.icon,
-                                      color: accent,
-                                      size: 20,
-                                    ),
-                                  ),
-                            const Spacer(),
-                            Icon(
-                              Icons.arrow_outward_rounded,
-                              color: bold
-                                  ? Colors.white.withValues(alpha: 0.85)
-                                  : accent.withValues(alpha: 0.6),
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 9),
-                        Text(
-                          localizedWalletName(l10n, category.name),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: titleColor,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${category.metric} ${localizedMetricLabel(l10n, category.metricLabel)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
-                            color: metricColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  '${category.metric} ${localizedMetricLabel(l10n, category.metricLabel)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: metricColor,
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ],
+    );
+
+    final surface = bold
+        ? ShinyBorder(
+            radius: 20,
+            width: 2.5,
+            enabled: soft,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: edge,
+                  width: 2.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.24),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: content,
+            ),
+          )
+        : LiquidGlass(
+            borderRadius: BorderRadius.circular(20),
+            blur: 16,
+            frost: palette.isDark ? 1.1 : 0.72,
+            padding: EdgeInsets.zero,
+            child: SizedBox.expand(child: content),
+          );
+
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        behavior: HitTestBehavior.opaque,
+        child: surface,
       ),
     );
   }
@@ -405,43 +404,42 @@ class _AddWalletCard extends StatelessWidget {
             color: edge.withValues(alpha: 0.75),
             radius: 20,
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                accent.withValues(alpha: palette.isDark ? 0.12 : 0.06),
-                palette.surface,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
+          child: LiquidGlass(
+            borderRadius: BorderRadius.circular(20),
+            blur: 14,
+            frost: palette.isDark ? 1.05 : 0.65,
+            shadow: false,
+            tint: accent.withValues(alpha: 0.06),
+            padding: EdgeInsets.zero,
             child: MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.25,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       gradient: InoStyle.gradient(
                         context,
                         AppColors.brandGradient,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: AppShadows.glow(accent, opacity: 0.26),
                     ),
                     child: const Icon(
                       Icons.add_rounded,
                       color: Colors.white,
-                      size: 22,
+                      size: 24,
                     ),
                   ),
-                  const SizedBox(height: 9),
+                  const SizedBox(height: 10),
                   Text(
                     l10n.t('newWallet'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: palette.textPrimary,
                       letterSpacing: -0.2,

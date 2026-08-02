@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
+import '../divine_glass/divine_glass.dart';
 import '../floating_particles.dart';
 
 /// Shared premium backdrop + layout for every authentication screen.
@@ -43,6 +45,30 @@ class AuthScaffold extends StatefulWidget {
   State<AuthScaffold> createState() => _AuthScaffoldState();
 }
 
+/// Launcher-aware auth headline (larger / heavier under Divine Glass).
+class AuthPageTitle extends StatelessWidget {
+  const AuthPageTitle(this.text, {super.key, this.color = AppColors.textDark});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final launcher = InoStyle.isLauncher(context);
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: launcher ? 30 : 26,
+        fontWeight: launcher ? FontWeight.w800 : FontWeight.w700,
+        letterSpacing: launcher ? -0.5 : 0,
+        height: 1.15,
+        color: color,
+      ),
+    );
+  }
+}
+
 class _AuthScaffoldState extends State<AuthScaffold>
     with SingleTickerProviderStateMixin {
   /// Slow, perpetual loop for the floating background particles - matches the
@@ -63,13 +89,22 @@ class _AuthScaffoldState extends State<AuthScaffold>
     final palette = AppPalette.of(context);
     final showTopRow = widget.showBack || widget.trailing != null;
 
+    Widget content = widget.child;
+    if (InoStyle.isLauncher(context)) {
+      content = DivineGlassCard(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+        radius: 24,
+        child: content,
+      );
+    }
+
     Widget body = widget.scrollable
         ? SingleChildScrollView(
             padding: widget.padding,
             physics: const BouncingScrollPhysics(),
-            child: widget.child,
+            child: content,
           )
-        : Padding(padding: widget.padding, child: widget.child);
+        : Padding(padding: widget.padding, child: content);
 
     return Scaffold(
       // Let the backdrop sit behind the keyboard rather than resizing abruptly.

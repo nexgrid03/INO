@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_back_button.dart';
 import '../common/shiny_icon.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// Section 1 - the compact Wallet header.
@@ -13,6 +14,9 @@ import '../pressable_scale.dart';
 /// ellipsised) and the wallet's contextual actions on the right. Search and
 /// sort/filter no longer live here - they scroll with the page - so the header
 /// stays light and the title always reads in full.
+///
+/// Under Launcher (Divine Glass), matches Figma Identity: centered teal title,
+/// back left, more right — no icon chip beside the title.
 class WalletHeader extends StatelessWidget {
   const WalletHeader({
     super.key,
@@ -37,6 +41,39 @@ class WalletHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (divineGlassEnabled(context)) {
+      return _launcherHeader(context);
+    }
+    return _classicHeader(context);
+  }
+
+  Widget _launcherHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    Widget? trailing;
+    if (onAreaConverter != null) {
+      trailing = DivineGlassHeaderAction(
+        icon: Icons.straighten_rounded,
+        tooltip: l10n.t('areaConverter'),
+        onTap: onAreaConverter!,
+      );
+    } else if (onManageShares != null) {
+      trailing = DivineGlassHeaderAction(
+        icon: Icons.more_vert_rounded,
+        tooltip: l10n.t('sharedLinks'),
+        onTap: onManageShares!,
+      );
+    }
+    // Full-bleed frosted Top App Bar (Figma Identity Wallet), under status bar.
+    return DivineGlassAppBar(
+      title: title,
+      onBack: onBack,
+      trailing: trailing,
+      centerTitle: true,
+      includeStatusBar: true,
+    );
+  }
+
+  Widget _classicHeader(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return Row(
@@ -55,8 +92,6 @@ class WalletHeader extends StatelessWidget {
           const SizedBox(width: 12),
         ],
         Expanded(
-          // FittedBox → the title scales down a hair if a localised name is long,
-          // so it always fits on one line with no trailing dots.
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

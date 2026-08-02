@@ -5,7 +5,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
+import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// The shared building blocks of the four data-driven wallet modules (Property,
@@ -48,14 +50,11 @@ class ModuleSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final color = accent ?? AppColors.primaryGreen;
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: palette.cardGradient,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
+    // Title-only — section subtitles omitted across the app.
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      blur: 20,
+      frost: palette.isDark ? 1.05 : 0.72,
       padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,25 +70,12 @@ class ModuleSection extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppText.title.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 15.5,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle!,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  title,
+                  style: AppText.title.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 15.5,
+                  ),
                 ),
               ),
               ?trailing,
@@ -249,25 +235,12 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final bold = InoStyle.of(context) == ThemeStyle.bold;
-    final fill = bold
-        ? InoStyle.boldFill(accent)
-        : Color.alphaBlend(
-            accent.withValues(alpha: palette.isDark ? 0.16 : 0.09),
-            palette.surface,
-          );
     final textPrimary = bold ? Colors.white : palette.textPrimary;
     final textSecondary =
         bold ? InoStyle.boldTextSecondary : palette.textSecondary;
-    final tile = Container(
+
+    final inner = Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-        border: Border.all(
-          color: bold ? InoStyle.boldBorder(accent) : accent.withValues(alpha: 0.35),
-          width: 1.4,
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -285,11 +258,44 @@ class StatTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: textSecondary, fontSize: 11.5),
+            style: AppText.caption
+                .copyWith(color: textSecondary, fontSize: 11.5),
           ),
         ],
       ),
     );
+
+    final tile = bold
+        ? Container(
+            decoration: BoxDecoration(
+              color: InoStyle.boldFill(accent),
+              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+              border: Border.all(
+                color: InoStyle.boldBorder(accent),
+                width: 1.4,
+              ),
+            ),
+            child: inner,
+          )
+        : LiquidGlass(
+            borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+            blur: 14,
+            frost: palette.isDark ? 1.05 : 0.72,
+            shadow: false,
+            tint: accent.withValues(alpha: 0.08),
+            padding: EdgeInsets.zero,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+                border: Border.all(
+                  color: accent.withValues(alpha: 0.28),
+                  width: 1.2,
+                ),
+              ),
+              child: inner,
+            ),
+          );
+
     if (onTap == null) return tile;
     return PressableScale(
       pressedScale: 0.97,
@@ -866,9 +872,10 @@ class ModuleHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Row(
+    final launcher = divineGlassEnabled(context);
+    final row = Row(
       children: [
-        InoBackButton(size: 42, onTap: onBack),
+        InoBackButton(size: 40, onTap: onBack),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
@@ -877,34 +884,57 @@ class ModuleHeader extends StatelessWidget {
               Row(
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 19, color: AppColors.primaryGreen),
-                    const SizedBox(width: 7),
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: palette.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
                   ],
                   Flexible(
                     child: Text(
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.headline.copyWith(
+                      style: TextStyle(
                         color: palette.textPrimary,
-                        fontSize: 21,
+                        fontSize: launcher ? 18 : 21,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.35,
+                        height: 1.15,
                       ),
                     ),
                   ),
                 ],
               ),
-              if (subtitle != null)
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.caption.copyWith(color: palette.textSecondary),
                 ),
+              ],
             ],
           ),
         ),
         for (final a in actions) ...[const SizedBox(width: 8), a],
       ],
+    );
+
+    if (!launcher) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+        child: row,
+      );
+    }
+
+    // Status-bar inset only — do not use a giant 28px title (caused overlap).
+    final top = MediaQuery.viewPaddingOf(context).top;
+    return DivineGlassHeaderBar(
+      padding: EdgeInsets.fromLTRB(12, top + 8, 12, 10),
+      child: row,
     );
   }
 }
@@ -931,40 +961,64 @@ class ModuleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final button = PressableScale(
-      pressedScale: 0.9,
-      child: Material(
-        color: palette.surface,
-        shape: CircleBorder(side: BorderSide(color: palette.border)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(icon, size: 20, color: color ?? palette.textPrimary),
-                if (badge > 0)
-                  Positioned(
-                    top: 9,
-                    right: 9,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: AppColors.critical,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: palette.surface, width: 1.5),
-                      ),
-                    ),
-                  ),
-              ],
+    final launcher = divineGlassEnabled(context);
+    final iconWidget = Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(
+          icon,
+          size: launcher ? 18 : 20,
+          color: color ??
+              (launcher ? AppColors.primaryGreen : palette.textPrimary),
+        ),
+        if (badge > 0)
+          Positioned(
+            top: launcher ? 8 : 9,
+            right: launcher ? 8 : 9,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: AppColors.critical,
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.surface, width: 1.5),
+              ),
             ),
           ),
-        ),
-      ),
+      ],
+    );
+    final button = PressableScale(
+      pressedScale: 0.9,
+      child: launcher
+          ? GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: LiquidGlass(
+                circle: true,
+                blur: 12,
+                frost: 0.9,
+                shadow: false,
+                padding: EdgeInsets.zero,
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: iconWidget,
+                ),
+              ),
+            )
+          : Material(
+              color: palette.surface,
+              shape: CircleBorder(side: BorderSide(color: palette.border)),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: iconWidget,
+                ),
+              ),
+            ),
     );
     return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
   }

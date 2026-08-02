@@ -2,12 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
+import 'launcher_glass_icon_tile.dart';
 
 /// The Home hero block, replicating the reference vault layout:
 ///
@@ -27,13 +29,16 @@ class DashboardCard extends StatefulWidget {
     this.remindersToday = 0,
     this.insuranceRenewals = 0,
     this.emiDue = 0,
+    this.pendingCount = 0,
+    this.showSummaryStrip = true,
+    this.replaceRemindersWithPending = false,
     this.onDocumentsExpiring,
     this.onEmiDues,
     this.onRemindersToday,
     this.onInsuranceRenewals,
+    this.onPending,
     this.onCta,
     this.onAssets,
-    this.onPending,
     this.onProtected,
   });
 
@@ -44,6 +49,13 @@ class DashboardCard extends StatefulWidget {
   final int remindersToday;
   final int insuranceRenewals;
   final int emiDue;
+  final int pendingCount;
+
+  /// When false, only the vault hero card is shown.
+  final bool showSummaryStrip;
+
+  /// Launcher theme: third tile is Pending (not Reminders).
+  final bool replaceRemindersWithPending;
   final VoidCallback? onDocumentsExpiring;
   final VoidCallback? onEmiDues;
   final VoidCallback? onRemindersToday;
@@ -59,156 +71,190 @@ class DashboardCard extends StatefulWidget {
 
 class _DashboardCardState extends State<DashboardCard>
     with SingleTickerProviderStateMixin {
-  // One slow, perpetual loop drives every ambient motion in the hero - the
-  // drifting backdrop and the subtle gradient shift - so the whole surface
-  // breathes together at ~12s per cycle.
-  late final AnimationController _ambient = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 12),
-  )..repeat(reverse: true);
+  // Created in [initState] (never lazily) so [dispose] never looks up
+  // TickerMode on a deactivated element when the light/dark hero path differs.
+  AnimationController? _ambient;
+
+  @override
+  void initState() {
+    super.initState();
+    _ambient = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
-    _ambient.dispose();
+    _ambient?.dispose();
+    _ambient = null;
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // --- 1. Hero card: mascot left, copy + CTA right -------------------
-        // Liquid Glass hero: the sky gradient refracts through the frosted
-        // card; the animated wash below now paints *over* the glass fill.
-        LiquidGlass(
-          borderRadius: BorderRadius.circular(AppRadius.large),
-          blur: 24,
-          child: Stack(
-            children: [
-              // Animated sky-wash backdrop (gradient shift + drifting
-              // graphics). Only this layer repaints each frame.
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: AnimatedBuilder(
-                    animation: _ambient,
-                    builder: (context, _) {
-                      final t = Curves.easeInOut.transform(_ambient.value);
-                      return DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment(-1 + t * 0.4, -1),
-                            end: Alignment(1, 1 - t * 0.4),
-                            colors: [
-                              AppColors.tealFoam.withValues(
-                                  alpha: palette.isDark ? 0.0 : 0.35),
-                              AppColors.tealMist.withValues(
-                                  alpha: palette.isDark ? 0.06 : 0.55),
-                            ],
-                          ),
-                        ),
-                        child: CustomPaint(painter: _OverviewBackdrop(t: t)),
-                      );
-                    },
-                  ),
+        _buildHero(palette),
+
+        if (widget.showSummaryStrip) ...[
+          const SizedBox(height: 12),
+          HomeSummaryStrip(
+            documentsExpiring: widget.documentsExpiring,
+            remindersToday: widget.remindersToday,
+            insuranceRenewals: widget.insuranceRenewals,
+            emiDue: widget.emiDue,
+            pendingCount: widget.pendingCount,
+            replaceRemindersWithPending: widget.replaceRemindersWithPending,
+            enlargedIcons: widget.replaceRemindersWithPending,
+            onDocumentsExpiring: widget.onDocumentsExpiring ?? widget.onPending,
+            onEmiDues: widget.onEmiDues ?? widget.onCta,
+            onRemindersToday: widget.onRemindersToday ?? widget.onCta,
+            onInsuranceRenewals:
+                widget.onInsuranceRenewals ?? widget.onProtected,
+            onPending: widget.onPending,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Shared vault hero (dark layout) for both brightnesses — light uses
+  /// warmer foam washes and brand teal eyebrow instead of skyBlue.
+  Widget _buildHero(AppPalette palette) {
+    final dark = palette.isDark;
+    final eyebrow = dark ? AppColors.skyBlue : AppColors.primaryGreen;
+    final washCore = dark
+        ? AppColors.skyBlue.withValues(alpha: 0.22)
+        : AppColors.secondaryGreen.withValues(alpha: 0.28);
+    final washMid = dark
+        ? AppColors.primaryGreen.withValues(alpha: 0.08)
+        : AppColors.skyBlue.withValues(alpha: 0.12);
+
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.large),
+      // Opaque frost — BackdropFilter on the hero + tile grid tanks Flutter web.
+      enableBlur: false,
+      frost: dark ? 1.15 : 0.78,
+      shadow: true,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: palette.cardGradient),
+            ),
+          ),
+          // Soft brand wash behind the shield.
+          Positioned(
+            left: -24,
+            top: -36,
+            bottom: -36,
+            width: 190,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    washCore,
+                    washMid,
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
                 ),
               ),
-
-              // Foreground hero row. IntrinsicHeight lets the mascot column
-              // stretch to exactly the text column's height, so the
-              // illustration is always vertically centred against the copy
-              // (no empty corner above it).
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // The shield mascot, enlarged into the reference's
-                      // illustration slot and centred on the card's height.
-                      SizedBox(
-                        width: 118,
-                        child: Center(
-                          child: Transform.scale(
-                            scale: 2.1,
-                            child: const _MascotBadge(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // The copy column is anchored to the card's RIGHT edge:
-                      // every line and the CTA share one clean right-aligned
-                      // axis, balancing the mascot on the left.
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Eyebrow - small caps in the brand teal.
-                            const Text(
-                              'YOUR VAULT',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                color: AppColors.primaryGreen,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Your Vault is 100% Protected',
-                              textAlign: TextAlign.right,
-                              maxLines: 2,
-                              style: TextStyle(
-                                color: palette.textPrimary,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
-                                height: 1.15,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'All your documents are safe and backed up',
-                              textAlign: TextAlign.right,
-                              maxLines: 2,
-                              style: TextStyle(
-                                color: palette.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _HeroCta(onTap: widget.onCta),
+            ),
+          ),
+          // Gentle ambient shift (light only — keeps dark cards calmer).
+          if (!dark && _ambient != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _ambient!,
+                  builder: (context, _) {
+                    final t = Curves.easeInOut.transform(_ambient!.value);
+                    return DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment(-1 + t * 0.3, -1),
+                          end: Alignment(1, 1 - t * 0.3),
+                          colors: [
+                            AppColors.tealFoam.withValues(alpha: 0.20),
+                            AppColors.tealMist.withValues(alpha: 0.08),
+                            Colors.transparent,
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
-            ],
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 124,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: 2.1,
+                        child: const _MascotBadge(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'YOUR VAULT',
+                          style: TextStyle(
+                            color: eyebrow,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Your Vault is 100% Protected',
+                          maxLines: 2,
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'All your documents are safe and backed up',
+                          maxLines: 2,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _HeroCta(onTap: widget.onCta),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // --- 2. Compact summary strip: four tiles in one row ---------------
-        _SummaryStrip(
-          documentsExpiring: widget.documentsExpiring,
-          remindersToday: widget.remindersToday,
-          insuranceRenewals: widget.insuranceRenewals,
-          emiDue: widget.emiDue,
-          onDocumentsExpiring: widget.onDocumentsExpiring ?? widget.onPending,
-          onEmiDues: widget.onEmiDues ?? widget.onCta,
-          onRemindersToday: widget.onRemindersToday ?? widget.onCta,
-          onInsuranceRenewals:
-              widget.onInsuranceRenewals ?? widget.onProtected,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -225,33 +271,37 @@ class _HeroCta extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'View Documents',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
-              ),
-              SizedBox(width: 6),
-              Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
-            ],
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'View Documents',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+              ],
+            ),
           ),
         ),
       ),
@@ -376,62 +426,108 @@ class _Sparkle extends StatelessWidget {
   }
 }
 
-/// The four summary counts as one compact row - the reference "Reminders"
-/// strip alignment: small label on top, big count bottom-left, a pastel icon
-/// chip bottom-right. Same counts, same taps as the old 2×2 grid.
-class _SummaryStrip extends StatelessWidget {
-  const _SummaryStrip({
+/// The four summary counts as one compact row (Expiring · EMI Due ·
+/// Reminders/Pending · Insurance). Used under the hero on Classic, or as a
+/// lower section on Launcher.
+class HomeSummaryStrip extends StatelessWidget {
+  const HomeSummaryStrip({
+    super.key,
     required this.documentsExpiring,
     required this.remindersToday,
     required this.insuranceRenewals,
     required this.emiDue,
+    this.pendingCount = 0,
+    this.replaceRemindersWithPending = false,
+    this.enlargedIcons = false,
     this.onDocumentsExpiring,
     this.onEmiDues,
     this.onRemindersToday,
     this.onInsuranceRenewals,
+    this.onPending,
   });
 
   final int documentsExpiring;
   final int remindersToday;
   final int insuranceRenewals;
   final int emiDue;
+  final int pendingCount;
+  final bool replaceRemindersWithPending;
+  final bool enlargedIcons;
   final VoidCallback? onDocumentsExpiring;
   final VoidCallback? onEmiDues;
   final VoidCallback? onRemindersToday;
   final VoidCallback? onInsuranceRenewals;
+  final VoidCallback? onPending;
 
   @override
   Widget build(BuildContext context) {
-    final tiles = <Widget>[
-      _StripTile(
-        label: 'Expiring',
-        value: '$documentsExpiring',
+    final l10n = AppLocalizations.of(context);
+    final third = replaceRemindersWithPending
+        ? (
+            label: l10n.t('pending'),
+            value: pendingCount,
+            icon: Icons.pending_actions_rounded,
+            accent: AppColors.accentCoral,
+            onTap: onPending ?? onRemindersToday,
+          )
+        : (
+            label: l10n.t('reminders'),
+            value: remindersToday,
+            icon: Icons.alarm_rounded,
+            accent: AppColors.accentCoral,
+            onTap: onRemindersToday,
+          );
+
+    final tiles = <({
+      String label,
+      int value,
+      IconData icon,
+      Color accent,
+      VoidCallback? onTap,
+    })>[
+      (
+        label: l10n.t('expiring'),
+        value: documentsExpiring,
         icon: Icons.warning_amber_rounded,
-        accent: const Color(0xFFF59E0B),
+        accent: AppColors.warning,
         onTap: onDocumentsExpiring,
       ),
-      _StripTile(
-        label: 'EMI Due',
-        value: '$emiDue',
+      (
+        label: l10n.t('emiDue'),
+        value: emiDue,
         icon: Icons.account_balance_wallet_rounded,
-        accent: const Color(0xFF2563EB),
+        accent: AppColors.accentBlue,
         onTap: onEmiDues,
       ),
-      _StripTile(
-        label: 'Reminders',
-        value: '$remindersToday',
-        icon: Icons.alarm_rounded,
-        accent: const Color(0xFFF5704A),
-        onTap: onRemindersToday,
-      ),
-      _StripTile(
-        label: 'Insurance',
-        value: '$insuranceRenewals',
+      third,
+      (
+        label: l10n.t('insurance'),
+        value: insuranceRenewals,
         icon: Icons.shield_rounded,
-        accent: const Color(0xFF8B6CEF),
+        accent: AppColors.vaultIdentity,
         onTap: onInsuranceRenewals,
       ),
     ];
+
+    if (enlargedIcons) {
+      // Launcher: same glass as My Vaults — no FadeSlideIn (web lag / blank).
+      return Row(
+        children: [
+          for (var i = 0; i < tiles.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(
+              child: LauncherGlassIconTile(
+                label: tiles[i].label,
+                count: tiles[i].value,
+                icon: tiles[i].icon,
+                accent: tiles[i].accent,
+                onTap: tiles[i].onTap ?? () {},
+              ),
+            ),
+          ],
+        ],
+      );
+    }
 
     return Row(
       children: [
@@ -441,7 +537,13 @@ class _SummaryStrip extends StatelessWidget {
             child: FadeSlideIn(
               delay: Duration(milliseconds: 120 + i * 90),
               offset: 18,
-              child: tiles[i],
+              child: _StripTile(
+                label: tiles[i].label,
+                value: '${tiles[i].value}',
+                icon: tiles[i].icon,
+                accent: tiles[i].accent,
+                onTap: tiles[i].onTap,
+              ),
             ),
           ),
         ],
@@ -450,7 +552,7 @@ class _SummaryStrip extends StatelessWidget {
   }
 }
 
-/// One compact summary tile: label on top, count + icon chip below.
+/// Classic compact summary tile: label + count + tint chip inside glass.
 class _StripTile extends StatelessWidget {
   const _StripTile({
     required this.label,
@@ -518,6 +620,7 @@ class _StripTile extends StatelessWidget {
                   color: accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(8),
                 ),
+                alignment: Alignment.center,
                 child: Icon(icon, color: accent, size: 15),
               ),
             ],
@@ -536,88 +639,4 @@ class _StripTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Paints the drifting abstract graphics over the hero wash: soft blobs, a
-/// gentle wave band and thin geometric ring accents. Everything moves with
-/// [t] (0→1→0) so the section feels alive without distracting.
-class _OverviewBackdrop extends CustomPainter {
-  _OverviewBackdrop({required this.t});
-
-  final double t;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final drift = (t - 0.5) * 22; // −11 → +11 px slow travel
-
-    // Soft radial blobs - layered translucent sky light.
-    void blob(Offset c, double r, double alpha) {
-      final paint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            AppColors.skyBlue.withValues(alpha: alpha),
-            AppColors.skyBlue.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromCircle(center: c, radius: r));
-      canvas.drawCircle(c, r, paint);
-    }
-
-    blob(Offset(size.width * 0.92, -20 + drift), size.width * 0.42, 0.16);
-    blob(
-      Offset(size.width * 0.08, size.height * 0.72 - drift),
-      size.width * 0.38,
-      0.12,
-    );
-
-    // Thin geometric ring accents, top-right.
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..color = AppColors.skyBlue.withValues(alpha: 0.30);
-    canvas.drawCircle(
-      Offset(size.width * 0.82, size.height * 0.30 + drift * 0.5),
-      30,
-      ring,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.82, size.height * 0.30 + drift * 0.5),
-      46,
-      ring..color = AppColors.skyBlue.withValues(alpha: 0.16),
-    );
-
-    // A gentle wave band across the lower third.
-    final wave = Paint()..color = AppColors.skyBlue.withValues(alpha: 0.10);
-    final path = Path();
-    final baseY = size.height * 0.62;
-    const amp = 12.0;
-    path.moveTo(0, baseY);
-    for (double x = 0; x <= size.width; x += 1) {
-      final y =
-          baseY +
-          math.sin((x / size.width * 2 * math.pi) + t * math.pi * 2) * amp;
-      path.lineTo(x, y);
-    }
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-    canvas.drawPath(path, wave);
-
-    // Faint dotted accent cluster, mid-left.
-    final dot = Paint()..color = AppColors.skyBlue.withValues(alpha: 0.25);
-    for (var r = 0; r < 3; r++) {
-      for (var c = 0; c < 3; c++) {
-        canvas.drawCircle(
-          Offset(
-            size.width * 0.14 + c * 9,
-            size.height * 0.22 + r * 9 + drift * 0.3,
-          ),
-          1.3,
-          dot,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_OverviewBackdrop old) => old.t != t;
 }

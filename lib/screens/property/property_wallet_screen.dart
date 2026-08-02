@@ -13,6 +13,7 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../wallet/wallet_detail_screen.dart';
@@ -165,7 +166,9 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
@@ -173,9 +176,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
             ),
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                  child: ModuleHeader(
+                child: ModuleHeader(
                     title: 'Property Wallet',
                     subtitle: hasAny
                         ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
@@ -193,7 +194,6 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                       ),
                     ],
                   ),
-                ),
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
@@ -347,14 +347,9 @@ class _PortfolioCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final up = (appreciation ?? 0) >= 0;
     final trendColor = up ? AppColors.success : AppColors.critical;
-    return Container(
+    return AdaptiveGlassCard(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        gradient: palette.cardGradient,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
-      ),
+      radius: AppRadius.large,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -539,18 +534,15 @@ class PropertyCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            gradient: palette.cardGradient,
+        child: AdaptiveGlassCard(
+          padding: EdgeInsets.zero,
+          radius: AppRadius.card,
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
-          ),
-          // The card sits in a sliver list, so its height is unbounded. The
-          // thumbnail stretches to whatever the text column measures, and
-          // stretch needs a real height to stretch to - hence IntrinsicHeight.
-          child: IntrinsicHeight(
+            // The card sits in a sliver list, so its height is unbounded. The
+            // thumbnail stretches to whatever the text column measures, and
+            // stretch needs a real height to stretch to - hence IntrinsicHeight.
+            child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -663,6 +655,7 @@ class PropertyCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

@@ -5,8 +5,15 @@ import 'package:inoapp/screens/notifications/notifications_screen.dart';
 import 'package:inoapp/screens/search/global_search_screen.dart';
 import 'package:inoapp/services/net_worth_service.dart';
 import 'package:inoapp/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('NetWorthService', () {
     test('formatInr renders compact Indian units', () {
       expect(formatInr(12400000), '₹1.24 Cr');
@@ -15,7 +22,8 @@ void main() {
       expect(formatInr(-5200), '-₹5,200');
     });
 
-    test('each range series ends exactly at the current total', () {
+    test('each range series ends exactly at the current total', () async {
+      await NetWorthService.instance.ensureReady();
       final total = NetWorthService.instance.total;
       for (final range in NetWorthRange.values) {
         final series = NetWorthService.instance.seriesFor(range);
@@ -25,16 +33,25 @@ void main() {
       }
     });
 
-    test('net worth reports a positive month-over-month growth', () {
+    test('net worth equals live Property + Investment totals', () async {
+      await NetWorthService.instance.ensureReady();
       final data = NetWorthService.instance.data;
-      expect(data.total, greaterThan(0));
-      expect(data.isUp, isTrue);
-      expect(data.allocations, isNotEmpty);
+      final sum = data.allocations.fold<double>(0, (s, a) => s + a.value);
+      expect(data.total, closeTo(sum, 0.01));
+      expect(
+        data.total,
+        closeTo(
+          NetWorthService.instance.propertyValue +
+              NetWorthService.instance.investmentsValue,
+          0.01,
+        ),
+      );
     });
   });
 
   testWidgets('Net Worth Analytics renders the chart + distribution',
       (tester) async {
+    SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(() {
@@ -43,12 +60,12 @@ void main() {
     });
 
     await tester.pumpWidget(const MaterialApp(home: NetWorthAnalyticsScreen()));
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Total net worth'), findsOneWidget);
+    expect(find.text('Net Worth'), findsOneWidget);
     expect(find.text('Asset distribution'), findsOneWidget);
-    // The interactive range selector is present.
     expect(find.text('30D'), findsOneWidget);
     expect(find.text('1Y'), findsOneWidget);
   });

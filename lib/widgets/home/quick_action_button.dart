@@ -2,26 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_svg_icon.dart';
 import '../pressable_scale.dart';
 
-/// Section 5 - a single Quick Action.
+/// Section - a single Quick Action.
 ///
-/// A circular pill: a white glyph on a saturated accent [ShinyIcon] that lifts
-/// off the background, with the caption below - the premium "round action"
-/// treatment. Large touch target, press-squish via [PressableScale].
+/// A circular pill: white glyph on a brand-gradient disc, caption below.
+/// Prefer [svgAsset] (PhonePe-style launcher); [icon] remains as fallback.
+///
+/// When [enlarged] is true (Launcher / senior-friendly), the disc fills most
+/// of the column and the glyph fills most of the disc — no nested glass/chip.
 class QuickActionButton extends StatelessWidget {
   const QuickActionButton({
     super.key,
-    required this.icon,
+    this.icon,
+    this.svgAsset,
     required this.label,
     required this.color,
     required this.onTap,
-  });
+    this.enlarged = false,
+  }) : assert(icon != null || svgAsset != null, 'Provide icon or svgAsset');
 
-  final IconData icon;
+  final IconData? icon;
+  final String? svgAsset;
   final String label;
   final Color color;
   final VoidCallback onTap;
+
+  /// Bigger touch targets and icons for the Launcher theme.
+  final bool enlarged;
 
   @override
   Widget build(BuildContext context) {
@@ -31,45 +40,63 @@ class QuickActionButton extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // A solid brand-gradient circle with a white glyph - the
-              // reference "round action" treatment: one uniform brand hue
-              // across the row.
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.30),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
+          padding: EdgeInsets.symmetric(vertical: enlarged ? 4 : 4),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Launcher: disc owns the column; glyph owns the disc.
+              final disc = enlarged
+                  ? (constraints.maxWidth * 0.88).clamp(64.0, 88.0)
+                  : constraints.maxWidth.clamp(40.0, 56.0);
+              final glyph = enlarged
+                  ? (disc * 0.58).clamp(36.0, 50.0)
+                  : (disc * 0.42).clamp(16.0, 24.0);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: disc,
+                    height: disc,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              AppColors.primaryGreen.withValues(alpha: 0.28),
+                          blurRadius: enlarged ? 18 : 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              // Scale the label down to fit rather than truncating, so full
-              // names (e.g. "Reminder", "Document") always show.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: AppText.caption.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11.5,
+                    alignment: Alignment.center,
+                    child: svgAsset != null
+                        ? InoSvgIcon(
+                            svgAsset!,
+                            size: glyph,
+                            color: Colors.white,
+                          )
+                        : Icon(icon, color: Colors.white, size: glyph),
                   ),
-                ),
-              ),
-            ],
+                  SizedBox(height: enlarged ? 8 : AppSpacing.xs),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: AppText.caption.copyWith(
+                        color: palette.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: enlarged ? 12 : 11,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

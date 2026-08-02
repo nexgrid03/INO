@@ -12,6 +12,7 @@ import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import 'auth_validators.dart';
 import 'biometric_setup_screen.dart';
+import 'login_screen.dart';
 import 'otp_verification_screen.dart';
 
 /// Screen 4 - Signup.
@@ -149,6 +150,14 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  /// Always open Login — [Navigator.pop] would return to Home when Signup was
+  /// pushed from guest explore (shell underneath), not from Login.
+  void _goToSignIn() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -164,15 +173,7 @@ class _SignupScreenState extends State<SignupScreen> {
           FadeSlideIn(child: const _ShieldBadge()),
           const SizedBox(height: 20),
           FadeSlideIn(
-            child: Text(
-              l10n.t('createAccount'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            child: AuthPageTitle(l10n.t('createAccount')),
           ),
           const SizedBox(height: 8),
           FadeSlideIn(
@@ -313,7 +314,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: const TextStyle(color: AppColors.textMuted),
                 ),
                 TextButton(
-                  onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                  onPressed: _busy ? null : _goToSignIn,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     minimumSize: const Size(0, 0),

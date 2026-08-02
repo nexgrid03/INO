@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/liquid_glass.dart';
 
 /// A grouped inset settings list - the core primitive of the redesigned Profile
 /// page (the Apple Settings / Google Account pattern).
 ///
-/// A small uppercase [caption] sits above a single white, softly-shadowed
-/// container whose rows are separated by hairline dividers indented past the
-/// icon column. Groups are the ONLY structure on the page, so the whole screen
-/// reads as one calm, scannable settings list rather than a stack of cards.
+/// Frosted glass surface across themes.
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, required this.children, this.caption});
 
@@ -29,12 +27,17 @@ class SettingsGroup extends StatelessWidget {
         rows.add(Divider(
           height: 1,
           thickness: 1,
-          indent: 62, // clears the 14 pad + 34 icon + 14 gap column
+          indent: 62,
           color: palette.border,
         ));
       }
       rows.add(children[i]);
     }
+
+    final body = ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: Column(children: rows),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,17 +55,12 @@ class SettingsGroup extends StatelessWidget {
               ),
             ),
           ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: palette.surface,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            child: Column(children: rows),
-          ),
+        LiquidGlass(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          blur: 20,
+          frost: palette.isDark ? 1.05 : 0.72,
+          padding: EdgeInsets.zero,
+          child: body,
         ),
       ],
     );

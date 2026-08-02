@@ -12,6 +12,7 @@ import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/dashboard/expandable_fab.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
@@ -649,11 +650,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       child: Scaffold(
         backgroundColor: palette.bg,
         extendBody: true,
-        body: InoBackground(
-          showDots: false,
-          child: SafeArea(
-            bottom: false,
-            child: Stack(
+      body: InoBackground(
+        showDots: false,
+        sky: divineGlassEnabled(context),
+        child: SafeArea(
+          // Launcher frosted header paints under the status bar itself.
+          top: !divineGlassEnabled(context),
+          bottom: false,
+          child: Stack(
               children: [
                 FutureBuilder<WalletDetailData>(
                   future: _future,
@@ -664,23 +668,39 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
-                        // 1. Compact header.
+                        // 1. Compact header — Launcher uses full-bleed frosted bar.
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                            child: WalletHeader(
-                              title: localizedWalletName(
-                                AppLocalizations.of(context),
-                                widget.category.name,
-                              ),
-                              icon: widget.category.icon,
-                              onBack: () => Navigator.of(context).maybePop(),
-                              onManageShares: _openManageShares,
-                              onAreaConverter: _isPropertyWallet
-                                  ? _openAreaConverter
-                                  : null,
-                            ),
-                          ),
+                          child: divineGlassEnabled(context)
+                              ? WalletHeader(
+                                  title: localizedWalletName(
+                                    AppLocalizations.of(context),
+                                    widget.category.name,
+                                  ),
+                                  icon: widget.category.icon,
+                                  onBack: () =>
+                                      Navigator.of(context).maybePop(),
+                                  onManageShares: _openManageShares,
+                                  onAreaConverter: _isPropertyWallet
+                                      ? _openAreaConverter
+                                      : null,
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16, 12, 16, 12),
+                                  child: WalletHeader(
+                                    title: localizedWalletName(
+                                      AppLocalizations.of(context),
+                                      widget.category.name,
+                                    ),
+                                    icon: widget.category.icon,
+                                    onBack: () =>
+                                        Navigator.of(context).maybePop(),
+                                    onManageShares: _openManageShares,
+                                    onAreaConverter: _isPropertyWallet
+                                        ? _openAreaConverter
+                                        : null,
+                                  ),
+                                ),
                         ),
                         if (data == null)
                           _loadingSliver()
@@ -754,16 +774,30 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         .length;
 
     return [
-      // 2. Search - scrolls with the page (nothing pinned).
+      // 2. Search (+ filter button under Launcher / Figma Identity).
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
           child: FadeSlideIn(
-            child: DetailSearchBar(
-              controller: _searchController,
-              focusNode: _searchFocus,
-              onChanged: (v) => setState(() => _query = v),
-            ),
+            child: divineGlassEnabled(context)
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: DetailSearchBar(
+                          controller: _searchController,
+                          focusNode: _searchFocus,
+                          onChanged: (v) => setState(() => _query = v),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      DivineGlassFilterButton(onTap: _openSort),
+                    ],
+                  )
+                : DetailSearchBar(
+                    controller: _searchController,
+                    focusNode: _searchFocus,
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
           ),
         ),
       ),
