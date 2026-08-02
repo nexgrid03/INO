@@ -60,9 +60,9 @@ export default function ShareView({
       <div className="wrap">
         <div className="row">
           <div>
-            <div className="title">Shared documents</div>
+            <div className="title">Vault Viewer</div>
             <div className="subtitle">
-              {documents.length} file{documents.length === 1 ? "" : "s"}
+              {documents.length} secure file{documents.length === 1 ? "" : "s"} shared with you
             </div>
           </div>
           <div className="spacer" />

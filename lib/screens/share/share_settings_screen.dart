@@ -15,10 +15,7 @@ import '../../services/document_processor.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
-import '../../widgets/common/liquid_glass.dart';
-import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
@@ -280,126 +277,136 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final docs = widget.documents;
+    final primary = docs.first;
+    final meta = [
+      if (docs.length > 1) '${docs.length} files',
+      'Uploaded ${inoFormatDate(primary.uploadedAt)}',
+    ].join(' · ');
+
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: true,
         child: SafeArea(
-        child: Column(
-          children: [
-            _Header(count: docs.length, onBack: () => Navigator.of(context).pop()),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
-                children: [
-                  // How the document is handed over. Normal sharing is the
-                  // default and behaves exactly as it always has.
-                  _label(l10n.t('shareMode'), palette),
-                  const SizedBox(height: AppSpacing.sm),
-                  _ModeRow(
-                    selected: _mode,
-                    viewOnceEnabled: _canViewOnce,
-                    onSelected: _selectMode,
-                  ),
-                  if (!_canViewOnce) ...[
+          child: Column(
+            children: [
+              _Header(onClose: () => Navigator.of(context).pop()),
+              Expanded(
+                child: ListView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen, 4, AppSpacing.screen, AppSpacing.lg),
+                  children: [
+                    // File summary card
+                    _FileCard(
+                      name: docs.length == 1
+                          ? primary.name
+                          : '${primary.name} (+${docs.length - 1})',
+                      meta: meta,
+                      icon: primary.icon,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    _sectionLabel(l10n.t('accessType'), palette),
+                    const SizedBox(height: AppSpacing.sm),
+                    _AccessTypeCards(
+                      selected: _mode,
+                      viewOnceEnabled: _canViewOnce,
+                      onSelected: _selectMode,
+                    ),
+                    if (!_canViewOnce) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        l10n.t('viewOnceSingleDocOnly'),
+                        style:
+                            AppText.caption.copyWith(color: palette.textFaint),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+
+                    if (_isViewOnce) ...[
+                      _ViewOnceWarning(text: l10n.t('viewOnceSenderWarning')),
+                      const SizedBox(height: AppSpacing.lg),
+                    ] else ...[
+                      if (!_allImages) ...[
+                        _InfoBanner(
+                          icon: Icons.picture_as_pdf_rounded,
+                          text: l10n.t('copyStylesPdfNote'),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                      _sectionLabel(l10n.t('formatQuality'), palette),
+                      const SizedBox(height: AppSpacing.sm),
+                      _FormatQualityRow(
+                        selected: _color,
+                        enabled: _allImages,
+                        onSelected: (c) => setState(() => _color = c),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
+                    _sectionLabel(l10n.t('linkExpiration'), palette),
+                    const SizedBox(height: AppSpacing.sm),
+                    _ExpiryPill(
+                      selected: _duration,
+                      options: _isViewOnce
+                          ? _ExpiryPill.viewOnceOptions
+                          : _ExpiryPill.normalOptions,
+                      onSelected: (d) => setState(() => _duration = d),
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      l10n.t('viewOnceSingleDocOnly'),
-                      style: AppText.caption.copyWith(color: palette.textFaint),
+                      l10n.t(
+                          _isViewOnce ? 'viewOnceExpiryHint' : 'linkExpiryHint'),
+                      style:
+                          AppText.caption.copyWith(color: palette.textFaint),
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.lg),
-
-                  if (_isViewOnce) ...[
-                    // View Once shares the stored document as-is: no processed
-                    // copy, nothing duplicated. So the copy-style picker doesn't
-                    // apply and isn't shown.
-                    _ViewOnceWarning(text: l10n.t('viewOnceSenderWarning')),
-                    const SizedBox(height: AppSpacing.lg),
-                  ] else ...[
-                    if (!_allImages)
-                      _InfoBanner(
-                        icon: Icons.picture_as_pdf_rounded,
-                        text: l10n.t('copyStylesPdfNote'),
-                      ),
-                    if (!_allImages) const SizedBox(height: AppSpacing.md),
-
-                    // Copy style - the ONLY thing the user picks besides expiry.
-                    _label(l10n.t('copyStyle'), palette),
-                    const SizedBox(height: AppSpacing.sm),
-                    _ColorGrid(
-                      selected: _color,
-                      enabled: _allImages,
-                      onSelected: (c) => setState(() => _color = c),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-
-                  // Link expiry - enforced server-side by the share backend.
-                  // A view-once link can also lapse before it is ever opened,
-                  // so short options are offered there too.
-                  _label(l10n.t('linkExpiry'), palette),
-                  const SizedBox(height: AppSpacing.sm),
-                  _ExpiryRow(
-                    selected: _duration,
-                    options: _isViewOnce
-                        ? _ExpiryRow.viewOnceOptions
-                        : _ExpiryRow.normalOptions,
-                    onSelected: (d) => setState(() => _duration = d),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    l10n.t(_isViewOnce ? 'viewOnceExpiryHint' : 'linkExpiryHint'),
-                    style: AppText.caption.copyWith(color: palette.textFaint),
-                  ),
-                  if (!_isViewOnce) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    _QrLinkButton(onTap: _busy ? null : _generateQr),
-                  ],
-                ],
+                ),
               ),
-            ),
-            _ActionBar(
-              busy: _busy,
-              viewOnce: _isViewOnce,
-              onCancel: () => Navigator.of(context).pop(),
-              onGenerate: _isViewOnce ? _generateViewOnce : _generateAndShare,
-            ),
-          ],
-        ),
+              _ActionBar(
+                busy: _busy,
+                viewOnce: _isViewOnce,
+                onGenerate:
+                    _isViewOnce ? _generateViewOnce : _generateAndShare,
+                onQr: _isViewOnce || _busy ? null : _generateQr,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// Switching mode changes which expiry options are on offer, so snap the
-  /// selection back to the shared default when the current one disappears -
-  /// otherwise no chip would look selected.
   void _selectMode(ShareMode mode) {
     final options = mode == ShareMode.viewOnce
-        ? _ExpiryRow.viewOnceOptions
-        : _ExpiryRow.normalOptions;
+        ? _ExpiryPill.viewOnceOptions
+        : _ExpiryPill.normalOptions;
     setState(() {
       _mode = mode;
-      if (!options.contains(_duration)) _duration = ShareDuration.twentyFourHours;
+      if (!options.contains(_duration)) {
+        _duration = ShareDuration.twentyFourHours;
+      }
     });
   }
 
-  Widget _label(String text, AppPalette palette) => Text(
+  Widget _sectionLabel(String text, AppPalette palette) => Text(
         text.toUpperCase(),
-        style:
-            AppText.label.copyWith(color: palette.textFaint, letterSpacing: 1.0),
+        style: AppText.label.copyWith(
+          color: palette.textFaint,
+          letterSpacing: 1.0,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
       );
 }
 
 // ---------------------------------------------------------------------------
 
 class _Header extends StatelessWidget {
-  const _Header({required this.count, required this.onBack});
+  const _Header({required this.onClose});
 
-  final int count;
-  final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -408,24 +415,100 @@ class _Header extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+      child: SizedBox(
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PressableScale(
+                child: GestureDetector(
+                  onTap: onClose,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Icon(Icons.close_rounded,
+                        size: 20, color: palette.textSecondary),
+                  ),
+                ),
+              ),
+            ),
+            Text(
+              l10n.t('secureShare'),
+              style: AppText.headline.copyWith(
+                color: AppColors.primaryGreen,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FileCard extends StatelessWidget {
+  const _FileCard({
+    required this.name,
+    required this.meta,
+    required this.icon,
+  });
+
+  final String name;
+  final String meta;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+        boxShadow: AppShadows.card,
+      ),
       child: Row(
         children: [
-          InoBackButton(onTap: onBack),
-          const SizedBox(width: AppSpacing.sm),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.tealMist,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 24),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.t('shareSettings'),
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
-                const SizedBox(height: 2),
                 Text(
-                    l10n
-                        .t('docsOriginalStaysSafe')
-                        .replaceFirst('{n}', '$count'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: palette.textFaint),
+                ),
               ],
             ),
           ),
@@ -467,41 +550,8 @@ class _InfoBanner extends StatelessWidget {
   }
 }
 
-class _ColorGrid extends StatelessWidget {
-  const _ColorGrid(
-      {required this.selected, required this.enabled, required this.onSelected});
-
-  final ShareColorMode selected;
-  final bool enabled;
-  final ValueChanged<ShareColorMode> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.sm,
-      crossAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 2.8,
-      children: [
-        for (final c in ShareColorMode.values)
-          _ChoiceChip(
-            icon: c.icon,
-            label: c.label(AppLocalizations.of(context)),
-            active: c == selected,
-            enabled: enabled,
-            onTap: () => onSelected(c),
-          ),
-      ],
-    );
-  }
-}
-
-/// Picks how a share/link mode is chosen. Normal keeps every existing path
-/// intact; View Once swaps in the one-time flow.
-class _ModeRow extends StatelessWidget {
-  const _ModeRow({
+class _AccessTypeCards extends StatelessWidget {
+  const _AccessTypeCards({
     required this.selected,
     required this.viewOnceEnabled,
     required this.onSelected,
@@ -514,34 +564,241 @@ class _ModeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _ChoiceChip(
-            icon: Icons.ios_share_rounded,
-            label: l10n.t('shareNormally'),
-            active: selected == ShareMode.normal || !viewOnceEnabled,
-            enabled: true,
-            onTap: () => onSelected(ShareMode.normal),
-          ),
+        _AccessCard(
+          icon: Icons.link_rounded,
+          title: l10n.t('standardShare'),
+          subtitle: l10n.t('standardShareHint'),
+          active: selected == ShareMode.normal || !viewOnceEnabled,
+          enabled: true,
+          onTap: () => onSelected(ShareMode.normal),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _ChoiceChip(
-            // The one-time icon: an eye, matching the badge everywhere else.
-            icon: Icons.visibility_rounded,
-            label: l10n.t('shareViewOnce'),
-            active: selected == ShareMode.viewOnce && viewOnceEnabled,
-            enabled: viewOnceEnabled,
-            onTap: () => onSelected(ShareMode.viewOnce),
-          ),
+        const SizedBox(height: AppSpacing.sm),
+        _AccessCard(
+          icon: Icons.visibility_rounded,
+          title: l10n.t('shareViewOnce'),
+          subtitle: l10n.t('viewOnceShareHint'),
+          active: selected == ShareMode.viewOnce && viewOnceEnabled,
+          enabled: viewOnceEnabled,
+          onTap: () => onSelected(ShareMode.viewOnce),
         ),
       ],
     );
   }
 }
 
-/// The sender-facing warning. Deliberately loud: this is irreversible.
+class _AccessCard extends StatelessWidget {
+  const _AccessCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.active,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool active;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: PressableScale(
+        child: GestureDetector(
+          onTap: enabled
+              ? () {
+                  HapticFeedback.selectionClick();
+                  onTap();
+                }
+              : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: active ? AppColors.tealMist : palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: active ? AppColors.primaryGreen : palette.border,
+                width: active ? 1.6 : 1,
+              ),
+              boxShadow: active ? null : AppShadows.card,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? AppColors.primaryGreen.withValues(alpha: 0.14)
+                        : palette.bg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon,
+                      color: active
+                          ? AppColors.primaryGreen
+                          : palette.textSecondary,
+                      size: 22),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppText.subtitle.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppText.caption
+                            .copyWith(color: palette.textFaint, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  active
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  color: active
+                      ? AppColors.primaryGreen
+                      : palette.textFaint,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormatQualityRow extends StatelessWidget {
+  const _FormatQualityRow({
+    required this.selected,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final ShareColorMode selected;
+  final bool enabled;
+  final ValueChanged<ShareColorMode> onSelected;
+
+  bool get _compressed =>
+      selected == ShareColorMode.compressedPdf ||
+      selected == ShareColorMode.blackWhite ||
+      selected == ShareColorMode.grayscale;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Row(
+        children: [
+          Expanded(
+            child: _FormatTile(
+              icon: Icons.high_quality_rounded,
+              label: l10n.t('formatOriginal'),
+              active: !_compressed,
+              onTap: enabled
+                  ? () => onSelected(ShareColorMode.original)
+                  : null,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _FormatTile(
+              icon: Icons.compress_rounded,
+              label: l10n.t('formatCompressed'),
+              active: _compressed,
+              onTap: enabled
+                  ? () => onSelected(ShareColorMode.compressedPdf)
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormatTile extends StatelessWidget {
+  const _FormatTile({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return PressableScale(
+      child: GestureDetector(
+        onTap: onTap == null
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap!();
+              },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 88,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: active ? AppColors.tealMist : palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: active ? AppColors.primaryGreen : palette.border,
+              width: active ? 1.6 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 22,
+                  color: active
+                      ? AppColors.primaryGreen
+                      : palette.textSecondary),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: AppText.subtitle.copyWith(
+                  color: active
+                      ? AppColors.primaryGreen
+                      : palette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ViewOnceWarning extends StatelessWidget {
   const _ViewOnceWarning({required this.text});
 
@@ -574,8 +831,8 @@ class _ViewOnceWarning extends StatelessWidget {
   }
 }
 
-class _ExpiryRow extends StatelessWidget {
-  const _ExpiryRow({
+class _ExpiryPill extends StatelessWidget {
+  const _ExpiryPill({
     required this.selected,
     required this.onSelected,
     this.options = normalOptions,
@@ -585,14 +842,12 @@ class _ExpiryRow extends StatelessWidget {
   final ValueChanged<ShareDuration> onSelected;
   final List<ShareDuration> options;
 
-  /// Unchanged from before: the two options normal shares have always offered.
   static const List<ShareDuration> normalOptions = [
+    ShareDuration.oneHour,
     ShareDuration.twentyFourHours,
     ShareDuration.sevenDays,
   ];
 
-  /// A one-time link is usually meant to be opened right away, so short
-  /// windows matter more here.
   static const List<ShareDuration> viewOnceOptions = [
     ShareDuration.tenMinutes,
     ShareDuration.oneHour,
@@ -600,168 +855,67 @@ class _ExpiryRow extends StatelessWidget {
     ShareDuration.sevenDays,
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    // Two per row keeps the chips readable whether there are 2 options or 4.
-    final rows = <List<ShareDuration>>[
-      for (var i = 0; i < options.length; i += 2)
-        options.sublist(i, (i + 2).clamp(0, options.length)),
-    ];
-    return Column(
-      children: [
-        for (var r = 0; r < rows.length; r++) ...[
-          if (r > 0) const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              for (var i = 0; i < rows[r].length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _ChoiceChip(
-                    icon: Icons.schedule_rounded,
-                    label: l10n
-                        .t('expireAfter')
-                        .replaceFirst('{d}', rows[r][i].label(l10n)),
-                    active: rows[r][i] == selected,
-                    enabled: true,
-                    onTap: () => onSelected(rows[r][i]),
-                  ),
-                ),
-              ],
-              // Keep the last row aligned when the option count is odd.
-              if (rows[r].length == 1) ...[
-                const SizedBox(width: AppSpacing.sm),
-                const Expanded(child: SizedBox()),
-              ],
-            ],
-          ),
-        ],
-      ],
-    );
+  String _shortLabel(ShareDuration d, AppLocalizations l10n) {
+    switch (d) {
+      case ShareDuration.tenMinutes:
+        return l10n.t('dur10Minutes');
+      case ShareDuration.oneHour:
+        return l10n.t('dur1Hour');
+      case ShareDuration.twentyFourHours:
+        return l10n.t('dur1Day');
+      case ShareDuration.sevenDays:
+        return l10n.t('dur7Days');
+    }
   }
-}
-
-class _ChoiceChip extends StatelessWidget {
-  const _ChoiceChip({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final bool enabled;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final on = active && enabled;
-    final launcher = divineGlassEnabled(context);
-    // Divine Glass selection: a mist-filled chip with a sky border and brand
-    // glyph/label (matching the reference), instead of a saturated gradient.
-    final row = Opacity(
-      opacity: enabled ? 1 : 0.4,
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: palette.border),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon,
-              size: 18,
-              color: on ? AppColors.primaryGreen : palette.textSecondary),
-          const SizedBox(width: 8),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                label,
-                maxLines: 1,
-                softWrap: false,
-                style: AppText.subtitle.copyWith(
-                  color: on ? AppColors.primaryGreen : palette.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
+          for (final d in options)
+            Expanded(
+              child: PressableScale(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onSelected(d);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: d == selected
+                          ? AppColors.primaryGreen
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      _shortLabel(d, l10n),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: d == selected
+                            ? Colors.white
+                            : palette.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
-      ),
-    );
-    final content = launcher && !on
-        ? LiquidGlass(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-            blur: 12,
-            frost: 0.95,
-            shadow: false,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: SizedBox(height: 52, child: row),
-          )
-        : AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: on ? AppColors.tealMist : palette.surface,
-              borderRadius: BorderRadius.circular(AppRadius.button),
-              border: Border.all(
-                color: on ? AppColors.primaryGreen : palette.border,
-                width: on ? 1.4 : 1,
-              ),
-              boxShadow: on ? null : AppShadows.card,
-            ),
-            child: row,
-          );
-    return PressableScale(
-      child: GestureDetector(
-        onTap: enabled
-            ? () {
-                HapticFeedback.selectionClick();
-                onTap();
-              }
-            : null,
-        child: content,
-      ),
-    );
-  }
-}
-
-class _QrLinkButton extends StatelessWidget {
-  const _QrLinkButton({required this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: AppSizes.button,
-          decoration: BoxDecoration(
-            color: AppColors.tealFoam,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: AppColors.tealPale),
-          ),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.qr_code_2_rounded,
-                    color: AppColors.darkGreen, size: 20),
-                const SizedBox(width: 8),
-                Text(AppLocalizations.of(context).t('createQrCode'),
-                    style: const TextStyle(
-                        color: AppColors.darkGreen,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14)),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -770,17 +924,14 @@ class _QrLinkButton extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.busy,
-    required this.onCancel,
     required this.onGenerate,
+    this.onQr,
     this.viewOnce = false,
   });
 
   final bool busy;
-  final VoidCallback onCancel;
   final VoidCallback onGenerate;
-
-  /// Swaps the primary action's icon + label for the one-time flow. Everything
-  /// else about the bar is identical.
+  final VoidCallback? onQr;
   final bool viewOnce;
 
   @override
@@ -789,120 +940,88 @@ class _ActionBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: palette.bg,
+        color: palette.bg.withValues(alpha: 0.92),
         border: Border(top: BorderSide(color: palette.border)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-              AppSpacing.screen, AppSpacing.sm),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               PressableScale(
-                child: divineGlassEnabled(context)
-                    ? GestureDetector(
-                        onTap: busy ? null : onCancel,
-                        behavior: HitTestBehavior.opaque,
-                        child: LiquidGlass(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
-                          blur: 12,
-                          frost: 0.95,
-                          shadow: false,
-                          padding: EdgeInsets.zero,
-                          child: SizedBox(
-                            height: AppSizes.button,
-                            width: 96,
-                            child: Center(
-                              child: Text(l10n.t('cancel'),
-                                  style: AppText.subtitle.copyWith(
-                                      color: palette.textSecondary)),
-                            ),
-                          ),
+                child: GestureDetector(
+                  onTap: busy ? null : onGenerate,
+                  child: Container(
+                    height: AppSizes.button,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              AppColors.primaryGreen.withValues(alpha: 0.32),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
                         ),
-                      )
-                    : Material(
-                        color: palette.surface,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
-                          side: BorderSide(color: palette.border),
-                        ),
-                        child: InkWell(
-                          onTap: busy ? null : onCancel,
-                          child: SizedBox(
-                            height: AppSizes.button,
-                            width: 96,
-                            child: Center(
-                              child: Text(l10n.t('cancel'),
-                                  style: AppText.subtitle.copyWith(
-                                      color: palette.textSecondary)),
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: PressableScale(
-                  child: GestureDetector(
-                    onTap: busy ? null : onGenerate,
-                    child: Container(
-                      height: AppSizes.button,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.brandGradient,
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryGreen.withValues(alpha: 0.32),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: busy
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                      viewOnce
-                                          ? Icons.visibility_rounded
-                                          : Icons.ios_share_rounded,
-                                      color: Colors.white,
-                                      size: 19),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                          l10n.t(viewOnce
-                                              ? 'createViewOnceLink'
-                                              : 'generateAndShare'),
-                                          maxLines: 1,
-                                          style: AppText.subtitle.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700)),
-                                    ),
-                                  ),
-                                ],
+                      ],
+                    ),
+                    child: Center(
+                      child: busy
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
                               ),
-                      ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  viewOnce
+                                      ? Icons.visibility_rounded
+                                      : Icons.link_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.t(viewOnce
+                                      ? 'createViewOnceLink'
+                                      : 'generateSecureLink'),
+                                  style: AppText.subtitle.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ),
               ),
+              if (onQr != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                PressableScale(
+                  child: GestureDetector(
+                    onTap: onQr,
+                    child: Text(
+                      l10n.t('createQrCode'),
+                      style: AppText.subtitle.copyWith(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

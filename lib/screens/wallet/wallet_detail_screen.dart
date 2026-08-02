@@ -663,11 +663,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   future: _future,
                   builder: (context, snapshot) {
                     final data = snapshot.data;
-                    return CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      slivers: [
+                      return CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: ClampingScrollPhysics(),
+                        ),
+                        slivers: [
                         // 1. Compact header — Launcher uses full-bleed frosted bar.
                         SliverToBoxAdapter(
                           child: divineGlassEnabled(context)

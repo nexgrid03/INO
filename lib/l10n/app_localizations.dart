@@ -528,6 +528,11 @@ const Map<String, Map<String, String>> _strings = {
         '{what} access is blocked. Enable it in Settings to continue.',
     'pleaseAllowAccess': 'Please allow {what} access to add a document.',
     'savedToWallet': '“{name}” saved to {wallet}',
+    'success': 'Success',
+    'documentSavedSecurely':
+        'Your document has been securely saved to your vault.',
+    'savedToWalletLabel': 'Saved to: {wallet}',
+    'encryptedBadge': 'ENCRYPTED',
     'saveFailedDetail': 'Save failed: {e}',
     'camera': 'camera',
     'photos': 'photos',
@@ -609,6 +614,13 @@ const Map<String, Map<String, String>> _strings = {
     'orDivider': 'OR',
     'noAccountPrompt': "Don't have an account?",
     'createAccount': 'Create Account',
+    'joinTheVault': 'Join the Vault',
+    'joinTheVaultSubtitle':
+        'Create your encrypted vault and keep every document safe.',
+    'createSecureAccount': 'Create Secure Account →',
+    'alreadyVaultMember': 'Already a vault member?',
+    'agreeToTerms': 'I agree to the Terms & Privacy Policy',
+    'acceptTermsRequired': 'Please accept the Terms & Privacy Policy to continue.',
     'signupSubtitle': 'Start your secure digital life with INO',
     'emailAddress': 'Email address',
     'mobileNumber': 'Mobile number',
@@ -1102,6 +1114,7 @@ const Map<String, Map<String, String>> _strings = {
     'dur10Minutes': '10 Minutes',
     'dur1Hour': '1 Hour',
     'dur24Hours': '24 Hours',
+    'dur1Day': '1 Day',
     'dur7Days': '7 Days',
     // Sharing - share settings (copy style)
     'couldNotGenerateShareCopy':
@@ -1114,6 +1127,16 @@ const Map<String, Map<String, String>> _strings = {
             '(see supabase/README_document_sharing.md), then try again. You '
             'can still use “Generate & Share” to send the copy directly now.',
     'shareSettings': 'Share Settings',
+    'secureShare': 'Secure Share',
+    'accessType': 'Access Type',
+    'standardShare': 'Standard Share',
+    'standardShareHint': 'Recipients can open the link until it expires.',
+    'viewOnceShareHint': 'Opens exactly once, then the link dies forever.',
+    'formatQuality': 'Format & Quality',
+    'formatOriginal': 'Original',
+    'formatCompressed': 'Compressed',
+    'linkExpiration': 'Link Expiration',
+    'generateSecureLink': 'Generate Secure Link',
     'docsOriginalStaysSafe': '{n} documents · original stays safe',
     'copyStylesPdfNote':
         'Copy styles apply to image documents. PDFs are shared as-is; the link '
@@ -1133,8 +1156,12 @@ const Map<String, Map<String, String>> _strings = {
     'noAppToOpenFile': 'No app available to open this file.',
     'couldNotDownloadDoc': 'Could not download this document.',
     'couldNotOpenDoc': 'Could not open this document.',
-    'shareLinkExpiredTitle': 'This share link has expired',
-    'shareLinkExpiredBody': 'The documents are no longer available.',
+    'shareLinkExpiredTitle': 'Link Expired',
+    'shareLinkExpiredBody':
+        'This secure share link is no longer valid. For your protection, '
+            'access has been permanently closed.',
+    'requestNewLink': 'Request New Link',
+    'returnToDashboard': 'Return to Dashboard',
     'shareLinkRevokedTitle': 'This share link has been revoked',
     'shareLinkRevokedBody':
         'The owner has turned off access to these documents.',
@@ -1145,6 +1172,14 @@ const Map<String, Map<String, String>> _strings = {
     'sharedDocuments': 'Shared Documents',
     'secureDocumentShare': 'Secure document share',
     'sharedViaInoFooter': 'Shared via INO · you can only view these documents',
+    'vaultViewer': 'Vault Viewer',
+    'saveToInoVault': 'Save to INO Vault',
+    'downloadCopy': 'Download Copy',
+    'sharedBy': 'Shared by',
+    'viewOnlyRestricted':
+        'This file is view-only. Printing and copying are restricted by the owner.',
+    'signInToSaveVault': 'Sign in to save this file to your INO Vault.',
+    'aesEncryptionActive': '256-BIT AES ENCRYPTION ACTIVE',
     // Profile - two-factor authentication
     'twoFactorAuthTitle': 'Two-Factor Authentication',
     'couldNotStart2fa': 'Could not start 2FA setup. Please try again.',
@@ -1766,6 +1801,11 @@ const Map<String, Map<String, String>> _strings = {
     'accessBlocked': '{what} एक्सेस अवरुद्ध है। जारी रखने के लिए इसे सेटिंग्स में सक्षम करें।',
     'pleaseAllowAccess': 'दस्तावेज़ जोड़ने के लिए कृपया {what} एक्सेस की अनुमति दें।',
     'savedToWallet': '“{name}” को {wallet} में सहेजा गया',
+    'success': 'सफल',
+    'documentSavedSecurely':
+        'आपका दस्तावेज़ सुरक्षित रूप से आपके वॉल्ट में सहेजा गया है।',
+    'savedToWalletLabel': 'यहाँ सहेजा: {wallet}',
+    'encryptedBadge': 'एन्क्रिप्टेड',
     'saveFailedDetail': 'सहेजना विफल: {e}',
     'camera': 'कैमरा',
     'photos': 'फ़ोटो',
@@ -2375,6 +2415,14 @@ const Map<String, Map<String, String>> _strings = {
     'secureDocumentShare': 'सुरक्षित दस्तावेज़ साझाकरण',
     'sharedViaInoFooter':
         'INO के माध्यम से साझा · आप ये दस्तावेज़ केवल देख सकते हैं',
+    'vaultViewer': 'वॉल्ट व्यूअर',
+    'saveToInoVault': 'INO वॉल्ट में सहेजें',
+    'downloadCopy': 'कॉपी डाउनलोड करें',
+    'sharedBy': 'साझा किया',
+    'viewOnlyRestricted':
+        'यह फ़ाइल केवल देखने योग्य है। मुद्रण और कॉपी मालिक द्वारा प्रतिबंधित हैं।',
+    'signInToSaveVault': 'इस फ़ाइल को अपने INO वॉल्ट में सहेजने के लिए साइन इन करें।',
+    'aesEncryptionActive': '256-BIT AES एन्क्रिप्शन सक्रिय',
     'twoFactorAuthTitle': 'दो-चरणीय प्रमाणीकरण',
     'couldNotStart2fa': '2FA सेटअप शुरू नहीं हो सका। कृपया फिर कोशिश करें।',
     'enterSixDigitCode': '6-अंकों का कोड दर्ज करें।',
@@ -2980,6 +3028,11 @@ const Map<String, Map<String, String>> _strings = {
     'accessBlocked': '{what} యాక్సెస్ నిరోధించబడింది. కొనసాగించడానికి సెట్టింగ్‌లలో దీన్ని ప్రారంభించండి.',
     'pleaseAllowAccess': 'డాక్యుమెంట్ జోడించడానికి దయచేసి {what} యాక్సెస్‌ను అనుమతించండి.',
     'savedToWallet': '“{name}” {wallet}కి సేవ్ చేయబడింది',
+    'success': 'విజయం',
+    'documentSavedSecurely':
+        'మీ పత్రం సురక్షితంగా మీ వాల్ట్‌లో సేవ్ చేయబడింది.',
+    'savedToWalletLabel': 'ఇందులో సేవ్: {wallet}',
+    'encryptedBadge': 'ఎన్‌క్రిప్టెడ్',
     'saveFailedDetail': 'సేవ్ విఫలమైంది: {e}',
     'camera': 'కెమెరా',
     'photos': 'ఫోటోలు',
@@ -3598,6 +3651,14 @@ const Map<String, Map<String, String>> _strings = {
     'secureDocumentShare': 'సురక్షిత పత్ర షేరింగ్',
     'sharedViaInoFooter':
         'INO ద్వారా షేర్ · మీరు ఈ పత్రాలను చూడటమే చేయగలరు',
+    'vaultViewer': 'వాల్ట్ వ్యూయర్',
+    'saveToInoVault': 'INO వాల్ట్‌లో సేవ్ చేయి',
+    'downloadCopy': 'కాపీ డౌన్‌లోడ్ చేయి',
+    'sharedBy': 'షేర్ చేసినవారు',
+    'viewOnlyRestricted':
+        'ఈ ఫైల్ వీక్షణ-మాత్రమే. ప్రింటింగ్ మరియు కాపీ చేయడం యజమాని నియంత్రించారు.',
+    'signInToSaveVault': 'ఈ ఫైల్‌ను మీ INO వాల్ట్‌లో సేవ్ చేయడానికి సైన్ ఇన్ చేయండి.',
+    'aesEncryptionActive': '256-BIT AES ఎన్‌క్రిప్షన్ యాక్టివ్',
     'twoFactorAuthTitle': 'రెండంచెల ప్రామాణీకరణ',
     'couldNotStart2fa':
         '2FA సెటప్‌ను ప్రారంభించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',
@@ -4218,6 +4279,11 @@ const Map<String, Map<String, String>> _strings = {
     'accessBlocked': '{what} அணுகல் தடுக்கப்பட்டுள்ளது. தொடர அமைப்புகளில் இதை இயக்கவும்.',
     'pleaseAllowAccess': 'ஆவணத்தைச் சேர்க்க தயவுசெய்து {what} அணுகலை அனுமதிக்கவும்.',
     'savedToWallet': '“{name}” {wallet} இல் சேமிக்கப்பட்டது',
+    'success': 'வெற்றி',
+    'documentSavedSecurely':
+        'உங்கள் ஆவணம் பாதுகாப்பாக உங்கள் வால்ட்டில் சேமிக்கப்பட்டது.',
+    'savedToWalletLabel': 'இதில் சேமிக்கப்பட்டது: {wallet}',
+    'encryptedBadge': 'குறியாக்கம்',
     'saveFailedDetail': 'சேமிப்பு தோல்வி: {e}',
     'camera': 'கேமரா',
     'photos': 'படங்கள்',
@@ -4845,6 +4911,15 @@ const Map<String, Map<String, String>> _strings = {
     'secureDocumentShare': 'பாதுகாப்பான ஆவணப் பங்கிடல்',
     'sharedViaInoFooter':
         'INO வழியாகப் பங்கிடப்பட்டது · இந்த ஆவணங்களை மட்டும் பார்க்க முடியும்',
+    'vaultViewer': 'வால்ட் பார்வையாளர்',
+    'saveToInoVault': 'INO வால்ட்டில் சேமி',
+    'downloadCopy': 'நகலைப் பதிவிறக்கு',
+    'sharedBy': 'பங்கிட்டவர்',
+    'viewOnlyRestricted':
+        'இந்தக் கோப்பு பார்ப்பதற்கு மட்டும். அச்சிடுதல் மற்றும் நகலெடுத்தல் உரிமையாளரால் கட்டுப்படுத்தப்பட்டுள்ளது.',
+    'signInToSaveVault':
+        'இந்தக் கோப்பை உங்கள் INO வால்ட்டில் சேமிக்க உள்நுழையவும்.',
+    'aesEncryptionActive': '256-BIT AES குறியாக்கம் செயலில்',
     'twoFactorAuthTitle': 'இரு-படி அங்கீகாரம்',
     'couldNotStart2fa':
         '2FA அமைப்பைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',

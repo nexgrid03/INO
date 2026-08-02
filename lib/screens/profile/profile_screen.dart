@@ -26,7 +26,6 @@ import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
@@ -496,7 +495,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // ---- Data & storage ------------------------------------------------------
 
-  /// Builds the full account archive with a progress dialog, then shares it.
   Future<void> _exportData({required String subject}) async {
     final progress = ValueNotifier<double>(0);
     showDialog(
@@ -740,8 +738,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Title stays pinned above the list (Home-style). Putting it inside the
+    // ListView made the glass "Profile" header scroll away and, with M3
+    // stretch + FadeSlideIn recycle, read as shrinking text.
     final blocks = <Widget>[
-      _Title(),
       // Stitch-style identity hero: centered avatar in a gradient ring with an
       // edit badge, name + email, and the single trust pill. The whole card is
       // still tappable → Edit Profile (unchanged behaviour).
@@ -958,23 +958,33 @@ class _ProfileScreenState extends State<ProfileScreen>
         sky: true,
         child: SafeArea(
           bottom: false,
-          child: ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.screen,
-              AppSpacing.md,
-              AppSpacing.screen,
-              bottomInset + 100,
-            ),
-            itemCount: blocks.length,
-            separatorBuilder: (_, i) =>
-                SizedBox(height: i < 1 ? AppSpacing.md : AppSpacing.lg),
-            itemBuilder: (context, i) => FadeSlideIn(
-              delay: Duration(milliseconds: (i * 50).clamp(0, 320)),
-              child: blocks[i],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _Title(),
+              Expanded(
+                child: ListView.separated(
+                  // Clamping + no M3 stretch (see InoNoStretchScrollBehavior)
+                  // keeps type and glass groups at a stable size while scrolling.
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    AppSpacing.md,
+                    AppSpacing.screen,
+                    bottomInset + 100,
+                  ),
+                  itemCount: blocks.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.lg),
+                  // Never wrap ListView children in FadeSlideIn — items recycle
+                  // on scroll and the entrance animation remounts, which looks
+                  // like text popping / shrinking (especially on Accounts).
+                  itemBuilder: (context, i) => blocks[i],
+                ),
+              ),
+            ],
           ),
         ),
       ),

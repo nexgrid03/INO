@@ -747,10 +747,10 @@ function shell(bodyInner: string, headExtra = ""): string {
   .info span{font-size:12.5px;color:#64748b}
   .acts{display:flex;gap:10px;margin-top:14px}
   .btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;
-       height:44px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent}
+       height:44px;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent}
   .btn svg{width:17px;height:17px}
-  .view{background:linear-gradient(135deg,var(--green),var(--blue));color:#fff}
-  .dl{background:#fff;border-color:#e2e8f0;color:#0f172a}
+  .btn.primary,.view{background:linear-gradient(135deg,var(--green),var(--blue));color:#fff}
+  .btn.ghost,.dl{background:#fff;border-color:rgba(14,165,233,.35);color:#0284c7}
   .foot{max-width:680px;margin:24px auto 0;text-align:center;color:#94a3b8;font-size:12px;
         display:flex;align-items:center;justify-content:center;gap:6px}
   .state{max-width:520px;margin:8vh auto 0;padding:0 24px;text-align:center}
@@ -834,25 +834,26 @@ function statusHtml(kind: Kind): string {
   const map: Record<string, { emoji: string; bg: string; title: string; msg: string }> = {
     expired: {
       emoji: "⏳",
-      bg: "rgba(245,165,36,.15)",
-      title: "This link has expired",
-      msg: "The documents shared with you are no longer available.",
+      bg: "rgba(220,38,38,.1)",
+      title: "Link Expired",
+      msg:
+        "This secure share link is no longer valid. For your protection, access has been permanently closed.",
     },
     revoked: {
       emoji: "🚫",
-      bg: "rgba(239,83,80,.15)",
-      title: "This link has been revoked",
+      bg: "rgba(220,38,38,.1)",
+      title: "Link Revoked",
       msg: "The owner has turned off access to these documents.",
     },
     not_found: {
       emoji: "🔍",
-      bg: "rgba(148,163,184,.18)",
+      bg: "rgba(100,116,139,.12)",
       title: "Link not found",
       msg: "This shared link doesn’t exist or has been removed.",
     },
     error: {
       emoji: "⚠️",
-      bg: "rgba(148,163,184,.18)",
+      bg: "rgba(217,119,6,.12)",
       title: "Something went wrong",
       msg: "Please try opening the link again in a moment.",
     },
@@ -863,6 +864,10 @@ function statusHtml(kind: Kind): string {
       <div class="circle" style="background:${s.bg}">${s.emoji}</div>
       <h2>${escapeHtml(s.title)}</h2>
       <p>${escapeHtml(s.msg)}</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+        <a class="btn primary" href="mailto:support@ino.app?subject=Request%20new%20INO%20share%20link">Request New Link</a>
+        <a class="btn ghost" href="https://inoapp.in">Return to Dashboard</a>
+      </div>
       <div class="foot" style="margin-top:26px">🔒 Shared securely via INO</div>
     </div>`;
   return shell(body);

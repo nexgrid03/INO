@@ -8,7 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart'
     show Supabase, RealtimeChannel;
 
 import '../../data/family_vault_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
+import '../../services/auth_service.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -17,6 +19,7 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import '../shell/shell_controller.dart';
 import 'add_vault_document_sheet.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
 import 'invite_member_sheet.dart';
@@ -55,6 +58,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   /// Search text applied to the members + invitations lists.
   String _query = '';
+  bool _showSearch = false;
 
   /// Live updates for this vault's members + invitations, with a short debounce.
   RealtimeChannel? _channel;
@@ -95,10 +99,31 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     // Documents load for EVERY role - being able to see the family's shared
     // documents is the point of joining, not an admin privilege.
     await _loadDocuments();
+    // Activity timeline is part of the Figma layout for every role; the RPC
+    // still enforces who may read the audit log.
+    await _loadAudit();
     if (_myRole.canManageMembers) {
       await _loadInvitations();
-      await _loadAudit();
     }
+  }
+
+  /// Total size of vault documents for the hero subtitle (no fake GB).
+  String get _storageLabel {
+    final total =
+        _documents.fold<int>(0, (sum, d) => sum + (d.sizeBytes ?? 0));
+    if (total <= 0) return '';
+    if (total >= 1024 * 1024 * 1024) {
+      return '${(total / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB used';
+    }
+    if (total >= 1024 * 1024) {
+      return '${(total / (1024 * 1024)).toStringAsFixed(1)} MB used';
+    }
+    return '${(total / 1024).round()} KB used';
+  }
+
+  void _openProfile() {
+    ShellController.tab.value = 4;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   /// Adds a document to this vault - either one already in a wallet, or a file
@@ -604,35 +629,39 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      floatingActionButton:
-          _myRole.canManageMembers ? _InviteButton(onTap: _invite) : null,
       body: InoBackground(
+        sky: launcher,
         child: SafeArea(
-        child: Column(
-          children: [
-            _header(palette),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.primaryGreen,
-                onRefresh: _refresh,
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? _errorBody(palette)
-                        : _body(palette),
+          top: !launcher,
+          bottom: false,
+          child: Column(
+            children: [
+              _header(palette),
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.primaryGreen,
+                  onRefresh: _refresh,
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error != null
+                          ? _errorBody(palette)
+                          : _body(palette),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _errorBody(AppPalette palette) => ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         children: [
           const SizedBox(height: 120),
           Icon(Icons.cloud_off_rounded, size: 48, color: palette.textFaint),
@@ -646,60 +675,24 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       );
 
   Widget _body(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final pendingCount = _invitations.where((i) => i.isPending).length;
     final members = _members.where((m) => m.matches(_query)).toList();
     final invitations = _invitations.where((i) => i.matches(_query)).toList();
-    final searchable = _members.length > 1 || _invitations.isNotEmpty;
+    final storage = _storageLabel;
+    final subtitle = [
+      'Shared with ${_members.length} member${_members.length == 1 ? '' : 's'}',
+      if (storage.isNotEmpty) storage,
+    ].join(' · ');
+
     return ListView(
-      physics:
-          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.xl * 2),
       children: [
-        // Vault hero - Divine Glass: white card, pastel icon chip, centered.
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.internal),
-          decoration: BoxDecoration(
-            color: palette.surface,
-            borderRadius: BorderRadius.circular(AppRadius.large),
-            border: Border.all(color: palette.border),
-            boxShadow: AppShadows.card,
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.tealMist,
-                  borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                  border: Border.all(
-                      color: AppColors.tealPale.withValues(alpha: 0.7)),
-                ),
-                child: const Icon(Icons.family_restroom_rounded,
-                    color: AppColors.primaryGreen, size: 30),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(_vaultName,
-                  textAlign: TextAlign.center,
-                  style: AppText.headline
-                      .copyWith(color: palette.textPrimary, fontSize: 22)),
-              const SizedBox(height: 4),
-              Text(
-                '${_members.length} member${_members.length == 1 ? '' : 's'} · '
-                'you are ${_myRole.label}',
-                textAlign: TextAlign.center,
-                style: AppText.caption
-                    .copyWith(color: palette.textSecondary),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        // Search (members + invitations) — shown once there's enough to filter.
-        if (searchable) ...[
+        if (_showSearch) ...[
           _SearchField(
             hint: 'Search members or invitations',
             onChanged: (v) => setState(() => _query = v),
@@ -707,115 +700,72 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           const SizedBox(height: AppSpacing.md),
         ],
 
-        // Shared documents — visible to EVERY role. This is what membership is
-        // actually for, so it sits above the roster.
-        Row(
-          children: [
-            Text('Shared documents',
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const Spacer(),
-            if (_docsLoading)
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryGreen),
-              )
-            // Editors and above get an Add control right here. Requiring them
-            // to go find a document inside a wallet first made an empty vault a
-            // dead end for the very person who owns it.
-            else if (_myRole.canEditDocuments)
-              PressableScale(
-                pressedScale: 0.95,
-                child: GestureDetector(
-                  onTap: _addDocument,
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add_rounded,
-                          size: 18, color: AppColors.primaryGreen),
-                      const SizedBox(width: 4),
-                      Text('Add',
-                          style: AppText.subtitle.copyWith(
-                              color: AppColors.primaryGreen, fontSize: 13.5)),
-                    ],
-                  ),
+        // Hero — Figma Family Assets card.
+        AdaptiveGlassCard(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          radius: AppRadius.large,
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.folder_shared_rounded,
+                    color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _vaultName,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (_documents.isEmpty && !_docsLoading)
-          InoCard(
-            radius: AppRadius.card,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: AppText.caption.copyWith(color: palette.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              if (_myRole.canEditDocuments || _myRole.canManageMembers)
                 Row(
                   children: [
-                    Icon(Icons.folder_shared_outlined,
-                        size: 22, color: palette.textFaint),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _myRole.canEditDocuments
-                            ? 'Nothing shared yet. Add a document and everyone '
-                                'in this vault can view it.'
-                            : 'Nothing has been shared with you yet. Ask an '
-                                'editor or the owner to add documents here.',
-                        style: AppText.caption.copyWith(
-                            color: palette.textSecondary, height: 1.4),
+                    if (_myRole.canEditDocuments)
+                      Expanded(
+                        child: _HeroFilledButton(
+                          icon: Icons.add_rounded,
+                          label: 'Upload',
+                          onTap: _addDocument,
+                        ),
                       ),
-                    ),
+                    if (_myRole.canEditDocuments && _myRole.canManageMembers)
+                      const SizedBox(width: 10),
+                    if (_myRole.canManageMembers)
+                      Expanded(
+                        child: _HeroOutlineButton(
+                          icon: Icons.ios_share_rounded,
+                          label: 'Share',
+                          onTap: _invite,
+                        ),
+                      ),
                   ],
                 ),
-                // The empty state is where the owner actually is when they want
-                // to fill the vault, so the action lives here too - not only in
-                // the section header above.
-                if (_myRole.canEditDocuments) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: FilledButton.icon(
-                      onPressed: _addDocument,
-                      icon: const Icon(Icons.add_rounded, size: 19),
-                      label: const Text('Add a document'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          )
-        else if (_documents.isNotEmpty)
-          InoCard(
-            radius: AppRadius.card,
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-            child: Column(
-              children: [
-                for (var i = 0; i < _documents.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: palette.border),
-                  _VaultDocRow(
-                    doc: _documents[i],
-                    // Mirrors remove_vault_document(): your own contributions,
-                    // or anything if you manage the vault. The server decides.
-                    canRemove: _documents[i]
-                        .canBeRemovedBy(_currentUid, _myRole),
-                    onOpen: () => _openDocument(_documents[i]),
-                    onRemove: () => _removeDocument(_documents[i]),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
+        ),
         const SizedBox(height: AppSpacing.lg),
 
-        // Members.
+        // Vault Members.
         Row(
           children: [
-            Text('Members',
+            Text('Vault Members',
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const Spacer(),
             if (_myRole.canManageMembers)
@@ -824,15 +774,13 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 child: GestureDetector(
                   onTap: _invite,
                   behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_add_alt_1_rounded,
-                          size: 18, color: AppColors.primaryGreen),
-                      const SizedBox(width: 4),
-                      Text('Invite',
-                          style: AppText.subtitle.copyWith(
-                              color: AppColors.primaryGreen, fontSize: 13.5)),
-                    ],
+                  child: Text(
+                    'Manage',
+                    style: AppText.subtitle.copyWith(
+                      color: AppColors.primaryGreen,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -842,10 +790,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         if (members.isEmpty)
           _NoMatches(palette: palette, what: 'members')
         else
-          InoCard(
-            radius: AppRadius.card,
+          AdaptiveGlassCard(
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            radius: AppRadius.card,
             child: Column(
               children: [
                 for (var i = 0; i < members.length; i++) ...[
@@ -892,9 +840,9 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (invitations.isEmpty)
-            InoCard(
-              radius: AppRadius.card,
+            AdaptiveGlassCard(
               padding: const EdgeInsets.all(AppSpacing.md),
+              radius: AppRadius.card,
               child: Row(
                 children: [
                   Icon(Icons.mail_outline_rounded,
@@ -903,7 +851,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   Expanded(
                     child: Text(
                         _query.isEmpty
-                            ? 'No invitations yet. Tap Invite to add family.'
+                            ? 'No invitations yet. Tap Share to add family.'
                             : 'No invitations match "$_query".',
                         style: AppText.caption
                             .copyWith(color: palette.textSecondary)),
@@ -912,10 +860,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             )
           else
-            InoCard(
-              radius: AppRadius.card,
+            AdaptiveGlassCard(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              radius: AppRadius.card,
               child: Column(
                 children: [
                   for (var i = 0; i < invitations.length; i++) ...[
@@ -928,49 +876,107 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 ],
               ),
             ),
+        ],
 
-          // Activity (audit trail) — owner/admin only.
-          const SizedBox(height: AppSpacing.lg),
-          Text('Activity',
-              style: AppText.title.copyWith(color: palette.textPrimary)),
-          const SizedBox(height: AppSpacing.sm),
-          if (_auditLoading && _audit.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.md),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_audit.isEmpty)
-            InoCard(
-              radius: AppRadius.card,
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
-                children: [
-                  Icon(Icons.history_rounded,
-                      size: 20, color: palette.textFaint),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text('No activity yet.',
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary)),
+        // Shared documents — compact list under members.
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Text('Shared documents',
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const Spacer(),
+            if (_docsLoading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryGreen),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_documents.isEmpty && !_docsLoading)
+          AdaptiveGlassCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            radius: AppRadius.card,
+            child: Text(
+              _myRole.canEditDocuments
+                  ? 'Nothing shared yet. Tap Upload to add a document.'
+                  : 'Nothing has been shared with you yet.',
+              style: AppText.caption
+                  .copyWith(color: palette.textSecondary, height: 1.4),
+            ),
+          )
+        else if (_documents.isNotEmpty)
+          AdaptiveGlassCard(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            radius: AppRadius.card,
+            child: Column(
+              children: [
+                for (var i = 0; i < _documents.length; i++) ...[
+                  if (i > 0) Divider(height: 1, color: palette.border),
+                  _VaultDocRow(
+                    doc: _documents[i],
+                    canRemove: _documents[i]
+                        .canBeRemovedBy(_currentUid, _myRole),
+                    onOpen: () => _openDocument(_documents[i]),
+                    onRemove: () => _removeDocument(_documents[i]),
                   ),
                 ],
-              ),
-            )
-          else
-            InoCard(
-              radius: AppRadius.card,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-              child: Column(
-                children: [
-                  for (var i = 0; i < _audit.length; i++) ...[
-                    if (i > 0) Divider(height: 1, color: palette.border),
-                    _AuditRow(entry: _audit[i]),
-                  ],
-                ],
+              ],
+            ),
+          ),
+
+        // Recent Activity timeline.
+        const SizedBox(height: AppSpacing.lg),
+        Text('Recent Activity',
+            style: AppText.title.copyWith(color: palette.textPrimary)),
+        const SizedBox(height: AppSpacing.sm),
+        if (_auditLoading && _audit.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_audit.isEmpty)
+          AdaptiveGlassCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            radius: AppRadius.card,
+            child: Row(
+              children: [
+                Icon(Icons.history_rounded,
+                    size: 20, color: palette.textFaint),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text('No activity yet.',
+                      style: AppText.caption
+                          .copyWith(color: palette.textSecondary)),
+                ),
+              ],
+            ),
+          )
+        else
+          _ActivityTimeline(entries: _audit),
+
+        const SizedBox(height: AppSpacing.xl),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.verified_user_rounded,
+                size: 14, color: AppColors.primaryGreen.withValues(alpha: 0.85)),
+            const SizedBox(width: 6),
+            Text(
+              l10n.t('aesEncryptionActive'),
+              style: TextStyle(
+                color: AppColors.primaryGreen.withValues(alpha: 0.85),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
               ),
             ),
-        ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
       ],
     );
   }
@@ -987,31 +993,112 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Widget _header(AppPalette palette) {
     final canOwn = _myRole.canManageVault;
     final launcher = divineGlassEnabled(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.md),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Vault',
-              style: launcher
-                  ? TextStyle(
-                      color: palette.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      height: 1.1,
-                    )
-                  : AppText.headline
-                      .copyWith(color: palette.textPrimary, fontSize: 21),
+    final l10n = AppLocalizations.of(context);
+    final user = AuthService.instance.currentUser;
+    final photo = (user?.userMetadata?['profile_photo'] as String?) ??
+        (user?.userMetadata?['avatar_url'] as String?);
+
+    final row = Row(
+      children: [
+        const InoBackButton(size: 42),
+        Expanded(
+          child: Text(
+            l10n.t('familyVault'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: launcher ? AppColors.primaryGreen : palette.textPrimary,
+              fontSize: launcher ? 18 : 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
             ),
           ),
-          if (canOwn)
+        ),
+        IconButton(
+          tooltip: 'Search',
+          onPressed: () => setState(() {
+            _showSearch = !_showSearch;
+            if (!_showSearch) _query = '';
+          }),
+          icon: Icon(
+            _showSearch ? Icons.close_rounded : Icons.search_rounded,
+            color: AppColors.primaryGreen,
+          ),
+        ),
+        if (canOwn)
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: palette.textSecondary),
+            onSelected: (v) {
+              if (v == 'rename') _renameVault();
+              if (v == 'delete') _deleteVault();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'rename', child: Text('Rename vault')),
+              PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete vault',
+                      style: TextStyle(color: AppColors.critical))),
+            ],
+          )
+        else
+          const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _openProfile,
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.tealMist,
+            backgroundImage:
+                photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
+            child: photo == null || photo.isEmpty
+                ? const Icon(Icons.person_rounded,
+                    size: 18, color: AppColors.primaryGreen)
+                : null,
+          ),
+        ),
+      ],
+    );
+
+    if (!launcher) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
+        child: row,
+      );
+    }
+
+    return DivineGlassAppBar(
+      title: l10n.t('familyVault'),
+      centerTitle: true,
+      includeStatusBar: true,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DivineGlassHeaderAction(
+            icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
+            tooltip: 'Search',
+            onTap: () => setState(() {
+              _showSearch = !_showSearch;
+              if (!_showSearch) _query = '';
+            }),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: _openProfile,
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.tealMist,
+              backgroundImage:
+                  photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
+              child: photo == null || photo.isEmpty
+                  ? const Icon(Icons.person_rounded,
+                      size: 18, color: AppColors.primaryGreen)
+                  : null,
+            ),
+          ),
+          if (canOwn) ...[
+            const SizedBox(width: 4),
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert_rounded, color: palette.textSecondary),
+              icon: Icon(Icons.more_vert_rounded,
+                  color: palette.textSecondary, size: 22),
               onSelected: (v) {
                 if (v == 'rename') _renameVault();
                 if (v == 'delete') _deleteVault();
@@ -1024,8 +1111,237 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                         style: TextStyle(color: AppColors.critical))),
               ],
             ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _HeroFilledButton extends StatelessWidget {
+  const _HeroFilledButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroOutlineButton extends StatelessWidget {
+  const _HeroOutlineButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primaryGreen, width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: AppColors.primaryGreen, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.primaryGreen,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityTimeline extends StatelessWidget {
+  const _ActivityTimeline({required this.entries});
+
+  final List<VaultAuditEntry> entries;
+
+  static String _ago(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
+    if (d.inDays == 1) return 'Yesterday';
+    if (d.inDays < 7) return '${d.inDays}d ago';
+    return '${d.inDays ~/ 7}w ago';
+  }
+
+  static String _title(VaultAuditEntry e) {
+    final what = e.targetLabel?.trim() ?? '';
+    switch (e.action) {
+      case 'invite_sent':
+      case 'invite_resent':
+        return 'New member added';
+      case 'invite_accepted':
+        return what.isEmpty ? 'Invitation accepted' : '$what joined';
+      case 'role_changed':
+        return what.isEmpty ? 'Role updated' : '$what role changed';
+      case 'member_removed':
+        return what.isEmpty ? 'Member removed' : '$what removed';
+      case 'member_left':
+        return what.isEmpty ? 'Member left' : '$what left';
+      case 'ownership_transferred':
+        return 'Ownership transferred';
+      case 'vault_renamed':
+        return 'Vault renamed';
+      default:
+        return what.isNotEmpty
+            ? what
+            : e.action.replaceAll('_', ' ');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Column(
+      children: [
+        for (var i = 0; i < entries.length; i++) ...[
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(entries[i].icon,
+                            size: 14, color: AppColors.primaryGreen),
+                      ),
+                      if (i < entries.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color:
+                                AppColors.primaryGreen.withValues(alpha: 0.25),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(
+                        bottom: i < entries.length - 1 ? 10 : 0),
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _title(entries[i]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.subtitle.copyWith(
+                                  color: palette.textPrimary,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _ago(entries[i].createdAt),
+                              style: AppText.caption.copyWith(
+                                color: palette.textFaint,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          entries[i].summary,
+                          style: AppText.caption.copyWith(
+                            color: palette.textSecondary,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -1282,98 +1598,6 @@ class _NoMatches extends StatelessWidget {
                 style: AppText.caption.copyWith(color: palette.textSecondary)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// One row in the vault's Activity (audit) trail.
-class _AuditRow extends StatelessWidget {
-  const _AuditRow({required this.entry});
-
-  final VaultAuditEntry entry;
-
-  static String _ago(DateTime t) {
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'just now';
-    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours < 24) return '${d.inHours}h ago';
-    if (d.inDays < 7) return '${d.inDays}d ago';
-    return '${d.inDays ~/ 7}w ago';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(entry.icon, size: 16, color: AppColors.darkGreen),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(entry.summary,
-                style: AppText.caption.copyWith(
-                    color: palette.textPrimary, fontSize: 12.5, height: 1.35)),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(_ago(entry.createdAt),
-              style: AppText.caption
-                  .copyWith(color: palette.textFaint, fontSize: 11)),
-        ],
-      ),
-    );
-  }
-}
-
-class _InviteButton extends StatelessWidget {
-  const _InviteButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg, vertical: 15),
-          decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.36),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.person_add_alt_1_rounded,
-                  color: Colors.white, size: 20),
-              SizedBox(width: 6),
-              Text('Invite',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15)),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -106,11 +106,28 @@ export default function ViewOnceView({
       <>
         <Brand />
         <div className="state">
-          <div className="circle" style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}>
+          <div
+            className="circle struck"
+            style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}
+          >
             <EyeIcon />
           </div>
-          <h2>This document has already been viewed</h2>
-          <p>{error}</p>
+          <h2>Link Expired</h2>
+          <p>
+            {error ??
+              "This secure share link is no longer valid. For your protection, access has been permanently closed."}
+          </p>
+          <div className="state-actions">
+            <a
+              className="btn primary"
+              href="mailto:support@ino.app?subject=Request%20new%20INO%20share%20link"
+            >
+              Request New Link
+            </a>
+            <a className="btn ghost" href="https://inoapp.in">
+              Return to Dashboard
+            </a>
+          </div>
         </div>
         <div className="foot">
           <LockIcon /> One-time secure view via INO

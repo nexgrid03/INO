@@ -25,7 +25,9 @@ class MarketsScreen extends StatelessWidget {
     return SettingsScaffold(
       title: l10n.t('markets'),
       child: ListView(
-        physics: const BouncingScrollPhysics(),
+        physics: InoStyle.isLauncher(context)
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [

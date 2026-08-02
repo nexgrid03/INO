@@ -1,23 +1,34 @@
 import { AlertIcon, BanIcon, ClockIcon, LockIcon, SearchIcon } from "./icons";
 
-// A professional full-page terminal state (expired / revoked / not found /
-// error). Rendered under <Brand/> by the share page.
+const DASHBOARD_URL = "https://inoapp.in";
+const REQUEST_MAIL = "mailto:support@ino.app?subject=Request%20new%20INO%20share%20link";
+
+// Full-page terminal state (expired / revoked / not found / error).
 const MAP: Record<
   string,
-  { icon: React.ReactNode; bg: string; color: string; title: string; msg: string }
+  {
+    icon: React.ReactNode;
+    bg: string;
+    color: string;
+    title: string;
+    msg: string;
+    struck?: boolean;
+  }
 > = {
   expired: {
     icon: <ClockIcon />,
     bg: "rgba(220, 38, 38, 0.1)",
     color: "#dc2626",
-    title: "This link has expired",
-    msg: "The documents shared with you are no longer available.",
+    title: "Link Expired",
+    msg:
+      "This secure share link is no longer valid. For your protection, access has been permanently closed.",
+    struck: true,
   },
   revoked: {
     icon: <BanIcon />,
     bg: "rgba(220, 38, 38, 0.1)",
     color: "#dc2626",
-    title: "This link has been revoked",
+    title: "Link Revoked",
     msg: "The owner has turned off access to these documents.",
   },
   not_found: {
@@ -41,11 +52,22 @@ export default function StatePage({ kind, message }: { kind: string; message?: s
   return (
     <>
       <div className="state">
-        <div className="circle" style={{ background: s.bg, color: s.color }}>
+        <div
+          className={`circle${s.struck ? " struck" : ""}`}
+          style={{ background: s.bg, color: s.color }}
+        >
           {s.icon}
         </div>
         <h2>{s.title}</h2>
         <p>{message ?? s.msg}</p>
+        <div className="state-actions">
+          <a className="btn primary" href={REQUEST_MAIL}>
+            Request New Link
+          </a>
+          <a className="btn ghost" href={DASHBOARD_URL}>
+            Return to Dashboard
+          </a>
+        </div>
       </div>
       <div className="foot">
         <LockIcon /> Shared securely via INO

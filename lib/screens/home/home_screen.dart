@@ -36,6 +36,7 @@ import '../../widgets/home/launcher_hub_shortcuts.dart';
 import '../../widgets/home/launcher_quick_actions.dart';
 import '../../widgets/home/skeletons.dart';
 import '../../widgets/home/voice_mic_button.dart';
+import '../../widgets/scan/bottom_qr_scanner_sheet.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
@@ -190,25 +191,33 @@ class _HomeScreenState extends State<HomeScreen> {
             status: d < 0
                 ? 'Overdue'
                 : (d <= 3 ? 'Due Soon' : 'On Track'),
-            icon: r.category.icon,
+            subtitle: 'Review now to stay on track',
+            icon: Icons.shield_rounded,
             accent: reminderUrgencyColor(r, today),
           ),
         );
       }
     } catch (_) {}
 
-    // Expiring docs also feed the pending strip when reminders are sparse.
-    if (pendingItems.length < 3 && expiringDocuments > 0) {
-      pendingItems.add(
-        LauncherPendingItem(
-          title: expiringDocuments == 1
-              ? '1 document expiring'
-              : '$expiringDocuments documents expiring',
-          status: 'Due Soon',
-          icon: Icons.description_rounded,
-          accent: AppColors.warning,
-        ),
+    // Expiring docs — same Review-banner copy as the classic Home chip.
+    if (expiringDocuments > 0) {
+      final already = pendingItems.any(
+        (p) => p.title.toLowerCase().contains('expiring'),
       );
+      if (!already) {
+        pendingItems.insert(
+          0,
+          LauncherPendingItem(
+            title: expiringDocuments == 1
+                ? '1 document expiring soon'
+                : '$expiringDocuments documents expiring soon',
+            status: 'Due Soon',
+            subtitle: 'Review now to stay on track',
+            icon: Icons.shield_rounded,
+            accent: AppColors.primaryGreen,
+          ),
+        );
+      }
     }
 
     var identityCount = 0;
@@ -320,68 +329,82 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: palette.bg,
+      extendBody: true,
       body: InoBackground(
         sky: true,
         child: SafeArea(
           bottom: false,
           child: Column(
             children: [
-              // 1. Greeting header - FIXED at the top. It lives outside the
-              // scroll view, so it stays pinned while the content below scrolls.
+              // 1. Greeting header - FIXED at the top.
               _header(palette),
-              // 2. Scrollable content beneath the fixed header.
+              // 2. Scrollable feed — pull up at the bottom to slide the QR
+              //    panel in (PhonePe-style); scroll back and it slides away.
               Expanded(
-                child: RefreshIndicator(
-                  color: AppColors.primaryGreen,
-                  onRefresh: _refresh,
-                  child: FutureBuilder<_HomeData>(
-                    future: _future,
-                    builder: (context, snapshot) {
-                      final data = snapshot.data;
-                      final hasError =
-                          snapshot.connectionState == ConnectionState.done &&
-                          snapshot.hasError;
-                      return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
-                        slivers: [
-                          if (hasError)
-                            SliverFillRemaining(
-                              hasScrollBody: false,
-                              child: ErrorRetry(onRetry: _refresh),
-                            )
-                          else if (data == null)
-                            SliverPadding(
-                              padding: EdgeInsets.fromLTRB(
-                                sidePadding,
-                                AppSpacing.md,
-                                sidePadding,
-                                120.rh,
-                              ),
-                              sliver: const SliverToBoxAdapter(
-                                child: DashboardSkeleton(),
-                              ),
-                            )
-                          else
-                            SliverPadding(
-                              padding: EdgeInsets.fromLTRB(
-                                sidePadding,
-                                AppSpacing.md,
-                                sidePadding,
-                                120.rh,
-                              ),
-                              sliver: SliverList(
-                                key: ValueKey(style),
-                                delegate: SliverChildListDelegate(
-                                  _sections(data, style),
-                                ),
-                              ),
+                child: HomeQrReveal(
+                  builder: (context, scrollController, qrRunway) {
+                    return RefreshIndicator(
+                      color: AppColors.primaryGreen,
+                      onRefresh: _refresh,
+                      child: FutureBuilder<_HomeData>(
+                        future: _future,
+                        builder: (context, snapshot) {
+                          final data = snapshot.data;
+                          final hasError = snapshot.connectionState ==
+                                  ConnectionState.done &&
+                              snapshot.hasError;
+                          return CustomScrollView(
+                            controller: scrollController,
+                            physics: AlwaysScrollableScrollPhysics(
+                              parent:
+                                  InoStyle.of(context) == ThemeStyle.launcher
+                                      ? const ClampingScrollPhysics()
+                                      : const BouncingScrollPhysics(),
                             ),
-                        ],
-                      );
-                    },
-                  ),
+                            slivers: [
+                              if (hasError)
+                                SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: ErrorRetry(onRetry: _refresh),
+                                )
+                              else if (data == null)
+                                SliverPadding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    sidePadding,
+                                    AppSpacing.md,
+                                    sidePadding,
+                                    100.rh,
+                                  ),
+                                  sliver: const SliverToBoxAdapter(
+                                    child: DashboardSkeleton(),
+                                  ),
+                                )
+                              else ...[
+                                SliverPadding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    sidePadding,
+                                    AppSpacing.md,
+                                    sidePadding,
+                                    24,
+                                  ),
+                                  sliver: SliverList(
+                                    key: ValueKey(style),
+                                    delegate: SliverChildListDelegate(
+                                      _sections(data, style),
+                                      addAutomaticKeepAlives: false,
+                                    ),
+                                  ),
+                                ),
+                                // Scroll runway: drag through this to pull
+                                // the QR panel up with your finger.
+                                qrRunway,
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -509,9 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
-  /// Launcher theme — first fold: hero → quick actions → vaults.
-  /// One "Needs attention" module merges expiry / pending / summary strip.
-  /// Hub shortcuts (Expenses · Net Worth) sit after tools, below the fold.
+ 
   List<Widget> _launcherSections(_HomeData data, AppLocalizations l10n) {
     final pendingCount = data.pendingItems.length;
     void openPending() {
@@ -556,13 +577,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // 4. Needs attention — summary strip + pending cards (single module)
       _Section(
-        header: SectionHeader(
-          title: l10n.t('needsAttention'),
-          actionLabel: l10n.t('viewAll'),
-          onAction: openPending,
-        ),
+        // View all sits in the strip's 2nd box — keep the header title-only.
+        header: SectionHeader(title: l10n.t('needsAttention')),
         child: Column(
           children: [
             HomeSummaryStrip(

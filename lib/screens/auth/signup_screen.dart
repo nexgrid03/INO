@@ -10,6 +10,9 @@ import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/pressable_scale.dart';
+import '../legal/legal_document_screen.dart';
+import '../profile/about_screen.dart';
 import 'auth_validators.dart';
 import 'biometric_setup_screen.dart';
 import 'login_screen.dart';
@@ -38,6 +41,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _acceptedTerms = false;
   bool _busy = false;
 
   @override
@@ -66,6 +70,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _createAccount() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      _showMessage(AppLocalizations.of(context).t('acceptTermsRequired'));
+      return;
+    }
 
     final l10n = AppLocalizations.of(context);
     final email = _emailController.text.trim();
@@ -158,28 +166,74 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  void _openHelp() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AboutScreen()),
+    );
+  }
+
+  void _openTerms() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LegalDocumentScreen.terms()),
+    );
+  }
+
+  void _openPrivacy() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LegalDocumentScreen.privacy()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final validate = AuthValidators.of(context);
     return AuthScaffold(
       showBack: true,
+      trailing: PressableScale(
+        child: GestureDetector(
+          onTap: _openHelp,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.tealPale),
+            ),
+            child: const Icon(Icons.help_outline_rounded,
+                size: 20, color: AppColors.primaryGreen),
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
-          // Divine Glass header: floating glass shield chip above a centred
-          // title + subtitle (mockup "Join the Vault" arrangement).
-          FadeSlideIn(child: const _ShieldBadge()),
-          const SizedBox(height: 20),
+          const SizedBox(height: 4),
           FadeSlideIn(
-            child: AuthPageTitle(l10n.t('createAccount')),
+            child: Text(
+              'INO Vault',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.primaryGreen,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          FadeSlideIn(child: const _ShieldBadge()),
+          const SizedBox(height: 18),
+          FadeSlideIn(
+            child: AuthPageTitle(l10n.t('joinTheVault')),
           ),
           const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: Text(
-              l10n.t('signupSubtitle'),
+              l10n.t('joinTheVaultSubtitle'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 14.5,
@@ -188,7 +242,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
           Form(
             key: _formKey,
@@ -292,12 +346,86 @@ class _SignupScreenState extends State<SignupScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 18),
+
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _acceptedTerms,
+                    activeColor: AppColors.primaryGreen,
+                    checkColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    side: BorderSide(color: AppColors.tealPale, width: 1.4),
+                    onChanged: _busy
+                        ? null
+                        : (v) => setState(() => _acceptedTerms = v ?? false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'I agree to the ',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13.5,
+                          height: 1.4,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _openTerms,
+                        child: Text(
+                          l10n.t('termsConditions'),
+                          style: const TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        ' & ',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13.5,
+                          height: 1.4,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _openPrivacy,
+                        child: Text(
+                          l10n.t('privacyPolicy'),
+                          style: const TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 320),
             child: AuthPrimaryButton(
-              label: l10n.t('createAccount'),
+              label: l10n.t('createSecureAccount'),
               busy: _busy,
               onPressed: _busy ? null : _createAccount,
             ),
@@ -310,7 +438,7 @@ class _SignupScreenState extends State<SignupScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  l10n.t('haveAccountPrompt'),
+                  l10n.t('alreadyVaultMember'),
                   style: const TextStyle(color: AppColors.textMuted),
                 ),
                 TextButton(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../models/currency.dart';
 import '../../models/investment_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../navigation/wallet_module_router.dart';
 import '../../services/app_settings.dart';
 import '../../services/investment_store.dart';
 import '../../theme/app_dimens.dart';
@@ -17,7 +18,6 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/dashboard/sparkline.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
-import '../wallet/wallet_detail_screen.dart';
 import 'investment_form_screen.dart';
 
 /// The Investment Wallet - a portfolio dashboard.
@@ -98,13 +98,7 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
     );
   }
 
-  void _openDocuments() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WalletDetailScreen(category: widget.category),
-      ),
-    );
-  }
+  void _openDocuments() => openWalletDocuments(context, widget.category);
 
   Future<void> _actions(Investment i) async {
     final palette = AppPalette.of(context);

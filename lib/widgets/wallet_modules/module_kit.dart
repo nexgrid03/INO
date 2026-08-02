@@ -7,6 +7,7 @@ import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
+import '../common/success_tick_mark.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
@@ -1039,8 +1040,8 @@ void showModuleToast(BuildContext context, String message,
     );
 }
 
-/// A brief full-screen success animation: a brand ring that draws itself, a
-/// check that pops in, then the overlay fades out on its own.
+/// A brief full-screen success animation: pulsing brand rings + a check that
+/// pops in, then the overlay fades out on its own.
 ///
 /// Awaited by the save flows so the caller pops back only once it has played.
 Future<void> showSuccessBurst(BuildContext context, String message) async {
@@ -1051,7 +1052,7 @@ Future<void> showSuccessBurst(BuildContext context, String message) async {
   );
   overlay.insert(entry);
   HapticFeedback.mediumImpact();
-  await Future<void>.delayed(const Duration(milliseconds: 1150));
+  await Future<void>.delayed(const Duration(milliseconds: 1400));
   entry.remove();
 }
 
@@ -1068,7 +1069,7 @@ class _SuccessBurstState extends State<_SuccessBurst>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1150),
+    duration: const Duration(milliseconds: 1400),
   )..forward();
 
   @override
@@ -1086,40 +1087,22 @@ class _SuccessBurstState extends State<_SuccessBurst>
         builder: (context, _) {
           final t = _c.value;
           // Fade the whole overlay in quickly, hold, then fade out.
-          final opacity = t < 0.12
-              ? t / 0.12
+          final opacity = t < 0.10
+              ? t / 0.10
               : (t > 0.78 ? (1 - (t - 0.78) / 0.22).clamp(0.0, 1.0) : 1.0);
-          final pop = Curves.easeOutBack.transform(
-            ((t - 0.10) / 0.35).clamp(0.0, 1.0),
-          );
           return Opacity(
             opacity: opacity,
             child: Container(
-              color: palette.bg.withValues(alpha: 0.55),
+              color: palette.bg.withValues(alpha: 0.62),
               alignment: Alignment.center,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Transform.scale(
-                    scale: 0.6 + 0.4 * pop,
-                    child: Container(
-                      width: 84,
-                      height: 84,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppColors.brandGradient,
-                        boxShadow: AppShadows.glow(
-                          AppColors.primaryGreen,
-                          opacity: 0.40,
-                        ),
-                      ),
-                      child: const Icon(Icons.check_rounded,
-                          color: Colors.white, size: 42),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SuccessTickMark(size: 84),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     widget.message,
+                    textAlign: TextAlign.center,
                     style: AppText.title.copyWith(color: palette.textPrimary),
                   ),
                 ],

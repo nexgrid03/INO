@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
 /// Property & Finance Tools grid for Launcher (SVG glass tiles).
@@ -32,40 +31,42 @@ class LauncherFinanceTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // Clear Material glyphs as primary (SVGs kept as fallback accents via
+    // tinted stroke assets). Stamp/Unit/Tax SVGs were easy to misread.
     final tools = [
       (
         label: l10n.t('areaCalc'),
-        svg: InoHomeIcons.area,
+        icon: Icons.square_foot_rounded,
         accent: AppColors.primaryGreen,
         onTap: onOpenArea,
       ),
       (
         label: l10n.t('emiCalc'),
-        svg: InoHomeIcons.emi,
+        icon: Icons.calendar_month_rounded,
         accent: AppColors.accentIndigo,
         onTap: onOpenEmi,
       ),
       (
         label: l10n.t('sipCalc'),
-        svg: InoHomeIcons.sip,
+        icon: Icons.trending_up_rounded,
         accent: AppColors.accentViolet,
         onTap: onOpenSip,
       ),
       (
         label: l10n.t('stampDuty'),
-        svg: InoHomeIcons.stamp,
+        icon: Icons.verified_rounded,
         accent: AppColors.accentAmber,
         onTap: onOpenStampDuty,
       ),
       (
         label: l10n.t('unitConv'),
-        svg: InoHomeIcons.unit,
+        icon: Icons.swap_horiz_rounded,
         accent: AppColors.accentCyan,
         onTap: onOpenUnitConv,
       ),
       (
         label: l10n.t('taxCalc'),
-        svg: InoHomeIcons.tax,
+        icon: Icons.percent_rounded,
         accent: AppColors.accentEmerald,
         onTap: onOpenTax,
       ),
@@ -95,7 +96,7 @@ class LauncherFinanceTools extends StatelessWidget {
                     width: tileW,
                     child: LauncherGlassIconTile(
                       label: slice[j].label,
-                      svgAsset: slice[j].svg,
+                      icon: slice[j].icon,
                       accent: slice[j].accent,
                       onTap: slice[j].onTap,
                     ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/view_once_share.dart';
@@ -634,15 +635,17 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
           color: AppColors.critical,
           title: l10n.t('viewOnceRevokedTitle'),
           subtitle: _peek.message ?? l10n.t('viewOnceRevokedRecipientBody'),
+          showLinkActions: true,
         );
       default:
         // viewed / expired / notFound all mean the same thing to the recipient,
         // and deliberately look identical so a probe can't tell them apart.
         return _Notice(
-          icon: Icons.visibility_off_rounded,
-          color: AppColors.warning,
-          title: l10n.t('viewOnceSpentTitle'),
-          subtitle: _peek.message ?? l10n.t('viewOnceSpentBody'),
+          icon: Icons.timer_off_rounded,
+          color: AppColors.critical,
+          title: l10n.t('shareLinkExpiredTitle'),
+          subtitle: _peek.message ?? l10n.t('shareLinkExpiredBody'),
+          showLinkActions: true,
         );
     }
   }
@@ -813,6 +816,7 @@ class _Notice extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onRetry,
+    this.showLinkActions = false,
   });
 
   final IconData icon;
@@ -820,54 +824,138 @@ class _Notice extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onRetry;
+  final bool showLinkActions;
+
+  Future<void> _requestNewLink() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'support@ino.app',
+      queryParameters: {'subject': 'Request new INO share link'},
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _returnToDashboard(BuildContext context) async {
+    final uri = Uri.parse('https://inoapp.in');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (context.mounted) Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 92,
-              height: 92,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: palette.border),
+            boxShadow: AppShadows.card,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 44, color: color),
               ),
-              child: Icon(icon, size: 44, color: color),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: AppSpacing.xs),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: AppText.body.copyWith(color: palette.textSecondary)),
-            if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              PressableScale(
-                child: Material(
-                  color: AppColors.primaryGreen,
-                  clipBehavior: Clip.antiAlias,
-                  borderRadius: BorderRadius.circular(AppRadius.button),
-                  child: InkWell(
-                    onTap: onRetry,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
-                      child: Text(AppLocalizations.of(context).t('tryAgain'),
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.w700)),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  style: AppText.title.copyWith(
+                      color: palette.textPrimary, fontWeight: FontWeight.w800)),
+              const SizedBox(height: AppSpacing.xs),
+              Text(subtitle,
+                  textAlign: TextAlign.center,
+                  style: AppText.body
+                      .copyWith(color: palette.textSecondary, height: 1.45)),
+              if (onRetry != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                PressableScale(
+                  child: Material(
+                    color: AppColors.primaryGreen,
+                    clipBehavior: Clip.antiAlias,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: InkWell(
+                      onTap: onRetry,
+                      child: SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: Center(
+                          child: Text(l10n.t('tryAgain'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
+              if (showLinkActions) ...[
+                const SizedBox(height: AppSpacing.md),
+                PressableScale(
+                  child: Material(
+                    color: AppColors.primaryGreen,
+                    clipBehavior: Clip.antiAlias,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: InkWell(
+                      onTap: _requestNewLink,
+                      child: SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: Center(
+                          child: Text(l10n.t('requestNewLink'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                PressableScale(
+                  child: Material(
+                    color: palette.surface,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      side: BorderSide(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.35)),
+                    ),
+                    child: InkWell(
+                      onTap: () => _returnToDashboard(context),
+                      child: SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: Center(
+                          child: Text(l10n.t('returnToDashboard'),
+                              style: AppText.subtitle.copyWith(
+                                  color: AppColors.primaryGreen,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -239,13 +239,14 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: true,
         child: SafeArea(
         child: Column(
           children: [
             _Header(status: _share.status, onClose: () => Navigator.of(context).pop()),
             Expanded(
               child: ListView(
-                physics: const BouncingScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
                 children: [
@@ -405,10 +406,10 @@ class _Header extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final title = switch (status) {
-      ViewOnceStatus.ready => l10n.t('viewOnceReadyTitle'),
+      ViewOnceStatus.ready => l10n.t('secureShare'),
       ViewOnceStatus.viewed => l10n.t('viewOnceOpenedTitle'),
       ViewOnceStatus.revoked => l10n.t('viewOnceRevokedTitle'),
-      _ => l10n.t('viewOnceExpiredTitle'),
+      _ => l10n.t('shareLinkExpiredTitle'),
     };
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -421,9 +422,16 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
+                Text(
+                  title,
+                  style: AppText.headline.copyWith(
+                    color: status == ViewOnceStatus.ready
+                        ? AppColors.primaryGreen
+                        : palette.textPrimary,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(l10n.t('viewOnceHeaderSubtitle'),
                     style:
@@ -450,9 +458,9 @@ class _QrCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadius.large),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: AppColors.tealPale),
-          boxShadow: AppShadows.floating,
+          boxShadow: AppShadows.card,
         ),
         child: QrImageView(
           data: url,

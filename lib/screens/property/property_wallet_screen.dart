@@ -5,18 +5,17 @@ import 'package:flutter/material.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../navigation/wallet_module_router.dart';
 import '../../services/app_settings.dart';
 import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
-import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
-import '../wallet/wallet_detail_screen.dart';
 import 'property_detail_screen.dart';
 import 'property_form_screen.dart';
 
@@ -136,14 +135,8 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
     );
   }
 
-  /// The wallet's documents - the original document manager, untouched.
-  void _openDocuments() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WalletDetailScreen(category: widget.category),
-      ),
-    );
-  }
+  /// The wallet's documents — always the shared [WalletDetailScreen] shell.
+  void _openDocuments() => openWalletDocuments(context, widget.category);
 
   Future<void> _openSort() async {
     final picked = await showModulePicker(
@@ -234,27 +227,28 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                     ),
                   ),
                 ),
-                // Search + sort.
+                // Search + sort — solid pill (no frosted white haze).
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
                     child: FadeSlideIn(
                       delay: const Duration(milliseconds: 60),
-                      child: FloatingSearchBar(
-                        hint: 'Search properties',
-                        height: 48,
-                        controller: _searchController,
-                        onChanged: (v) => setState(() => _query = v),
-                        trailing: ModuleIconButton(
-                          icon: Icons.swap_vert_rounded,
-                          tooltip: 'Sort',
-                          size: 34,
-                          onTap: _openSort,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _PropertySearchField(
+                              controller: _searchController,
+                              onChanged: (v) => setState(() => _query = v),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _SortButton(onTap: _openSort),
+                        ],
                       ),
                     ),
                   ),
                 ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: ModuleChipRow(
                     labels: [for (final f in _PropertyFilter.values) f.label],
@@ -268,7 +262,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                         setState(() => _filter = _PropertyFilter.values[i]),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 if (visible.isEmpty)
                   SliverToBoxAdapter(
                     child: _NoMatches(
@@ -287,7 +281,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                     sliver: SliverList.separated(
                       itemCount: visible.length,
                       separatorBuilder: (_, _) =>
-                          const SizedBox(height: AppSpacing.sm),
+                          const SizedBox(height: 14),
                       itemBuilder: (context, i) => FadeSlideIn(
                         delay: Duration(milliseconds: (i * 45).clamp(0, 300)),
                         offset: 12,
@@ -508,8 +502,82 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-/// One property in the list: image (or a typed gradient placeholder), name,
-/// location, status pill, value and appreciation.
+/// Solid search field — no LiquidGlass frost layer behind it.
+class _PropertySearchField extends StatelessWidget {
+  const _PropertySearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: palette.border),
+        boxShadow: AppShadows.card,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: AppText.body.copyWith(color: palette.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search properties',
+                hintStyle: AppText.body.copyWith(color: palette.textFaint),
+                border: InputBorder.none,
+                isCollapsed: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return PressableScale(
+      pressedScale: 0.92,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: palette.surface,
+            shape: BoxShape.circle,
+            border: Border.all(color: palette.border),
+            boxShadow: AppShadows.card,
+          ),
+          child: Icon(Icons.swap_vert_rounded,
+              size: 22, color: AppColors.primaryGreen),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass property card — matches portfolio / investment AdaptiveGlass language.
 class PropertyCard extends StatelessWidget {
   const PropertyCard({
     super.key,
@@ -529,34 +597,42 @@ class PropertyCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final accent = property.status.color;
     final appreciation = property.appreciation;
+    final hasValue = property.portfolioValue > 0;
+    final typeLine = property.locationLine.isEmpty
+        ? property.type.label
+        : '${property.type.label} · ${property.locationLine}';
+
     return PressableScale(
       pressedScale: 0.98,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AdaptiveGlassCard(
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.all(14),
           radius: AppRadius.card,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            // The card sits in a sliver list, so its height is unbounded. The
-            // thumbnail stretches to whatever the text column measures, and
-            // stretch needs a real height to stretch to - hence IntrinsicHeight.
-            child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Thumbnail - the user's photo, else a typed gradient tile.
-                SizedBox(
-                  width: 104,
-                  child: _Thumbnail(property: property, accent: accent),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Identity row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: accent.withValues(alpha: 0.22)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _Thumbnail(property: property, accent: accent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
                           children: [
@@ -567,7 +643,8 @@ class PropertyCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: AppText.title.copyWith(
                                   color: palette.textPrimary,
-                                  fontSize: 15,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
@@ -581,7 +658,7 @@ class PropertyCard extends StatelessWidget {
                                     property.isFavorite
                                         ? Icons.star_rounded
                                         : Icons.star_outline_rounded,
-                                    size: 19,
+                                    size: 20,
                                     color: property.isFavorite
                                         ? AppColors.warning
                                         : palette.textFaint,
@@ -595,67 +672,88 @@ class PropertyCard extends StatelessWidget {
                           children: [
                             Icon(property.type.icon,
                                 size: 13, color: palette.textFaint),
-                            const SizedBox(width: 4),
-                            Flexible(
+                            const SizedBox(width: 5),
+                            Expanded(
                               child: Text(
-                                property.locationLine.isEmpty
-                                    ? property.type.label
-                                    : '${property.type.label} · ${property.locationLine}',
+                                typeLine,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppText.caption
-                                    .copyWith(color: palette.textSecondary),
+                                style: AppText.caption.copyWith(
+                                  color: palette.textSecondary,
+                                  fontSize: 12.5,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 9),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    property.portfolioValue > 0
-                                        ? money(
-                                            property.portfolioValue, currency)
-                                        : 'Value not set',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.title.copyWith(
-                                      color: property.portfolioValue > 0
-                                          ? palette.textPrimary
-                                          : palette.textFaint,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  if (appreciation != null)
-                                    Text(
-                                      '${appreciation >= 0 ? '▲' : '▼'} ${(appreciation.abs() * 100).toStringAsFixed(1)}% since purchase',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppText.caption.copyWith(
-                                        color: appreciation >= 0
-                                            ? AppColors.success
-                                            : AppColors.critical,
-                                        fontSize: 11.5,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            _StatusPill(status: property.status),
                           ],
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Value + status partition (same inset band as investment cards)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.surfaceVariant
+                      .withValues(alpha: palette.isDark ? 0.55 : 0.92),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(color: palette.border),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hasValue
+                                ? money(property.portfolioValue, currency)
+                                : 'Value not set',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.title.copyWith(
+                              color: hasValue
+                                  ? palette.textPrimary
+                                  : palette.textFaint,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (appreciation != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '${appreciation >= 0 ? '▲' : '▼'} ${(appreciation.abs() * 100).toStringAsFixed(1)}% since purchase',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.copyWith(
+                                color: appreciation >= 0
+                                    ? AppColors.success
+                                    : AppColors.critical,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 36,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      color: palette.border,
+                    ),
+                    _StatusPill(status: property.status),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
         ),
       ),
     );

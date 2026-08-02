@@ -27,6 +27,7 @@ import 'services/vault_guard.dart';
 import 'services/voice_manager.dart';
 import 'services/wallet_store.dart';
 import 'theme/app_theme.dart';
+import 'theme/ino_scroll_behavior.dart';
 import 'theme/theme_controller.dart';
 import 'theme/theme_style.dart';
 
@@ -188,6 +189,11 @@ class _InoAppState extends State<InoApp> {
                   theme: AppTheme.lightFor(style),
                   darkTheme: AppTheme.darkFor(style),
                   themeMode: mode,
+                  // Launcher: no M3 stretch overscroll (it scales the page and
+                  // makes text look like it shrinks while scrolling).
+                  scrollBehavior: style == ThemeStyle.launcher
+                      ? const InoNoStretchScrollBehavior()
+                      : const MaterialScrollBehavior(),
                   locale: _localeForCode(langCode),
                   supportedLocales: AppLocalizations.supportedLocales,
                   localizationsDelegates: const [

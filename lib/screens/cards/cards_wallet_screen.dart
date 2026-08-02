@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/card_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../navigation/wallet_module_router.dart';
 import '../../services/card_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -11,7 +12,6 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
-import '../wallet/wallet_detail_screen.dart';
 import 'card_form_screen.dart';
 
 /// The Banking Wallet - the user's cards, rendered as cards.
@@ -102,13 +102,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
     showModuleToast(context, 'Last 4 digits copied');
   }
 
-  void _openDocuments() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WalletDetailScreen(category: widget.category),
-      ),
-    );
-  }
+  void _openDocuments() => openWalletDocuments(context, widget.category);
 
   Future<void> _openSort() async {
     final picked = await showModulePicker(

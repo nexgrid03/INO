@@ -78,20 +78,17 @@ class QuickActionButton extends StatelessWidget {
                         : Icon(icon, color: Colors.white, size: glyph),
                   ),
                   SizedBox(height: enlarged ? 8 : AppSpacing.xs),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: AppText.caption.copyWith(
-                        color: palette.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: enlarged ? 13 : 12,
-                        height: 1.1,
-                      ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppText.caption.copyWith(
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: enlarged ? 13 : 12,
+                      height: 1.1,
                     ),
                   ),
                 ],

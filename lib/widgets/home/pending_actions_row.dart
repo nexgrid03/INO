@@ -5,25 +5,29 @@ import '../../theme/app_theme.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
-/// One pending item shown in the Launcher Home horizontal strip.
+/// One pending item shown in the Launcher Home strip.
 class LauncherPendingItem {
   const LauncherPendingItem({
     required this.title,
     required this.status,
     required this.icon,
     required this.accent,
+    this.subtitle,
     this.onTap,
   });
 
   final String title;
   final String status;
+  final String? subtitle;
   final IconData icon;
   final Color accent;
   final VoidCallback? onTap;
 }
 
-/// PhonePe-style horizontal pending cards (Launcher theme only).
-class PendingActionsRow extends StatelessWidget {
+/// Full-width review-banner strip under Needs attention.
+///
+/// Same fixed height whether empty or filled; multiple items scroll inside.
+class PendingActionsRow extends StatefulWidget {
   const PendingActionsRow({
     super.key,
     required this.items,
@@ -31,13 +35,31 @@ class PendingActionsRow extends StatelessWidget {
   });
 
   final List<LauncherPendingItem> items;
+
+  /// Fallback for Review taps when an item has no [LauncherPendingItem.onTap].
   final VoidCallback? onViewAll;
+
+  static const double stripHeight = 68;
+
+  @override
+  State<PendingActionsRow> createState() => _PendingActionsRowState();
+}
+
+class _PendingActionsRowState extends State<PendingActionsRow> {
+  final Set<int> _dismissed = {};
 
   static const _glass = (
     enableBlur: false,
-    frostLight: 0.72,
+    frostLight: 0.78,
     frostDark: 1.2,
   );
+
+  List<MapEntry<int, LauncherPendingItem>> get _visible {
+    return [
+      for (var i = 0; i < widget.items.length; i++)
+        if (!_dismissed.contains(i)) MapEntry(i, widget.items[i]),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,178 +67,176 @@ class PendingActionsRow extends StatelessWidget {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
     final frost = dark ? _glass.frostDark : _glass.frostLight;
+    final visible = _visible;
 
-    if (items.isEmpty) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 3,
-              child: LiquidGlass(
-                borderRadius: BorderRadius.circular(16),
-                enableBlur: false,
-                frost: frost,
-                shadow: false,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return SizedBox(
+      height: PendingActionsRow.stripHeight,
+      width: double.infinity,
+      child: LiquidGlass(
+        borderRadius: BorderRadius.circular(18),
+        enableBlur: false,
+        frost: frost,
+        shadow: true,
+        padding: EdgeInsets.zero,
+        child: visible.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     l10n.t('noPendingItems'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: palette.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      color: palette.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
                     ),
                   ),
                 ),
-              ),
-            ),
-            if (onViewAll != null) ...[
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 1,
-                child: PressableScale(
-                  pressedScale: 0.97,
-                  child: GestureDetector(
-                    onTap: onViewAll,
-                    behavior: HitTestBehavior.opaque,
-                    child: LiquidGlass(
-                      borderRadius: BorderRadius.circular(16),
-                      enableBlur: false,
-                      frost: frost,
-                      shadow: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 14,
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                l10n.t('viewOthers'),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.primaryGreen,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: AppColors.primaryGreen,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: AppColors.primaryGreen,
-                            ),
-                          ],
+              )
+            : visible.length == 1
+                ? _ReviewBanner(
+                    item: visible.first.value,
+                    onReview:
+                        visible.first.value.onTap ?? widget.onViewAll,
+                    onDismiss: () => setState(
+                      () => _dismissed.add(visible.first.key),
+                    ),
+                  )
+                : ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    itemCount: visible.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) {
+                      final entry = visible[i];
+                      return SizedBox(
+                        width: MediaQuery.sizeOf(context).width * 0.85,
+                        child: _ReviewBanner(
+                          item: entry.value,
+                          onReview: entry.value.onTap ?? widget.onViewAll,
+                          onDismiss: () =>
+                              setState(() => _dismissed.add(entry.key)),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    return SizedBox(
-      height: 132,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: items.length + (onViewAll != null ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, i) {
-          if (onViewAll != null && i == items.length) {
-            return PressableScale(
-              child: GestureDetector(
-                onTap: onViewAll,
-                child: LiquidGlass(
-                  borderRadius: BorderRadius.circular(16),
-                  enableBlur: false,
-                  frost: frost,
-                  shadow: false,
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: const Center(
-                    child: Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.primaryGreen,
-                      size: 32,
-                    ),
+/// Shield · title/subtitle · Review → · ✕
+class _ReviewBanner extends StatelessWidget {
+  const _ReviewBanner({
+    required this.item,
+    this.onReview,
+    this.onDismiss,
+  });
+
+  final LauncherPendingItem item;
+  final VoidCallback? onReview;
+  final VoidCallback? onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final subtitle = item.subtitle ??
+        (item.status.isEmpty ? 'Review now to stay on track' : item.status);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              item.icon,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-            );
-          }
-          final item = items[i];
-          return PressableScale(
-            child: GestureDetector(
-              onTap: item.onTap,
-              child: LiquidGlass(
-                borderRadius: BorderRadius.circular(16),
-                enableBlur: false,
-                frost: frost,
-                shadow: false,
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                child: SizedBox(
-                  width: 164,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.textSecondary,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          if (onReview != null)
+            PressableScale(
+              child: GestureDetector(
+                onTap: onReview,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: item.accent,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          item.icon,
+                      Text(
+                        'Review',
+                        style: TextStyle(
                           color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: palette.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.status,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: item.accent,
-                          fontWeight: FontWeight.w700,
                           fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      SizedBox(width: 3),
+                      Icon(Icons.arrow_forward_rounded,
+                          size: 13, color: Colors.white),
                     ],
                   ),
                 ),
               ),
             ),
-          );
-        },
+          if (onDismiss != null)
+            IconButton(
+              onPressed: onDismiss,
+              icon: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: palette.textSecondary,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+        ],
       ),
     );
   }

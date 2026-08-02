@@ -50,6 +50,9 @@ class PublicShare {
     this.expiresAt,
     this.documents = const [],
     this.message,
+    this.ownerName,
+    this.ownerEmail,
+    this.sharedOnLabel,
   });
 
   final PublicShareStatus status;
@@ -58,6 +61,11 @@ class PublicShare {
   final DateTime? expiresAt;
   final List<SharedDoc> documents;
   final String? message;
+
+  /// Optional owner display fields when the Edge Function includes them.
+  final String? ownerName;
+  final String? ownerEmail;
+  final String? sharedOnLabel;
 
   bool get isActive => status == PublicShareStatus.active;
 
@@ -77,6 +85,14 @@ class PublicShare {
           SharedDoc.fromJson(d as Map<String, dynamic>),
       ],
       message: json['message'] as String?,
+      ownerName: (json['ownerName'] as String?) ??
+          (json['owner_name'] as String?) ??
+          (json['sharedByName'] as String?),
+      ownerEmail: (json['ownerEmail'] as String?) ??
+          (json['owner_email'] as String?) ??
+          (json['sharedByEmail'] as String?),
+      sharedOnLabel: json['sharedOn'] as String? ??
+          json['shared_on'] as String?,
     );
   }
 

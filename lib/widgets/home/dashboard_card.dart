@@ -396,9 +396,9 @@ class _MascotBadgeState extends State<_MascotBadge>
                     ],
                   ),
                   child: const Icon(
-                    Icons.verified_user_rounded,
+                    Icons.lock_rounded,
                     color: Colors.white,
-                    size: 23,
+                    size: 22,
                   ),
                 ),
               ),

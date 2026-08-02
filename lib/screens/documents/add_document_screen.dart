@@ -27,6 +27,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
+import 'document_upload_success_screen.dart';
 
 /// The source a user picks to add a document.
 enum _DocSource { scan, pdf, image }
@@ -461,12 +462,23 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         );
       }
 
-      _toast(AppLocalizations.of(context)
-          .t('savedToWallet')
-          .replaceAll('{name}', name)
-          .replaceAll('{wallet}',
-              localizedWalletName(AppLocalizations.of(context), _wallet!)));
-      Navigator.of(context).maybePop();
+      if (!mounted) return;
+
+      final walletLabel =
+          localizedWalletName(AppLocalizations.of(context), _wallet!);
+      await Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              DocumentUploadSuccessScreen(
+            documentName: name,
+            walletLabel: walletLabel,
+            encrypted: _protect,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+          transitionDuration: const Duration(milliseconds: 320),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);

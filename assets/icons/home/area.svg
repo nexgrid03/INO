@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4.5 8.5V5.5H7.5M16.5 5.5H19.5V8.5M19.5 15.5V18.5H16.5M7.5 18.5H4.5V15.5" stroke="#000" stroke-width="1.75" stroke-linecap="round"/><rect x="8" y="9" width="8" height="6" rx="1" stroke="#000" stroke-width="1.75"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- Area: corner brackets framing a plot -->
+  <path d="M4.5 8.25V4.5H8.25M15.75 4.5H19.5V8.25M19.5 15.75V19.5H15.75M8.25 19.5H4.5V15.75" stroke="#000" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="8" y="8.25" width="8" height="7.5" rx="1.25" stroke="#000" stroke-width="1.75"/>
+</svg>

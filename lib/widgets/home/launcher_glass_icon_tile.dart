@@ -57,9 +57,10 @@ class LauncherGlassIconTile extends StatelessWidget {
                       shadow: false,
                       child: LayoutBuilder(
                         builder: (context, constraints) {
+                          // Finance / vault tiles: icon owns most of the cell.
                           final glyph =
-                              (constraints.biggest.shortestSide * 0.58)
-                                  .clamp(32.0, 52.0);
+                              (constraints.biggest.shortestSide * 0.70)
+                                  .clamp(40.0, 60.0);
                           if (svgAsset != null) {
                             return Center(
                               child: InoSvgIcon(
@@ -86,16 +87,16 @@ class LauncherGlassIconTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                maxLines: 1,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                height: 1.15,
               ),
             ),
           ],

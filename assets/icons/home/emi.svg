@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4.5 19.5h15M6.5 16.5V10M10.5 16.5V7M14.5 16.5v-5M18.5 16.5V9" stroke="#000" stroke-width="1.75" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- EMI: calendar + rupee/payment bars -->
+  <rect x="4.5" y="5.5" width="15" height="14" rx="2.25" stroke="#000" stroke-width="1.75"/>
+  <path d="M4.5 9.5h15" stroke="#000" stroke-width="1.75"/>
+  <path d="M9 3.75v3M15 3.75v3" stroke="#000" stroke-width="1.75" stroke-linecap="round"/>
+  <path d="M8 13.25h2.75M8 16h5.5" stroke="#000" stroke-width="1.75" stroke-linecap="round"/>
+</svg>
