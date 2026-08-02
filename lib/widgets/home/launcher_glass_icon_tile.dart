@@ -93,7 +93,7 @@ class LauncherGlassIconTile extends StatelessWidget {
                 maxLines: 1,
                 style: TextStyle(
                   color: palette.textPrimary,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),

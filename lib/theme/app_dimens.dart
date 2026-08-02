@@ -54,21 +54,21 @@ class AppText {
   AppText._();
 
   static const TextStyle display = TextStyle(
-      fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8);
+      fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.8);
   static const TextStyle bigNumber = TextStyle(
-      fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1.0);
+      fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1.0);
   static const TextStyle headline = TextStyle(
-      fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5);
+      fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5);
   static const TextStyle title = TextStyle(
-      fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.2);
+      fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.2);
   static const TextStyle subtitle =
-      TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+      TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
   static const TextStyle body =
-      TextStyle(fontSize: 14, fontWeight: FontWeight.w500);
+      TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
   static const TextStyle caption =
-      TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
+      TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500);
   static const TextStyle label =
-      TextStyle(fontSize: 12, fontWeight: FontWeight.w700);
+      TextStyle(fontSize: 13, fontWeight: FontWeight.w700);
 }
 
 /// Semantic icon constants used across the home experience.

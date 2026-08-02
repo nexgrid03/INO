@@ -42,7 +42,7 @@ class SectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: palette.textPrimary,
                 letterSpacing: -0.2,
@@ -65,7 +65,7 @@ class SectionHeader extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.primaryGreen,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(width: 3),

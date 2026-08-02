@@ -293,15 +293,18 @@ class _InoBottomNavState extends State<InoBottomNav>
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        // iOS 26 Liquid Glass tab bar: the page refracts through the pill as
-        // it scrolls beneath (MainShell sets extendBody for exactly this).
+        // iOS 26 Liquid Glass tab bar: milkier frost than content cards so
+        // icons stay readable over the sky wash (esp. on web without blur).
         child: LiquidGlass(
           borderRadius: BorderRadius.circular(26),
-          blur: 26,
+          blur: 28,
+          frost: palette.isDark ? 1.25 : 1.65,
+          tint: palette.isDark ? null : Colors.white,
           child: Container(
             height: 66,
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -452,9 +455,11 @@ class _TabButtonState extends State<_TabButton>
                 curve: Curves.easeOut,
                 builder: (context, sel, _) => Icon(
                   widget.selected ? widget.item.active : widget.item.inactive,
-                  size: 26,
+                  size: 28,
                   color: Color.lerp(
-                    palette.textFaint,
+                    // Secondary (not faint) so inactive icons read clearly
+                    // on translucent glass over the sky wash.
+                    palette.textSecondary,
                     AppColors.primaryGreen,
                     sel,
                   ),

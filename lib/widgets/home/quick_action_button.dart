@@ -89,7 +89,7 @@ class QuickActionButton extends StatelessWidget {
                       style: AppText.caption.copyWith(
                         color: palette.textPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: enlarged ? 12 : 11,
+                        fontSize: enlarged ? 13 : 12,
                         height: 1.1,
                       ),
                     ),
