@@ -170,7 +170,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.chip),
-                      borderSide: const BorderSide(
+                      borderSide:  BorderSide(
                           color: AppColors.primaryGreen, width: 1.6),
                     ),
                   ),
@@ -214,7 +214,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                             .copyWith(color: palette.textSecondary),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle_rounded,
+                          ?  Icon(Icons.check_circle_rounded,
                               color: AppColors.primaryGreen, size: 22)
                           : null,
                     );

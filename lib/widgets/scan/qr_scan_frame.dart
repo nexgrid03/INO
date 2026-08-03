@@ -70,6 +70,7 @@ class _QrScanFrameState extends State<QrScanFrame>
               animation: _line,
               builder: (context, _) {
                 final y = 18 + (widget.size - 36) * _line.value;
+                final dark = Theme.of(context).brightness == Brightness.dark;
                 return Positioned(
                   top: y,
                   left: 22,
@@ -81,15 +82,15 @@ class _QrScanFrameState extends State<QrScanFrame>
                       gradient: LinearGradient(
                         colors: [
                           accent.withValues(alpha: 0),
-                          accent,
+                          accent.withValues(alpha: dark ? 0.7 : 1),
                           accent.withValues(alpha: 0),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: accent.withValues(alpha: 0.55),
-                          blurRadius: 8,
-                          spreadRadius: 0.5,
+                          color: accent.withValues(alpha: dark ? 0.28 : 0.55),
+                          blurRadius: dark ? 5 : 8,
+                          spreadRadius: dark ? 0 : 0.5,
                         ),
                       ],
                     ),

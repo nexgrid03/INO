@@ -224,7 +224,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : _uploadAndShare,
                       icon: _uploading
-                          ? const SizedBox(
+                          ?  SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
@@ -268,7 +268,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
             const SizedBox(height: 8),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ?  Center(
                       child: CircularProgressIndicator(
                           strokeWidth: 2.4, color: AppColors.primaryGreen),
                     )
@@ -318,7 +318,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                                         borderRadius:
                                             BorderRadius.circular(11),
                                       ),
-                                      child: const Icon(
+                                      child:  Icon(
                                           Icons.description_rounded,
                                           size: 19,
                                           color: AppColors.primaryGreen),
@@ -353,7 +353,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                                       ),
                                     ),
                                     if (isBusy)
-                                      const SizedBox(
+                                       SizedBox(
                                         width: 18,
                                         height: 18,
                                         child: CircularProgressIndicator(

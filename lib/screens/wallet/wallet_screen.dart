@@ -289,7 +289,7 @@ class _WalletBackdrop extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Soft accent blobs - quiet depth behind the grid.
-          const Positioned(
+           Positioned(
             top: -70,
             right: -60,
             child: DecorBlob(
@@ -298,7 +298,7 @@ class _WalletBackdrop extends StatelessWidget {
               opacity: 0.30,
             ),
           ),
-          const Positioned(
+           Positioned(
             bottom: 40,
             left: -80,
             child: DecorBlob(
@@ -345,7 +345,7 @@ class _HubHeader extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: AppGradients.primary,
+            gradient: AppColors.brandGradient,
             boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
           ),
           alignment: Alignment.center,
@@ -468,7 +468,7 @@ class _FilterButton extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            gradient: AppGradients.primary,
+            gradient: AppColors.brandGradient,
             borderRadius: BorderRadius.circular(11),
             boxShadow: AppShadows.glow(AppColors.primaryGreen, opacity: 0.28),
           ),
@@ -661,7 +661,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return  Center(
       child: Padding(
         padding: EdgeInsets.only(top: 80),
         child: SizedBox(

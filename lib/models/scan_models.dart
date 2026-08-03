@@ -40,7 +40,7 @@ extension DetectionConfidenceX on DetectionConfidence {
   Color get color {
     switch (this) {
       case DetectionConfidence.high:
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
       case DetectionConfidence.medium:
         return AppColors.warning;
       case DetectionConfidence.low:

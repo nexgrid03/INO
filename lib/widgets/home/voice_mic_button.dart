@@ -42,7 +42,7 @@ class VoiceMicIconButton extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              gradient: InoStyle.gradient(context, AppGradients.primary),
+              gradient: InoStyle.gradient(context, AppColors.brandGradient),
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.5),
@@ -267,7 +267,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+             Icon(
               Icons.check_circle_rounded,
               color: AppColors.primaryGreen,
               size: 18,

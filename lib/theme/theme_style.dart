@@ -12,10 +12,12 @@ import 'package:flutter/material.dart';
 ///    darken.
 ///  • [soft]     - a lighter take on classic: fills a touch airier and the icon
 ///    badges go glass with **colourful** glyphs instead of white.
-///  • [launcher] - PhonePe-style Home launcher (quick actions → vaults →
-///    needs-attention) plus Divine Glass frosted chrome on feature screens.
-///    Colour rules match classic.
-enum ThemeStyle { classic, bold, soft, launcher }
+///  • [launcher] - Compact Home layout (quick actions → vaults →
+///    needs-attention) plus frosted glass chrome on feature screens.
+///    Colour rules match classic (#0EA5E9).
+///  • [aqua]     - Same compact Home + Divine Glass chrome as [launcher],
+///    branded with mint #4FDBC8.
+enum ThemeStyle { classic, bold, soft, launcher, aqua }
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
 /// widget that consults the active style - directly via [InoStyle.of] or
@@ -40,12 +42,31 @@ class InoStyleScope extends InheritedWidget {
 class InoStyle {
   InoStyle._();
 
+  /// Sky brand (#0EA5E9) — classic / bold / soft / launcher.
+  static const Color _skyBrand = Color(0xFF0EA5E9);
+
+  /// Mint brand (#4FDBC8) — aqua.
+  static const Color _aquaBrand = Color(0xFF4FDBC8);
+
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
 
   static bool isBold(BuildContext context) => of(context) == ThemeStyle.bold;
   static bool isSoft(BuildContext context) => of(context) == ThemeStyle.soft;
   static bool isLauncher(BuildContext context) =>
       of(context) == ThemeStyle.launcher;
+  static bool isAqua(BuildContext context) => of(context) == ThemeStyle.aqua;
+
+  /// Compact Home + Divine Glass chrome — true for [ThemeStyle.launcher] and
+  /// [ThemeStyle.aqua].
+  static bool usesDivineGlass(BuildContext context) {
+    final s = of(context);
+    return s == ThemeStyle.launcher || s == ThemeStyle.aqua;
+  }
+
+  /// Brand accent for the active style: mint #4FDBC8 in Aqua, else sky #0EA5E9.
+  static Color brandAccent(BuildContext context) {
+    return of(context) == ThemeStyle.aqua ? _aquaBrand : _skyBrand;
+  }
 
   /// Deepens a colour, gaining a little saturation on the way down so it stays
   /// vivid instead of turning muddy (same curve as the badge painter's shade).
@@ -66,7 +87,7 @@ class InoStyle {
   }
 
   /// An accent resolved for the active style: deeper in bold, a touch lighter
-  /// in soft, untouched in classic / launcher.
+  /// in soft, untouched in classic / launcher / aqua.
   static Color accent(BuildContext context, Color c) {
     switch (of(context)) {
       case ThemeStyle.bold:
@@ -75,6 +96,7 @@ class InoStyle {
         return soften(c, 0.06);
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
+      case ThemeStyle.aqua:
         return c;
     }
   }
@@ -92,11 +114,12 @@ class InoStyle {
 
   /// A branded gradient resolved for the active style: every stop runs deeper
   /// in bold and a touch lighter in soft. Non-linear gradients pass through
-  /// untouched. Classic and launcher leave the gradient as authored.
+  /// untouched. Classic, launcher and aqua leave the gradient as authored.
   static Gradient gradient(BuildContext context, Gradient g) {
     final style = of(context);
     if (style == ThemeStyle.classic ||
         style == ThemeStyle.launcher ||
+        style == ThemeStyle.aqua ||
         g is! LinearGradient) {
       return g;
     }

@@ -190,7 +190,7 @@ class _ActionTile extends StatelessWidget {
                 width: 26,
                 height: 26,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
+                decoration:  BoxDecoration(
                   color: AppColors.primaryGreen,
                   shape: BoxShape.circle,
                 ),

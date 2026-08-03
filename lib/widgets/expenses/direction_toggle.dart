@@ -40,7 +40,7 @@ class _DirectionToggleState extends State<DirectionToggle>
   );
 
   static const _debitColor = AppColors.critical; // money out - subtle red
-  static const _creditColor = AppColors.primaryGreen; // money in - teal/green
+  static Color get _creditColor => AppColors.primaryGreen; // money in
 
   @override
   void initState() {

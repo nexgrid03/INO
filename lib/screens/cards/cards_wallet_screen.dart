@@ -311,7 +311,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.verified_user_outlined,
+                           Icon(Icons.verified_user_outlined,
                               size: 16, color: AppColors.primaryGreen),
                           const SizedBox(width: 8),
                           Flexible(

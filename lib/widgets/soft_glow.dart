@@ -24,28 +24,30 @@ class SoftGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
         final t = animation.value;
+        final peak = dark ? 0.28 : 0.55;
         return Opacity(
           // Cap peak opacity so the glow stays subtle and premium.
-          opacity: (t * 0.55).clamp(0.0, 0.55),
+          opacity: (t * peak).clamp(0.0, peak),
           child: Transform.scale(
             // Expand gently from 80% to 100% as it blooms.
             scale: 0.8 + (t * 0.2),
             child: Container(
               width: size,
               height: size,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.skyBlue,
+                    AppColors.secondaryGreen,
                     AppColors.primaryGreen,
-                    Color(0x00000000), // fully transparent edge
+                    const Color(0x00000000), // fully transparent edge
                   ],
-                  stops: [0.0, 0.45, 1.0],
+                  stops: const [0.0, 0.45, 1.0],
                 ),
               ),
             ),

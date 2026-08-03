@@ -183,7 +183,7 @@ class _StatusCard extends StatelessWidget {
                     color: AppColors.primaryGreen.withValues(alpha: 0.18),
                   ),
                 ),
-                child: const Icon(Icons.cloud_done_rounded,
+                child:  Icon(Icons.cloud_done_rounded,
                     color: AppColors.primaryGreen, size: 24),
               ),
               const SizedBox(width: 14),
@@ -219,7 +219,7 @@ class _StatusCard extends StatelessWidget {
                 minHeight: 6,
                 backgroundColor: palette.surfaceVariant,
                 valueColor:
-                    const AlwaysStoppedAnimation(AppColors.primaryGreen),
+                    AlwaysStoppedAnimation(AppColors.primaryGreen),
               ),
             ),
           ],
@@ -275,7 +275,7 @@ class _BackupTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: onRestore,
-            child: const Text('Restore',
+            child:  Text('Restore',
                 style: TextStyle(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w700)),

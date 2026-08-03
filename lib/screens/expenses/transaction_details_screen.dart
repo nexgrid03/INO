@@ -288,7 +288,7 @@ class _ReceiptView extends StatelessWidget {
                 color: AppColors.lightBlue.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(AppRadius.chip),
               ),
-              child: const Icon(Icons.picture_as_pdf_rounded,
+              child:  Icon(Icons.picture_as_pdf_rounded,
                   color: AppColors.lightBlue, size: 26),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -367,11 +367,11 @@ class _ShareButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.ios_share_rounded,
+                 Icon(Icons.ios_share_rounded,
                     color: AppColors.darkGreen, size: 18),
                 const SizedBox(width: 8),
                 Text(AppLocalizations.of(context).t('downloadShare'),
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.darkGreen,
                         fontWeight: FontWeight.w700,
                         fontSize: 14)),

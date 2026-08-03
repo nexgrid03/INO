@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
 
 /// The Divine Glass hairline border colour (pale sky) used by the auth inputs.
-const Color _borderColor = AppColors.tealPale;
+Color _borderColor = AppColors.tealPale;
 
 /// A premium text field with a smooth focus glow, used across every auth screen.
 ///
@@ -116,7 +116,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
           // Translucent white "glass" fill over the sky-gradient backdrop.
           fillColor: Colors.white.withValues(alpha: 0.85),
           labelStyle: const TextStyle(color: AppColors.textMuted),
-          floatingLabelStyle: const TextStyle(color: AppColors.primaryGreen),
+          floatingLabelStyle: TextStyle(color: AppColors.primaryGreen),
           border: _border(_borderColor),
           enabledBorder: _border(_borderColor),
           focusedBorder: _border(AppColors.primaryGreen, width: 1.6),

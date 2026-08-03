@@ -228,7 +228,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(l10n.t('continueAction'),
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.primaryGreen, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -308,7 +308,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
   Widget _body(AppPalette palette) {
     switch (_phase) {
       case _Phase.loading:
-        return const Center(
+        return  Center(
           child: CircularProgressIndicator(color: AppColors.primaryGreen),
         );
       case _Phase.gate:
@@ -343,7 +343,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.tealPale),
             ),
-            child: const Icon(Icons.lock_outline_rounded,
+            child:  Icon(Icons.lock_outline_rounded,
                 color: AppColors.primaryGreen, size: 38),
           ),
         ),
@@ -370,7 +370,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
                       borderRadius: BorderRadius.circular(AppRadius.chip),
                       border: Border.all(color: AppColors.tealPale),
                     ),
-                    child: const Icon(Icons.visibility_rounded,
+                    child:  Icon(Icons.visibility_rounded,
                         color: AppColors.primaryGreen, size: 22),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -757,7 +757,7 @@ class _ProtectionNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.shield_rounded, color: AppColors.lightBlue, size: 20),
+          Icon(Icons.shield_rounded, color: AppColors.lightBlue, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(

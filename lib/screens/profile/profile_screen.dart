@@ -212,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 trailing: o == _language
-                    ? const Icon(
+                    ?  Icon(
                         Icons.check_rounded,
                         color: AppColors.primaryGreen,
                       )
@@ -302,6 +302,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeSoft');
       case ThemeStyle.launcher:
         return l10n.t('themeLauncher');
+      case ThemeStyle.aqua:
+        return l10n.t('themeAqua');
     }
   }
 
@@ -315,6 +317,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeSoftDesc');
       case ThemeStyle.launcher:
         return l10n.t('themeLauncherDesc');
+      case ThemeStyle.aqua:
+        return l10n.t('themeAquaDesc');
     }
   }
 
@@ -363,7 +367,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 trailing: o == current
-                    ? const Icon(
+                    ? Icon(
                         Icons.check_rounded,
                         color: AppColors.primaryGreen,
                       )
@@ -678,7 +682,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             const SizedBox(height: AppSpacing.xs),
             ListTile(
-              leading: const Icon(Icons.swap_horiz_rounded,
+              leading:  Icon(Icons.swap_horiz_rounded,
                   color: AppColors.primaryGreen),
               title: Text('Switch to this account',
                   style: TextStyle(color: palette.textPrimary)),
@@ -1013,7 +1017,7 @@ class _Title extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     final dark = palette.isDark;
     final canPop = Navigator.of(context).canPop();
     final row = Padding(
@@ -1125,9 +1129,9 @@ class _ProfileHero extends StatelessWidget {
                     width: 84,
                     height: 84,
                     padding: const EdgeInsets.all(2.5),
-                    decoration: const BoxDecoration(
+                    decoration:  BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: AppGradients.primary,
+                      gradient: AppColors.brandGradient,
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(2.5),
@@ -1156,7 +1160,7 @@ class _ProfileHero extends StatelessWidget {
                       height: 28,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: AppGradients.primary,
+                        gradient: AppColors.brandGradient,
                         border: Border.all(color: palette.surface, width: 2.5),
                         boxShadow: AppShadows.glow(AppColors.primaryGreen),
                       ),
@@ -1209,7 +1213,7 @@ class _HeroInitials extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppGradients.primary),
+      decoration: BoxDecoration(gradient: AppColors.brandGradient),
       child: Center(
         child: Text(
           initials,
@@ -1242,7 +1246,7 @@ class _HeroBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+           Icon(
             Icons.verified_rounded,
             size: 13,
             color: AppColors.primaryGreen,
@@ -1295,7 +1299,7 @@ class _StorageCard extends StatelessWidget {
                   gradient: AppGradients.wash(opacity: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: const Icon(
+                child:  Icon(
                   Icons.storage_rounded,
                   size: 22,
                   color: AppColors.primaryGreen,
@@ -1351,7 +1355,7 @@ class _StorageCard extends StatelessWidget {
                   Container(color: palette.surfaceVariant),
                   FractionallySizedBox(
                     widthFactor: fraction.clamp(0.0, 1.0),
-                    child: const DecoratedBox(
+                    child:  DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: AppColors.brandGradient,
                       ),
@@ -1400,7 +1404,7 @@ class _ProgressDialog extends StatelessWidget {
                   value: value == 0 ? null : value,
                   minHeight: 6,
                   backgroundColor: palette.surfaceVariant,
-                  valueColor: const AlwaysStoppedAnimation(
+                  valueColor:  AlwaysStoppedAnimation(
                     AppColors.primaryGreen,
                   ),
                 ),
@@ -1439,7 +1443,7 @@ class _ThemeSwatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = AppColors.primaryGreen;
+    final accent = AppColors.primaryGreen;
     final Color fill;
     final Color edge;
     final Widget glyph;
@@ -1463,11 +1467,19 @@ class _ThemeSwatch extends StatelessWidget {
       case ThemeStyle.soft:
         fill = AppColors.tealFoam;
         edge = accent; // classic edge; soft only adds the glass sheen
-        glyph = const Icon(Icons.star_rounded, color: accent, size: 16);
+        glyph = Icon(Icons.star_rounded, color: accent, size: 16);
       case ThemeStyle.launcher:
         fill = Colors.white;
         edge = accent;
-        glyph = const Icon(Icons.apps_rounded, color: accent, size: 18);
+        glyph = Icon(Icons.apps_rounded, color: accent, size: 18);
+      case ThemeStyle.aqua:
+        fill = AppColors.aquaFoam;
+        edge = AppColors.aquaPrimary;
+        glyph = const Icon(
+          Icons.water_drop_rounded,
+          color: AppColors.aquaPrimary,
+          size: 18,
+        );
     }
     return Container(
       width: 42,

@@ -62,14 +62,14 @@ class SectionHeader extends StatelessWidget {
                 children: [
                   Text(
                     actionLabel!,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       color: AppColors.primaryGreen,
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(width: 3),
-                  const Icon(
+                   Icon(
                     Icons.arrow_forward_rounded,
                     size: 14,
                     color: AppColors.primaryGreen,

@@ -57,7 +57,7 @@ class MarketQuote {
     required this.changePercent,
     required this.spark,
     required this.gradient,
-    this.accent = AppColors.primaryGreen,
+    this.accent = AppColors.skyBrand,
     this.filled = false,
     this.location,
   });

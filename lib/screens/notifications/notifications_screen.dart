@@ -54,7 +54,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 : TextButton(
                     onPressed: _center.markAllRead,
                     child: Text(l10n.t('markAllRead'),
-                        style: const TextStyle(
+                        style:  TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                             fontSize: 13)),
@@ -192,7 +192,7 @@ class _NotificationTile extends StatelessWidget {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(
+                            decoration:  BoxDecoration(
                                 color: AppColors.primaryGreen,
                                 shape: BoxShape.circle),
                           ),

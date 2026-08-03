@@ -150,7 +150,7 @@ class NetWorthService extends ChangeNotifier {
       list.add(AssetAllocation(
         label: 'Digital Assets',
         value: digital,
-        color: AppColors.secondaryGreen,
+        color: AppColors.skyBrandSecondary,
       ));
     }
     return List.unmodifiable(list);

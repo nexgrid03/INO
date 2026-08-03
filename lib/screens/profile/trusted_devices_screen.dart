@@ -143,7 +143,7 @@ class _DeviceTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(l10n.t('thisDevice'),
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700)),

@@ -125,7 +125,7 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
             const SizedBox(height: AppSpacing.xs),
             ListTile(
               leading:
-                  const Icon(Icons.edit_rounded, color: AppColors.primaryGreen),
+                  Icon(Icons.edit_rounded, color: AppColors.primaryGreen),
               title: Text('Edit holding',
                   style: TextStyle(color: palette.textPrimary)),
               onTap: () {

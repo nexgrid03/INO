@@ -66,7 +66,7 @@ class AreaConversionSummary extends StatelessWidget {
           // ---- Header ----
           Row(
             children: [
-              const ShinyIcon(
+               ShinyIcon(
                 icon: Icons.straighten_rounded,
                 color: AppColors.primaryGreen,
                 size: AppSizes.iconContainerSm,
@@ -190,7 +190,7 @@ class _CopyAllButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.copy_rounded,
+               Icon(Icons.copy_rounded,
                   size: 18, color: AppColors.darkGreen),
               const SizedBox(width: AppSpacing.xs),
               Text(

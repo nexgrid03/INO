@@ -49,7 +49,7 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
-            return const Center(
+            return  Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.primaryGreen,
@@ -125,7 +125,7 @@ class _RestoreBackground extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.undo_rounded,
+           Icon(Icons.undo_rounded,
               size: 18, color: AppColors.primaryGreen),
           const SizedBox(width: 6),
           Text(
@@ -160,7 +160,7 @@ class _Empty extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: palette.border),
               ),
-              child: const Icon(Icons.task_alt_rounded,
+              child:  Icon(Icons.task_alt_rounded,
                   size: 32, color: AppColors.primaryGreen),
             ),
             const SizedBox(height: AppSpacing.sm),

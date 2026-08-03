@@ -161,12 +161,12 @@ class _SplashScreenState extends State<SplashScreen>
         child: Stack(
           children: [
             // Static colour blooms so the screen never reads as flat white.
-            const Positioned(
+             Positioned(
               top: -120,
               right: -90,
               child: _Bloom(color: AppColors.primaryGreen, size: 340),
             ),
-            const Positioned(
+             Positioned(
               bottom: -140,
               left: -100,
               child: _Bloom(color: AppColors.skyBlue, size: 320),
@@ -207,7 +207,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   fit: BoxFit.contain,
                                   // Never let a missing asset blank the splash:
                                   // fall back to the brand shield glyph.
-                                  errorBuilder: (_, _, _) => const Icon(
+                                  errorBuilder: (_, _, _) =>  Icon(
                                     Icons.shield_rounded,
                                     size: 120,
                                     color: AppColors.primaryGreen,

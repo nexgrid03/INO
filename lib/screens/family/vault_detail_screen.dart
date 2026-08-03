@@ -336,7 +336,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   title: Text(role.label),
                   subtitle: Text(role.description),
                   trailing: member.role == role
-                      ? const Icon(Icons.check_circle_rounded,
+                      ?  Icon(Icons.check_circle_rounded,
                           color: AppColors.primaryGreen)
                       : null,
                   onTap: () => Navigator.of(context).pop('role:${role.name}'),
@@ -345,7 +345,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             if (canTransfer) ...[
               Divider(height: 1, color: palette.border),
               ListTile(
-                leading: const Icon(Icons.workspace_premium_rounded,
+                leading:  Icon(Icons.workspace_premium_rounded,
                     color: AppColors.primaryGreen),
                 title: const Text('Make owner'),
                 subtitle: const Text('Transfer ownership — you become Admin'),
@@ -420,7 +420,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Transfer',
+            child:  Text('Transfer',
                 style: TextStyle(color: AppColors.primaryGreen)),
           ),
         ],
@@ -508,7 +508,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   leading: Icon(role.icon, color: role.color),
                   title: Text(role.label),
                   trailing: inv.role == role
-                      ? const Icon(Icons.check_circle_rounded,
+                      ?  Icon(Icons.check_circle_rounded,
                           color: AppColors.primaryGreen)
                       : null,
                   onTap: () => Navigator.of(context).pop('role:${role.name}'),
@@ -523,7 +523,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             ] else
               ListTile(
-                leading: const Icon(Icons.refresh_rounded,
+                leading:  Icon(Icons.refresh_rounded,
                     color: AppColors.primaryGreen),
                 title: const Text('Resend invitation'),
                 subtitle: Text('Re-send to ${inv.target}'),
@@ -576,7 +576,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save',
+            child:  Text('Save',
                 style: TextStyle(color: AppColors.primaryGreen)),
           ),
         ],
@@ -886,7 +886,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const Spacer(),
             if (_docsLoading)
-              const SizedBox(
+               SizedBox(
                 width: 14,
                 height: 14,
                 child: CircularProgressIndicator(
@@ -1049,7 +1049,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             backgroundImage:
                 photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
             child: photo == null || photo.isEmpty
-                ? const Icon(Icons.person_rounded,
+                ?  Icon(Icons.person_rounded,
                     size: 18, color: AppColors.primaryGreen)
                 : null,
           ),
@@ -1089,7 +1089,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               backgroundImage:
                   photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
               child: photo == null || photo.isEmpty
-                  ? const Icon(Icons.person_rounded,
+                  ?  Icon(Icons.person_rounded,
                       size: 18, color: AppColors.primaryGreen)
                   : null,
             ),
@@ -1197,7 +1197,7 @@ class _HeroOutlineButton extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
+                style:  TextStyle(
                   color: AppColors.primaryGreen,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -1570,7 +1570,7 @@ class _SearchFieldState extends State<_SearchField> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.chip),
           borderSide:
-              const BorderSide(color: AppColors.primaryGreen, width: 1.4),
+              BorderSide(color: AppColors.primaryGreen, width: 1.4),
         ),
       ),
     );

@@ -163,7 +163,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                           const SizedBox(width: 4),
                                           Text(
                                               '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
-                                              style: const TextStyle(
+                                              style:  TextStyle(
                                                   color:
                                                       AppColors.primaryGreen,
                                                   fontSize: 12,
@@ -201,11 +201,11 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                             fontSize: 12)),
                                     const Spacer(),
                                     Text(l10n.t('viewAnalytics'),
-                                        style: const TextStyle(
+                                        style:  TextStyle(
                                             color: AppColors.primaryGreen,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700)),
-                                    const Icon(Icons.chevron_right_rounded,
+                                     Icon(Icons.chevron_right_rounded,
                                         color: AppColors.primaryGreen,
                                         size: 18),
                                   ],

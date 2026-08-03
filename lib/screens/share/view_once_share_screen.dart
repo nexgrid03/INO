@@ -591,7 +591,7 @@ class _LinkCard extends StatelessWidget {
       onTap: onCopy,
       child: Row(
         children: [
-          const Icon(Icons.link_rounded, color: AppColors.lightBlue, size: 20),
+          Icon(Icons.link_rounded, color: AppColors.lightBlue, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(

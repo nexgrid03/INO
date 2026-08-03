@@ -284,7 +284,7 @@ class _SpotlightPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
-        ..shader = const SweepGradient(
+        ..shader =  SweepGradient(
           colors: [
             AppColors.primaryGreen,
             Color(0xFF7DD3FC),

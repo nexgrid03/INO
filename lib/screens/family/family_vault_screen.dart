@@ -365,7 +365,7 @@ class _VaultCard extends StatelessWidget {
               border: Border.all(
                   color: AppColors.tealPale.withValues(alpha: 0.7)),
             ),
-            child: const Icon(Icons.family_restroom_rounded,
+            child:  Icon(Icons.family_restroom_rounded,
                 color: AppColors.primaryGreen, size: 26),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -503,7 +503,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.chip),
                 borderSide:
-                    const BorderSide(color: AppColors.primaryGreen, width: 1.6),
+                    BorderSide(color: AppColors.primaryGreen, width: 1.6),
               ),
             ),
           ),
@@ -571,7 +571,7 @@ class _EmptyState extends StatelessWidget {
                           color: AppColors.tealPale.withValues(alpha: 0.6)),
                       boxShadow: AppShadows.floating,
                     ),
-                    child: const Icon(Icons.family_restroom_rounded,
+                    child:  Icon(Icons.family_restroom_rounded,
                         color: AppColors.primaryGreen, size: 52),
                   ),
                   const SizedBox(height: AppSpacing.lg),

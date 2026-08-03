@@ -76,7 +76,7 @@ class GuestMode {
             const Center(
               child: ShinyIcon(
                 icon: Icons.lock_person_rounded,
-                color: AppColors.primaryGreen,
+                color: AppColors.skyBrand,
                 size: 72,
                 iconSize: 34,
               ),

@@ -90,7 +90,7 @@ class WalletHeader extends StatelessWidget {
         // Lightweight quick summary.
         Row(
           children: [
-            const Icon(Icons.verified_user_rounded,
+             Icon(Icons.verified_user_rounded,
                 size: 14, color: AppColors.primaryGreen),
             const SizedBox(width: 6),
             Text(

@@ -88,7 +88,7 @@ class GlobalSearchService {
             title: d.name,
             subtitle: '$category · ${d.wallet}',
             icon: Icons.description_rounded,
-            color: AppColors.primaryGreen,
+            color: AppColors.skyBrand,
             wallet: d.wallet,
             documentId: d.id,
           ));
@@ -101,7 +101,7 @@ class GlobalSearchService {
             title: category,
             subtitle: 'Category',
             icon: Icons.folder_rounded,
-            color: AppColors.lightBlue,
+            color: AppColors.skyBrandSecondary,
             wallet: d.wallet,
           ));
         }
@@ -112,7 +112,7 @@ class GlobalSearchService {
               title: '#$t',
               subtitle: 'Tag',
               icon: Icons.label_rounded,
-              color: AppColors.secondaryGreen,
+              color: AppColors.skyBrandSecondary,
               wallet: d.wallet,
             ));
           }

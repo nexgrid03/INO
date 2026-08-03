@@ -76,7 +76,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       future: _load(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return  Center(
             child: CircularProgressIndicator(color: AppColors.primaryGreen),
           );
         }
@@ -114,7 +114,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: palette.border),
                 ),
-                child: const Icon(Icons.description_rounded,
+                child:  Icon(Icons.description_rounded,
                     color: AppColors.primaryGreen, size: 20),
               ),
               title: Text(d.name,
@@ -155,14 +155,14 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.tune_rounded, size: 16, color: AppColors.primaryGreen),
+          Icon(Icons.tune_rounded, size: 16, color: AppColors.primaryGreen),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Filtered · ${walletFilter.join(' · ')}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style:  TextStyle(
                 color: AppColors.primaryGreen,
                 fontWeight: FontWeight.w700,
                 fontSize: 12.5,

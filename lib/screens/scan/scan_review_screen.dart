@@ -550,7 +550,7 @@ class _CapturePreview extends StatelessWidget {
                     if (busy)
                       ColoredBox(
                         color: Colors.black.withValues(alpha: 0.25),
-                        child: const Center(
+                        child:  Center(
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
                                 AppColors.primaryGreen),
@@ -635,7 +635,7 @@ class _ControlSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     final body = SafeArea(
       top: false,
       child: Padding(
@@ -744,7 +744,7 @@ class _ContinueButton extends StatelessWidget {
       child: Container(
         height: AppSizes.button,
         decoration: BoxDecoration(
-          gradient: AppGradients.primary,
+          gradient: AppColors.brandGradient,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           boxShadow:
               AppShadows.glow(AppColors.primaryGreen, opacity: 0.32),

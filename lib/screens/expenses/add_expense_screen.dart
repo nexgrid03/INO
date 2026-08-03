@@ -175,20 +175,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             const SizedBox(height: AppSpacing.sm),
             ListTile(
               leading:
-                  const Icon(Icons.photo_camera_rounded, color: AppColors.primaryGreen),
+                  Icon(Icons.photo_camera_rounded, color: AppColors.primaryGreen),
               title: Text(l10n.t('camera')),
               subtitle: Text(l10n.t('snapReceiptSubtitle')),
               onTap: () => Navigator.of(context).pop('camera'),
             ),
             ListTile(
               leading:
-                  const Icon(Icons.image_rounded, color: AppColors.primaryGreen),
+                  Icon(Icons.image_rounded, color: AppColors.primaryGreen),
               title: Text(l10n.t('gallery')),
               subtitle: Text(l10n.t('pickPhotoSubtitle')),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
-              leading: const Icon(Icons.picture_as_pdf_rounded,
+              leading:  Icon(Icons.picture_as_pdf_rounded,
                   color: AppColors.lightBlue),
               title: Text(l10n.t('pdfReceipt')),
               onTap: () => Navigator.of(context).pop('pdf'),
@@ -392,7 +392,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(l10n.t('replace'),
-                style: const TextStyle(color: AppColors.primaryGreen)),
+                style: TextStyle(color: AppColors.primaryGreen)),
           ),
         ],
       ),
@@ -887,7 +887,7 @@ class _UploadProof extends StatelessWidget {
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.chip),
                               ),
-                              child: const Icon(Icons.receipt_long_rounded,
+                              child:  Icon(Icons.receipt_long_rounded,
                                   color: AppColors.primaryGreen, size: 22),
                             ),
                             const SizedBox(width: AppSpacing.sm),
@@ -906,7 +906,7 @@ class _UploadProof extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.photo_camera_rounded,
+                             Icon(Icons.photo_camera_rounded,
                                 color: AppColors.primaryGreen, size: 20),
                           ],
                         )
@@ -921,7 +921,7 @@ class _UploadProof extends StatelessWidget {
                                       height: 56,
                                       color: AppColors.lightBlue
                                           .withValues(alpha: 0.14),
-                                      child: const Icon(
+                                      child:  Icon(
                                           Icons.picture_as_pdf_rounded,
                                           color: AppColors.lightBlue,
                                           size: 26),
@@ -1067,7 +1067,7 @@ class _AutoFilledNote extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded,
+           Icon(Icons.check_circle_rounded,
               color: AppColors.primaryGreen, size: 16),
           const SizedBox(width: 6),
           Expanded(

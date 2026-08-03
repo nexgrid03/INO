@@ -83,7 +83,7 @@ class _CategoryChip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: selected ? null : palette.surface,
-                gradient: selected ? AppGradients.primary : null,
+                gradient: selected ? AppColors.brandGradient : null,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
                   color: selected ? Colors.transparent : palette.border,

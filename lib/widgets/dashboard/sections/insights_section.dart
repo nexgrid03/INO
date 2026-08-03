@@ -27,7 +27,7 @@ class InsightsSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
           child: Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded,
+               Icon(Icons.auto_awesome_rounded,
                   size: 18, color: AppColors.primaryGreen),
               const SizedBox(width: 8),
               Text(

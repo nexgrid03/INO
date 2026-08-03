@@ -156,7 +156,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                const Icon(Icons.family_restroom_rounded,
+                 Icon(Icons.family_restroom_rounded,
                     size: 22, color: AppColors.primaryGreen),
                 const SizedBox(width: 10),
                 Expanded(
@@ -178,7 +178,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
             const SizedBox(height: AppSpacing.lg),
 
             if (_loading)
-              const Padding(
+               Padding(
                 padding: EdgeInsets.symmetric(vertical: 28),
                 child: Center(
                   child: CircularProgressIndicator(
@@ -247,7 +247,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
                             ),
                           ),
                           if (busy)
-                            const SizedBox(
+                             SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(

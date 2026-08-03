@@ -55,7 +55,7 @@ extension ReminderPriorityX on ReminderPriority {
       case ReminderPriority.important:
         return AppColors.warning; // orange
       case ReminderPriority.normal:
-        return AppColors.primaryGreen; // green
+        return AppColors.skyBrand; // green
     }
   }
 }
@@ -170,7 +170,7 @@ extension ReminderCategoryX on ReminderCategory {
       case ReminderCategory.anniversaries:
         return const Color(0xFF7C6CF0); // violet
       case ReminderCategory.custom:
-        return AppColors.primaryGreen; // brand teal for the catch-all
+        return AppColors.skyBrand; // brand teal for the catch-all
     }
   }
 
@@ -307,8 +307,8 @@ Color reminderUrgencyColor(Reminder r, DateTime today) {
   final d = r.daysFrom(today);
   if (d <= 0) return AppColors.critical; // overdue or due today
   if (d == 1) return AppColors.warning; // due tomorrow
-  if (d <= 7) return AppColors.primaryGreen; // this week
-  return AppColors.lightBlue; // later
+  if (d <= 7) return AppColors.skyBrand; // this week
+  return AppColors.skyBrandSecondary; // later
 }
 
 // ---------------------------------------------------------------------------

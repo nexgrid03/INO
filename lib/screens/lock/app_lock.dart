@@ -303,7 +303,7 @@ class _BiometricHero extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                gradient: AppGradients.primary,
+                gradient: AppColors.brandGradient,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(

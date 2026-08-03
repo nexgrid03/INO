@@ -240,7 +240,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
 
   Widget _body(AppPalette palette, AppLocalizations l10n) {
     if (_loading) {
-      return const Center(
+      return  Center(
         child: CircularProgressIndicator(color: AppColors.primaryGreen),
       );
     }
@@ -380,7 +380,7 @@ class _VaultViewerHeader extends StatelessWidget {
               color: AppColors.primaryGreen.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.shield_rounded,
+            child:  Icon(Icons.shield_rounded,
                 size: 18, color: AppColors.primaryGreen),
           ),
           const SizedBox(width: 10),
@@ -485,7 +485,7 @@ class _PreviewCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: loading
-                ? const Center(
+                ?  Center(
                     child: CircularProgressIndicator(
                         color: AppColors.primaryGreen),
                   )
@@ -523,7 +523,7 @@ class _PdfPlaceholder extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+           Text(
             'CONFIDENTIAL',
             style: TextStyle(
               color: AppColors.primaryGreen,
@@ -709,7 +709,7 @@ class _DetailsCard extends StatelessWidget {
                 backgroundColor: AppColors.tealMist,
                 child: Text(
                   initial,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
@@ -766,7 +766,7 @@ class _DetailsCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lock_rounded,
+                 Icon(Icons.lock_rounded,
                     size: 16, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Expanded(
@@ -783,7 +783,7 @@ class _DetailsCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (busy)
-            const Center(
+             Center(
               child: Padding(
                 padding: EdgeInsets.all(12),
                 child: CircularProgressIndicator(color: AppColors.primaryGreen),
@@ -887,7 +887,7 @@ class _FilePickRow extends StatelessWidget {
                   color: AppColors.tealMist,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.description_rounded,
+                child:  Icon(Icons.description_rounded,
                     color: AppColors.primaryGreen, size: 22),
               ),
               const SizedBox(width: 12),

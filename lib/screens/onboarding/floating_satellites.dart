@@ -28,7 +28,7 @@ const List<double> _floatPhases = [0.0, 0.4, 0.7, 0.2, 0.55];
 
 /// Contextual chips per screen (4–6 elements, kept uncrowded). Matched to that
 /// screen's theme.
-const List<List<_SatelliteData>> _byScreen = [
+final List<List<_SatelliteData>> _byScreen = [
   // Screen 0 - Documents.
   [
     _SatelliteData(Icons.verified_user_rounded, AppColors.primaryGreen),

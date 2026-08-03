@@ -199,12 +199,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           // Full-bleed soft gradient wash (Stitch "gradient mesh"): one warm
           // teal bloom top-right, one cyan bloom bottom-left.
-          const Positioned(
+           Positioned(
             top: -120,
             right: -90,
             child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
           ),
-          const Positioned(
+           Positioned(
             bottom: -140,
             left: -110,
             child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
@@ -518,7 +518,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
           TextSpan(text: title.substring(0, nl)),
           TextSpan(
             text: title.substring(nl),
-            style: const TextStyle(color: AppColors.primaryGreen),
+            style: TextStyle(color: AppColors.primaryGreen),
           ),
         ],
       ),
@@ -565,7 +565,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                         scale: swipeScale,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: InoStyle.isLauncher(context)
+                          child: InoStyle.usesDivineGlass(context)
                               ? LiquidGlass(
                                   borderRadius: BorderRadius.circular(40),
                                   blur: 22,
@@ -660,7 +660,7 @@ class _GradientNextButton extends StatelessWidget {
       height: 56,
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: AppGradients.primary,
+        gradient: AppColors.brandGradient,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         // Subtle glass highlight.
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),

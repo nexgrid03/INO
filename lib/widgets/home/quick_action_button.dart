@@ -35,6 +35,7 @@ class QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final dark = palette.isDark;
     return PressableScale(
       child: GestureDetector(
         onTap: onTap,
@@ -61,10 +62,15 @@ class QuickActionButton extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              AppColors.primaryGreen.withValues(alpha: 0.28),
-                          blurRadius: enlarged ? 18 : 12,
-                          offset: const Offset(0, 6),
+                          color: AppColors.glowOf(
+                            context,
+                            light: 0.28,
+                            dark: 0.12,
+                          ),
+                          blurRadius: dark
+                              ? (enlarged ? 12 : 8)
+                              : (enlarged ? 18 : 12),
+                          offset: Offset(0, dark ? 4 : 6),
                         ),
                       ],
                     ),

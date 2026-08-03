@@ -152,7 +152,10 @@ const Map<String, Map<String, String>> _strings = {
     'themeSoftDesc': 'Lighter tones with colourful icons',
     'themeLauncher': 'Launcher',
     'themeLauncherDesc':
-        'PhonePe-style Home launcher with Divine Glass on feature screens',
+        'Compact Home layout with quick actions, vaults, and frosted glass screens',
+    'themeAqua': 'Aqua',
+    'themeAquaDesc':
+        'Launcher layout with mint glass chrome',
     'vaultFullyProtected': 'Your Vault is 100% Protected',
     'viewCalendar': 'View Calendar',
     'dueSoon': 'Due Soon',

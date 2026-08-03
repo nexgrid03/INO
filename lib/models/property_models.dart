@@ -57,7 +57,7 @@ extension PropertyStatusX on PropertyStatus {
       };
 
   Color get color => switch (this) {
-        PropertyStatus.owned => AppColors.primaryGreen,
+        PropertyStatus.owned => AppColors.skyBrand,
         PropertyStatus.underConstruction => AppColors.warning,
         PropertyStatus.rented => const Color(0xFF4383EA),
         PropertyStatus.leased => const Color(0xFF9B6DE0),

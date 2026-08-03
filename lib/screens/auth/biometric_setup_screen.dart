@@ -219,12 +219,12 @@ class _BiometricArt extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           // Decorative pastel light blobs bleeding in from the corners.
-          const Positioned(
+           Positioned(
             top: -36,
             right: -36,
             child: _GlowDot(color: AppColors.skyBlue, size: 116),
           ),
-          const Positioned(
+           Positioned(
             bottom: -36,
             left: -36,
             child: _GlowDot(color: AppColors.tealPale, size: 116),
@@ -282,13 +282,13 @@ class _FeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     final row = Row(
       children: [
         Container(
           width: 40,
           height: 40,
-          decoration: const BoxDecoration(
+          decoration:  BoxDecoration(
             color: AppColors.tealMist,
             shape: BoxShape.circle,
           ),
@@ -357,7 +357,7 @@ class _EncryptionBadge extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: const Row(
+      child:  Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(

@@ -40,13 +40,13 @@ extension DocumentStatusX on DocumentStatus {
   Color get color {
     switch (this) {
       case DocumentStatus.active:
-        return AppColors.primaryGreen; // green
+        return AppColors.skyBrand; // green
       case DocumentStatus.expiringSoon:
         return AppColors.warning; // orange
       case DocumentStatus.expired:
         return AppColors.critical; // red
       case DocumentStatus.shared:
-        return AppColors.lightBlue; // blue
+        return AppColors.skyBrandSecondary; // blue
       case DocumentStatus.archived:
         return const Color(0xFF94A3B8); // gray
     }

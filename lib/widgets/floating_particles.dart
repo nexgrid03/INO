@@ -61,14 +61,14 @@ class _Particle {
 /// A fixed, hand-placed set of particles - deterministic (no RNG) so the
 /// layout is stable and reviewable.
 const List<_Particle> _particles = [
-  _Particle(x: 0.18, y: 0.18, radius: 5, phase: 0.0, driftX: 0.02, driftY: 0.03, opacity: 0.10, color: AppColors.primaryGreen, isCircle: true),
-  _Particle(x: 0.82, y: 0.14, radius: 4, phase: 0.3, driftX: 0.025, driftY: 0.02, opacity: 0.08, color: AppColors.lightBlue, isCircle: false),
-  _Particle(x: 0.10, y: 0.55, radius: 3, phase: 0.6, driftX: 0.02, driftY: 0.025, opacity: 0.07, color: AppColors.skyBlue, isCircle: true),
-  _Particle(x: 0.90, y: 0.50, radius: 6, phase: 0.15, driftX: 0.015, driftY: 0.03, opacity: 0.06, color: AppColors.primaryGreen, isCircle: false),
-  _Particle(x: 0.30, y: 0.80, radius: 4, phase: 0.45, driftX: 0.03, driftY: 0.02, opacity: 0.08, color: AppColors.lightBlue, isCircle: true),
-  _Particle(x: 0.70, y: 0.85, radius: 3, phase: 0.75, driftX: 0.02, driftY: 0.025, opacity: 0.07, color: AppColors.primaryGreen, isCircle: true),
-  _Particle(x: 0.50, y: 0.30, radius: 4, phase: 0.9, driftX: 0.025, driftY: 0.02, opacity: 0.06, color: AppColors.skyBlue, isCircle: false),
-  _Particle(x: 0.60, y: 0.62, radius: 3, phase: 0.5, driftX: 0.02, driftY: 0.03, opacity: 0.07, color: AppColors.lightBlue, isCircle: true),
+  _Particle(x: 0.18, y: 0.18, radius: 5, phase: 0.0, driftX: 0.02, driftY: 0.03, opacity: 0.10, color: AppColors.skyBrand, isCircle: true),
+  _Particle(x: 0.82, y: 0.14, radius: 4, phase: 0.3, driftX: 0.025, driftY: 0.02, opacity: 0.08, color: AppColors.skyBrandSecondary, isCircle: false),
+  _Particle(x: 0.10, y: 0.55, radius: 3, phase: 0.6, driftX: 0.02, driftY: 0.025, opacity: 0.07, color: AppColors.skyBrandSky, isCircle: true),
+  _Particle(x: 0.90, y: 0.50, radius: 6, phase: 0.15, driftX: 0.015, driftY: 0.03, opacity: 0.06, color: AppColors.skyBrand, isCircle: false),
+  _Particle(x: 0.30, y: 0.80, radius: 4, phase: 0.45, driftX: 0.03, driftY: 0.02, opacity: 0.08, color: AppColors.skyBrandSecondary, isCircle: true),
+  _Particle(x: 0.70, y: 0.85, radius: 3, phase: 0.75, driftX: 0.02, driftY: 0.025, opacity: 0.07, color: AppColors.skyBrand, isCircle: true),
+  _Particle(x: 0.50, y: 0.30, radius: 4, phase: 0.9, driftX: 0.025, driftY: 0.02, opacity: 0.06, color: AppColors.skyBrandSky, isCircle: false),
+  _Particle(x: 0.60, y: 0.62, radius: 3, phase: 0.5, driftX: 0.02, driftY: 0.03, opacity: 0.07, color: AppColors.skyBrandSecondary, isCircle: true),
 ];
 
 class _ParticlesPainter extends CustomPainter {

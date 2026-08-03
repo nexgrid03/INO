@@ -223,7 +223,7 @@ class _NicknameNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.tips_and_updates_rounded,
+           Icon(Icons.tips_and_updates_rounded,
               size: 17, color: AppColors.primaryGreen),
           const SizedBox(width: 10),
           Expanded(
@@ -285,7 +285,7 @@ class _ConsentSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                const Icon(Icons.verified_user_rounded,
+                 Icon(Icons.verified_user_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Text('Before this password is saved',
@@ -460,7 +460,7 @@ class _GeneratorSheetState extends State<_GeneratorSheet> {
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                const Icon(Icons.auto_awesome_rounded,
+                 Icon(Icons.auto_awesome_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Text('Password generator',

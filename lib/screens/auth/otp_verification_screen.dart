@@ -214,7 +214,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         onPressed: _resend,
                         child: Text(
                           l10n.t('resendCode'),
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                           ),

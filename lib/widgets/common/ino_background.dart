@@ -92,6 +92,7 @@ class _InoBackgroundState extends State<InoBackground>
                 painter: _AuroraPainter(
                   t: Curves.easeInOut.transform(_drift.value),
                   palette: palette,
+                  brand: AppColors.primaryGreen,
                   showDots: widget.showDots,
                   intensity: widget.intensity,
                   sky: widget.sky,
@@ -110,6 +111,7 @@ class _AuroraPainter extends CustomPainter {
   _AuroraPainter({
     required this.t,
     required this.palette,
+    required this.brand,
     required this.showDots,
     required this.intensity,
     required this.sky,
@@ -117,6 +119,7 @@ class _AuroraPainter extends CustomPainter {
 
   final double t;
   final AppPalette palette;
+  final Color brand;
   final bool showDots;
   final double intensity;
   final bool sky;
@@ -125,10 +128,10 @@ class _AuroraPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final dark = palette.isDark;
+    final aqua = brand == AppColors.aquaPrimary;
 
     // 1. Base mist wash - never plain white. The hero-sky variant leads with
-    // a saturated brand-blue band (skyBlue → tealMist) that melts into the
-    // standard wash by mid-screen.
+    // a saturated brand band that melts into the standard wash by mid-screen.
     final wash = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -136,17 +139,30 @@ class _AuroraPainter extends CustomPainter {
         colors: dark
             ? [palette.bg, palette.bgElevated, palette.bg]
             : sky
-                ? const [
-                    Color(0xFF7DD3FC), // brand skyBlue - full tint at the top
-                    Color(0xFFB2E2FC), // deep melt holds through the hero
-                    Color(0xFFE3F3FD), // pale wash past mid-screen
-                    Color(0xFFEAF4FC),
-                  ]
-                : const [
-                    Color(0xFFD8EDFA), // faint teal sky at the top
-                    Color(0xFFFDFFFF),
-                    Color(0xFFEAF4FC),
-                  ],
+                ? (aqua
+                    ? const [
+                        Color(0xFF7AE8D9),
+                        Color(0xFFB5F0E6),
+                        Color(0xFFE0F9F5),
+                        Color(0xFFE8F8F5),
+                      ]
+                    : const [
+                        Color(0xFF7DD3FC), // brand skyBlue - full tint at the top
+                        Color(0xFFB2E2FC), // deep melt holds through the hero
+                        Color(0xFFE3F3FD), // pale wash past mid-screen
+                        Color(0xFFEAF4FC),
+                      ])
+                : (aqua
+                    ? const [
+                        Color(0xFFD4F7F2),
+                        Color(0xFFFDFFFF),
+                        Color(0xFFE8F8F5),
+                      ]
+                    : const [
+                        Color(0xFFD8EDFA), // faint teal sky at the top
+                        Color(0xFFFDFFFF),
+                        Color(0xFFEAF4FC),
+                      ]),
         stops: sky && !dark
             ? const [0.0, 0.28, 0.62, 1.0]
             : const [0.0, 0.45, 1.0],
@@ -172,31 +188,31 @@ class _AuroraPainter extends CustomPainter {
     blob(
       Offset(size.width * 1.02, size.height * 0.02 + drift),
       size.width * 0.55,
-      AppColors.skyBlue,
+      aqua ? AppColors.aquaSky : AppColors.skyBlue,
       0.22,
     );
     blob(
       Offset(size.width * -0.12, size.height * 0.30 - drift),
       size.width * 0.45,
-      AppColors.tealPale,
+      aqua ? AppColors.aquaPale : AppColors.tealPale,
       0.26,
     );
     blob(
       Offset(size.width * 0.85, size.height * 0.88 + drift * 0.6),
       size.width * 0.50,
-      AppColors.secondaryGreen,
+      aqua ? AppColors.aquaSecondary : AppColors.secondaryGreen,
       0.14,
     );
 
     // 3. Dot texture band - a quiet geometric accent near the top.
     if (showDots && !dark) {
       final dot = Paint()
-        ..color = AppColors.primaryGreen.withValues(alpha: 0.05 * intensity);
+        ..color = brand.withValues(alpha: 0.05 * intensity);
       const gap = 26.0;
       final rows = math.min(7, (size.height / gap).floor());
       for (var row = 0; row < rows; row++) {
         // Fade the band out row by row.
-        dot.color = AppColors.primaryGreen.withValues(
+        dot.color = brand.withValues(
           alpha: (0.055 - row * 0.007) * intensity,
         );
         for (var x = gap / 2; x < size.width; x += gap) {
@@ -214,6 +230,7 @@ class _AuroraPainter extends CustomPainter {
   bool shouldRepaint(_AuroraPainter old) =>
       old.t != t ||
       old.palette != palette ||
+      old.brand != brand ||
       old.showDots != showDots ||
       old.intensity != intensity ||
       old.sky != sky;
@@ -222,10 +239,10 @@ class _AuroraPainter extends CustomPainter {
 /// A standalone soft gradient circle for ad-hoc decoration inside cards,
 /// headers and empty states. Position it with [Positioned] inside a [Stack].
 class DecorBlob extends StatelessWidget {
-  const DecorBlob({
+   DecorBlob({
     super.key,
     required this.size,
-    this.color = AppColors.skyBlue,
+    this.color = AppColors.skyBrandSky,
     this.opacity = 0.18,
   });
 

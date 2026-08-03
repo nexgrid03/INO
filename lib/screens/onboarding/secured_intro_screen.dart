@@ -144,12 +144,12 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
         children: [
           // Soft ambient colour washes - teal top-right, cyan bottom-left, a
           // whisper of purple behind the lock so the scene isn't monochrome.
-          const Positioned(
+           Positioned(
             top: -120,
             right: -100,
             child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
           ),
-          const Positioned(
+           Positioned(
             bottom: -110,
             left: -90,
             child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
@@ -276,7 +276,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                               offset: Offset(0, 16 * (1 - _seg(0.60, 0.78))),
                               child: ShaderMask(
                                 shaderCallback: (b) =>
-                                    AppGradients.primary.createShader(b),
+                                    AppColors.brandGradient.createShader(b),
                                 blendMode: BlendMode.srcIn,
                                 child: Text(
                                   'Your Documents Are Secured',
@@ -432,7 +432,7 @@ class _RingPainter extends CustomPainter {
         startAngle: 0,
         endAngle: math.pi * 2,
         transform: const GradientRotation(start),
-        colors: const [
+        colors:  [
           AppColors.primaryGreen,
           AppColors.secondaryGreen,
           AppColors.skyBlue,
@@ -513,7 +513,7 @@ class _PadlockPainter extends CustomPainter {
     canvas.drawRRect(
       body,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader =  LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.secondaryGreen, AppColors.primaryGreen],
@@ -552,7 +552,7 @@ class _PadlockPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = w * 0.11
         ..strokeCap = StrokeCap.round
-        ..shader = const LinearGradient(
+        ..shader =  LinearGradient(
           colors: [AppColors.primaryGreen, AppColors.secondaryGreen],
         ).createShader(Rect.fromLTWH(0, 0, w, h * 0.5)),
     );
@@ -608,7 +608,7 @@ class _GetStartedButton extends StatelessWidget {
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        gradient: AppGradients.primary,
+        gradient: AppColors.brandGradient,
         // Divine Glass: primary CTAs are full pills.
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),

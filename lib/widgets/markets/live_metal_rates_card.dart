@@ -433,14 +433,14 @@ class _RefreshButton extends StatelessWidget {
             width: 36,
             height: 36,
             child: spinning
-                ? const Padding(
+                ?  Padding(
                     padding: EdgeInsets.all(9),
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
                       color: AppColors.primaryGreen,
                     ),
                   )
-                : const Icon(
+                :  Icon(
                     Icons.refresh_rounded,
                     size: 19,
                     color: AppColors.primaryGreen,

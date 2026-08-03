@@ -145,7 +145,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                       borderRadius: BorderRadius.circular(AppRadius.chip),
                       border: Border.all(color: AppColors.tealPale),
                     ),
-                    child: const Icon(Icons.lock_rounded,
+                    child:  Icon(Icons.lock_rounded,
                         color: AppColors.primaryGreen, size: 21),
                   ),
                   const SizedBox(width: 12),

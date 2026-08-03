@@ -299,7 +299,7 @@ class _DateRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.event_rounded,
+               Icon(Icons.event_rounded,
                   size: 19, color: AppColors.primaryGreen),
               const SizedBox(width: AppSpacing.sm),
               Text(

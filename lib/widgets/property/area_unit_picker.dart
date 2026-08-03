@@ -73,7 +73,7 @@ Future<AreaUnit?> showAreaUnitPicker(
                           AppText.caption.copyWith(color: palette.textSecondary),
                     ),
                     trailing: u == selected
-                        ? const Icon(Icons.check_circle_rounded,
+                        ?  Icon(Icons.check_circle_rounded,
                             color: AppColors.primaryGreen, size: 22)
                         : null,
                   ),

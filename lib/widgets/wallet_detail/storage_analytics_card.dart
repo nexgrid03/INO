@@ -72,7 +72,7 @@ class StorageAnalyticsCard extends StatelessWidget {
                   value: storage.usedFraction.clamp(0.0, 1.0),
                   minHeight: 9,
                   backgroundColor: palette.surfaceVariant,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
+                  valueColor:  AlwaysStoppedAnimation<Color>(
                       AppColors.primaryGreen),
                 ),
               ),
@@ -160,7 +160,7 @@ class _MiniBars extends StatelessWidget {
                 child: Container(
                   height: 12 + (values[i] / maxV) * 40,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient:  LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [AppColors.lightBlue, AppColors.primaryGreen],

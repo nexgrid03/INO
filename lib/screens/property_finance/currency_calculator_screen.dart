@@ -187,7 +187,7 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
             label: '${_svc.format(value, _from)} ${_from.code} → ${_to.code}',
             value: _svc.format(converted, _to),
             copyText: _svc.format(converted, _to),
-            gradient: const LinearGradient(
+            gradient:  LinearGradient(
               colors: [AppColors.lightBlue, AppColors.primaryGreen],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -279,7 +279,7 @@ class _PairRow extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: onSwap,
-                  child: const SizedBox(
+                  child:  SizedBox(
                     width: 44,
                     height: 44,
                     child: Icon(
@@ -537,7 +537,7 @@ class _AllCurrenciesCardState extends State<_AllCurrenciesCard> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                           Icon(
                             Icons.copy_rounded,
                             size: 14,
                             color: AppColors.primaryGreen,

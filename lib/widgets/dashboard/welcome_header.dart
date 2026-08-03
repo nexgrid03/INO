@@ -119,16 +119,17 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                 builder: (context, child) {
                   final t = Curves.easeOut.transform(_pulse.value);
                   final ring = math.sin(t * math.pi); // 0→1→0
+                  final dark = AppPalette.of(context).isDark;
                   return Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primaryGreen.withValues(
-                            alpha: 0.35 * ring,
+                            alpha: (dark ? 0.16 : 0.35) * ring,
                           ),
-                          blurRadius: 18,
-                          spreadRadius: 2 * ring,
+                          blurRadius: dark ? 10 : 18,
+                          spreadRadius: (dark ? 1 : 2) * ring,
                         ),
                       ],
                     ),
@@ -142,7 +143,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.30),
+                      color: AppColors.primaryGreen.withValues(
+                        alpha: AppPalette.of(context).isDark ? 0.22 : 0.30,
+                      ),
                       width: 2,
                     ),
                   ),
@@ -227,10 +230,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                         color: AppColors.primaryGreen,
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                AppColors.primaryGreen.withValues(alpha: 0.35),
-                            blurRadius: 6,
-                            spreadRadius: 1,
+                            color: AppColors.glowOf(
+                              context,
+                              light: 0.35,
+                              dark: 0.16,
+                            ),
+                            blurRadius: AppPalette.of(context).isDark ? 4 : 6,
+                            spreadRadius: AppPalette.of(context).isDark ? 0 : 1,
                           ),
                         ],
                       ),

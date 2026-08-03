@@ -281,7 +281,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
         Center(
           child: TextButton.icon(
             onPressed: _preview,
-            icon: const Icon(Icons.visibility_rounded,
+            icon:  Icon(Icons.visibility_rounded,
                 size: 18, color: AppColors.primaryGreen),
             label: Text(AppLocalizations.of(context).t('previewRecipients'),
                 style: AppText.subtitle.copyWith(
@@ -481,7 +481,7 @@ class _ExpiryPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.schedule_rounded,
+             Icon(Icons.schedule_rounded,
                 size: 16, color: AppColors.primaryGreen),
             const SizedBox(width: 6),
             Text(
@@ -562,7 +562,7 @@ class _LinkCard extends StatelessWidget {
       onTap: onCopy,
       child: Row(
         children: [
-          const Icon(Icons.link_rounded, color: AppColors.lightBlue, size: 20),
+          Icon(Icons.link_rounded, color: AppColors.lightBlue, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(

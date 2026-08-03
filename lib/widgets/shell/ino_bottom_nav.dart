@@ -747,7 +747,7 @@ class _ScanMenu extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.tune_rounded,
+                  Icon(Icons.tune_rounded,
                       size: 15, color: AppColors.primaryGreen),
                   const SizedBox(width: 5),
                   Text(
@@ -963,7 +963,7 @@ class _QuickWheel extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (InoStyle.isLauncher(context) && !hot)
+                  if (InoStyle.usesDivineGlass(context) && !hot)
                     LiquidGlass(
                       circle: true,
                       blur: 16,
@@ -1005,7 +1005,7 @@ class _QuickWheel extends StatelessWidget {
                       child: Icon(
                         action.icon,
                         color: hot ? Colors.white : AppColors.primaryGreen,
-                        size: InoStyle.isLauncher(context) ? 26 : 24,
+                        size: InoStyle.usesDivineGlass(context) ? 26 : 24,
                       ),
                     ),
                   const SizedBox(height: 7),

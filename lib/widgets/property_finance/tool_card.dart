@@ -32,7 +32,8 @@ class ToolGridCard extends StatelessWidget {
     final themeStyle = InoStyle.of(context);
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
-    final launcher = themeStyle == ThemeStyle.launcher;
+    final launcher = themeStyle == ThemeStyle.launcher ||
+        themeStyle == ThemeStyle.aqua;
 
     final gradient = bold
         ? LinearGradient(

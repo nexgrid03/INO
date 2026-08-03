@@ -30,7 +30,7 @@ class SettingsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
 
     if (launcher) {
       return Scaffold(
@@ -102,7 +102,7 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
 
     if (launcher) {
       return LiquidGlass(

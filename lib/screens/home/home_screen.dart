@@ -357,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             controller: scrollController,
                             physics: AlwaysScrollableScrollPhysics(
                               parent:
-                                  InoStyle.of(context) == ThemeStyle.launcher
+                                  InoStyle.usesDivineGlass(context)
                                       ? const ClampingScrollPhysics()
                                       : const BouncingScrollPhysics(),
                             ),
@@ -416,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _header(AppPalette palette) {
     final sidePadding = context.responsivePadding;
-    final launcher = InoStyle.of(context) == ThemeStyle.launcher;
+    final launcher = InoStyle.usesDivineGlass(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         sidePadding,
@@ -442,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _sections(_HomeData data, ThemeStyle style) {
     final l10n = AppLocalizations.of(context);
-    if (style == ThemeStyle.launcher) {
+    if (style == ThemeStyle.launcher || style == ThemeStyle.aqua) {
       return _wrapSections(_launcherSections(data, l10n));
     }
     return _wrapSections(_classicSections(data, l10n));
@@ -450,10 +450,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _wrapSections(List<Widget> sections) {
     const sectionGap = 22.0;
-    // Launcher: no staggered FadeSlideIn — each section starts a ticker and
-    // on Flutter web that + many glass tiles left content stuck at opacity 0
+    // Launcher / Aqua: no staggered FadeSlideIn — each section starts a ticker
+    // and on Flutter web that + many glass tiles left content stuck at opacity 0
     // (blank Home) and flooded mouse_tracker assertions.
-    final animate = InoStyle.of(context) != ThemeStyle.launcher;
+    final animate = !InoStyle.usesDivineGlass(context);
     return [
       for (var i = 0; i < sections.length; i++)
         Padding(
@@ -678,7 +678,7 @@ class _ExpiryBanner extends StatelessWidget {
           Container(
             width: 38,
             height: 38,
-            decoration: const BoxDecoration(
+            decoration:  BoxDecoration(
               gradient: AppColors.brandGradient,
               shape: BoxShape.circle,
             ),

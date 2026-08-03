@@ -114,7 +114,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: const BorderSide(
+                  borderSide:  BorderSide(
                       color: AppColors.primaryGreen, width: 1.4),
                 ),
               ),
@@ -158,7 +158,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                               AppColors.primaryGreen.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.support_agent_rounded,
+                        child:  Icon(Icons.support_agent_rounded,
                             color: AppColors.primaryGreen, size: 22),
                       ),
                       const SizedBox(width: 12),
@@ -175,7 +175,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                           ),
                         ),
                         child: Text(l10n.t('contactUs'),
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontWeight: FontWeight.w700)),
                       ),

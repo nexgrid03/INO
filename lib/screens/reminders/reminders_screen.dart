@@ -142,7 +142,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           ),
                         ),
                         if (!_store.isLoaded)
-                          const SliverFillRemaining(
+                           SliverFillRemaining(
                             hasScrollBody: false,
                             child: Center(
                               child: Padding(
@@ -408,7 +408,7 @@ class _CaughtUpNote extends StatelessWidget {
               color: AppColors.primaryGreen.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child:  Icon(
               Icons.check_circle_rounded,
               size: 26,
               color: AppColors.primaryGreen,
@@ -500,7 +500,7 @@ class _DayPill extends StatelessWidget {
     final pill = Container(
       width: 58,
       decoration: BoxDecoration(
-        gradient: isToday ? AppGradients.primary : null,
+        gradient: isToday ? AppColors.brandGradient : null,
         color: isToday ? null : palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.search),
         border: isToday ? null : Border.all(color: palette.border),

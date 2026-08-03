@@ -153,7 +153,7 @@ class _ReviewBanner extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
+            decoration:  BoxDecoration(
               gradient: AppColors.brandGradient,
               shape: BoxShape.circle,
             ),

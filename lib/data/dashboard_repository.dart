@@ -83,7 +83,7 @@ class SampleDashboardRepository implements DashboardRepository {
         changePercent: 0.82,
         spark: [70, 71, 70.5, 72, 71.6, 73, 73.4, 74.1],
         // Gold → hero gradient card (green → light blue).
-        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
+        gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
         accent: Color(0xFFE0A100), // amber
         filled: true,
       ),
@@ -95,7 +95,7 @@ class SampleDashboardRepository implements DashboardRepository {
         changePercent: -0.41,
         spark: [94, 93.6, 93.8, 93.1, 92.7, 92.9, 92.4, 92.3],
         // Silver → sky-blue glass.
-        gradient: [AppColors.skyBlue, AppColors.lightBlue],
+        gradient: [AppColors.skyBrandSky, AppColors.skyBrandSecondary],
         accent: Color(0xFF8C9BA5), // grey
       ),
       MarketQuote(
@@ -107,8 +107,8 @@ class SampleDashboardRepository implements DashboardRepository {
         location: 'Mumbai',
         spark: [105.9, 106.0, 106.1, 106.0, 106.2, 106.2, 106.3, 106.31],
         // Petrol → green accent.
-        gradient: [AppColors.primaryGreen, AppColors.secondaryGreen],
-        accent: AppColors.primaryGreen,
+        gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
+        accent: AppColors.skyBrand,
       ),
       MarketQuote(
         label: 'Diesel',
@@ -119,8 +119,8 @@ class SampleDashboardRepository implements DashboardRepository {
         location: 'Mumbai',
         spark: [94.5, 94.4, 94.4, 94.3, 94.35, 94.3, 94.28, 94.27],
         // Diesel → blue accent.
-        gradient: [AppColors.lightBlue, AppColors.skyBlue],
-        accent: AppColors.lightBlue,
+        gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
+        accent: AppColors.skyBrandSecondary,
       ),
     ],
     lifeOverview: const [
@@ -130,7 +130,7 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '24',
         status: 'All synced',
         lastUpdated: 'Updated today',
-        color: AppColors.primaryGreen, // green
+        color: AppColors.skyBrand, // green
       ),
       LifeOverviewItem(
         label: 'Properties',
@@ -138,7 +138,7 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '3',
         status: 'Verified',
         lastUpdated: 'Updated 2d ago',
-        color: AppColors.lightBlue, // blue
+        color: AppColors.skyBrandSecondary, // blue
       ),
       LifeOverviewItem(
         label: 'Insurance',
@@ -146,7 +146,7 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '5',
         status: '1 expiring',
         lastUpdated: 'Updated 1w ago',
-        color: AppColors.secondaryGreen, // emerald
+        color: AppColors.skyBrandSecondary, // emerald
       ),
       LifeOverviewItem(
         label: 'Health',
@@ -170,9 +170,9 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '₹1.24 Cr',
         status: '+4.2% MoM',
         lastUpdated: 'Updated today',
-        color: AppColors.primaryGreen,
+        color: AppColors.skyBrand,
         // Premium green gradient tile.
-        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
+        gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
       ),
       LifeOverviewItem(
         label: 'Investments',
@@ -180,7 +180,7 @@ class SampleDashboardRepository implements DashboardRepository {
         count: '₹48.6L',
         status: '+12.3%',
         lastUpdated: 'Updated today',
-        color: AppColors.secondaryGreen,
+        color: AppColors.skyBrandSecondary,
       ),
       LifeOverviewItem(
         label: 'Passwords',
@@ -225,11 +225,11 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Scan',
           icon: Icons.document_scanner_rounded,
-          color: AppColors.primaryGreen),
+          color: AppColors.skyBrand),
       QuickAction(
           label: 'Add Doc',
           icon: Icons.note_add_rounded,
-          color: AppColors.lightBlue),
+          color: AppColors.skyBrandSecondary),
       QuickAction(
           label: 'Property',
           icon: Icons.add_home_rounded,
@@ -257,7 +257,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'QR Share',
           icon: Icons.qr_code_2_rounded,
-          color: AppColors.darkGreen),
+          color: AppColors.skyBrand),
       QuickAction(
           label: 'Goals',
           icon: Icons.flag_rounded,
@@ -267,7 +267,7 @@ class SampleDashboardRepository implements DashboardRepository {
       QuickAction(
           label: 'Add Document',
           icon: Icons.note_add_rounded,
-          color: AppColors.lightBlue),
+          color: AppColors.skyBrandSecondary),
       QuickAction(
           label: 'Add Reminder',
           icon: Icons.alarm_add_rounded,
@@ -296,7 +296,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 6,
         lastActivity: 'PAN added · 2h ago',
         status: 'Secured',
-        gradient: [AppColors.primaryGreen, AppColors.lightBlue],
+        gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
       ),
       WalletSummary(
         name: 'Documents',
@@ -336,7 +336,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 9,
         lastActivity: 'SIP · today',
         status: '+12.3%',
-        gradient: [AppColors.secondaryGreen, AppColors.skyBlue],
+        gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
       ),
       WalletSummary(
         name: 'Banking',
@@ -344,7 +344,7 @@ class SampleDashboardRepository implements DashboardRepository {
         itemCount: 4,
         lastActivity: 'Statement · 2d',
         status: 'Synced',
-        gradient: [AppColors.darkGreen, AppColors.primaryGreen],
+        gradient: [AppColors.skyBrand, AppColors.skyBrand],
       ),
       WalletSummary(
         name: 'Passwords',
@@ -413,7 +413,7 @@ class SampleDashboardRepository implements DashboardRepository {
           title: 'PAN card uploaded',
           icon: Icons.badge_rounded,
           time: '2h ago',
-          color: AppColors.primaryGreen),
+          color: AppColors.skyBrand),
       ActivityItem(
           title: 'Term insurance added',
           icon: Icons.shield_rounded,
@@ -447,11 +447,11 @@ class SampleDashboardRepository implements DashboardRepository {
       SmartInsight(
           message: '3 documents need attention before they expire.',
           icon: Icons.description_rounded,
-          accent: AppColors.lightBlue),
+          accent: AppColors.skyBrandSecondary),
       SmartInsight(
           message: 'Your property portfolio value rose 2.1% this quarter.',
           icon: Icons.home_work_rounded,
-          accent: AppColors.primaryGreen),
+          accent: AppColors.skyBrand),
     ],
   );
 }

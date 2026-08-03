@@ -17,9 +17,11 @@ class WalletOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The hero gradient follows the picked app theme: deeper in bold (the
-    // user-sanctioned "darker" theme), a touch lighter in soft.
     final themeStyle = InoStyle.of(context);
+    final brand = AppColors.primaryGreen;
+    final brandSecondary = themeStyle == ThemeStyle.aqua
+        ? AppColors.aquaSecondary
+        : AppColors.secondaryGreen;
     final Gradient heroGradient;
     switch (themeStyle) {
       case ThemeStyle.bold:
@@ -27,8 +29,8 @@ class WalletOverviewCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            InoStyle.deepen(AppColors.primaryGreen, 0.10),
-            InoStyle.deepen(AppColors.secondaryGreen, 0.12),
+            InoStyle.deepen(brand, 0.10),
+            InoStyle.deepen(brandSecondary, 0.12),
           ],
         );
       case ThemeStyle.soft:
@@ -36,9 +38,15 @@ class WalletOverviewCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            InoStyle.soften(AppColors.primaryGreen, 0.06),
-            InoStyle.soften(AppColors.secondaryGreen, 0.06),
+            InoStyle.soften(brand, 0.06),
+            InoStyle.soften(brandSecondary, 0.06),
           ],
+        );
+      case ThemeStyle.aqua:
+        heroGradient = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.aquaPrimary, AppColors.aquaSecondary],
         );
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
@@ -52,12 +60,12 @@ class WalletOverviewCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.32),
+              color: brand.withValues(alpha: 0.32),
               blurRadius: 28,
               offset: const Offset(0, 14),
             ),
             BoxShadow(
-              color: AppColors.lightBlue.withValues(alpha: 0.22),
+              color: brandSecondary.withValues(alpha: 0.22),
               blurRadius: 24,
               spreadRadius: -4,
               offset: const Offset(0, 8),

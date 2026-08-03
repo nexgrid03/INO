@@ -27,7 +27,7 @@ class DocumentCard extends StatelessWidget {
   });
 
   /// The uniform document icon colour inside a wallet - the app theme teal.
-  static const Color _iconColor = AppColors.primaryGreen;
+  static Color _iconColor = AppColors.primaryGreen;
 
   final DocumentRecord record;
   final VoidCallback onOpen;
@@ -280,7 +280,7 @@ class DocumentCard extends StatelessWidget {
           value: 'Encrypted',
           alignEnd: true,
           valueColor: AppColors.primaryGreen,
-          leading: const Icon(
+          leading:  Icon(
             Icons.lock_rounded,
             size: 14,
             color: AppColors.primaryGreen,

@@ -192,7 +192,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
         body: SafeArea(
           child: Center(
             child: _checking
-                ? const CircularProgressIndicator(
+                ?  CircularProgressIndicator(
                     strokeWidth: 2.6, color: AppColors.primaryGreen)
                 : _LockedState(onRetry: _unlock),
           ),
@@ -347,7 +347,7 @@ class PasswordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    const color = AppColors.primaryGreen;
+    final color = AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.99,
       child: GestureDetector(
@@ -575,7 +575,7 @@ class _LockedState extends StatelessWidget {
                     color: AppColors.tealPale.withValues(alpha: 0.6)),
                 boxShadow: AppShadows.floating,
               ),
-              child: const Icon(Icons.lock_outline_rounded,
+              child:  Icon(Icons.lock_outline_rounded,
                   color: AppColors.primaryGreen, size: 40),
             ),
             const SizedBox(height: AppSpacing.lg),

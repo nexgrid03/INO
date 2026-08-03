@@ -272,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
             delay: const Duration(milliseconds: 60),
             child: ShaderMask(
               shaderCallback: (bounds) =>
-                  AppGradients.primary.createShader(bounds),
+                  AppColors.brandGradient.createShader(bounds),
               blendMode: BlendMode.srcIn,
               child: Text(
                 l10n.t('authWelcomeBack'),
@@ -319,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
                   SocialAuthButton(
                     label: l10n.t('continueWithPhone'),
-                    brand: const Icon(Icons.smartphone_rounded,
+                    brand:  Icon(Icons.smartphone_rounded,
                         color: AppColors.primaryGreen, size: 20),
                     onPressed: busy ? null : _continueWithPhone,
                   ),
@@ -386,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: busy ? null : _goToForgotPassword,
                         child: Text(
                           l10n.t('forgotPasswordQ'),
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w600,
                           ),
@@ -457,14 +457,14 @@ class _GuestLoginButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: AppColors.primaryGreen,
-          side: const BorderSide(color: AppColors.tealPale, width: 1.4),
+          side: BorderSide(color: AppColors.tealPale, width: 1.4),
           shape: RoundedRectangleBorder(
             // Pill outline, mirroring the gradient CTA above it.
             borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
         ),
         child: busy
-            ? const SizedBox(
+            ?  SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
@@ -574,7 +574,7 @@ class _OrDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const line = Expanded(
+    final line = Expanded(
       child: Divider(color: AppColors.tealMist, height: 1),
     );
     return Row(
@@ -632,7 +632,7 @@ class _AuthSwitchRow extends StatelessWidget {
           ),
           child: Text(
             action,
-            style: const TextStyle(
+            style:  TextStyle(
               color: AppColors.primaryGreen,
               fontWeight: FontWeight.w700,
             ),

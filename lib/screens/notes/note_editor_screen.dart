@@ -189,7 +189,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary)),
                       trailing: c == _category
-                          ? const Icon(Icons.check_circle_rounded,
+                          ?  Icon(Icons.check_circle_rounded,
                               color: AppColors.primaryGreen, size: 22)
                           : null,
                       onTap: () => Navigator.of(context).pop(c),

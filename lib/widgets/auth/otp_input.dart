@@ -193,7 +193,7 @@ class _OtpBoxState extends State<_OtpBox> {
           // Allow a longer buffer so a full pasted code reaches onChanged.
           maxLength: 6,
           showCursor: true,
-          style: const TextStyle(
+          style:  TextStyle(
             // Divine Glass mockup renders the entered digits in brand blue.
             color: AppColors.primaryGreen,
             fontSize: 22,

@@ -63,7 +63,7 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
-            return const Center(
+            return  Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.primaryGreen,
@@ -150,7 +150,7 @@ class _NoReminderNote extends StatelessWidget {
               color: palette.surfaceVariant,
               borderRadius: BorderRadius.circular(AppRadius.chip - 2),
             ),
-            child: const Icon(Icons.event_available_rounded,
+            child:  Icon(Icons.event_available_rounded,
                 size: 18, color: AppColors.primaryGreen),
           ),
           const SizedBox(width: 10),

@@ -10,7 +10,9 @@ import '../../services/app_settings.dart';
 import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../utils/indian_number_format.dart';
+import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
@@ -227,7 +229,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                     ),
                   ),
                 ),
-                // Search + sort — solid pill (no frosted white haze).
+                // Search + sort — shared translucent launcher bar.
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
@@ -236,7 +238,9 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: _PropertySearchField(
+                            child: FloatingSearchBar(
+                              hint: 'Search properties',
+                              height: 48,
                               controller: _searchController,
                               onChanged: (v) => setState(() => _query = v),
                             ),
@@ -502,51 +506,7 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-/// Solid search field — no LiquidGlass frost layer behind it.
-class _PropertySearchField extends StatelessWidget {
-  const _PropertySearchField({
-    required this.controller,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: palette.border),
-        boxShadow: AppShadows.card,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              style: AppText.body.copyWith(color: palette.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search properties',
-                hintStyle: AppText.body.copyWith(color: palette.textFaint),
-                border: InputBorder.none,
-                isCollapsed: true,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+/// Translucent sort control — matches [FloatingSearchBar] chrome in launcher.
 class _SortButton extends StatelessWidget {
   const _SortButton({required this.onTap});
 
@@ -555,6 +515,7 @@ class _SortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     return PressableScale(
       pressedScale: 0.92,
       child: GestureDetector(
@@ -564,13 +525,26 @@ class _SortButton extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: palette.surface,
+            color: launcher
+                ? (palette.isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : AppColors.primaryGreen.withValues(alpha: 0.06))
+                : palette.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: palette.border),
-            boxShadow: AppShadows.card,
+            border: Border.all(
+              color: launcher
+                  ? (palette.isDark
+                      ? Colors.white.withValues(alpha: 0.14)
+                      : AppColors.primaryGreen.withValues(alpha: 0.18))
+                  : palette.border,
+            ),
+            boxShadow: launcher ? null : AppShadows.card,
           ),
-          child: Icon(Icons.swap_vert_rounded,
-              size: 22, color: AppColors.primaryGreen),
+          child: Icon(
+            Icons.swap_vert_rounded,
+            size: 22,
+            color: AppColors.primaryGreen,
+          ),
         ),
       ),
     );

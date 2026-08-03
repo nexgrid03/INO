@@ -126,12 +126,12 @@ class _DashboardCardState extends State<DashboardCard>
   /// warmer foam washes and brand teal eyebrow instead of skyBlue.
   Widget _buildHero(AppPalette palette) {
     final dark = palette.isDark;
-    final eyebrow = dark ? AppColors.skyBlue : AppColors.primaryGreen;
+    final eyebrow = AppColors.primaryGreen;
     final washCore = dark
-        ? AppColors.skyBlue.withValues(alpha: 0.22)
+        ? AppColors.primaryGreen.withValues(alpha: 0.12)
         : AppColors.secondaryGreen.withValues(alpha: 0.28);
     final washMid = dark
-        ? AppColors.primaryGreen.withValues(alpha: 0.08)
+        ? AppColors.primaryGreen.withValues(alpha: 0.05)
         : AppColors.skyBlue.withValues(alpha: 0.12);
 
     return LiquidGlass(
@@ -339,6 +339,10 @@ class _MascotBadgeState extends State<_MascotBadge>
         final t = _c.value; // 0..1..0
         final bob = math.sin(t * math.pi) * 3; // gentle vertical float
         final ring = 0.9 + t * 0.3; // pulse ring scale
+        final dark = AppPalette.of(context).isDark;
+        final ringAlpha = dark ? 0.16 : 0.30;
+        final glowAlpha = dark ? 0.14 : 0.30;
+        final sparkleBoost = dark ? 0.45 : 1.0;
         return SizedBox(
           width: 54,
           height: 54,
@@ -356,7 +360,7 @@ class _MascotBadgeState extends State<_MascotBadge>
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: AppColors.primaryGreen
-                          .withValues(alpha: 0.30 * (1 - t)),
+                          .withValues(alpha: ringAlpha * (1 - t)),
                       width: 1.5,
                     ),
                   ),
@@ -366,12 +370,18 @@ class _MascotBadgeState extends State<_MascotBadge>
               Positioned(
                 top: 2 - bob,
                 right: 4,
-                child: _Sparkle(size: 7, opacity: 0.85 * t + 0.15),
+                child: _Sparkle(
+                  size: 7,
+                  opacity: (0.85 * t + 0.15) * sparkleBoost,
+                ),
               ),
               Positioned(
                 bottom: 3 + bob,
                 left: 3,
-                child: _Sparkle(size: 5, opacity: 0.9 * (1 - t) + 0.1),
+                child: _Sparkle(
+                  size: 5,
+                  opacity: (0.9 * (1 - t) + 0.1) * sparkleBoost,
+                ),
               ),
               // The glassy shield badge, bobbing - a brand-gradient chip.
               Transform.translate(
@@ -383,15 +393,14 @@ class _MascotBadgeState extends State<_MascotBadge>
                     shape: BoxShape.circle,
                     gradient: AppColors.brandGradient,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.55),
+                      color: Colors.white.withValues(alpha: dark ? 0.35 : 0.55),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            AppColors.primaryGreen.withValues(alpha: 0.30),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
+                        color: AppColors.primaryGreen.withValues(alpha: glowAlpha),
+                        blurRadius: dark ? 10 : 14,
+                        offset: Offset(0, dark ? 4 : 6),
                       ),
                     ],
                   ),
@@ -418,10 +427,13 @@ class _Sparkle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Icon(
       Icons.auto_awesome_rounded,
       size: size + 6,
-      color: AppColors.skyBlue.withValues(alpha: opacity.clamp(0.0, 1.0)),
+      color: AppColors.primaryGreen.withValues(
+        alpha: (opacity * (dark ? 0.55 : 1.0)).clamp(0.0, 1.0),
+      ),
     );
   }
 }

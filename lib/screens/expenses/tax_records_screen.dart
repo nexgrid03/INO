@@ -65,12 +65,12 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
                 style: AppText.subtitle.copyWith(color: palette.textPrimary)),
             ListTile(
               leading:
-                  const Icon(Icons.image_rounded, color: AppColors.primaryGreen),
+                  Icon(Icons.image_rounded, color: AppColors.primaryGreen),
               title: Text(l10n.t('photoImage')),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
-              leading: const Icon(Icons.picture_as_pdf_rounded,
+              leading:  Icon(Icons.picture_as_pdf_rounded,
                   color: AppColors.lightBlue),
               title: Text(l10n.t('pdf')),
               onTap: () => Navigator.of(context).pop('pdf'),
@@ -281,11 +281,11 @@ class _TypeSection extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.add_rounded,
+                         Icon(Icons.add_rounded,
                             size: 16, color: AppColors.darkGreen),
                         const SizedBox(width: 3),
                         Text(l10n.t('upload'),
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.darkGreen,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12.5)),
@@ -382,7 +382,7 @@ class _Header extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: onShare,
-                child: const SizedBox(
+                child:  SizedBox(
                   width: AppSizes.iconContainerSm,
                   height: AppSizes.iconContainerSm,
                   child: Icon(Icons.ios_share_rounded,

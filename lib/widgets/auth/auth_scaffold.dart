@@ -54,7 +54,7 @@ class AuthPageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     return Text(
       text,
       textAlign: TextAlign.center,
@@ -90,7 +90,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
     final showTopRow = widget.showBack || widget.trailing != null;
 
     Widget content = widget.child;
-    if (InoStyle.isLauncher(context)) {
+    if (InoStyle.usesDivineGlass(context)) {
       content = DivineGlassCard(
         padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
         radius: 24,
@@ -138,12 +138,12 @@ class _AuthScaffoldState extends State<AuthScaffold>
           // Ambient corner glows - a cyan wash bleeding in from the top-left
           // and a teal wash from the bottom-right, both fading into the
           // scaffold background. Works over the light AND dark palettes.
-          const Positioned(
+           Positioned(
             top: -170,
             left: -130,
             child: _AmbientBlob(color: AppColors.lightBlue, size: 400),
           ),
-          const Positioned(
+           Positioned(
             bottom: -190,
             right: -150,
             child: _AmbientBlob(color: AppColors.primaryGreen, size: 460),

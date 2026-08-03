@@ -295,7 +295,7 @@ class _StageChecklist extends StatelessWidget {
                       ? Icon(Icons.check_circle_rounded,
                           size: 17, color: AppColors.primaryGreen)
                       : s == current
-                          ? const CircularProgressIndicator(
+                          ?  CircularProgressIndicator(
                               strokeWidth: 2,
                               color: AppColors.primaryGreen,
                             )
@@ -465,7 +465,7 @@ class _RingPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
     final sweep = 2 * math.pi * progress.clamp(0.0, 1.0);
     final arcPaint = Paint()
-      ..shader = const SweepGradient(
+      ..shader =  SweepGradient(
         startAngle: 0,
         endAngle: 2 * math.pi,
         colors: [AppColors.primaryGreen, AppColors.lightBlue],

@@ -312,14 +312,14 @@ class StatTile extends StatelessWidget {
 /// The premium empty state every module shows before its first record: a
 /// gradient glyph, a headline, a line of guidance and a primary CTA.
 class ModuleEmptyState extends StatelessWidget {
-  const ModuleEmptyState({
+   ModuleEmptyState({
     super.key,
     required this.icon,
     required this.title,
     required this.message,
     required this.actionLabel,
     required this.onAction,
-    this.accent = AppColors.primaryGreen,
+    this.accent,
   });
 
   final IconData icon;
@@ -327,11 +327,12 @@ class ModuleEmptyState extends StatelessWidget {
   final String message;
   final String actionLabel;
   final VoidCallback onAction;
-  final Color accent;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final brand = accent ?? AppColors.primaryGreen;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
       child: Column(
@@ -344,8 +345,8 @@ class ModuleEmptyState extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  accent.withValues(alpha: 0.16),
-                  accent.withValues(alpha: 0),
+                  brand.withValues(alpha: 0.16),
+                  brand.withValues(alpha: 0),
                 ],
               ),
             ),
@@ -360,7 +361,7 @@ class ModuleEmptyState extends StatelessWidget {
                     color: AppColors.tealPale.withValues(alpha: 0.6)),
                 boxShadow: AppShadows.floating,
               ),
-              child: Icon(icon, color: accent, size: 38),
+              child: Icon(icon, color: brand, size: 38),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -481,10 +482,11 @@ InputDecoration moduleFieldDecoration(
   String? hint,
   Widget? prefix,
   Widget? suffix,
-  Color accent = AppColors.primaryGreen,
+  Color? accent,
   String? prefixText,
 }) {
   final palette = AppPalette.of(context);
+  final ring = accent ?? AppColors.primaryGreen;
   OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.chip),
         borderSide: BorderSide(color: c, width: w),
@@ -502,7 +504,7 @@ InputDecoration moduleFieldDecoration(
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     border: border(palette.border),
     enabledBorder: border(palette.border),
-    focusedBorder: border(accent, 1.6),
+    focusedBorder: border(ring, 1.6),
     errorBorder: border(AppColors.critical),
     focusedErrorBorder: border(AppColors.critical, 1.6),
   );
@@ -1238,7 +1240,7 @@ Future<int?> showModulePicker(
                       ),
                     ),
                     trailing: selected
-                        ? const Icon(Icons.check_rounded,
+                        ?  Icon(Icons.check_rounded,
                             color: AppColors.primaryGreen)
                         : null,
                     onTap: () => Navigator.of(context).pop(i),

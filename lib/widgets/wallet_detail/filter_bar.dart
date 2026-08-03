@@ -67,7 +67,7 @@ class FilterBar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.swap_vert_rounded,
+                     Icon(Icons.swap_vert_rounded,
                         size: 18, color: AppColors.primaryGreen),
                     const SizedBox(width: 5),
                     Text(
@@ -116,7 +116,7 @@ class _Chip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               color: selected ? null : palette.surface,
-              gradient: selected ? AppGradients.primary : null,
+              gradient: selected ? AppColors.brandGradient : null,
               borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
                 color: selected ? Colors.transparent : palette.border,

@@ -287,7 +287,7 @@ class _OfflineDocTile extends StatelessWidget {
                 const SizedBox(width: 6),
               ],
               // The offline badge - the whole point of this list.
-              const Icon(Icons.offline_pin_rounded,
+               Icon(Icons.offline_pin_rounded,
                   size: 18, color: AppColors.primaryGreen),
               IconButton(
                 onPressed: onRemove,

@@ -260,7 +260,7 @@ class _CreateWalletRow extends StatelessWidget {
                     color: AppColors.primaryGreen.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(AppRadius.chip),
                   ),
-                  child: const Icon(
+                  child:  Icon(
                     Icons.add_rounded,
                     color: AppColors.primaryGreen,
                     size: 22,

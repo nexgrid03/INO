@@ -59,7 +59,7 @@ class _EventCard extends StatelessWidget {
       case FamilyEventType.anniversary:
         return const [AppColors.success, Color(0xFF4ADE80)];
       case FamilyEventType.event:
-        return const [AppColors.primaryGreen, AppColors.lightBlue];
+        return  [AppColors.primaryGreen, AppColors.lightBlue];
     }
   }
 

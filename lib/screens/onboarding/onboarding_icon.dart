@@ -148,7 +148,7 @@ class _Sparkle extends StatelessWidget {
           opacity: opacity.clamp(0.0, 1.0),
           child: Transform.scale(
             scale: scale,
-            child: const Icon(
+            child:  Icon(
               Icons.auto_awesome,
               size: 18,
               color: AppColors.secondaryGreen,
@@ -187,7 +187,7 @@ class _ScanLine extends StatelessWidget {
               height: 2.5,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
-                gradient: const LinearGradient(
+                gradient:  LinearGradient(
                   colors: [
                     Colors.transparent,
                     AppColors.primaryGreen,

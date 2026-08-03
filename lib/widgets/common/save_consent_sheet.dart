@@ -64,7 +64,7 @@ class _DataConsentSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                const Icon(Icons.verified_user_rounded,
+                 Icon(Icons.verified_user_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Text('Your data stays yours',

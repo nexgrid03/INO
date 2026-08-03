@@ -39,7 +39,7 @@ extension VaultRoleX on VaultRole {
   Color get color {
     switch (this) {
       case VaultRole.owner:
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
       case VaultRole.admin:
         return const Color(0xFF8B6CEF);
       case VaultRole.editor:
@@ -219,7 +219,7 @@ extension InvitationStatusX on InvitationStatus {
       case InvitationStatus.pending:
         return const Color(0xFFE0A100);
       case InvitationStatus.accepted:
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
       case InvitationStatus.declined:
       case InvitationStatus.revoked:
         return const Color(0xFF64748B);

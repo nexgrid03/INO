@@ -194,7 +194,7 @@ class _VaultBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_rounded,
+           Icon(Icons.verified_rounded,
               size: 13, color: AppColors.primaryGreen),
           const SizedBox(width: 5),
           Text(

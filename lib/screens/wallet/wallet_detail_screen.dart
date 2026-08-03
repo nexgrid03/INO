@@ -608,7 +608,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   ),
                 ),
                 trailing: s == _sort
-                    ? const Icon(
+                    ?  Icon(
                         Icons.check_rounded,
                         color: AppColors.primaryGreen,
                       )
@@ -937,7 +937,7 @@ class _ViewRecentsButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children:  [
             Text(
               'View recents',
               style: TextStyle(
@@ -1071,7 +1071,7 @@ class _SelectionBar extends StatelessWidget {
 }
 
 // FAB actions for the document manager (per the brief).
-const List<QuickAction> _detailFabActions = [
+final List<QuickAction> _detailFabActions = [
   QuickAction(
     label: 'Scan Document',
     icon: Icons.document_scanner_rounded,

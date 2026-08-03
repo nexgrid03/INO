@@ -135,7 +135,7 @@ class LegalDocumentScreen extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.verified_user_rounded,
+                   Icon(Icons.verified_user_rounded,
                       size: 14, color: AppColors.primaryGreen),
                   const SizedBox(width: 6),
                   Text(updated,

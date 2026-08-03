@@ -25,7 +25,7 @@ class MarketsScreen extends StatelessWidget {
     return SettingsScaffold(
       title: l10n.t('markets'),
       child: ListView(
-        physics: InoStyle.isLauncher(context)
+        physics: InoStyle.usesDivineGlass(context)
             ? const ClampingScrollPhysics()
             : const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
@@ -59,7 +59,7 @@ class _MarketRow extends StatelessWidget {
     final up = quote.changePercent >= 0;
     final changeColor = up ? AppColors.positive : AppColors.negative;
     final accent = quote.gradient.first;
-    final launcher = InoStyle.isLauncher(context);
+    final launcher = InoStyle.usesDivineGlass(context);
     final chip = launcher ? 48.0 : 42.0;
 
     final body = Column(

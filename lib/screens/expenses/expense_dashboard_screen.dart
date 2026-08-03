@@ -95,7 +95,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                                   ? FontWeight.w800
                                   : FontWeight.w600)),
                       trailing: y == _store.selectedYear.startYear
-                          ? const Icon(Icons.check_circle_rounded,
+                          ?  Icon(Icons.check_circle_rounded,
                               color: AppColors.primaryGreen)
                           : null,
                     ),
@@ -470,7 +470,7 @@ class _SummaryCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.receipt_long_rounded,
+                 Icon(Icons.receipt_long_rounded,
                     size: 13, color: AppColors.primaryGreen),
                 const SizedBox(width: 5),
                 Text(

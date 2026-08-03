@@ -22,13 +22,14 @@ class RemindersEmptyState extends StatelessWidget {
           vertical: 48, horizontal: AppSpacing.screen),
       child: Column(
         children: [
-          const ShinyIcon(
+           ShinyIcon(
             icon: Icons.notifications_active_rounded,
             color: AppColors.primaryGreen,
             size: 110,
             iconSize: 50,
             radius: AppRadius.large + 8,
-            style: ShinyIconStyle.filled,
+            style: ShinyIconStyle.filled,
+
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(l10n.t('noRemindersYet'),

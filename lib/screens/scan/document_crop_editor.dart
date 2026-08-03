@@ -123,7 +123,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
         ],
       ),
       body: _imageSize == null
-          ? const Center(
+          ?  Center(
               child: CircularProgressIndicator(color: AppColors.primaryGreen))
           : LayoutBuilder(
               builder: (context, constraints) {
@@ -172,7 +172,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                       Positioned.fill(
                         child: ColoredBox(
                           color: Colors.black54,
-                          child: const Center(
+                          child:  Center(
                             child: CircularProgressIndicator(
                                 color: AppColors.primaryGreen),
                           ),

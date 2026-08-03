@@ -900,7 +900,7 @@ class _OptionCard extends StatelessWidget {
     // from the Stitch mock doubles as an unmistakable selected state.
     final card = Container(
       decoration: BoxDecoration(
-        gradient: AppGradients.primary,
+        gradient: AppColors.brandGradient,
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: AppShadows.glow(AppColors.primaryGreen),
       ),
@@ -966,7 +966,7 @@ class _EmptyState extends StatelessWidget {
                     boxShadow: AppShadows.card,
                   ),
                   child: busy
-                      ? const Center(
+                      ?  Center(
                           child: SizedBox(
                             width: 34,
                             height: 34,
@@ -977,7 +977,7 @@ class _EmptyState extends StatelessWidget {
                             ),
                           ),
                         )
-                      : const Icon(Icons.cloud_upload_rounded,
+                      :  Icon(Icons.cloud_upload_rounded,
                           color: AppColors.primaryGreen, size: 44),
                 ),
                 Positioned(
@@ -991,7 +991,7 @@ class _EmptyState extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: palette.bg, width: 2),
                     ),
-                    child: const Icon(Icons.lock_rounded,
+                    child:  Icon(Icons.lock_rounded,
                         size: 16, color: AppColors.primaryGreen),
                   ),
                 ),
@@ -1416,7 +1416,7 @@ class _PickerTile extends StatelessWidget {
                             selected ? FontWeight.w700 : FontWeight.w600)),
               ),
               if (selected)
-                const Icon(Icons.check_circle_rounded,
+                 Icon(Icons.check_circle_rounded,
                     color: AppColors.primaryGreen, size: 22),
             ],
           ),

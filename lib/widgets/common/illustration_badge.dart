@@ -53,7 +53,8 @@ class IllustrationBadge extends StatelessWidget {
             icon: icon,
             color: tint,
             size: size * 0.72,
-            iconSize: size * 0.34,
+            iconSize: size * 0.34,
+
           ),
           // Floating accent dots - the "illustrated" sparkle.
           Positioned(

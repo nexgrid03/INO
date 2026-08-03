@@ -236,12 +236,12 @@ class CalcField extends StatelessWidget {
 /// The headline result of a calculator - a gradient card with a big value and
 /// a copy action.
 class HeroResultCard extends StatelessWidget {
-  const HeroResultCard({
+   HeroResultCard({
     super.key,
     required this.label,
     required this.value,
     this.copyText,
-    this.gradient = AppColors.brandGradient,
+    this.gradient,
   });
 
   final String label;
@@ -249,7 +249,7 @@ class HeroResultCard extends StatelessWidget {
 
   /// If set, shows a copy button that copies this text.
   final String? copyText;
-  final Gradient gradient;
+  final Gradient? gradient;
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +258,10 @@ class HeroResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.internal),
       decoration: BoxDecoration(
         // Deeper in the bold theme, lighter in soft.
-        gradient: InoStyle.gradient(context, gradient),
+        gradient: InoStyle.gradient(
+          context,
+          gradient ?? AppColors.brandGradient,
+        ),
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: [
           BoxShadow(

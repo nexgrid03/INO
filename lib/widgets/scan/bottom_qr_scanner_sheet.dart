@@ -444,7 +444,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                         )
                       else
                         const _UploadPlaceholder(),
-                      const IgnorePointer(
+                       IgnorePointer(
                         child: Center(
                           child: QrScanFrame(
                             size: 210,
@@ -495,6 +495,9 @@ class _UploadPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final dark = palette.isDark;
+    final brand = AppColors.primaryGreen;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -505,20 +508,20 @@ class _UploadPlaceholder extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                color: brand.withValues(alpha: dark ? 0.10 : 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.qr_code_2_rounded,
                 size: 32,
-                color: AppColors.primaryGreen,
+                color: brand,
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Tap to upload QR',
               style: TextStyle(
-                color: AppColors.primaryGreen,
+                color: dark ? palette.textPrimary : brand,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -528,7 +531,7 @@ class _UploadPlaceholder extends StatelessWidget {
               'PhonePe · GPay · any UPI QR',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.blueGrey.shade400,
+                color: palette.textSecondary,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
               ),

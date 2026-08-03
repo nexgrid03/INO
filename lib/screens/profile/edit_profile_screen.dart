@@ -279,7 +279,7 @@ class _AvatarEditor extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.camera_alt_rounded,
+                  child:  Icon(Icons.camera_alt_rounded,
                       size: 15, color: AppColors.primaryGreen),
                 ),
               ),
@@ -299,7 +299,7 @@ class _InitialsFill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+      decoration: BoxDecoration(gradient: AppColors.brandGradient),
       child: Center(
         child: Text(
           initials,

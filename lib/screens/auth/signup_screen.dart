@@ -202,7 +202,7 @@ class _SignupScreenState extends State<SignupScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.tealPale),
             ),
-            child: const Icon(Icons.help_outline_rounded,
+            child:  Icon(Icons.help_outline_rounded,
                 size: 20, color: AppColors.primaryGreen),
           ),
         ),
@@ -386,7 +386,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         onTap: _openTerms,
                         child: Text(
                           l10n.t('termsConditions'),
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5,
@@ -406,7 +406,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         onTap: _openPrivacy,
                         child: Text(
                           l10n.t('privacyPolicy'),
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5,
@@ -450,7 +450,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   child: Text(
                     l10n.t('signIn'),
-                    style: const TextStyle(
+                    style:  TextStyle(
                       color: AppColors.primaryGreen,
                       fontWeight: FontWeight.w700,
                     ),
@@ -483,7 +483,7 @@ class _ShieldBadge extends StatelessWidget {
           border: Border.all(color: AppColors.tealPale, width: 1.2),
           boxShadow: AppShadows.card,
         ),
-        child: const Icon(
+        child:  Icon(
           Icons.shield_rounded,
           color: AppColors.primaryGreen,
           size: 38,

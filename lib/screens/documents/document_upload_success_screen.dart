@@ -153,7 +153,7 @@ class _DocumentUploadSuccessScreenState
                             ),
                             child: Text(
                               l10n.t('encryptedBadge'),
-                              style: const TextStyle(
+                              style:  TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,

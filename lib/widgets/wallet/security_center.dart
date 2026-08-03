@@ -153,7 +153,7 @@ class _ScoreRing extends StatelessWidget {
                   letterSpacing: -0.5,
                 ),
               ),
-              const Text(
+               Text(
                 'Secure',
                 style: TextStyle(
                   fontSize: 11,
@@ -195,7 +195,7 @@ class _RingPainter extends CustomPainter {
     // Progress arc with a brand gradient.
     final sweep = 2 * math.pi * fraction.clamp(0.0, 1.0);
     final paint = Paint()
-      ..shader = const SweepGradient(
+      ..shader =  SweepGradient(
         startAngle: 0,
         endAngle: 2 * math.pi,
         colors: [AppColors.primaryGreen, AppColors.lightBlue, AppColors.primaryGreen],

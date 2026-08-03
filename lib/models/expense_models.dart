@@ -186,9 +186,9 @@ extension TxnCategoryX on TxnCategory {
   Color get color {
     switch (this) {
       case TxnCategory.salary:
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
       case TxnCategory.business:
-        return AppColors.secondaryGreen;
+        return AppColors.skyBrandSecondary;
       case TxnCategory.investment:
         return const Color(0xFF0EA5E9);
       case TxnCategory.rent:
@@ -206,7 +206,7 @@ extension TxnCategoryX on TxnCategory {
       case TxnCategory.shopping:
         return const Color(0xFFEC4899);
       case TxnCategory.utilities:
-        return AppColors.lightBlue;
+        return AppColors.skyBrandSecondary;
       case TxnCategory.loanEmi:
         return const Color(0xFF6366F1);
       case TxnCategory.taxPayment:

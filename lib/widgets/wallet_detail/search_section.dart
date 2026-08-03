@@ -74,7 +74,7 @@ class DetailSearchBar extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(launcher ? 12 : AppRadius.search),
           borderSide:
-              const BorderSide(color: AppColors.primaryGreen, width: 1.6),
+              BorderSide(color: AppColors.primaryGreen, width: 1.6),
         ),
       ),
     );

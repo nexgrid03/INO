@@ -394,7 +394,7 @@ class _SecurityNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.verified_user_rounded,
+           Icon(Icons.verified_user_rounded,
               size: 17, color: AppColors.primaryGreen),
           const SizedBox(width: 10),
           Expanded(

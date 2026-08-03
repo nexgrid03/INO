@@ -67,7 +67,7 @@ extension InvestmentTypeX on InvestmentType {
   /// accents already used across the app - no new palette is introduced.
   Color get color => switch (this) {
         InvestmentType.stocks => const Color(0xFF4383EA),
-        InvestmentType.mutualFunds => AppColors.primaryGreen,
+        InvestmentType.mutualFunds => AppColors.skyBrand,
         InvestmentType.etf => const Color(0xFF38BDF8),
         InvestmentType.bonds => const Color(0xFF9B6DE0),
         InvestmentType.fixedDeposit => const Color(0xFF64748B),

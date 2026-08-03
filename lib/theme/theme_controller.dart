@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_theme.dart';
 import 'theme_style.dart';
 
 /// App-wide theme-mode state, exposed as a single [ValueNotifier], and
@@ -33,7 +34,11 @@ class ThemeController {
       final p = await SharedPreferences.getInstance();
       final stored = p.getString(_kThemeMode);
       mode.value = _decode(stored);
-      style.value = _decodeStyle(p.getString(_kThemeStyle));
+      final nextStyle = _decodeStyle(p.getString(_kThemeStyle));
+      // Apply brand getters before notifying listeners so Aqua icons match
+      // ThemeData on the first frame.
+      AppColors.applyStyle(nextStyle);
+      style.value = nextStyle;
       developer.log(
         'loaded theme=${mode.value} style=${style.value}',
         name: 'theme',
@@ -61,6 +66,7 @@ class ThemeController {
 
   /// Sets and persists the visual style.
   static void setStyle(ThemeStyle next) {
+    AppColors.applyStyle(next);
     style.value = next;
     _persistStyle(next);
   }
@@ -83,6 +89,8 @@ class ThemeController {
         return ThemeStyle.soft;
       case 'launcher':
         return ThemeStyle.launcher;
+      case 'aqua':
+        return ThemeStyle.aqua;
       case 'classic':
       default:
         return ThemeStyle.classic;

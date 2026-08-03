@@ -171,7 +171,7 @@ class _MessageField extends StatelessWidget {
         // pale-sky hairline, so both inputs on this form read identically.
         fillColor: Colors.white.withValues(alpha: 0.85),
         labelStyle: const TextStyle(color: AppColors.textMuted),
-        floatingLabelStyle: const TextStyle(color: AppColors.primaryGreen),
+        floatingLabelStyle: TextStyle(color: AppColors.primaryGreen),
         border: _border(AppColors.tealPale),
         enabledBorder: _border(AppColors.tealPale),
         focusedBorder: _border(AppColors.primaryGreen, width: 1.6),

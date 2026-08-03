@@ -67,7 +67,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                   future: _future,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
+                      return  Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2.6,
                           color: AppColors.primaryGreen,
@@ -766,7 +766,7 @@ class _EmptyState extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const DecorBlob(size: 120, opacity: 0.30),
+                    DecorBlob(size: 120, opacity: 0.30),
                     Container(
                       width: 72,
                       height: 72,
@@ -776,7 +776,7 @@ class _EmptyState extends StatelessWidget {
                         border: Border.all(color: AppColors.tealPale),
                         boxShadow: AppShadows.card,
                       ),
-                      child: const Icon(
+                      child:  Icon(
                         Icons.qr_code_2_rounded,
                         size: 36,
                         color: AppColors.primaryGreen,

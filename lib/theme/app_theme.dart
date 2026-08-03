@@ -25,32 +25,103 @@ import 'theme_style.dart';
 class AppColors {
   AppColors._();
 
-  // --- Brand: the #0EA5E9 tint ladder ---------------------------------------
+  // --- Sky brand ladder (#0EA5E9) — classic / bold / soft / launcher --------
 
-  /// Primary brand teal - #0EA5E9. (Legacy name kept for app-wide reach.)
-  static const Color primaryGreen = Color(0xFF0EA5E9);
+  static const Color _skyPrimary = Color(0xFF0EA5E9);
+  static const Color _skySecondary = Color(0xFF38BDF8);
+  static const Color _skySky = Color(0xFF7DD3FC);
+  static const Color _skyPale = Color(0xFFBAE6FD);
+  static const Color _skyMist = Color(0xFFE0F2FE);
+  static const Color _skyFoam = Color(0xFFF0F9FF);
 
-  /// Tint 1 - #38BDF8. Secondary fills, gradient partner, soft accents.
-  static const Color secondaryGreen = Color(0xFF38BDF8);
+  // --- Aqua brand: the #4FDBC8 mint ladder (ThemeStyle.aqua only) -----------
 
-  /// Text/icons sitting on tinted fills. Per the brand rule the primary is
-  /// never darkened, so this aliases the anchor itself.
-  static const Color darkGreen = Color(0xFF0EA5E9);
+  /// Aqua primary mint - #4FDBC8.
+  static const Color aquaPrimary = Color(0xFF4FDBC8);
 
-  /// Tint 1 - #38BDF8. (Legacy "cyan partner" name; now the first tint.)
-  static const Color lightBlue = Color(0xFF38BDF8);
+  /// Aqua tint 1 - slightly lighter partner for gradients.
+  static const Color aquaSecondary = Color(0xFF7AE8D9);
 
-  /// Tint 2 - #7DD3FC. Washes, glows and dark-mode accents.
-  static const Color skyBlue = Color(0xFF7DD3FC);
+  /// Aqua tint 2 - washes and glows.
+  static const Color aquaSky = Color(0xFFA8F0E6);
 
-  /// Tint 3 - #BAE6FD. Chip strokes, decorative shapes.
-  static const Color tealPale = Color(0xFFBAE6FD);
+  /// Aqua tint 3 - chip strokes / decorative.
+  static const Color aquaPale = Color(0xFFD4F7F2);
 
-  /// Tint 4 - #E0F2FE. Mist fills, progress tracks, chip backgrounds.
-  static const Color tealMist = Color(0xFFE0F2FE);
+  /// Aqua tint 4 - mist fills.
+  static const Color aquaMist = Color(0xFFE8FBF8);
 
-  /// Near-white teal - #F0F9FF. Section washes and inset surfaces.
-  static const Color tealFoam = Color(0xFFF0F9FF);
+  /// Near-white aqua foam for section washes.
+  static const Color aquaFoam = Color(0xFFF2FDFB);
+
+  /// Fixed sky brand (#0EA5E9) for const / mock-data contexts that must not
+  /// track the Aqua style switch. Prefer [primaryGreen] in UI build methods.
+  static const Color skyBrand = _skyPrimary;
+  static const Color skyBrandSecondary = _skySecondary;
+  static const Color skyBrandSky = _skySky;
+  static const Color skyBrandPale = _skyPale;
+  static const Color skyBrandMist = _skyMist;
+  static const Color skyBrandFoam = _skyFoam;
+
+  /// When true, legacy brand getters resolve to the Aqua mint ladder.
+  static bool _aquaActive = false;
+
+  /// Sync brand getters with the picked [ThemeStyle]. Called from
+  /// [ThemeController] on load and whenever the user switches App Theme.
+  static void applyStyle(ThemeStyle style) {
+    _aquaActive = style == ThemeStyle.aqua;
+  }
+
+  /// Primary brand teal - sky #0EA5E9, or mint #4FDBC8 in Aqua.
+  /// (Legacy name kept for app-wide reach.)
+  static Color get primaryGreen => _aquaActive ? aquaPrimary : _skyPrimary;
+
+  /// Tint 1 - secondary fills, gradient partner, soft accents.
+  static Color get secondaryGreen =>
+      _aquaActive ? aquaSecondary : _skySecondary;
+
+  /// Text/icons sitting on tinted fills. Aliases the active brand anchor.
+  static Color get darkGreen => primaryGreen;
+
+  /// Tint 1 - legacy "cyan partner" name; same as [secondaryGreen].
+  static Color get lightBlue => secondaryGreen;
+
+  /// Tint 2 - washes, glows and dark-mode accents.
+  static Color get skyBlue => _aquaActive ? aquaSky : _skySky;
+
+  /// Tint 3 - chip strokes, decorative shapes.
+  static Color get tealPale => _aquaActive ? aquaPale : _skyPale;
+
+  /// Tint 4 - mist fills, progress tracks, chip backgrounds.
+  static Color get tealMist => _aquaActive ? aquaMist : _skyMist;
+
+  /// Near-white teal - section washes and inset surfaces.
+  static Color get tealFoam => _aquaActive ? aquaFoam : _skyFoam;
+
+  /// Style-aware brand accent (same as [primaryGreen] under the active style).
+  static Color brandOf(BuildContext context) => InoStyle.brandAccent(context);
+
+  /// Soft brand glow for dark surfaces — keeps glass, cuts the glitter.
+  static Color glowOf(BuildContext context, {double light = 0.28, double dark = 0.14}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return primaryGreen.withValues(alpha: isDark ? dark : light);
+  }
+
+  /// Style-aware primary brand gradient.
+  static LinearGradient brandGradientOf(BuildContext context) {
+    if (InoStyle.isAqua(context)) {
+      return const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [aquaPrimary, aquaSecondary],
+      );
+    }
+    return const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_skyPrimary, _skySecondary],
+    );
+  }
 
   // --- Semantic status colours ----------------------------------------------
 
@@ -86,26 +157,26 @@ class AppColors {
 
   // --- Premium gradient system (legacy aliases → AppGradients) ---------------
 
-  /// Hero gradient - buttons, FAB, avatars, splash. #0EA5E9 → #38BDF8.
-  static const LinearGradient brandGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primaryGreen, secondaryGreen],
-  );
+  /// Hero gradient - buttons, FAB, avatars, splash.
+  static LinearGradient get brandGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [primaryGreen, secondaryGreen],
+      );
 
   /// Wallet gradient - tint 1 → tint 2.
-  static const LinearGradient walletGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [secondaryGreen, skyBlue],
-  );
+  static LinearGradient get walletGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [secondaryGreen, skyBlue],
+      );
 
   /// Insight gradient - anchor → tint 2 (a wider, airier sweep).
-  static const LinearGradient insightGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primaryGreen, skyBlue],
-  );
+  static LinearGradient get insightGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [primaryGreen, skyBlue],
+      );
 }
 
 /// The named gradient library. Prefer these over ad-hoc [LinearGradient]s so
@@ -113,32 +184,32 @@ class AppColors {
 class AppGradients {
   AppGradients._();
 
-  /// The primary brand gradient (#0EA5E9 → #38BDF8) - primary buttons, the
-  /// active nav pill, avatars, hero chips.
-  static const LinearGradient primary = AppColors.brandGradient;
+  /// The primary brand gradient - primary buttons, the active nav pill,
+  /// avatars, hero chips. Follows Aqua when that style is active.
+  static LinearGradient get primary => AppColors.brandGradient;
 
-  /// Softer companion (#38BDF8 → #7DD3FC) - wallet tiles, secondary heroes.
-  static const LinearGradient soft = AppColors.walletGradient;
+  /// Softer companion - wallet tiles, secondary heroes.
+  static LinearGradient get soft => AppColors.walletGradient;
 
-  /// The widest in-family sweep (#0EA5E9 → #7DD3FC) - hero banners.
-  static const LinearGradient hero = AppColors.insightGradient;
+  /// The widest in-family sweep - hero banners.
+  static LinearGradient get hero => AppColors.insightGradient;
 
-  /// Airy mist gradient (white → #E0F2FE) - screen washes, empty states.
-  static const LinearGradient mist = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Colors.white, AppColors.tealMist],
-  );
+  /// Airy mist gradient (white → mist) - screen washes, empty states.
+  static LinearGradient get mist => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white, AppColors.tealMist],
+      );
 
   /// A barely-there wash for card headers / hero tints (use over white).
   static LinearGradient wash({double opacity = 0.08}) => LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      AppColors.primaryGreen.withValues(alpha: opacity),
-      AppColors.skyBlue.withValues(alpha: opacity * 0.75),
-    ],
-  );
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          AppColors.primaryGreen.withValues(alpha: opacity),
+          AppColors.skyBlue.withValues(alpha: opacity * 0.75),
+        ],
+      );
 
   /// Success gradient for positive stat chips.
   static const LinearGradient successGrad = LinearGradient(
@@ -327,6 +398,24 @@ class AppPalette {
     shadowStrength: 0.8,
   );
 
+  /// Aqua-style light: same layout tokens as classic, washed in mint #4FDBC8.
+  static const AppPalette lightAqua = AppPalette(
+    brightness: Brightness.light,
+    bg: Color(0xFFE8F8F5), // soft mint wash
+    bgElevated: Color(0xFFFFFFFF),
+    surface: Color(0xFFFFFFFF),
+    cardTop: Color(0xFFFFFFFF),
+    cardBottom: Color(0xFFF2FDFB),
+    surfaceVariant: Color(0xFFE8FBF8),
+    textPrimary: Color(0xFF0F172A),
+    textSecondary: Color(0xFF64748B),
+    textFaint: Color(0xFF94A3B8),
+    border: Color(0x264FDBC8),
+    shadow: Color(0xFF4FDBC8),
+    ambient: Color(0xFF4FDBC8),
+    shadowStrength: 1.0,
+  );
+
   static const AppPalette dark = AppPalette(
     brightness: Brightness.dark,
     bg: Color(0xFF0A1926),
@@ -344,6 +433,24 @@ class AppPalette {
     shadowStrength: 0.5,
   );
 
+  /// Aqua dark: shared dark neutrals with a calmer mint ambient (less glitter).
+  static const AppPalette darkAqua = AppPalette(
+    brightness: Brightness.dark,
+    bg: Color(0xFF0A1926),
+    bgElevated: Color(0xFF102331),
+    surface: Color(0xFF13293A),
+    cardTop: Color(0xFF173347),
+    cardBottom: Color(0xFF13293A),
+    surfaceVariant: Color(0xFF173347),
+    textPrimary: Color(0xFFEDF5FB),
+    textSecondary: Color(0xFFA8C2D6),
+    textFaint: Color(0xFF6F8BA3),
+    border: Color(0x334FDBC8),
+    shadow: Color(0xFF000000),
+    ambient: Color(0xFF4FDBC8),
+    shadowStrength: 0.4,
+  );
+
   static AppPalette of(BuildContext context) {
     // Depends on the InoStyleScope too, so every palette consumer rebuilds
     // (and re-tones) when the user picks a new style in Profile → App theme.
@@ -359,12 +466,16 @@ class AppPalette {
     required Brightness brightness,
     required ThemeStyle style,
   }) {
-    if (brightness == Brightness.dark) return dark;
+    if (brightness == Brightness.dark) {
+      return style == ThemeStyle.aqua ? darkAqua : dark;
+    }
     switch (style) {
       case ThemeStyle.bold:
         return lightBold;
       case ThemeStyle.soft:
         return lightSoft;
+      case ThemeStyle.aqua:
+        return lightAqua;
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
         return light;
@@ -396,7 +507,18 @@ class AppPalette {
             offset: const Offset(0, 6),
           ),
         ]
-      : AppShadows.card;
+      : [
+          BoxShadow(
+            color: ambient.withValues(alpha: 0.07 * shadowStrength),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03 * shadowStrength),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ];
 }
 
 class AppTheme {
@@ -419,12 +541,19 @@ class AppTheme {
     final isDark = brightness == Brightness.dark;
     final palette = AppPalette.resolve(brightness: brightness, style: style);
     final fontFamily = GoogleFonts.manrope().fontFamily;
+    final isAqua = style == ThemeStyle.aqua;
+    final seed = isAqua ? AppColors.aquaPrimary : AppColors.primaryGreen;
+    final secondary = isAqua ? AppColors.aquaSecondary : AppColors.secondaryGreen;
+    final tertiary = isAqua ? AppColors.aquaSky : AppColors.skyBlue;
+    final pale = isAqua ? AppColors.aquaPale : AppColors.tealPale;
+    final mist = isAqua ? AppColors.aquaMist : AppColors.tealMist;
+    final foam = isAqua ? AppColors.aquaFoam : AppColors.tealFoam;
 
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primaryGreen,
-      primary: AppColors.primaryGreen,
-      secondary: AppColors.secondaryGreen,
-      tertiary: AppColors.skyBlue,
+      seedColor: seed,
+      primary: seed,
+      secondary: secondary,
+      tertiary: tertiary,
       error: AppColors.critical,
       surface: palette.surface,
       brightness: brightness,
@@ -544,12 +673,12 @@ class AppTheme {
       // Primary buttons: filled brand teal, rounded, soft elevation.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
+          backgroundColor: seed,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.tealMist,
+          disabledBackgroundColor: mist,
           disabledForegroundColor: AppColors.textMuted,
           elevation: 0,
-          shadowColor: AppColors.primaryGreen.withValues(alpha: 0.35),
+          shadowColor: seed.withValues(alpha: 0.35),
           textStyle: TextStyle(fontFamily: fontFamily, 
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -563,7 +692,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
+          backgroundColor: seed,
           foregroundColor: Colors.white,
           textStyle: TextStyle(fontFamily: fontFamily, 
             fontSize: 15,
@@ -580,9 +709,9 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           backgroundColor: isDark ? Colors.transparent : Colors.white,
-          foregroundColor: AppColors.primaryGreen,
+          foregroundColor: seed,
           side: BorderSide(
-            color: isDark ? palette.border : AppColors.tealPale,
+            color: isDark ? palette.border : pale,
             width: 1.2,
           ),
           textStyle: TextStyle(fontFamily: fontFamily, 
@@ -598,7 +727,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primaryGreen,
+          foregroundColor: seed,
           textStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -606,7 +735,7 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primaryGreen,
+        backgroundColor: seed,
         foregroundColor: Colors.white,
         elevation: 0,
         highlightElevation: 0,
@@ -626,7 +755,7 @@ class AppTheme {
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
-        prefixIconColor: AppColors.primaryGreen,
+        prefixIconColor: seed,
         suffixIconColor: palette.textFaint,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
@@ -638,8 +767,8 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: AppColors.primaryGreen,
+          borderSide: BorderSide(
+            color: seed,
             width: 1.4,
           ),
         ),
@@ -658,8 +787,8 @@ class AppTheme {
       ),
       // Chips: mist fills with teal text and a pale stroke.
       chipTheme: ChipThemeData(
-        backgroundColor: isDark ? palette.surfaceVariant : AppColors.tealFoam,
-        selectedColor: AppColors.primaryGreen,
+        backgroundColor: isDark ? palette.surfaceVariant : foam,
+        selectedColor: seed,
         disabledColor: palette.surfaceVariant,
         labelStyle: TextStyle(fontFamily: fontFamily, 
           color: palette.textPrimary,
@@ -702,7 +831,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         modalBackgroundColor: palette.bgElevated,
         showDragHandle: true,
-        dragHandleColor: AppColors.tealPale,
+        dragHandleColor: pale,
         elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -710,7 +839,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
+        backgroundColor: seed,
         contentTextStyle: TextStyle(fontFamily: fontFamily, 
           color: Colors.white,
           fontSize: 14,
@@ -722,18 +851,18 @@ class AppTheme {
         insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.primaryGreen,
+        labelColor: seed,
         unselectedLabelColor: palette.textFaint,
         labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
         unselectedLabelStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
-        indicatorColor: AppColors.primaryGreen,
+        indicatorColor: seed,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
         overlayColor: WidgetStatePropertyAll(
-          AppColors.primaryGreen.withValues(alpha: 0.06),
+          seed.withValues(alpha: 0.06),
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -742,7 +871,7 @@ class AppTheme {
         space: 1,
       ),
       listTileTheme: ListTileThemeData(
-        iconColor: AppColors.primaryGreen,
+        iconColor: seed,
         textColor: palette.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -751,7 +880,7 @@ class AppTheme {
         color: palette.bgElevated,
         surfaceTintColor: Colors.transparent,
         elevation: 4,
-        shadowColor: AppColors.primaryGreen.withValues(alpha: 0.18),
+        shadowColor: seed.withValues(alpha: 0.18),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: palette.border),
@@ -766,47 +895,47 @@ class AppTheme {
         thumbColor: const WidgetStatePropertyAll(Colors.white),
         trackColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? AppColors.primaryGreen
-              : (isDark ? palette.surfaceVariant : AppColors.tealMist),
+              ? seed
+              : (isDark ? palette.surfaceVariant : mist),
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? AppColors.primaryGreen
+              ? seed
               : Colors.transparent,
         ),
         checkColor: const WidgetStatePropertyAll(Colors.white),
-        side: const BorderSide(color: AppColors.tealPale, width: 1.6),
+        side: BorderSide(color: pale, width: 1.6),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? AppColors.primaryGreen
-              : AppColors.tealPale,
+              ? seed
+              : pale,
         ),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.primaryGreen,
+        activeTrackColor: seed,
         inactiveTrackColor: isDark
             ? palette.surfaceVariant
-            : AppColors.tealMist,
+            : mist,
         thumbColor: Colors.white,
-        overlayColor: AppColors.primaryGreen.withValues(alpha: 0.10),
+        overlayColor: seed.withValues(alpha: 0.10),
         trackHeight: 5,
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: AppColors.primaryGreen,
-        linearTrackColor: isDark ? palette.surfaceVariant : AppColors.tealMist,
+        color: seed,
+        linearTrackColor: isDark ? palette.surfaceVariant : mist,
         circularTrackColor: isDark
             ? palette.surfaceVariant
-            : AppColors.tealMist,
+            : mist,
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: AppColors.primaryGreen,
+          color: seed,
           borderRadius: BorderRadius.circular(12),
         ),
         textStyle: TextStyle(fontFamily: fontFamily, 

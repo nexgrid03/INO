@@ -1090,7 +1090,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   Widget _body(AppPalette palette) {
     if (_loading) {
-      return const Center(
+      return  Center(
         child: CircularProgressIndicator(
             strokeWidth: 2.6, color: AppColors.primaryGreen),
       );
@@ -1247,7 +1247,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                           }
                         });
                       }
-                      return const Center(
+                      return  Center(
                         child: CircularProgressIndicator(
                             strokeWidth: 2.6, color: AppColors.primaryGreen),
                       );
@@ -1596,7 +1596,7 @@ class _ExtractedHeader extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Row(
       children: [
-        const Icon(Icons.auto_awesome_rounded,
+         Icon(Icons.auto_awesome_rounded,
             size: 15, color: AppColors.primaryGreen),
         const SizedBox(width: 6),
         Text('Extracted Information',

@@ -392,7 +392,7 @@ class _AddWalletCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final bold = InoStyle.of(context) == ThemeStyle.bold;
-    const accent = AppColors.primaryGreen;
+    final accent = AppColors.primaryGreen;
     final edge = bold ? InoStyle.boldBorder(accent) : accent;
     return PressableScale(
       pressedScale: 0.97,

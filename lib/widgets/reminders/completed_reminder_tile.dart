@@ -25,13 +25,15 @@ class CompletedReminderTile extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.sm),
       child: Row(
-        children: [
-          const ShinyIcon(
+        children: [
+
+           ShinyIcon(
             icon: Icons.check_circle_rounded,
             color: AppColors.primaryGreen,
             size: 36,
             iconSize: 20,
-            radius: AppRadius.chip,
+            radius: AppRadius.chip,
+
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

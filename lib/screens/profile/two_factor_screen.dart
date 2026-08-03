@@ -270,7 +270,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded,
+                   Icon(Icons.info_outline_rounded,
                       color: AppColors.lightBlue, size: 20),
                   const SizedBox(width: 8),
                   Text(l10n.t('recovery'),
@@ -366,7 +366,7 @@ class _StepTile extends StatelessWidget {
                 ),
                 shape: BoxShape.circle),
             child: Text(n,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w800,
                     fontSize: 13)),

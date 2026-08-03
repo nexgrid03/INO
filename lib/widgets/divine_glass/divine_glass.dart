@@ -9,8 +9,9 @@ import '../pressable_scale.dart';
 export 'divine_glass_kit.dart';
 export 'divine_glass_page.dart';
 
-/// True when Profile → App theme is Launcher (Divine Glass restyles apply).
-bool divineGlassEnabled(BuildContext context) => InoStyle.isLauncher(context);
+/// True when Profile → App theme is Launcher or Aqua (Divine Glass restyles).
+bool divineGlassEnabled(BuildContext context) =>
+    InoStyle.usesDivineGlass(context);
 
 /// Shared Divine Glass surface — frosted card used across Launcher screens.
 class DivineGlassCard extends StatelessWidget {

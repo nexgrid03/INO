@@ -97,7 +97,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
-            return const Center(
+            return  Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.primaryGreen,
@@ -215,7 +215,7 @@ class _EmptyList extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: palette.border),
               ),
-              child: const Icon(Icons.check_circle_outline_rounded,
+              child:  Icon(Icons.check_circle_outline_rounded,
                   size: 32, color: AppColors.primaryGreen),
             ),
             const SizedBox(height: AppSpacing.sm),

@@ -447,7 +447,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                                 ),
                               ),
                               if (o.$1 == selected)
-                                const Icon(
+                                 Icon(
                                   Icons.check_circle_rounded,
                                   color: AppColors.primaryGreen,
                                   size: 22,

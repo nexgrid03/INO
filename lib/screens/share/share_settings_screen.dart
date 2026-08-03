@@ -249,7 +249,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(l10n.t('ok'),
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.primaryGreen, fontWeight: FontWeight.w700)),
           ),
         ],

@@ -304,7 +304,7 @@ class _NativeScannerBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPalette.dark.bg,
-      body: const Center(
+      body:  Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
         ),
@@ -326,7 +326,7 @@ class _BuildingPdf extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(
+             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
             ),
             const SizedBox(height: 16),

@@ -48,7 +48,7 @@ class WalletEmptyState extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const ShinyIcon(
+                   ShinyIcon(
                     icon: Icons.folder_open_rounded,
                     color: AppColors.primaryGreen,
                     size: 110,
@@ -173,7 +173,7 @@ class _SecondaryButton extends StatelessWidget {
     return PressableScale(
       child: Material(
         color: palette.surface,
-        shape: const StadiumBorder(
+        shape:  StadiumBorder(
           side: BorderSide(color: AppColors.tealPale, width: 1.2),
         ),
         clipBehavior: Clip.antiAlias,

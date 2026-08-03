@@ -68,7 +68,7 @@ class ActivityService {
         title: 'Cloud backup completed',
         subtitle: 'Your vault was backed up',
         icon: Icons.cloud_done_rounded,
-        color: AppColors.lightBlue,
+        color: AppColors.skyBrandSecondary,
         at: lastBackup,
         time: formatRelativeDate(l10n, lastBackup),
         kind: ActivityKind.backup,
@@ -122,17 +122,17 @@ class ActivityService {
   Color _colorFor(String category) {
     switch (category) {
       case 'Identity':
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
       case 'Financial':
-        return AppColors.secondaryGreen;
+        return AppColors.skyBrandSecondary;
       case 'Legal':
         return const Color(0xFF8B6CEF);
       case 'Medical':
         return const Color(0xFFEC6A8C);
       case 'Property':
-        return AppColors.lightBlue;
+        return AppColors.skyBrandSecondary;
       default:
-        return AppColors.primaryGreen;
+        return AppColors.skyBrand;
     }
   }
 }

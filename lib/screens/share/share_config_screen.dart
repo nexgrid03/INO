@@ -120,7 +120,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(l10n.t('ok'),
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.primaryGreen,
                     fontWeight: FontWeight.w700)),
           ),
@@ -401,7 +401,7 @@ class _SecurityNote extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.verified_user_rounded,
+             Icon(Icons.verified_user_rounded,
                 color: AppColors.lightBlue, size: 20),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -427,7 +427,7 @@ class _SecurityNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.verified_user_rounded,
+           Icon(Icons.verified_user_rounded,
               color: AppColors.lightBlue, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

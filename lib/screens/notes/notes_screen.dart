@@ -659,7 +659,7 @@ class _EmptyState extends StatelessWidget {
                 border: Border.all(color: AppColors.tealPale),
                 boxShadow: AppShadows.card,
               ),
-              child: const Icon(Icons.edit_note_rounded,
+              child:  Icon(Icons.edit_note_rounded,
                   color: AppColors.primaryGreen, size: 52),
             ),
             const SizedBox(height: AppSpacing.lg),

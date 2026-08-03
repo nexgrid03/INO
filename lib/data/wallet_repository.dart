@@ -52,7 +52,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID'],
       metric: '0',
       metricLabel: 'documents',
-      gradient: [AppColors.primaryGreen, AppColors.lightBlue],
+      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
     ),
     WalletCategory(
       name: 'Document Wallet',
@@ -60,7 +60,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Certificates', 'Contracts', 'Personal Documents'],
       metric: '0',
       metricLabel: 'files',
-      gradient: [Color(0xFF3B82F6), AppColors.skyBlue],
+      gradient: [Color(0xFF3B82F6), AppColors.skyBrandSky],
     ),
     WalletCategory(
       name: 'Property Wallet',
@@ -68,7 +68,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Property Documents', 'Tax Records', 'Sale Deeds'],
       metric: '0',
       metricLabel: 'properties',
-      gradient: [AppColors.lightBlue, AppColors.skyBlue],
+      gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
     ),
     WalletCategory(
       name: 'Insurance Wallet',
@@ -76,7 +76,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Health', 'Vehicle', 'Life Insurance'],
       metric: '0',
       metricLabel: 'policies',
-      gradient: [AppColors.primaryGreen, AppColors.secondaryGreen],
+      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
     ),
     WalletCategory(
       name: 'Health Wallet',
@@ -84,7 +84,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Medical Records', 'Reports', 'Prescriptions'],
       metric: '0',
       metricLabel: 'records',
-      gradient: [Color(0xFF3B82F6), AppColors.lightBlue],
+      gradient: [Color(0xFF3B82F6), AppColors.skyBrandSecondary],
     ),
     WalletCategory(
       name: 'Investment Wallet',
@@ -92,7 +92,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Gold', 'Stocks', 'Mutual Funds', 'Land'],
       metric: '0',
       metricLabel: 'holdings',
-      gradient: [AppColors.secondaryGreen, AppColors.skyBlue],
+      gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
     ),
     WalletCategory(
       name: 'Banking Wallet',
@@ -100,7 +100,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Accounts', 'Statements', 'Cards'],
       metric: '0',
       metricLabel: 'accounts',
-      gradient: [AppColors.darkGreen, AppColors.primaryGreen],
+      gradient: [AppColors.skyBrand, AppColors.skyBrand],
     ),
     WalletCategory(
       name: 'Password Vault',
@@ -108,7 +108,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Website Credentials', 'Bank Credentials'],
       metric: '0',
       metricLabel: 'passwords',
-      gradient: [AppColors.darkGreen, AppColors.secondaryGreen],
+      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
     ),
   ];
 
@@ -211,27 +211,27 @@ class SupabaseWalletRepository implements WalletRepository {
         QuickAction(
             label: 'Scan',
             icon: Icons.document_scanner_rounded,
-            color: AppColors.primaryGreen),
+            color: AppColors.skyBrand),
         QuickAction(
             label: 'Upload',
             icon: Icons.upload_file_rounded,
-            color: AppColors.lightBlue),
+            color: AppColors.skyBrandSecondary),
         QuickAction(
             label: 'Property',
             icon: Icons.add_home_rounded,
-            color: AppColors.lightBlue),
+            color: AppColors.skyBrandSecondary),
         QuickAction(
             label: 'Insurance',
             icon: Icons.add_moderator_rounded,
-            color: AppColors.secondaryGreen),
+            color: AppColors.skyBrandSecondary),
         QuickAction(
             label: 'Investment',
             icon: Icons.savings_rounded,
-            color: AppColors.secondaryGreen),
+            color: AppColors.skyBrandSecondary),
         QuickAction(
             label: 'Password',
             icon: Icons.password_rounded,
-            color: AppColors.darkGreen),
+            color: AppColors.skyBrand),
       ],
       recents: recents,
       security: const SecurityStatus(
@@ -280,7 +280,7 @@ class SupabaseWalletRepository implements WalletRepository {
   }
 
   Color _colorFor(String wallet) =>
-      categoryFor(wallet)?.gradient.first ?? AppColors.primaryGreen;
+      categoryFor(wallet)?.gradient.first ?? AppColors.skyBrand;
 
   String _relativeTime(DateTime t) {
     final diff = DateTime.now().difference(t);

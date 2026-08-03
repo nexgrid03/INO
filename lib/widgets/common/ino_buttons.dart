@@ -34,8 +34,7 @@ class PrimaryButton extends StatelessWidget {
       height: AppSizes.button,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        // Deeper in the bold theme, lighter in soft.
-        gradient: InoStyle.gradient(context, AppGradients.primary),
+        gradient: InoStyle.gradient(context, AppColors.brandGradient),
         // Divine Glass: primary CTAs are full pills.
         borderRadius: BorderRadius.circular(AppRadius.pill),
         boxShadow: enabled ? AppShadows.glow(AppColors.primaryGreen) : null,

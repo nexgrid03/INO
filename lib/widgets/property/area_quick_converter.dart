@@ -92,7 +92,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
         children: [
           Row(
             children: [
-              const Icon(Icons.swap_vert_rounded,
+               Icon(Icons.swap_vert_rounded,
                   color: AppColors.lightBlue, size: 20),
               const SizedBox(width: AppSpacing.xs),
               Text(widget.title ?? l10n.t('quickConvert'),
@@ -146,7 +146,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: _swap,
-                      child: const SizedBox(
+                      child:  SizedBox(
                         width: 40,
                         height: 40,
                         child: Icon(Icons.swap_horiz_rounded,
