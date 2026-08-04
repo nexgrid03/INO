@@ -127,38 +127,66 @@ class _GoogleGPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.shortestSide;
-    final stroke = s * 0.20;
+    final stroke = s * 0.22;
     final center = Offset(s / 2, s / 2);
     final radius = (s - stroke) / 2;
     final ring = Rect.fromCircle(center: center, radius: radius);
 
-    void drawArc(Color color, double start, double sweep) {
-      canvas.drawArc(
-        ring,
-        start,
-        sweep,
-        false,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
-          ..strokeCap = StrokeCap.butt
-          ..isAntiAlias = true,
-      );
-    }
+    Paint arcPaint(Color color) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = true;
 
-    // Official-ish segment layout around the ring.
-    drawArc(GoogleGlyph.blue, -math.pi / 2, math.pi * 0.55); // top → right
-    drawArc(GoogleGlyph.green, math.pi * 0.05, math.pi * 0.45); // bottom-right
-    drawArc(GoogleGlyph.yellow, math.pi * 0.50, math.pi * 0.45); // bottom
-    drawArc(GoogleGlyph.red, math.pi * 0.95, math.pi * 0.55); // left → top
+    // Flutter arcs: 0 = right, increases clockwise.
+    // Leave a mouth gap on the right so it reads as "G", not a closed "O".
+    const gapStart = -0.38; // ~−22°
+    const gapEnd = 0.72; // ~+41°
 
-    // Blue crossbar that closes the "G".
-    final barTop = center.dy - stroke / 2;
+    // Blue: top → just above the mouth.
+    canvas.drawArc(
+      ring,
+      -math.pi / 2,
+      gapStart - (-math.pi / 2),
+      false,
+      arcPaint(GoogleGlyph.blue),
+    );
+    // Green: below the mouth → bottom.
+    canvas.drawArc(
+      ring,
+      gapEnd,
+      math.pi / 2 - gapEnd,
+      false,
+      arcPaint(GoogleGlyph.green),
+    );
+    // Yellow: bottom → left.
+    canvas.drawArc(
+      ring,
+      math.pi / 2,
+      math.pi / 2,
+      false,
+      arcPaint(GoogleGlyph.yellow),
+    );
+    // Red: left → top.
+    canvas.drawArc(
+      ring,
+      math.pi,
+      math.pi / 2,
+      false,
+      arcPaint(GoogleGlyph.red),
+    );
+
+    // Blue crossbar through the mouth (center → right rim).
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTRB(center.dx - stroke * 0.15, barTop, s - stroke * 0.15, barTop + stroke),
-        Radius.circular(stroke * 0.15),
+        Rect.fromLTRB(
+          center.dx - stroke * 0.08,
+          center.dy - stroke / 2,
+          center.dx + radius + stroke / 2,
+          center.dy + stroke / 2,
+        ),
+        Radius.circular(stroke * 0.12),
       ),
       Paint()
         ..color = GoogleGlyph.blue
