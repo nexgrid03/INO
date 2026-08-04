@@ -5,7 +5,6 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
-import '../common/liquid_glass.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
@@ -42,9 +41,12 @@ class SettingsScaffold extends StatelessWidget {
           centerTitle: false,
           actions: actions,
         ),
+        // Soft wash (sky: false) — saturated hero-sky made body/labels
+        // unreadable on Aqua (teal-on-teal). Settings forms need contrast.
         body: InoBackground(
           showDots: false,
-          sky: true,
+          sky: false,
+          intensity: 0.55,
           child: SafeArea(
             top: false,
             child: child,
@@ -76,6 +78,8 @@ class SettingsScaffold extends StatelessWidget {
       ),
       body: InoBackground(
         showDots: false,
+        sky: false,
+        intensity: 0.55,
         child: SafeArea(
           top: false,
           child: Padding(
@@ -102,27 +106,19 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = InoStyle.usesDivineGlass(context);
 
-    if (launcher) {
-      return LiquidGlass(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        blur: 20,
-        padding: padding ?? const EdgeInsets.all(AppSpacing.md),
-        child: SizedBox(width: double.infinity, child: child),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(AppSpacing.md),
+    // Flat surface + hairline only — no drop shadows (they muddy forms on
+    // the aqua wash and sit poorly under input fields).
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: palette.border),
-        boxShadow: palette.cardShadow,
       ),
-      child: child,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(AppSpacing.md),
+        child: SizedBox(width: double.infinity, child: child),
+      ),
     );
   }
 }
@@ -158,18 +154,12 @@ class SettingsPrimaryButton extends StatelessWidget {
           child: Container(
             height: 54,
             decoration: BoxDecoration(
-              gradient: danger ? null : InoStyle.gradient(context, AppColors.brandGradient),
+              gradient: danger
+                  ? null
+                  : InoStyle.gradient(context, AppColors.brandGradient),
               color: danger ? AppColors.critical : null,
               // Divine Glass CTA: a full pill, not a rounded rectangle.
               borderRadius: BorderRadius.circular(AppRadius.pill),
-              boxShadow: [
-                BoxShadow(
-                  color: (danger ? AppColors.critical : AppColors.primaryGreen)
-                      .withValues(alpha: 0.32),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             alignment: Alignment.center,
             child: busy

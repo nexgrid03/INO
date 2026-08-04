@@ -217,8 +217,11 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text(
           l10n.t('enterSetupKeyHint'),
-          style:
-              AppText.body.copyWith(color: palette.textSecondary, height: 1.5),
+          style: AppText.body.copyWith(
+            color: palette.textPrimary,
+            height: 1.5,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         _CopyField(label: l10n.t('setupKey'), value: setup.secret),
@@ -332,8 +335,11 @@ class _Hero extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(message,
             textAlign: TextAlign.center,
-            style: AppText.body
-                .copyWith(color: palette.textSecondary, height: 1.5)),
+            style: AppText.body.copyWith(
+              color: palette.textPrimary,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            )),
       ],
     );
   }
@@ -377,7 +383,7 @@ class _StepTile extends StatelessWidget {
               padding: const EdgeInsets.only(top: 3),
               child: Text(text,
                   style: AppText.body.copyWith(
-                      color: palette.textSecondary, height: 1.4)),
+                      color: palette.textPrimary, height: 1.4)),
             ),
           ),
         ],

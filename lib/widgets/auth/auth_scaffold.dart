@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
-import '../divine_glass/divine_glass.dart';
 import '../floating_particles.dart';
 
 /// Shared premium backdrop + layout for every authentication screen.
@@ -93,11 +92,20 @@ class _AuthScaffoldState extends State<AuthScaffold>
     final showTopRow = widget.showBack || widget.trailing != null;
 
     Widget content = widget.child;
+    // Solid surface card under Divine Glass themes — avoids translucent
+    // LiquidGlass nesting that made field labels clash with borders.
     if (InoStyle.usesDivineGlass(context)) {
-      content = DivineGlassCard(
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-        radius: 24,
-        child: content,
+      content = DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: palette.border),
+          boxShadow: palette.cardShadow,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          child: content,
+        ),
       );
     }
 
@@ -119,7 +127,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
           // skyBlue at the top melting to the pale base past mid-screen
           // (light mode only; dark keeps its deep palette bg).
           if (!palette.isDark)
-            const Positioned.fill(
+            Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -127,12 +135,12 @@ class _AuthScaffoldState extends State<AuthScaffold>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFF7DD3FC), // brand skyBlue crown
-                        Color(0xFFB2E2FC), // deep melt through the hero
-                        Color(0xFFE3F3FD), // pale wash past mid-screen
-                        Color(0xFFEAF4FC), // brand base
+                        AppColors.skyBlue,
+                        AppColors.tealPale,
+                        AppColors.tealMist,
+                        AppColors.tealFoam,
                       ],
-                      stops: [0.0, 0.28, 0.62, 1.0],
+                      stops: const [0.0, 0.28, 0.62, 1.0],
                     ),
                   ),
                 ),

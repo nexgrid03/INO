@@ -3,15 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../../theme/app_theme.dart';
 
-/// The Divine Glass hairline border colour (pale sky) used by the auth inputs.
-Color _borderColor = AppColors.tealPale;
-
-/// A premium text field with a smooth focus glow, used across every auth screen.
+/// Premium auth / settings text field.
 ///
-/// On focus it lifts with a soft green halo and a brand-coloured border - the
-/// subtle "active" feedback of Revolut / Google Account forms - on top of the
-/// theme's rounded, filled decoration. Extracted so Login, Signup and
-/// Forgot-Password all render identical inputs.
+/// Label sits **above** the field (never on the outline), so borders never
+/// cut through text. Used by Login, Signup, Forgot Password and Contact Support.
 class AuthTextField extends StatefulWidget {
   const AuthTextField({
     super.key,
@@ -29,6 +24,8 @@ class AuthTextField extends StatefulWidget {
     this.inputFormatters,
     this.autofillHints,
     this.enabled = true,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   final TextEditingController controller;
@@ -45,6 +42,8 @@ class AuthTextField extends StatefulWidget {
   final List<TextInputFormatter>? inputFormatters;
   final Iterable<String>? autofillHints;
   final bool enabled;
+  final int? minLines;
+  final int maxLines;
 
   @override
   State<AuthTextField> createState() => _AuthTextFieldState();
@@ -72,58 +71,75 @@ class _AuthTextFieldState extends State<AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: _focused
-            ? [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.18),
-                  blurRadius: 16,
-                  spreadRadius: 1,
-                ),
-              ]
-            : const [],
-      ),
-      child: TextFormField(
-        controller: widget.controller,
-        focusNode: _node,
-        enabled: widget.enabled,
-        obscureText: widget.obscureText,
-        keyboardType: widget.keyboardType,
-        textInputAction: widget.textInputAction,
-        textCapitalization: widget.textCapitalization,
-        validator: widget.validator,
-        onFieldSubmitted: widget.onSubmitted,
-        inputFormatters: widget.inputFormatters,
-        autofillHints: widget.autofillHints,
-        style: const TextStyle(
-          color: AppColors.textDark,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: widget.hint,
-          prefixIcon: Icon(
-            widget.icon,
-            color: AppColors.primaryGreen.withValues(alpha: 0.65),
+    final palette = AppPalette.of(context);
+    final borderColor = _focused ? AppColors.primaryGreen : palette.border;
+    final fill = palette.isDark ? palette.surfaceVariant : Colors.white;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: TextStyle(
+            // Primary ink — secondary slate washed out on aqua skies.
+            color: palette.textPrimary,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
           ),
-          suffixIcon: widget.suffix,
-          filled: true,
-          // Translucent white "glass" fill over the sky-gradient backdrop.
-          fillColor: Colors.white.withValues(alpha: 0.85),
-          labelStyle: const TextStyle(color: AppColors.textMuted),
-          floatingLabelStyle: TextStyle(color: AppColors.primaryGreen),
-          border: _border(_borderColor),
-          enabledBorder: _border(_borderColor),
-          focusedBorder: _border(AppColors.primaryGreen, width: 1.6),
-          errorBorder: _border(AppColors.critical),
-          focusedErrorBorder: _border(AppColors.critical, width: 1.6),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: widget.controller,
+          focusNode: _node,
+          enabled: widget.enabled,
+          obscureText: widget.obscureText,
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          textCapitalization: widget.textCapitalization,
+          validator: widget.validator,
+          onFieldSubmitted: widget.onSubmitted,
+          inputFormatters: widget.inputFormatters,
+          autofillHints: widget.autofillHints,
+          minLines: widget.minLines,
+          maxLines: widget.obscureText ? 1 : widget.maxLines,
+          style: TextStyle(
+            color: palette.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            // Label is rendered above — keep the outline clean.
+            hintText: widget.hint,
+            floatingLabelBehavior: FloatingLabelBehavior.never,
+            isDense: true,
+            filled: true,
+            fillColor: fill,
+            prefixIcon: Icon(
+              widget.icon,
+              color: _focused
+                  ? AppColors.primaryGreen
+                  : AppColors.primaryGreen.withValues(alpha: 0.65),
+            ),
+            suffixIcon: widget.suffix,
+            hintStyle: TextStyle(
+              color: palette.textFaint,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w500,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: (widget.minLines ?? 1) > 1 ? 16 : 16,
+            ),
+            border: _border(borderColor),
+            enabledBorder: _border(palette.border),
+            focusedBorder: _border(AppColors.primaryGreen, width: 1.6),
+            errorBorder: _border(AppColors.critical),
+            focusedErrorBorder: _border(AppColors.critical, width: 1.6),
+            disabledBorder: _border(palette.border.withValues(alpha: 0.5)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -131,6 +147,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: color, width: width),
+      gapPadding: 0,
     );
   }
 }

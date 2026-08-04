@@ -68,23 +68,26 @@ class _AboutScreenState extends State<AboutScreen> {
                   decoration: BoxDecoration(
                     gradient: AppColors.brandGradient,
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                        blurRadius: 22,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
                   ),
                   child: const Icon(Icons.shield_rounded,
                       color: Colors.white, size: 44),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('INO',
-                    style: AppText.headline.copyWith(color: palette.textPrimary)),
-                const SizedBox(height: 2),
-                Text(l10n.t('intelligentNetworkOrganizer'),
-                    style: AppText.body.copyWith(color: palette.textSecondary)),
+                Text(
+                  'INO',
+                  textAlign: TextAlign.center,
+                  style:
+                      AppText.headline.copyWith(color: palette.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.t('intelligentNetworkOrganizer'),
+                  textAlign: TextAlign.center,
+                  style: AppText.body.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -106,13 +109,32 @@ class _AboutScreenState extends State<AboutScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           Center(
-            child: Text(
-                l10n
-                    .t('allRightsReserved')
-                    .replaceFirst('{year}', '${_year()}'),
-                style: AppText.caption.copyWith(color: palette.textFaint)),
+            child: Column(
+              children: [
+                Text(
+                  l10n
+                      .t('allRightsReserved')
+                      .replaceFirst('{year}', '${_year()}'),
+                  textAlign: TextAlign.center,
+                  style: AppText.caption.copyWith(
+                    color: palette.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.t('poweredByNexgrid'),
+                  textAlign: TextAlign.center,
+                  style: AppText.caption.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -121,8 +143,13 @@ class _AboutScreenState extends State<AboutScreen> {
 
   static int _year() => DateTime.now().year;
 
-  Widget _divider(AppPalette palette) =>
-      Divider(height: 1, thickness: 1, color: palette.border, indent: 16, endIndent: 16);
+  Widget _divider(AppPalette palette) => Divider(
+        height: 1,
+        thickness: 1,
+        color: palette.border,
+        indent: 16,
+        endIndent: 16,
+      );
 }
 
 class _InfoRow extends StatelessWidget {
@@ -135,6 +162,9 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
   final bool copyable;
+
+  static const double _labelWidth = 118;
+  static const double _copySlot = 28;
 
   @override
   Widget build(BuildContext context) {
@@ -155,23 +185,46 @@ class _InfoRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(label,
-                style: AppText.body.copyWith(color: palette.textSecondary)),
-            const Spacer(),
-            Flexible(
+            SizedBox(
+              width: _labelWidth,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(
+                  color: palette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: AppText.subtitle.copyWith(color: palette.textPrimary),
+                textAlign: TextAlign.left,
+                style: AppText.subtitle.copyWith(
+                  color: palette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            if (copyable) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.copy_rounded, size: 15, color: palette.textFaint),
-            ],
+            SizedBox(
+              width: _copySlot,
+              child: copyable
+                  ? Align(
+                      alignment: Alignment.centerRight,
+                      child: Icon(
+                        Icons.copy_rounded,
+                        size: 16,
+                        color: palette.textSecondary,
+                      ),
+                    )
+                  : null,
+            ),
           ],
         ),
       ),

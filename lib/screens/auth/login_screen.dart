@@ -1,7 +1,5 @@
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -54,7 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  bool get _showApple => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  // Apple is available on every platform for now — Sign in with Apple is still
+  // a "coming soon" stub, and hiding it on web/Android made the icon invisible
+  // during Chrome testing.
+  bool get _showApple => true;
 
   // --- Actions --------------------------------------------------------------
 
@@ -290,159 +291,143 @@ class _LoginScreenState extends State<LoginScreen> {
               style: TextStyle(fontSize: 14.5, color: palette.textSecondary),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
-          // --- Glass form card: fields, remember/forgot, CTA and the
-          // federated options all live on one floating surface. -------------
+          // Email / password first, then federated options.
           FadeSlideIn(
             delay: const Duration(milliseconds: 160),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
-              decoration: BoxDecoration(
-                color: palette.surface
-                    .withValues(alpha: palette.isDark ? 0.55 : 0.75),
-                borderRadius: BorderRadius.circular(AppRadius.large),
-                border: Border.all(color: palette.border),
-                boxShadow: palette.cardShadow,
-              ),
-              // Divine Glass mockup order: federated options first, then the
-              // "or email" divider, then the email form and primary CTA.
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SocialAuthButton(
-                    label: l10n.t('continueWithGoogle'),
-                    brand: const GoogleGlyph(),
-                    busy: _googleBusy,
-                    onPressed: busy ? null : _continueWithGoogle,
-                  ),
-                  const SizedBox(height: 12),
-                  SocialAuthButton(
-                    label: l10n.t('continueWithPhone'),
-                    brand:  Icon(Icons.smartphone_rounded,
-                        color: AppColors.primaryGreen, size: 20),
-                    onPressed: busy ? null : _continueWithPhone,
-                  ),
-                  if (_showApple) ...[
-                    const SizedBox(height: 12),
-                    SocialAuthButton(
-                      label: l10n.t('continueWithApple'),
-                      brand: Icon(Icons.apple,
-                          color: palette.textPrimary, size: 20),
-                      onPressed: busy ? null : _continueWithApple,
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-
-                  _OrDivider(label: l10n.t('orDivider')),
-                  const SizedBox(height: 20),
-
-                  Form(
-                    key: _formKey,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    child: Column(
-                      children: [
-                        AuthTextField(
-                          controller: _identifierController,
-                          label: l10n.t('emailOrMobile'),
-                          hint: 'you@example.com',
-                          icon: Icons.alternate_email_rounded,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.username],
-                          validator: validate.emailOrPhone,
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: l10n.t('password'),
-                          hint: '••••••••',
-                          icon: Icons.lock_outline_rounded,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          validator: validate.password,
-                          onSubmitted: (_) => _signIn(),
-                          suffix: _VisibilityToggle(
-                            obscured: _obscurePassword,
-                            onTap: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
                     children: [
-                      _RememberMe(
-                        label: l10n.t('rememberMe'),
-                        value: _rememberMe,
-                        onChanged: (v) => setState(() => _rememberMe = v),
+                      AuthTextField(
+                        controller: _identifierController,
+                        label: l10n.t('emailOrMobile'),
+                        hint: 'you@example.com',
+                        icon: Icons.alternate_email_rounded,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.username],
+                        validator: validate.emailOrPhone,
                       ),
-                      TextButton(
-                        onPressed: busy ? null : _goToForgotPassword,
-                        child: Text(
-                          l10n.t('forgotPasswordQ'),
-                          style:  TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(height: 16),
+                      AuthTextField(
+                        controller: _passwordController,
+                        label: l10n.t('password'),
+                        hint: '••••••••',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        validator: validate.password,
+                        onSubmitted: (_) => _signIn(),
+                        suffix: _VisibilityToggle(
+                          obscured: _obscurePassword,
+                          onTap: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                ),
+                const SizedBox(height: 8),
 
-                  AuthPrimaryButton(
-                    label: l10n.t('signIn'),
-                    busy: _busy,
-                    onPressed: busy ? null : _signIn,
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: busy ? null : () => enterGuestExplore(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primaryGreen,
-                        side: BorderSide(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.45),
-                          width: 1.4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        l10n.t('continueAsGuest'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15.5,
-                        ),
-                      ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _RememberMe(
+                      label: l10n.t('rememberMe'),
+                      value: _rememberMe,
+                      onChanged: (v) => setState(() => _rememberMe = v),
                     ),
-                  ),
-
-                  // --- Demo-only guest login (hidden when isDemoBuild=false) --
-                  if (isDemoBuild) ...[
-                    const SizedBox(height: 12),
-                    _GuestLoginButton(
-                      label: l10n.t('loginAsGuest'),
-                      busy: _guestBusy,
-                      onPressed: busy ? null : _loginAsGuest,
+                    TextButton(
+                      onPressed: busy ? null : _goToForgotPassword,
+                      child: Text(
+                        l10n.t('forgotPasswordQ'),
+                        style: TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+
+                AuthPrimaryButton(
+                  label: l10n.t('signIn'),
+                  busy: _busy,
+                  onPressed: busy ? null : _signIn,
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: busy ? null : () => enterGuestExplore(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryGreen,
+                      side: BorderSide(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.45),
+                        width: 1.4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      l10n.t('continueAsGuest'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15.5,
+                      ),
+                    ),
+                  ),
+                ),
+
+                if (isDemoBuild) ...[
+                  const SizedBox(height: 12),
+                  _GuestLoginButton(
+                    label: l10n.t('loginAsGuest'),
+                    busy: _guestBusy,
+                    onPressed: busy ? null : _loginAsGuest,
+                  ),
                 ],
-              ),
+
+                const SizedBox(height: 22),
+                _OrDivider(label: l10n.t('orDivider')),
+                const SizedBox(height: 22),
+
+                SocialAuthButton(
+                  label: l10n.t('continueWithGoogle'),
+                  brand: const GoogleGlyph(),
+                  busy: _googleBusy,
+                  onPressed: busy ? null : _continueWithGoogle,
+                ),
+                const SizedBox(height: 12),
+                SocialAuthButton(
+                  label: l10n.t('continueWithPhone'),
+                  brand: Icon(Icons.smartphone_rounded,
+                      color: AppColors.primaryGreen, size: 20),
+                  onPressed: busy ? null : _continueWithPhone,
+                ),
+                if (_showApple) ...[
+                  const SizedBox(height: 12),
+                  SocialAuthButton(
+                    label: l10n.t('continueWithApple'),
+                    brand: const AppleGlyph(),
+                    onPressed: busy ? null : _continueWithApple,
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 26),
 
-          // --- Footer switch to Signup -------------------------------------
           FadeSlideIn(
             delay: const Duration(milliseconds: 320),
             child: _AuthSwitchRow(

@@ -501,15 +501,9 @@ class AppPalette {
   List<BoxShadow> get cardShadow => isDark
       ? [
           BoxShadow(
-            color: shadow.withValues(alpha: 0.5 * shadowStrength),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-          BoxShadow(
-            color: ambient.withValues(alpha: 0.07),
-            blurRadius: 22,
-            spreadRadius: -3,
-            offset: const Offset(0, 6),
+            color: shadow.withValues(alpha: 0.45 * shadowStrength),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ]
       : [

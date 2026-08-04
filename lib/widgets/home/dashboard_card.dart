@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -13,8 +11,8 @@ import 'launcher_glass_icon_tile.dart';
 
 /// The Home hero block, replicating the reference vault layout:
 ///
-///   1. A luminous glass hero card - the bobbing shield mascot on the left,
-///      an eyebrow / headline / subtitle column with a gradient CTA on the
+///   1. A luminous glass hero card - static lock badge on the left, an
+///      eyebrow / headline / subtitle column with a gradient CTA on the
 ///      right ("Your Vault is … / View Documents →").
 ///   2. A strip of four compact summary tiles beneath it (label on top, big
 ///      count + icon chip below) - the reference "Reminders" tile alignment.
@@ -320,130 +318,34 @@ class _HeroCta extends StatelessWidget {
   }
 }
 
-/// The header "character": a glassy shield badge that gently bobs, ringed by a
-/// soft pulse and two floating sparkle accents.
-class _MascotBadge extends StatefulWidget {
+/// Static lock badge for the hero header (no float / pulse).
+class _MascotBadge extends StatelessWidget {
   const _MascotBadge();
 
   @override
-  State<_MascotBadge> createState() => _MascotBadgeState();
-}
-
-class _MascotBadgeState extends State<_MascotBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3600),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value; // 0..1..0
-        final bob = math.sin(t * math.pi) * 3; // gentle vertical float
-        final ring = 0.9 + t * 0.3; // pulse ring scale
-        final dark = AppPalette.of(context).isDark;
-        final ringAlpha = dark ? 0.16 : 0.30;
-        final glowAlpha = dark ? 0.14 : 0.30;
-        final sparkleBoost = dark ? 0.45 : 1.0;
-        return SizedBox(
-          width: 54,
-          height: 54,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              // Soft pulsing halo ring.
-              Transform.scale(
-                scale: ring,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primaryGreen
-                          .withValues(alpha: ringAlpha * (1 - t)),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-              // Floating sparkle accents.
-              Positioned(
-                top: 2 - bob,
-                right: 4,
-                child: _Sparkle(
-                  size: 7,
-                  opacity: (0.85 * t + 0.15) * sparkleBoost,
-                ),
-              ),
-              Positioned(
-                bottom: 3 + bob,
-                left: 3,
-                child: _Sparkle(
-                  size: 5,
-                  opacity: (0.9 * (1 - t) + 0.1) * sparkleBoost,
-                ),
-              ),
-              // The glassy shield badge, bobbing - a brand-gradient chip.
-              Transform.translate(
-                offset: Offset(0, -bob),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.brandGradient,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: dark ? 0.35 : 0.55),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: glowAlpha),
-                        blurRadius: dark ? 10 : 14,
-                        offset: Offset(0, dark ? 4 : 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.lock_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ],
+    final dark = AppPalette.of(context).isDark;
+    return SizedBox(
+      width: 54,
+      height: 54,
+      child: Center(
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: AppColors.brandGradient,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: dark ? 0.35 : 0.55),
+              width: 1.5,
+            ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class _Sparkle extends StatelessWidget {
-  const _Sparkle({required this.size, required this.opacity});
-
-  final double size;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Icon(
-      Icons.auto_awesome_rounded,
-      size: size + 6,
-      color: AppColors.primaryGreen.withValues(
-        alpha: (opacity * (dark ? 0.55 : 1.0)).clamp(0.0, 1.0),
+          child: const Icon(
+            Icons.lock_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
       ),
     );
   }

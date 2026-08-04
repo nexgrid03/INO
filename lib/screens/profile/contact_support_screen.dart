@@ -93,41 +93,78 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
               AppSpacing.screen, AppSpacing.xl),
           children: [
-            Text(
-              l10n.t('contactSupportIntro'),
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            AuthTextField(
-              controller: _subject,
-              label: l10n.t('subject'),
-              icon: Icons.subject_rounded,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.sentences,
-              validator: (v) => (v == null || v.trim().length < 3)
-                  ? l10n.t('addShortSubject')
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _MessageField(controller: _message),
-            const SizedBox(height: AppSpacing.lg),
             SettingsCard(
-              padding: const EdgeInsets.all(14),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.alternate_email_rounded,
-                      color: palette.textSecondary, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(_email,
-                        style: AppText.body
-                            .copyWith(color: palette.textSecondary)),
+                  Text(
+                    l10n.t('contactSupportIntro'),
+                    style: AppText.body.copyWith(
+                      color: palette.textPrimary,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AuthTextField(
+                    controller: _subject,
+                    label: l10n.t('subject'),
+                    hint: l10n.t('subject'),
+                    icon: Icons.subject_rounded,
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.sentences,
+                    validator: (v) => (v == null || v.trim().length < 3)
+                        ? l10n.t('addShortSubject')
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthTextField(
+                    controller: _message,
+                    label: l10n.t('message'),
+                    hint: l10n.t('message'),
+                    icon: Icons.chat_bubble_outline_rounded,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 5,
+                    maxLines: 8,
+                    validator: (v) => (v == null || v.trim().length < 10)
+                        ? l10n.t('addMoreDetail')
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: palette.surfaceVariant
+                          .withValues(alpha: palette.isDark ? 1 : 0.55),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.alternate_email_rounded,
+                            color: palette.textSecondary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _email,
+                            style: AppText.body.copyWith(
+                              color: palette.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
             SettingsPrimaryButton(
               label: l10n.t('sendMessage'),
               icon: Icons.send_rounded,
@@ -139,51 +176,4 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       ),
     );
   }
-}
-
-/// A multi-line message input styled to match [AuthTextField].
-class _MessageField extends StatelessWidget {
-  const _MessageField({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return TextFormField(
-      controller: controller,
-      minLines: 5,
-      maxLines: 8,
-      textCapitalization: TextCapitalization.sentences,
-      style: const TextStyle(
-        color: AppColors.textDark,
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-      ),
-      validator: (v) => (v == null || v.trim().length < 10)
-          ? l10n.t('addMoreDetail')
-          : null,
-      decoration: InputDecoration(
-        labelText: l10n.t('message'),
-        alignLabelWithHint: true,
-        filled: true,
-        // Match AuthTextField's glass recipe: translucent white fill with a
-        // pale-sky hairline, so both inputs on this form read identically.
-        fillColor: Colors.white.withValues(alpha: 0.85),
-        labelStyle: const TextStyle(color: AppColors.textMuted),
-        floatingLabelStyle: TextStyle(color: AppColors.primaryGreen),
-        border: _border(AppColors.tealPale),
-        enabledBorder: _border(AppColors.tealPale),
-        focusedBorder: _border(AppColors.primaryGreen, width: 1.6),
-        errorBorder: _border(AppColors.critical),
-        focusedErrorBorder: _border(AppColors.critical, width: 1.6),
-      ),
-    );
-  }
-
-  OutlineInputBorder _border(Color color, {double width = 1.2}) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: color, width: width),
-      );
 }

@@ -251,13 +251,8 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-/// The Wallet tab's own backdrop - deliberately different from the Home aurora
-/// so the pale teal cards lift off the page instead of blending in.
-///
-/// Light mode: a cool, slightly deeper mist gradient (blue-leaning at the top,
-/// warming to a near-white seafoam at the bottom) with two soft accent blobs
-/// and a faint diagonal sheen. Still airy and on-theme - never dark. Dark mode
-/// falls back to the standard palette background.
+/// The Wallet tab backdrop — follows the active brand ladder (sky / aqua)
+/// so Aqua theme washes match Home and the rest of the shell.
 class _WalletBackdrop extends StatelessWidget {
   const _WalletBackdrop({required this.child});
 
@@ -270,26 +265,23 @@ class _WalletBackdrop extends StatelessWidget {
       return Container(color: palette.bg, child: child);
     }
     return Container(
-      decoration: const BoxDecoration(
-        // Matches the app-wide hero-sky wash (see InoBackground): the full
-        // brand skyBlue at the top melting to the pale base past mid-screen.
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF7DD3FC), // brand skyBlue crown
-            Color(0xFFB2E2FC), // deep melt through the hero
-            Color(0xFFE3F3FD), // pale wash past mid-screen
-            Color(0xFFEAF4FC), // brand base
+            AppColors.skyBlue,
+            AppColors.tealPale,
+            AppColors.tealMist,
+            AppColors.tealFoam,
           ],
-          stops: [0.0, 0.28, 0.62, 1.0],
+          stops: const [0.0, 0.28, 0.62, 1.0],
         ),
       ),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Soft accent blobs - quiet depth behind the grid.
-           Positioned(
+          Positioned(
             top: -70,
             right: -60,
             child: DecorBlob(
@@ -298,7 +290,7 @@ class _WalletBackdrop extends StatelessWidget {
               opacity: 0.30,
             ),
           ),
-           Positioned(
+          Positioned(
             bottom: 40,
             left: -80,
             child: DecorBlob(

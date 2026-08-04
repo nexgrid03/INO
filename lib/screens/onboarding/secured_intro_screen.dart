@@ -11,9 +11,10 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
+import '../auth/signup_screen.dart';
 import 'onboarding_layout.dart';
 
-/// The "your documents are secured" moment between onboarding and the app.
+/// The "your documents are secured" moment between onboarding and signup.
 ///
 /// A padlock assembles itself inside a glowing brand ring - the ring draws
 /// around, the shackle drops shut with a satisfying click (haptic), and four
@@ -22,8 +23,8 @@ import 'onboarding_layout.dart';
 /// rise in.
 ///
 /// Get Started routes by session: an already-signed-in user goes straight to
-/// their shell; everyone else enters guest explore mode (see [GuestMode]) and
-/// lands on Home, where every real action asks them to sign in.
+/// their shell; everyone else continues to [SignupScreen] (with Continue as
+/// guest available there).
 ///
 /// One 3.2s [AnimationController] drives the whole build-up via [Interval]s; a
 /// second slow repeating controller keeps the orbit chips gently breathing
@@ -103,11 +104,19 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
         }
       }
     } catch (_) {
-      // Fall through to guest - exploring must never be blocked by a network
+      // Fall through to Signup — exploring must never be blocked by a network
       // hiccup.
     }
     if (!mounted) return;
-    enterGuestExplore(context);
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (_, _, _) => const SignupScreen(),
+        transitionsBuilder: (_, animation, _, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   // ---- Build -----------------------------------------------------------------

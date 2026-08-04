@@ -127,6 +127,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         centerTitle: true,
       ),
       body: InoBackground(
+        sky: false,
+        intensity: 0.55,
+        showDots: false,
         child: SafeArea(
         top: false,
         child: Form(

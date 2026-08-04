@@ -130,8 +130,11 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           Text(
             l10n.t('deleteAccountWarning'),
             textAlign: TextAlign.center,
-            style:
-                AppText.body.copyWith(color: palette.textSecondary, height: 1.5),
+            style: AppText.body.copyWith(
+              color: palette.textPrimary,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(l10n.t('typeDeleteToConfirm'),

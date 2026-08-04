@@ -6,10 +6,10 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
-import '../auth/signup_screen.dart';
 import 'floating_satellites.dart';
 import 'onboarding_icon.dart';
 import 'onboarding_layout.dart';
+import 'secured_intro_screen.dart';
 
 /// A single onboarding slide's content.
 class _OnboardingPage {
@@ -28,7 +28,7 @@ class _OnboardingPage {
 ///
 /// Has 3 slides explaining the app, a Skip button, page indicator dots, and a
 /// full-width gradient "next" CTA. Both Skip and the CTA on the last page
-/// mark onboarding complete and navigate to [SignupScreen].
+/// mark onboarding complete and navigate to [SecuredIntroScreen].
 ///
 /// Visual language follows the Stitch onboarding set: a soft ambient gradient
 /// wash behind everything, a rounded hero panel holding the animated
@@ -132,14 +132,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _dotPop.forward(from: 0); // pop the newly-active dot
   }
 
-  /// Mark onboarding done and hand off to Signup (guest CTA lives there).
+  /// Mark onboarding done and hand off to the secured lock intro.
   Future<void> _finishOnboarding() async {
     await AppSettings.instance.setOnboardingSeen(true);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => const SignupScreen(),
+        pageBuilder: (_, _, _) => const SecuredIntroScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },

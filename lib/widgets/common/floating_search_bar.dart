@@ -8,7 +8,7 @@ import 'liquid_glass.dart';
 
 /// Design-system floating search bar.
 ///
-/// • **Launcher theme** — plain translucent pill (no milky/white frost).
+/// • **Launcher / Aqua** — solid white (or dark surface) pill with hairline.
 /// • **Other themes** — frosted [LiquidGlass] surface.
 ///
 /// Two input modes:
@@ -68,13 +68,24 @@ class FloatingSearchBar extends StatelessWidget {
                       autofocus: autofocus,
                       style: AppText.body.copyWith(color: palette.textPrimary),
                       cursorColor: AppColors.primaryGreen,
+                      // Theme InputDecoration is filled white — that stacks a
+                      // second plate on the bar chrome (Property etc.). Match
+                      // Wallets: chrome only, transparent field.
                       decoration: InputDecoration(
                         hintText: hint,
                         hintStyle: AppText.body.copyWith(
                           color: palette.textFaint,
                         ),
-                        border: InputBorder.none,
                         isCollapsed: true,
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
             ),
@@ -86,18 +97,13 @@ class FloatingSearchBar extends StatelessWidget {
 
     final Widget bar;
     if (launcher) {
-      // Plain translucent — sky shows through; no white fill / frost.
+      // Solid surface pill — translucent tint vanished on sky washes
+      // (Property / module hubs). Same white plate as filter chips.
       bar = DecoratedBox(
         decoration: BoxDecoration(
-          color: palette.isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : AppColors.primaryGreen.withValues(alpha: 0.06),
+          color: palette.isDark ? palette.surface : Colors.white,
           borderRadius: BorderRadius.circular(AppRadius.search),
-          border: Border.all(
-            color: palette.isDark
-                ? Colors.white.withValues(alpha: 0.14)
-                : AppColors.primaryGreen.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: palette.border),
         ),
         child: field,
       );

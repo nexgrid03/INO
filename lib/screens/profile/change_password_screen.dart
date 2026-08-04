@@ -109,49 +109,63 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
               AppSpacing.screen, AppSpacing.xl),
           children: [
-            Text(
-              l10n.t('confirmCurrentPasswordIntro'),
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
+            SettingsCard(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.t('confirmCurrentPasswordIntro'),
+                    style: AppText.body.copyWith(
+                      color: palette.textPrimary,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AuthTextField(
+                    controller: _current,
+                    label: l10n.t('currentPassword'),
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: _obscureCurrent,
+                    textInputAction: TextInputAction.next,
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? l10n.t('enterCurrentPassword')
+                        : null,
+                    suffix: _eye(
+                        _obscureCurrent,
+                        () => setState(
+                            () => _obscureCurrent = !_obscureCurrent)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthTextField(
+                    controller: _next,
+                    label: l10n.t('newPassword'),
+                    icon: Icons.lock_reset_rounded,
+                    obscureText: _obscureNext,
+                    textInputAction: TextInputAction.next,
+                    validator: _validateNew,
+                    suffix: _eye(_obscureNext,
+                        () => setState(() => _obscureNext = !_obscureNext)),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _StrengthMeter(
+                      strength: _strength, show: _next.text.isNotEmpty),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthTextField(
+                    controller: _confirm,
+                    label: l10n.t('confirmNewPassword'),
+                    icon: Icons.check_circle_outline_rounded,
+                    obscureText: _obscureNext,
+                    textInputAction: TextInputAction.done,
+                    validator: (v) =>
+                        v != _next.text ? l10n.t('passwordsDoNotMatch') : null,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AuthTextField(
-              controller: _current,
-              label: l10n.t('currentPassword'),
-              icon: Icons.lock_outline_rounded,
-              obscureText: _obscureCurrent,
-              textInputAction: TextInputAction.next,
-              validator: (v) => (v == null || v.isEmpty)
-                  ? l10n.t('enterCurrentPassword')
-                  : null,
-              suffix: _eye(_obscureCurrent,
-                  () => setState(() => _obscureCurrent = !_obscureCurrent)),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AuthTextField(
-              controller: _next,
-              label: l10n.t('newPassword'),
-              icon: Icons.lock_reset_rounded,
-              obscureText: _obscureNext,
-              textInputAction: TextInputAction.next,
-              validator: _validateNew,
-              suffix: _eye(_obscureNext,
-                  () => setState(() => _obscureNext = !_obscureNext)),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _StrengthMeter(strength: _strength, show: _next.text.isNotEmpty),
-            const SizedBox(height: AppSpacing.md),
-            AuthTextField(
-              controller: _confirm,
-              label: l10n.t('confirmNewPassword'),
-              icon: Icons.check_circle_outline_rounded,
-              obscureText: _obscureNext,
-              textInputAction: TextInputAction.done,
-              validator: (v) =>
-                  v != _next.text ? l10n.t('passwordsDoNotMatch') : null,
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: AppSpacing.xl),
             SettingsPrimaryButton(
               label: l10n.t('updatePassword'),
               icon: Icons.shield_rounded,

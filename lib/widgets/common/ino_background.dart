@@ -137,7 +137,9 @@ class _AuroraPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: dark
-            ? [palette.bg, palette.bgElevated, palette.bg]
+            // Flat night wash — no elevated mid-band (it tinted translucent
+            // glass as the user scrolled).
+            ? [palette.bg, palette.bg, palette.bg]
             : sky
                 ? (aqua
                     ? const [
@@ -169,11 +171,12 @@ class _AuroraPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, wash);
 
-    // 2. Drifting organic blobs - whisper alphas; much quieter in dark so
-    // theme toggles never leave a teal cast over the whole shell (nav blur
-    // would otherwise amplify it via extendBody).
+    // 2. Drifting organic blobs — light only. Dark kept a teal cast that
+    // made glass tiles feel "AI glossy" and recolour on scroll.
+    if (dark) return;
+
     final drift = 18.0 * (t - 0.5); // −9 → +9 px of slow travel
-    final blobScale = dark ? 0.12 : 1.0;
+    const blobScale = 1.0;
     void blob(Offset c, double r, Color color, double alpha) {
       final paint = Paint()
         ..shader = RadialGradient(
@@ -205,7 +208,7 @@ class _AuroraPainter extends CustomPainter {
     );
 
     // 3. Dot texture band - a quiet geometric accent near the top.
-    if (showDots && !dark) {
+    if (showDots) {
       final dot = Paint()
         ..color = brand.withValues(alpha: 0.05 * intensity);
       const gap = 26.0;

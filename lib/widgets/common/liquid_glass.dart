@@ -10,13 +10,13 @@ import '../../theme/app_theme.dart';
 /// Renders a surface exactly the way Apple's Liquid Glass reads:
 ///
 ///  1. **Real refraction** - a [BackdropFilter] blurs whatever scrolls behind
-///     the surface (the sky gradient, cards, content), so the material feels
-///     like actual glass rather than painted translucency.
-///  2. **Frost fill** - a soft white-to-clear gradient (light mode) or a
-///     barely-there white film (dark mode) keeps content on top legible.
+///     the surface (light mode only). Dark mode uses an opaque frosted fill
+///     so scroll gradients cannot recolour icon / card backgrounds.
+///  2. **Frost fill** - translucent white wash in light; solid surface glass
+///     in dark.
 ///  3. **Hairline edge** - a 1px bright rim that catches the light.
-///  4. **Specular sheen** - a diagonal top-left highlight, the signature
-///     Liquid Glass "wet" glint.
+///  4. **Specular sheen** - light-mode only diagonal highlight (omitted in
+///     dark — the wet glint reads as artificial over night surfaces).
 ///
 /// Drop-in for any card / pill / circle chrome:
 ///
@@ -55,6 +55,7 @@ class LiquidGlass extends StatelessWidget {
 
   /// Scales the frost-fill opacity: 1.0 = regular material,
   /// ~0.6 = "clear" Liquid Glass variant, >1 = milkier.
+  /// In dark mode the fill is opaque; frost only nudges the top lift.
   final double frost;
 
   /// Optional colour breathed into the frost (Liquid Glass tinting).
@@ -75,9 +76,10 @@ class LiquidGlass extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
-    // Flutter web: BackdropFilter is extremely expensive and can leave Home
-    // blank under load. Keep real blur for native; web uses frosted fill only.
-    final useBlur = enableBlur && blur > 0 && !kIsWeb;
+    // Dark: never sample the backdrop — translucent glass + sky wash made
+    // icon tiles shift colour while scrolling. Light keeps real blur on
+    // native; web always uses frosted fill only.
+    final useBlur = enableBlur && blur > 0 && !kIsWeb && !dark;
 
     final BorderRadius? radius = circle
         ? null
@@ -85,53 +87,60 @@ class LiquidGlass extends StatelessWidget {
             Directionality.of(context),
           );
 
-    // Without real blur, slightly milk the frost — but keep light-mode tiles
-    // translucent so the sky wash reads through (opaque white looked solid).
-    final frostScale = useBlur ? frost : (dark ? frost * 1.35 : frost * 1.05);
+    final frostScale = useBlur ? frost : (dark ? frost : frost * 1.05);
     double a(double v) => (v * frostScale).clamp(0.0, 1.0);
 
-    final base = tint ?? Colors.white;
+    // Dark glass sits on [surface] (or [tint]) — fully opaque so gradients
+    // behind never bleed through. Light keeps the classic white frost.
+    final glassBase = tint ?? (dark ? palette.surface : Colors.white);
 
-    // Frost: brighter at the top-left where the sheen lives, thinning toward
-    // the bottom-right so the backdrop colour bleeds through.
-    final fill = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: dark
-          ? [
-              Colors.white.withValues(alpha: a(useBlur ? 0.14 : 0.20)),
-              Colors.white.withValues(alpha: a(useBlur ? 0.06 : 0.12)),
-            ]
-          : [
-              // Glassier light frost: translucent so sky wash shows through.
-              base.withValues(alpha: a(useBlur ? 0.55 : 0.58)),
-              base.withValues(alpha: a(useBlur ? 0.28 : 0.36)),
-            ],
-    );
+    final LinearGradient fill;
+    if (dark) {
+      final lift = (0.05 * frost.clamp(0.6, 1.6)).clamp(0.03, 0.08);
+      fill = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.lerp(glassBase, Colors.white, lift)!,
+          glassBase,
+        ],
+      );
+    } else {
+      fill = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          glassBase.withValues(alpha: a(useBlur ? 0.55 : 0.58)),
+          glassBase.withValues(alpha: a(useBlur ? 0.28 : 0.36)),
+        ],
+      );
+    }
 
     final rim = Border.all(
       color: dark
-          ? Colors.white.withValues(alpha: 0.16)
+          ? Colors.white.withValues(alpha: 0.10)
           : Colors.white.withValues(alpha: useBlur ? 0.85 : 0.70),
       width: 1,
     );
 
-    // The specular glint: a soft diagonal light pooling in the top-left.
-    final sheen = IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: const Alignment(0.3, 1),
-            colors: [
-              Colors.white.withValues(alpha: dark ? 0.10 : 0.38),
-              Colors.white.withValues(alpha: 0),
-            ],
-            stops: const [0, 0.45],
-          ),
-        ),
-      ),
-    );
+    // Specular glint — light mode only.
+    final Widget? sheen = dark
+        ? null
+        : IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: const Alignment(0.3, 1),
+                  colors: [
+                    Colors.white.withValues(alpha: 0.38),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                  stops: const [0, 0.45],
+                ),
+              ),
+            ),
+          );
 
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
@@ -143,8 +152,11 @@ class LiquidGlass extends StatelessWidget {
       child: Stack(
         fit: StackFit.passthrough,
         children: [
-          Positioned.fill(child: sheen),
-          if (padding != null) Padding(padding: padding!, child: child) else child,
+          if (sheen != null) Positioned.fill(child: sheen),
+          if (padding != null)
+            Padding(padding: padding!, child: child)
+          else
+            child,
         ],
       ),
     );
@@ -170,18 +182,26 @@ class LiquidGlass extends StatelessWidget {
       decoration: BoxDecoration(
         shape: circle ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.42 : 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.28 : 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: dark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: surface,
     );

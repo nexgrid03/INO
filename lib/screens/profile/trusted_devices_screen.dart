@@ -73,8 +73,11 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
                 children: [
                   Text(
                     l10n.t('trustedDevicesIntro'),
-                    style: AppText.body
-                        .copyWith(color: palette.textSecondary, height: 1.5),
+                    style: AppText.body.copyWith(
+                      color: palette.textPrimary,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   for (final d in devices) ...[

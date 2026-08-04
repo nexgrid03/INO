@@ -207,7 +207,6 @@ class _FaqTile extends StatelessWidget {
           // Glass-card curvature (20+) rather than button-level rounding.
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: palette.border),
-          boxShadow: palette.cardShadow,
         ),
         // A Material provides the surface colour + ink target for the
         // ExpansionTile's internal ListTile (no colored box in between).

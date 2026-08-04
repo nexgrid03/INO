@@ -10,7 +10,6 @@ import '../../services/app_settings.dart';
 import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
@@ -506,7 +505,7 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-/// Translucent sort control — matches [FloatingSearchBar] chrome in launcher.
+/// Sort control — solid white plate matching [FloatingSearchBar].
 class _SortButton extends StatelessWidget {
   const _SortButton({required this.onTap});
 
@@ -515,7 +514,6 @@ class _SortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = InoStyle.usesDivineGlass(context);
     return PressableScale(
       pressedScale: 0.92,
       child: GestureDetector(
@@ -525,20 +523,9 @@ class _SortButton extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: launcher
-                ? (palette.isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : AppColors.primaryGreen.withValues(alpha: 0.06))
-                : palette.surface,
+            color: palette.isDark ? palette.surface : Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: launcher
-                  ? (palette.isDark
-                      ? Colors.white.withValues(alpha: 0.14)
-                      : AppColors.primaryGreen.withValues(alpha: 0.18))
-                  : palette.border,
-            ),
-            boxShadow: launcher ? null : AppShadows.card,
+            border: Border.all(color: palette.border),
           ),
           child: Icon(
             Icons.swap_vert_rounded,

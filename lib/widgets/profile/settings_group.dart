@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../common/liquid_glass.dart';
 
 /// A grouped inset settings list - the core primitive of the redesigned Profile
 /// page (the Apple Settings / Google Account pattern).
 ///
-/// Frosted glass surface across themes.
+/// Uses a solid [AppPalette.surface] card so text stays readable and the fill
+/// colour does not shift as the group scrolls over the sky backdrop (unlike
+/// translucent [LiquidGlass], which samples whatever is behind it).
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, required this.children, this.caption});
 
@@ -55,11 +56,12 @@ class SettingsGroup extends StatelessWidget {
               ),
             ),
           ),
-        LiquidGlass(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          blur: 20,
-          frost: palette.isDark ? 1.05 : 0.72,
-          padding: EdgeInsets.zero,
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: palette.border),
+          ),
           child: body,
         ),
       ],
