@@ -25,8 +25,9 @@ import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
-import '../../widgets/common/liquid_glass.dart';
+import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/settings_group.dart';
@@ -180,48 +181,32 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _pickLanguage() async {
     final palette = AppPalette.of(context);
     const options = ['English', 'हिन्दी', 'తెలుగు', 'தமிழ்'];
-    final picked = await showModalBottomSheet<String>(
+    final picked = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.large),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            _SheetGrip(),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              AppLocalizations.of(context).t('language'),
-              style: AppText.title.copyWith(color: palette.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            for (final o in options)
-              ListTile(
-                title: Text(
-                  o,
-                  style: TextStyle(
-                    color: palette.textPrimary,
-                    fontWeight: o == _language
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                  ),
+      builder: (context, _) => InoOptionsSheetBody(
+        title: AppLocalizations.of(context).t('language'),
+        titleStyle: AppText.title.copyWith(color: palette.textPrimary),
+        children: [
+          for (final o in options)
+            ListTile(
+              title: Text(
+                o,
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontWeight:
+                      o == _language ? FontWeight.w700 : FontWeight.w500,
                 ),
-                trailing: o == _language
-                    ?  Icon(
-                        Icons.check_rounded,
-                        color: AppColors.primaryGreen,
-                      )
-                    : null,
-                onTap: () => Navigator.of(context).pop(o),
               ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
+              trailing: o == _language
+                  ? Icon(
+                      Icons.check_rounded,
+                      color: AppColors.primaryGreen,
+                    )
+                  : null,
+              onTap: () => Navigator.of(context).pop(o),
+            ),
+        ],
       ),
     );
     if (picked == null || picked == _language) return;
@@ -326,57 +311,44 @@ class _ProfileScreenState extends State<ProfileScreen>
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final current = ThemeController.style.value;
-    final picked = await showModalBottomSheet<ThemeStyle>(
+    // Scrollable sheet — default half-screen height hid Launcher / Aqua on
+    // short phones (yellow/black overflow stripes).
+    final picked = await showInoOptionsSheet<ThemeStyle>(
       context: context,
       backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.large),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            _SheetGrip(),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              l10n.t('chooseTheme'),
-              style: AppText.title.copyWith(color: palette.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            for (final o in ThemeStyle.values)
-              ListTile(
-                leading: _ThemeSwatch(style: o),
-                title: Text(
-                  _themeStyleLabel(l10n, o),
-                  style: TextStyle(
-                    color: palette.textPrimary,
-                    fontWeight:
-                        o == current ? FontWeight.w700 : FontWeight.w500,
-                  ),
+      builder: (context, _) => InoOptionsSheetBody(
+        title: l10n.t('chooseTheme'),
+        titleStyle: AppText.title.copyWith(color: palette.textPrimary),
+        children: [
+          for (final o in ThemeStyle.values)
+            ListTile(
+              leading: _ThemeSwatch(style: o),
+              title: Text(
+                _themeStyleLabel(l10n, o),
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontWeight:
+                      o == current ? FontWeight.w700 : FontWeight.w500,
                 ),
-                subtitle: Text(
-                  _themeStyleDesc(l10n, o),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: palette.textSecondary,
-                  ),
-                ),
-                trailing: o == current
-                    ? Icon(
-                        Icons.check_rounded,
-                        color: AppColors.primaryGreen,
-                      )
-                    : null,
-                onTap: () => Navigator.of(context).pop(o),
               ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
+              subtitle: Text(
+                _themeStyleDesc(l10n, o),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: palette.textSecondary,
+                ),
+              ),
+              trailing: o == current
+                  ? Icon(
+                      Icons.check_rounded,
+                      color: AppColors.primaryGreen,
+                    )
+                  : null,
+              onTap: () => Navigator.of(context).pop(o),
+            ),
+        ],
       ),
     );
     if (picked == null || picked == current) return;
@@ -556,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _SheetGrip(),
+              const InoSheetGrip(),
               const SizedBox(height: AppSpacing.lg),
               Container(
                 width: 60,
@@ -656,48 +628,39 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// Actions for a saved (non-current) account: switch to it, or forget it.
   Future<void> _accountSheet(SavedAccount account) async {
     final palette = AppPalette.of(context);
-    final action = await showModalBottomSheet<String>(
+    final action = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.large),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            _SheetGrip(),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              account.displayName,
-              style: AppText.title.copyWith(color: palette.textPrimary),
-            ),
-            if (account.email.isNotEmpty)
-              Text(
-                account.email,
-                style: AppText.caption.copyWith(color: palette.textSecondary),
+      builder: (context, _) => InoOptionsSheetBody(
+        title: account.displayName,
+        titleStyle: AppText.title.copyWith(color: palette.textPrimary),
+        children: [
+          if (account.email.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Center(
+                child: Text(
+                  account.email,
+                  style:
+                      AppText.caption.copyWith(color: palette.textSecondary),
+                ),
               ),
-            const SizedBox(height: AppSpacing.xs),
-            ListTile(
-              leading:  Icon(Icons.swap_horiz_rounded,
-                  color: AppColors.primaryGreen),
-              title: Text('Switch to this account',
-                  style: TextStyle(color: palette.textPrimary)),
-              onTap: () => Navigator.of(context).pop('switch'),
             ),
-            ListTile(
-              leading: const Icon(Icons.person_remove_rounded,
-                  color: AppColors.critical),
-              title: Text('Remove from this device',
-                  style: TextStyle(color: palette.textPrimary)),
-              onTap: () => Navigator.of(context).pop('remove'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
+          ListTile(
+            leading: Icon(Icons.swap_horiz_rounded,
+                color: AppColors.primaryGreen),
+            title: Text('Switch to this account',
+                style: TextStyle(color: palette.textPrimary)),
+            onTap: () => Navigator.of(context).pop('switch'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_remove_rounded,
+                color: AppColors.critical),
+            title: Text('Remove from this device',
+                style: TextStyle(color: palette.textPrimary)),
+            onTap: () => Navigator.of(context).pop('remove'),
+          ),
+        ],
       ),
     );
     if (!mounted || action == null) return;
@@ -1010,68 +973,16 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 }
 
-/// The large settings-style page title.
+/// The large settings-style page title — soft, floating, no opaque bar.
 class _Title extends StatelessWidget {
   const _Title();
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final launcher = InoStyle.usesDivineGlass(context);
-    final dark = palette.isDark;
     final canPop = Navigator.of(context).canPop();
-    final row = Padding(
-      padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 0),
-      child: Row(
-        children: [
-          if (canPop) ...[
-            const InoBackButton(size: 42),
-            const SizedBox(width: 12),
-          ],
-          Expanded(
-            child: Text(
-              AppLocalizations.of(context).t('profile'),
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: launcher ? 28 : 34,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                height: 1.1,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!launcher) return row;
-
-    return Material(
-      color: dark
-          ? palette.surface.withValues(alpha: 0.94)
-          : Colors.white.withValues(alpha: 0.88),
-      child: LiquidGlass(
-        borderRadius: BorderRadius.zero,
-        blur: 20,
-        frost: dark ? 0.85 : 0.75,
-        tint: dark ? palette.surface : Colors.white,
-        shadow: false,
-        padding: EdgeInsets.zero,
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : palette.border,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: row,
-        ),
-      ),
+    return DivineGlassPageTitle(
+      AppLocalizations.of(context).t('profile'),
+      leading: canPop ? const InoBackButton(size: 40) : null,
     );
   }
 }
@@ -1417,25 +1328,6 @@ class _ProgressDialog extends StatelessWidget {
   }
 }
 
-class _SheetGrip extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Container(
-      width: 40,
-      height: 4,
-      decoration: BoxDecoration(
-        color: palette.border,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-    );
-  }
-}
-
-/// A miniature card preview for one [ThemeStyle] option in the theme picker:
-///  • classic - white card carrying a filled teal badge (white glyph),
-///  • bold    - the deep accent floods the card, glyph plain white,
-///  • soft    - a light wash carrying a colourful glyph.
 class _ThemeSwatch extends StatelessWidget {
   const _ThemeSwatch({required this.style});
 

@@ -401,6 +401,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     busy: _busy,
                     onPressed: busy ? null : _signIn,
                   ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: busy ? null : () => enterGuestExplore(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryGreen,
+                        side: BorderSide(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.45),
+                          width: 1.4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        l10n.t('continueAsGuest'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15.5,
+                        ),
+                      ),
+                    ),
+                  ),
 
                   // --- Demo-only guest login (hidden when isDemoBuild=false) --
                   if (isDemoBuild) ...[

@@ -50,23 +50,35 @@ class SettingsRow extends StatelessWidget {
     final Color fg = danger ? AppColors.critical : palette.textPrimary;
 
     Widget? tail = trailing;
-    tail ??= (value != null)
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
+    if (tail == null && value != null) {
+      tail = ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.34,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
                 value!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
                 style: AppText.body.copyWith(color: palette.textSecondary),
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded,
-                  size: 20, color: palette.textFaint),
-            ],
-          )
-        : (onTap != null && showChevron && !danger)
-            ? Icon(Icons.chevron_right_rounded,
-                size: 20, color: palette.textFaint)
-            : null;
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 20, color: palette.textFaint),
+          ],
+        ),
+      );
+    } else {
+      tail ??= (onTap != null && showChevron && !danger)
+          ? Icon(Icons.chevron_right_rounded,
+              size: 20, color: palette.textFaint)
+          : null;
+    }
 
     final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

@@ -51,23 +51,27 @@ class DivineGlassCard extends StatelessWidget {
 }
 
 /// Large page title used on Divine Glass hubs (Profile-style).
+///
+/// Floats on the sky wash — no opaque slab — for a clean, cozy look.
 class DivineGlassPageTitle extends StatelessWidget {
   const DivineGlassPageTitle(
     this.title, {
     super.key,
     this.leading,
+    this.trailing,
   });
 
   final String title;
   final Widget? leading;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final dark = palette.isDark;
-    final row = Padding(
-      padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, AppSpacing.sm),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (leading != null) ...[
             leading!,
@@ -76,46 +80,16 @@ class DivineGlassPageTitle extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                height: 1.1,
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.pageHeading(palette.headingInk),
             ),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing!,
+          ],
         ],
-      ),
-    );
-
-    if (!divineGlassEnabled(context)) return row;
-
-    return Material(
-      color: dark
-          ? palette.surface.withValues(alpha: 0.94)
-          : Colors.white.withValues(alpha: 0.88),
-      child: LiquidGlass(
-        borderRadius: BorderRadius.zero,
-        blur: 20,
-        frost: dark ? 0.85 : 0.75,
-        tint: dark ? palette.surface : Colors.white,
-        shadow: false,
-        padding: EdgeInsets.zero,
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : palette.border,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: row,
-        ),
       ),
     );
   }

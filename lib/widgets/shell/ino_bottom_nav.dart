@@ -294,85 +294,126 @@ class _InoBottomNavState extends State<InoBottomNav>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final dark = palette.isDark;
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        // iOS 26 Liquid Glass tab bar: milkier frost than content cards so
-        // icons stay readable over the sky wash (esp. on web without blur).
-        child: LiquidGlass(
-          borderRadius: BorderRadius.circular(26),
-          blur: 28,
-          frost: palette.isDark ? 1.25 : 1.65,
-          tint: palette.isDark ? null : Colors.white,
-          child: Container(
-            height: 66,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // The sliding active-indicator line, centred under the live tab.
-              //
-              // Positioned by explicit slot maths rather than an Alignment:
-              // Alignment distributes a child across the *free* space
-              // (parent − child), so feeding it a slot fraction lands the line
-              // short of the slot centre - it drifted ~9px inward on the outer
-              // tabs and was only ever exact on the middle one.
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Same geometry the Row below uses: five equal Expanded
-                      // slots across the bar's content box.
-                      final slot = constraints.maxWidth / InoBottomNav.tabs.length;
-                      return Stack(
-                        children: [
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 320),
-                            curve: Curves.easeOutCubic,
-                            left: slot * widget.index + (slot - _indicatorWidth) / 2,
-                            bottom: 7,
-                            child: Container(
-                              width: _indicatorWidth,
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryGreen,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
+        // Dark: solid-enough base so icons stay readable over scrolling content
+        // (Flutter web has no BackdropFilter). Light keeps the airy glass look.
+        child: Material(
+          color: dark
+              ? palette.surface.withValues(alpha: 0.92)
+              : Colors.transparent,
+          elevation: 0,
+          borderRadius: BorderRadius.circular(28),
+          clipBehavior: Clip.antiAlias,
+          child: LiquidGlass(
+            borderRadius: BorderRadius.circular(28),
+            blur: 24,
+            frost: dark ? 1.85 : 1.7,
+            tint: dark ? palette.surface : Colors.white,
+            shadow: true,
+            child: SizedBox(
+              height: 64,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Soft selected pill behind the active tab (not the +).
+                    if (widget.index != 2)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final slot = constraints.maxWidth /
+                                  InoBottomNav.tabs.length;
+                              return Stack(
+                                children: [
+                                  AnimatedPositioned(
+                                    duration:
+                                        const Duration(milliseconds: 280),
+                                    curve: Curves.easeOutCubic,
+                                    left: slot * widget.index + 4,
+                                    top: 8,
+                                    bottom: 8,
+                                    width: slot - 8,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryGreen
+                                            .withValues(
+                                          alpha: dark ? 0.22 : 0.12,
+                                        ),
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ),
+                    // Slim active underline.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final slot = constraints.maxWidth /
+                                InoBottomNav.tabs.length;
+                            return Stack(
+                              children: [
+                                AnimatedPositioned(
+                                  duration: const Duration(milliseconds: 320),
+                                  curve: Curves.easeOutCubic,
+                                  left: slot * widget.index +
+                                      (slot - _indicatorWidth) / 2,
+                                  bottom: 6,
+                                  child: Container(
+                                    width: _indicatorWidth,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryGreen,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (var i = 0; i < InoBottomNav.tabs.length; i++)
+                          Expanded(
+                            child: i == 2
+                                ? Center(
+                                    child: _ScanButton(
+                                      key: _scanKey,
+                                      progress: _menu,
+                                      onTap: _toggleMenu,
+                                      onHoldStart: _onHoldStart,
+                                      onHoldMove: _onHoldMove,
+                                      onHoldEnd: _onHoldEnd,
+                                      onHoldCancel: _onHoldCancel,
+                                    ),
+                                  )
+                                : _TabButton(
+                                    item: InoBottomNav.tabs[i],
+                                    kind: _kindFor(i),
+                                    selected: widget.index == i,
+                                    onTap: () => widget.onSelect(i),
+                                  ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Row(
-                children: [
-                  for (var i = 0; i < InoBottomNav.tabs.length; i++)
-                    Expanded(
-                      child: i == 2
-                          ? Center(
-                              child: _ScanButton(
-                                key: _scanKey,
-                                progress: _menu,
-                                onTap: _toggleMenu,
-                                onHoldStart: _onHoldStart,
-                                onHoldMove: _onHoldMove,
-                                onHoldEnd: _onHoldEnd,
-                                onHoldCancel: _onHoldCancel,
-                              ),
-                            )
-                          : _TabButton(
-                              item: InoBottomNav.tabs[i],
-                              kind: _kindFor(i),
-                              selected: widget.index == i,
-                              onTap: () => widget.onSelect(i),
-                            ),
-                    ),
-                ],
-              ),
-            ],
             ),
           ),
         ),
@@ -453,17 +494,18 @@ class _TabButtonState extends State<_TabButton>
                 tween: Tween(end: widget.selected ? 1.0 : 0.0),
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOut,
-                builder: (context, sel, _) => Icon(
-                  widget.selected ? widget.item.active : widget.item.inactive,
-                  size: 28,
-                  color: Color.lerp(
-                    // Secondary (not faint) so inactive icons read clearly
-                    // on translucent glass over the sky wash.
-                    palette.textSecondary,
-                    AppColors.primaryGreen,
-                    sel,
-                  ),
-                ),
+                builder: (context, sel, _) {
+                  final idle = palette.isDark
+                      ? palette.textPrimary.withValues(alpha: 0.55)
+                      : palette.textSecondary;
+                  return Icon(
+                    widget.selected
+                        ? widget.item.active
+                        : widget.item.inactive,
+                    size: 26,
+                    color: Color.lerp(idle, AppColors.primaryGreen, sel),
+                  );
+                },
               );
               return _decorate(icon, t);
             },

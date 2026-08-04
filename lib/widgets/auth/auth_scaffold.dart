@@ -55,11 +55,14 @@ class AuthPageTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final launcher = InoStyle.usesDivineGlass(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final baseSize = launcher ? 30.0 : 26.0;
+    final fontSize = width < 360 ? baseSize - 2 : baseSize;
     return Text(
       text,
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: launcher ? 30 : 26,
+        fontSize: fontSize,
         fontWeight: launcher ? FontWeight.w800 : FontWeight.w700,
         letterSpacing: launcher ? -0.5 : 0,
         height: 1.15,
@@ -151,6 +154,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
           Positioned.fill(child: FloatingParticles(animation: _particles)),
 
           SafeArea(
+            minimum: const EdgeInsets.only(bottom: 16),
             child: Column(
               children: [
                 if (showTopRow)

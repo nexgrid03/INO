@@ -34,25 +34,25 @@ class AppColors {
   static const Color _skyMist = Color(0xFFE0F2FE);
   static const Color _skyFoam = Color(0xFFF0F9FF);
 
-  // --- Aqua brand: the #4FDBC8 mint ladder (ThemeStyle.aqua only) -----------
+  // --- Aqua brand: the #098F90 teal ladder (ThemeStyle.aqua only) -----------
 
-  /// Aqua primary mint - #4FDBC8.
-  static const Color aquaPrimary = Color(0xFF4FDBC8);
+  /// Aqua primary teal - #098F90.
+  static const Color aquaPrimary = Color(0xFF098F90);
 
   /// Aqua tint 1 - slightly lighter partner for gradients.
-  static const Color aquaSecondary = Color(0xFF7AE8D9);
+  static const Color aquaSecondary = Color(0xFF2BA8A9);
 
   /// Aqua tint 2 - washes and glows.
-  static const Color aquaSky = Color(0xFFA8F0E6);
+  static const Color aquaSky = Color(0xFF6BC5C6);
 
   /// Aqua tint 3 - chip strokes / decorative.
-  static const Color aquaPale = Color(0xFFD4F7F2);
+  static const Color aquaPale = Color(0xFFB3E0E0);
 
   /// Aqua tint 4 - mist fills.
-  static const Color aquaMist = Color(0xFFE8FBF8);
+  static const Color aquaMist = Color(0xFFDFF3F3);
 
   /// Near-white aqua foam for section washes.
-  static const Color aquaFoam = Color(0xFFF2FDFB);
+  static const Color aquaFoam = Color(0xFFF0F9F9);
 
   /// Fixed sky brand (#0EA5E9) for const / mock-data contexts that must not
   /// track the Aqua style switch. Prefer [primaryGreen] in UI build methods.
@@ -63,7 +63,7 @@ class AppColors {
   static const Color skyBrandMist = _skyMist;
   static const Color skyBrandFoam = _skyFoam;
 
-  /// When true, legacy brand getters resolve to the Aqua mint ladder.
+  /// When true, legacy brand getters resolve to the Aqua teal ladder.
   static bool _aquaActive = false;
 
   /// Sync brand getters with the picked [ThemeStyle]. Called from
@@ -72,7 +72,7 @@ class AppColors {
     _aquaActive = style == ThemeStyle.aqua;
   }
 
-  /// Primary brand teal - sky #0EA5E9, or mint #4FDBC8 in Aqua.
+  /// Primary brand teal - sky #0EA5E9, or aqua #098F90 in Aqua.
   /// (Legacy name kept for app-wide reach.)
   static Color get primaryGreen => _aquaActive ? aquaPrimary : _skyPrimary;
 
@@ -340,6 +340,11 @@ class AppPalette {
 
   bool get isDark => brightness == Brightness.dark;
 
+  /// Soft ink for page headings — cozy on sky washes, never harsh pure black.
+  Color get headingInk => isDark
+      ? textPrimary
+      : Color.lerp(textPrimary, const Color(0xFF3D5A6C), 0.16)!;
+
   // Light is the PRIMARY theme - bright, airy, teal-washed, never plain white.
   static const AppPalette light = AppPalette(
     brightness: Brightness.light,
@@ -398,21 +403,21 @@ class AppPalette {
     shadowStrength: 0.8,
   );
 
-  /// Aqua-style light: same layout tokens as classic, washed in mint #4FDBC8.
+  /// Aqua-style light: same layout tokens as classic, washed in teal #098F90.
   static const AppPalette lightAqua = AppPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFE8F8F5), // soft mint wash
+    bg: Color(0xFFE6F4F4), // soft aqua wash
     bgElevated: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
     cardTop: Color(0xFFFFFFFF),
-    cardBottom: Color(0xFFF2FDFB),
-    surfaceVariant: Color(0xFFE8FBF8),
+    cardBottom: Color(0xFFF0F9F9),
+    surfaceVariant: Color(0xFFDFF3F3),
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF64748B),
     textFaint: Color(0xFF94A3B8),
-    border: Color(0x264FDBC8),
-    shadow: Color(0xFF4FDBC8),
-    ambient: Color(0xFF4FDBC8),
+    border: Color(0x26098F90),
+    shadow: Color(0xFF098F90),
+    ambient: Color(0xFF098F90),
     shadowStrength: 1.0,
   );
 
@@ -433,7 +438,7 @@ class AppPalette {
     shadowStrength: 0.5,
   );
 
-  /// Aqua dark: shared dark neutrals with a calmer mint ambient (less glitter).
+  /// Aqua dark: shared dark neutrals with a calmer aqua ambient (less glitter).
   static const AppPalette darkAqua = AppPalette(
     brightness: Brightness.dark,
     bg: Color(0xFF0A1926),
@@ -445,9 +450,9 @@ class AppPalette {
     textPrimary: Color(0xFFEDF5FB),
     textSecondary: Color(0xFFA8C2D6),
     textFaint: Color(0xFF6F8BA3),
-    border: Color(0x334FDBC8),
+    border: Color(0x33098F90),
     shadow: Color(0xFF000000),
-    ambient: Color(0xFF4FDBC8),
+    ambient: Color(0xFF098F90),
     shadowStrength: 0.4,
   );
 
@@ -570,34 +575,34 @@ class AppTheme {
         )
         .copyWith(
           displaySmall: TextStyle(fontFamily: fontFamily, 
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1.0,
-            color: palette.textPrimary,
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.7,
+            color: palette.headingInk,
           ),
           headlineMedium: TextStyle(fontFamily: fontFamily, 
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
-            color: palette.textPrimary,
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
+            color: palette.headingInk,
           ),
           headlineSmall: TextStyle(fontFamily: fontFamily, 
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-            color: palette.textPrimary,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.35,
+            color: palette.headingInk,
           ),
           titleLarge: TextStyle(fontFamily: fontFamily, 
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: palette.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.25,
+            color: palette.headingInk,
           ),
           titleMedium: TextStyle(fontFamily: fontFamily, 
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
             letterSpacing: -0.2,
-            color: palette.textPrimary,
+            color: palette.headingInk,
           ),
           bodyLarge: TextStyle(fontFamily: fontFamily, 
             fontSize: 17,

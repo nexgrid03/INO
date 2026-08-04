@@ -106,3 +106,23 @@ void goToShell(BuildContext context, UserProfile profile) {
     (route) => false,
   );
 }
+
+/// Enter guest explore mode on Home (stack cleared). Used from Signup / Login
+/// "Continue as guest" and from the secured-intro fallback path.
+void enterGuestExplore(BuildContext context) {
+  GuestMode.active = true;
+  Navigator.of(context).pushAndRemoveUntil(
+    PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 500),
+      pageBuilder: (_, _, _) => MainShell(
+        profile: GuestMode.guestProfile(),
+        themeMode: ThemeController.mode.value,
+        onToggleTheme: () =>
+            ThemeController.toggle(InoApp.navigatorKey.currentContext!),
+      ),
+      transitionsBuilder: (_, animation, _, child) =>
+          FadeTransition(opacity: animation, child: child),
+    ),
+    (route) => false,
+  );
+}

@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 ///    needs-attention) plus frosted glass chrome on feature screens.
 ///    Colour rules match classic (#0EA5E9).
 ///  • [aqua]     - Same compact Home + Divine Glass chrome as [launcher],
-///    branded with mint #4FDBC8.
+///    branded with teal #098F90.
 enum ThemeStyle { classic, bold, soft, launcher, aqua }
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
@@ -45,8 +45,8 @@ class InoStyle {
   /// Sky brand (#0EA5E9) — classic / bold / soft / launcher.
   static const Color _skyBrand = Color(0xFF0EA5E9);
 
-  /// Mint brand (#4FDBC8) — aqua.
-  static const Color _aquaBrand = Color(0xFF4FDBC8);
+  /// Aqua brand (#098F90) — aqua.
+  static const Color _aquaBrand = Color(0xFF098F90);
 
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
 
@@ -63,7 +63,7 @@ class InoStyle {
     return s == ThemeStyle.launcher || s == ThemeStyle.aqua;
   }
 
-  /// Brand accent for the active style: mint #4FDBC8 in Aqua, else sky #0EA5E9.
+  /// Brand accent for the active style: teal #098F90 in Aqua, else sky #0EA5E9.
   static Color brandAccent(BuildContext context) {
     return of(context) == ThemeStyle.aqua ? _aquaBrand : _skyBrand;
   }

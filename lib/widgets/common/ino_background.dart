@@ -141,10 +141,10 @@ class _AuroraPainter extends CustomPainter {
             : sky
                 ? (aqua
                     ? const [
-                        Color(0xFF7AE8D9),
-                        Color(0xFFB5F0E6),
-                        Color(0xFFE0F9F5),
-                        Color(0xFFE8F8F5),
+                        Color(0xFF2BA8A9),
+                        Color(0xFF6BC5C6),
+                        Color(0xFFDFF3F3),
+                        Color(0xFFE6F4F4),
                       ]
                     : const [
                         Color(0xFF7DD3FC), // brand skyBlue - full tint at the top
@@ -154,9 +154,9 @@ class _AuroraPainter extends CustomPainter {
                       ])
                 : (aqua
                     ? const [
-                        Color(0xFFD4F7F2),
+                        Color(0xFFB3E0E0),
                         Color(0xFFFDFFFF),
-                        Color(0xFFE8F8F5),
+                        Color(0xFFE6F4F4),
                       ]
                     : const [
                         Color(0xFFD8EDFA), // faint teal sky at the top

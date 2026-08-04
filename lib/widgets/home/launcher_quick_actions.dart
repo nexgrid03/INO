@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_svg_icon.dart';
@@ -53,6 +54,29 @@ class LauncherQuickActions extends StatelessWidget {
         enlarged: true,
       ),
     ];
+
+    // Very narrow phones: 2×2 so discs stay tappable without horizontal overflow.
+    if (context.isMobileSmall) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: actions[0]),
+              const SizedBox(width: 8),
+              Expanded(child: actions[1]),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: actions[2]),
+              const SizedBox(width: 8),
+              Expanded(child: actions[3]),
+            ],
+          ),
+        ],
+      );
+    }
 
     return Row(
       children: [

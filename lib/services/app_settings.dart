@@ -24,6 +24,7 @@ class AppSettings {
   static const _kLastBackup = 'pref_last_backup_at';
   static const _kWelcomeSound = 'pref_welcome_sound_enabled';
   static const _kTourSeen = 'pref_feature_tour_seen';
+  static const _kOnboardingSeen = 'pref_onboarding_seen';
   static const _kQuickMenu = 'pref_quick_menu';
 
   /// Push / reminder notifications. Default on.
@@ -58,6 +59,10 @@ class AppSettings {
   /// [welcomeSound] - it survives sign-out.
   final ValueNotifier<bool> tourSeen = ValueNotifier<bool>(false);
 
+  /// Whether the splash→onboarding carousel has been completed on this device.
+  /// After this is true, cold starts skip onboarding and go Splash → auth/shell.
+  final ValueNotifier<bool> onboardingSeen = ValueNotifier<bool>(false);
+
   /// The user's picked quick-menu features (action ids, in their chosen order,
   /// max 5) for the bottom nav's "+" button. Device preference. The ids map to
   /// `QuickAction.name`s; unknown ids are ignored at read time so an old
@@ -77,6 +82,7 @@ class AppSettings {
       language.value = p.getString(_kLanguage) ?? 'en';
       currency.value = p.getString(_kCurrency) ?? 'INR';
       tourSeen.value = p.getBool(_kTourSeen) ?? false;
+      onboardingSeen.value = p.getBool(_kOnboardingSeen) ?? false;
       final menu = p.getStringList(_kQuickMenu);
       if (menu != null && menu.isNotEmpty) {
         quickMenu.value = List.unmodifiable(menu.take(5));
@@ -103,6 +109,9 @@ class AppSettings {
       _setBool(_kWelcomeSound, welcomeSound, value);
 
   Future<void> setTourSeen(bool value) => _setBool(_kTourSeen, tourSeen, value);
+
+  Future<void> setOnboardingSeen(bool value) =>
+      _setBool(_kOnboardingSeen, onboardingSeen, value);
 
   Future<void> setAutoBackup(bool value) =>
       _setBool(_kAutoBackup, autoBackup, value);

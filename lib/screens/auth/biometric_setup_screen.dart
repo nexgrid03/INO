@@ -162,13 +162,14 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               onPressed: _busy ? null : _enable,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           FadeSlideIn(
             delay: const Duration(milliseconds: 220),
             child: TextButton(
               onPressed: _busy ? null : _finish,
               style: TextButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: const Text(
                 'Skip for now',
@@ -185,7 +186,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
             delay: const Duration(milliseconds: 260),
             child: const _EncryptionBadge(),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
         ],
       ),
     );

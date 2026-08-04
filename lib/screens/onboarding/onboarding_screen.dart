@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
-import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
+import '../auth/signup_screen.dart';
 import 'floating_satellites.dart';
 import 'onboarding_icon.dart';
-import 'secured_intro_screen.dart';
+import 'onboarding_layout.dart';
 
 /// A single onboarding slide's content.
 class _OnboardingPage {
@@ -28,7 +28,7 @@ class _OnboardingPage {
 ///
 /// Has 3 slides explaining the app, a Skip button, page indicator dots, and a
 /// full-width gradient "next" CTA. Both Skip and the CTA on the last page
-/// navigate to the [LoginScreen].
+/// mark onboarding complete and navigate to [SignupScreen].
 ///
 /// Visual language follows the Stitch onboarding set: a soft ambient gradient
 /// wash behind everything, a rounded hero panel holding the animated
@@ -132,14 +132,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _dotPop.forward(from: 0); // pop the newly-active dot
   }
 
-  /// Onboarding hands off to the "your documents are secured" moment, which in
-  /// turn routes to the shell (guest explore mode, or straight in for a
-  /// returning signed-in user). Login is no longer forced up-front.
-  void _goToLogin() {
+  /// Mark onboarding done and hand off to Signup (guest CTA lives there).
+  Future<void> _finishOnboarding() async {
+    await AppSettings.instance.setOnboardingSeen(true);
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => const SecuredIntroScreen(),
+        pageBuilder: (_, _, _) => const SignupScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -150,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _onNextPressed() {
     HapticFeedback.lightImpact(); // subtle feedback on Next / Get Started
     if (_isLastPage) {
-      _goToLogin();
+      _finishOnboarding();
     } else {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 400),
@@ -175,10 +175,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // Divine Glass ethereal sky wash (light mode only) - matches the
-          // auth flow backdrop so the hand-off feels seamless.
+          // Soft brand wash (light mode) — follows Aqua / Sky via AppColors.
           if (!palette.isDark)
-            const Positioned.fill(
+            Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -186,12 +185,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFF7DD3FC),
-                        Color(0xFFB2E2FC),
-                        Color(0xFFE3F3FD),
-                        Color(0xFFEAF4FC),
+                        AppColors.skyBlue,
+                        AppColors.tealPale,
+                        AppColors.tealMist,
+                        AppColors.tealFoam,
                       ],
-                      stops: [0.0, 0.28, 0.62, 1.0],
+                      stops: const [0.0, 0.28, 0.62, 1.0],
                     ),
                   ),
                 ),
@@ -214,12 +213,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Positioned.fill(child: FloatingParticles(animation: _particles)),
 
           SafeArea(
+            minimum: const EdgeInsets.only(
+              bottom: OnboardingLayout.safeBottomMinimum,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 12),
-
-                // Slides - each owns its own entrance animation.
+                // Slides use the same Spacer rhythm as SecuredIntroScreen.
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -235,19 +235,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
 
-                // Bottom bar (Divine Glass arrangement): centred progress dots
-                // above a full-width gradient pill CTA, with Skip beneath.
+                // CTA band — same insets as SecuredIntroScreen Get Started.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    12,
-                    AppSpacing.screen,
-                    16,
+                    OnboardingLayout.bottomHorizontal,
+                    0,
+                    OnboardingLayout.bottomHorizontal,
+                    OnboardingLayout.bottomPadding,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Page indicator dots (active dot pops on change).
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(_pages.length, (index) {
@@ -257,10 +255,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               : dot;
                         }),
                       ),
-                      const SizedBox(height: 20),
-
-                      // Gradient CTA - one-time fade + slide-up + scale, with
-                      // a press "squish" (ripple comes from its InkWell).
+                      const SizedBox(height: 16),
                       SlideTransition(
                         position: _arrowSlide,
                         child: FadeTransition(
@@ -277,25 +272,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                       ),
+                      // Skip under the CTA — keep a fixed slot so layout
+                      // doesn't jump; hide on the last page.
                       const SizedBox(height: 4),
-
-                      // Skip (hidden on the last page), under the CTA as in
-                      // the mockup.
                       AnimatedOpacity(
                         opacity: _isLastPage ? 0 : 1,
                         duration: const Duration(milliseconds: 250),
-                        child: TextButton(
-                          onPressed: _isLastPage
-                              ? null
-                              : () {
-                                  HapticFeedback.selectionClick();
-                                  _goToLogin();
-                                },
-                          child: Text(
-                            'Skip',
-                            style: TextStyle(
-                              color: palette.textSecondary,
-                              fontWeight: FontWeight.w600,
+                        child: IgnorePointer(
+                          ignoring: _isLastPage,
+                          child: TextButton(
+                            onPressed: () {
+                              HapticFeedback.selectionClick();
+                              _finishOnboarding();
+                            },
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(64, 44),
+                              tapTargetSize: MaterialTapTargetSize.padded,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                            child: Text(
+                              'Skip',
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         ),
@@ -375,8 +379,8 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
 
     _float = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
+      duration: const Duration(seconds: 6),
+    )..repeat(reverse: true);
 
     _contentSlide = _slide(0.0, 0.30, 0.05);
     // Circle appears first and finishes early (before the chips start).
@@ -499,14 +503,13 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     );
   }
 
-  /// Two-tone headline (Stitch treatment): first line in the primary text
-  /// colour, the rest in brand teal. The full original string is rendered.
+  /// Two-tone headline — same size/height as SecuredIntroScreen title.
   Widget _titleText(AppPalette palette) {
     final title = widget.page.title;
     final int nl = title.indexOf('\n');
     final style = AppText.display.copyWith(
-      fontSize: 27,
-      height: 1.2,
+      fontSize: OnboardingLayout.titleSize,
+      height: OnboardingLayout.titleHeight,
       color: palette.textPrimary,
     );
     if (nl == -1) {
@@ -530,6 +533,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+
     // Rebuilds only while the PageView is scrolling (drives the parallax).
     return AnimatedBuilder(
       animation: widget.controller,
@@ -541,101 +545,95 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
               (widget.controller.page ?? widget.index.toDouble()) -
               widget.index;
         }
-        // Hero moves more than text (parallax depth); content scales down a
-        // touch as the page slides away from centre.
         final double iconShift = -delta * 36;
         final double textShift = -delta * 14;
         final double swipeScale = (1 - delta.abs() * 0.08).clamp(0.0, 1.0);
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-          child: SlideTransition(
-            position: _contentSlide,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Illustration (with parallax + swipe scale on top), seated
-                // inside a Divine Glass panel. The FittedBox lets the panel
-                // shrink gracefully on short screens.
-                Expanded(
-                  child: Center(
-                    child: Transform.translate(
-                      offset: Offset(iconShift, 0),
-                      child: Transform.scale(
-                        scale: swipeScale,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: InoStyle.usesDivineGlass(context)
-                              ? LiquidGlass(
-                                  borderRadius: BorderRadius.circular(40),
-                                  blur: 22,
-                                  padding: const EdgeInsets.all(58),
-                                  child: _illustration(),
-                                )
-                              : Container(
-                                  padding: const EdgeInsets.all(58),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(40),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.7),
-                                      width: 1.2,
-                                    ),
-                                    boxShadow: AppShadows.card,
-                                  ),
-                                  child: _illustration(),
+        // Mirror SecuredIntroScreen:
+        //   Spacer(5) → 300 scene → Spacer(2) → copy → Spacer(2)
+        // (CTA lives in the parent, matching secured's bottom padding band.)
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Leave room for copy (~150) so spacers never force a 300 overflow
+            // on short phones — scene shrinks via FittedBox instead.
+            final double sceneSide = (constraints.maxHeight - 150)
+                .clamp(OnboardingLayout.sceneMin, OnboardingLayout.sceneSize);
+
+            return SlideTransition(
+              position: _contentSlide,
+              child: Column(
+                children: [
+                  const Spacer(flex: OnboardingLayout.spacerTop),
+                  SizedBox(
+                    width: sceneSide,
+                    height: sceneSide,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: OnboardingLayout.sceneSize,
+                        height: OnboardingLayout.sceneSize,
+                        child: Center(
+                          child: Transform.translate(
+                            offset: Offset(iconShift, 0),
+                            child: Transform.scale(
+                              scale: swipeScale *
+                                  OnboardingLayout.illustrationScale,
+                              child: _illustration(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Spacer(flex: OnboardingLayout.spacerMid),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: OnboardingLayout.textHorizontal,
+                    ),
+                    child: Column(
+                      children: [
+                        Transform.translate(
+                          offset: Offset(textShift, 0),
+                          child: SlideTransition(
+                            position: _titleSlide,
+                            child: FadeTransition(
+                              opacity: _titleFade,
+                              child: Column(
+                                children: [
+                                  _stepIndicator(),
+                                  const SizedBox(height: 12),
+                                  _titleText(palette),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Transform.translate(
+                          offset: Offset(textShift * 0.8, 0),
+                          child: SlideTransition(
+                            position: _descSlide,
+                            child: FadeTransition(
+                              opacity: _descFade,
+                              child: Text(
+                                widget.page.description,
+                                textAlign: TextAlign.center,
+                                style: AppText.body.copyWith(
+                                  color: palette.textSecondary,
+                                  height: 1.5,
                                 ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // Small step indicator + centred title.
-                Transform.translate(
-                  offset: Offset(textShift, 0),
-                  child: SlideTransition(
-                    position: _titleSlide,
-                    child: FadeTransition(
-                      opacity: _titleFade,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          _stepIndicator(),
-                          const SizedBox(height: 12),
-                          _titleText(palette),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Description.
-                Transform.translate(
-                  offset: Offset(textShift * 0.8, 0),
-                  child: SlideTransition(
-                    position: _descSlide,
-                    child: FadeTransition(
-                      opacity: _descFade,
-                      child: Text(
-                        widget.page.description,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          color: palette.textSecondary,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
+                  const Spacer(flex: OnboardingLayout.spacerBottom),
+                ],
+              ),
+            );
+          },
         );
       },
     );

@@ -9,6 +9,9 @@ import '../../theme/app_theme.dart';
 class _SatelliteData {
   const _SatelliteData(this.icon, this.color);
   final IconData icon;
+
+  /// Fixed accent — never the live brand getter, so Aqua/Launcher can't
+  /// collapse every chip into the same teal.
   final Color color;
 }
 
@@ -26,32 +29,41 @@ const List<Offset> _positions = [
 /// Per-chip phase offset so they don't all bob in unison.
 const List<double> _floatPhases = [0.0, 0.4, 0.7, 0.2, 0.55];
 
-/// Contextual chips per screen (4–6 elements, kept uncrowded). Matched to that
-/// screen's theme.
-final List<List<_SatelliteData>> _byScreen = [
+/// Distinct palette accents (const) — readable in light and dark, independent
+/// of [AppColors.primaryGreen] which tracks the Aqua style switch.
+const Color _cTeal = Color(0xFF0EA5E9);
+const Color _cMint = Color(0xFF14B8A6);
+const Color _cViolet = Color(0xFF8B5CF6);
+const Color _cAmber = Color(0xFFF59E0B);
+const Color _cCoral = Color(0xFFF43F5E);
+const Color _cIndigo = Color(0xFF6366F1);
+const Color _cEmerald = Color(0xFF10B981);
+
+/// Contextual chips per screen — each icon gets its own accent.
+const List<List<_SatelliteData>> _byScreen = [
   // Screen 0 - Documents.
   [
-    _SatelliteData(Icons.verified_user_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.badge_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.credit_card_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.menu_book_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.cloud_done_rounded, AppColors.primaryGreen),
+    _SatelliteData(Icons.verified_user_rounded, _cMint),
+    _SatelliteData(Icons.badge_rounded, _cViolet),
+    _SatelliteData(Icons.credit_card_rounded, _cIndigo),
+    _SatelliteData(Icons.menu_book_rounded, _cAmber),
+    _SatelliteData(Icons.cloud_done_rounded, _cTeal),
   ],
   // Screen 1 - Wealth & Health.
   [
-    _SatelliteData(Icons.savings_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.account_balance_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.home_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.favorite_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.currency_rupee_rounded, AppColors.primaryGreen),
+    _SatelliteData(Icons.savings_rounded, _cAmber),
+    _SatelliteData(Icons.account_balance_rounded, _cIndigo),
+    _SatelliteData(Icons.home_rounded, _cEmerald),
+    _SatelliteData(Icons.favorite_rounded, _cCoral),
+    _SatelliteData(Icons.currency_rupee_rounded, _cMint),
   ],
   // Screen 2 - Share & Secure.
   [
-    _SatelliteData(Icons.share_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.lock_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.fingerprint_rounded, AppColors.primaryGreen),
-    _SatelliteData(Icons.verified_rounded, AppColors.lightBlue),
-    _SatelliteData(Icons.check_circle_rounded, AppColors.primaryGreen),
+    _SatelliteData(Icons.share_rounded, _cTeal),
+    _SatelliteData(Icons.lock_rounded, _cViolet),
+    _SatelliteData(Icons.fingerprint_rounded, _cIndigo),
+    _SatelliteData(Icons.verified_rounded, _cEmerald),
+    _SatelliteData(Icons.check_circle_rounded, _cMint),
   ],
 ];
 
@@ -127,55 +139,68 @@ class _Satellite extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final dark = palette.isDark;
     return AnimatedBuilder(
       animation: Listenable.merge([pop, float]),
       builder: (context, child) {
-        // Staggered pop-in: scale (soft overshoot) + fade.
+        // Entrance progress 0 -> 1
         final double raw =
             ((pop.value - popStart) / _popLength).clamp(0.0, 1.0);
-        final double scale = Curves.easeOutBack.transform(raw);
+        final double appear = Curves.easeOutBack.transform(raw);
         final double opacity = raw;
 
-        // Gentle, perpetual vertical bob.
+        // Gentle, perpetual vertical bob using the same math as SecuredIntroScreen
+        // Note: float goes 0 -> 1 -> 0 because reverse: true
         final double bob =
-            math.sin(2 * math.pi * (float.value + floatPhase)) *
+            math.sin(float.value * math.pi + floatPhase * 1.6) *
                 _floatAmplitude;
 
+        // Dark: soft frosted disc + coloured glyph (high contrast).
+        // Light: tinted wash + coloured glyph.
+        final Color chipFill = dark
+            ? Color.alphaBlend(
+                data.color.withValues(alpha: 0.28),
+                const Color(0xFF1A2A3A),
+              )
+            : Color.alphaBlend(
+                data.color.withValues(alpha: 0.12),
+                Colors.white,
+              );
+        final Color chipBorder = data.color.withValues(alpha: dark ? 0.55 : 0.40);
+        final Color glyphColor = dark ? Colors.white : data.color;
+
         return Transform.translate(
-          offset: offset + Offset(0, bob),
+          // Flies in from further out along its own axis, then floats
+          offset: Offset(
+            offset.dx * (0.55 + 0.45 * appear),
+            offset.dy * appear + bob,
+          ),
           child: Opacity(
             opacity: opacity,
-            child: Transform.scale(scale: scale, child: child),
+            child: Transform.scale(
+              scale: 0.7 + 0.3 * appear,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: chipFill,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: chipBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: data.color.withValues(alpha: dark ? 0.28 : 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Icon(data.icon, color: glyphColor, size: 22),
+              ),
+            ),
           ),
         );
       },
-      child: _chip(),
-    );
-  }
-
-  Widget _chip() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          // Soft depth shadow.
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          // Subtle coloured glow.
-          BoxShadow(
-            color: data.color.withValues(alpha: 0.22),
-            blurRadius: 14,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Icon(data.icon, size: 22, color: data.color),
     );
   }
 }

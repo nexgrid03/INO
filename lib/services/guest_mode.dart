@@ -7,14 +7,14 @@ import '../theme/app_dimens.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/shiny_icon.dart';
 
-/// Guest "explore" mode - the signed-out session that starts when the user taps
-/// **Get Started** on the secured-intro screen.
+/// Guest "explore" mode - the signed-out session that starts when the user
+/// taps **Continue as guest** on Signup / Login (or the secured-intro fallback).
 ///
 /// A guest lands directly on Home and can look around, but every action that
 /// reads or writes their data funnels through [requireAuth], which shows the
-/// sign-in sheet instead. In-memory only by design: a cold start walks the
-/// splash → onboarding → intro flow again, and signing in clears the flag (see
-/// [goToShell] in auth_flow.dart).
+/// sign-in sheet instead. In-memory only by design: a cold start re-enters via
+/// Splash routing (Login when onboarding was already seen). Signing in clears
+/// the flag (see [goToShell] in auth_flow.dart).
 class GuestMode {
   GuestMode._();
 

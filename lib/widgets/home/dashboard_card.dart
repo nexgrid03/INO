@@ -193,64 +193,75 @@ class _DashboardCardState extends State<DashboardCard>
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 124,
-                    child: Center(
-                      child: Transform.scale(
-                        scale: 2.1,
-                        child: const _MascotBadge(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Shrink mascot on narrow phones so headline/CTA stay usable.
+                final mascotW =
+                    (constraints.maxWidth * 0.34).clamp(88.0, 124.0);
+                final titleSize =
+                    constraints.maxWidth < 280 ? 18.0 : 22.0;
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: mascotW,
+                        child: Center(
+                          child: Transform.scale(
+                            scale: mascotW / 124 * 2.1,
+                            child: const _MascotBadge(),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'YOUR VAULT',
+                              style: TextStyle(
+                                color: eyebrow,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Your Vault is 100% Protected',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'All your documents are safe and backed up',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _HeroCta(onTap: widget.onCta),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'YOUR VAULT',
-                          style: TextStyle(
-                            color: eyebrow,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Your Vault is 100% Protected',
-                          maxLines: 2,
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'All your documents are safe and backed up',
-                          maxLines: 2,
-                          style: TextStyle(
-                            color: palette.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _HeroCta(onTap: widget.onCta),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -523,19 +534,41 @@ class HomeSummaryStrip extends StatelessWidget {
 
     if (enlargedIcons) {
       // Launcher: same glass as My Vaults — no FadeSlideIn (web lag / blank).
+      // Narrow phones: 2×2 so square tiles don't crush labels.
+      final narrow = MediaQuery.sizeOf(context).width < 360;
+      Widget tile(int i) => LauncherGlassIconTile(
+            label: tiles[i].label,
+            count: tiles[i].value,
+            icon: tiles[i].icon,
+            accent: tiles[i].accent,
+            onTap: tiles[i].onTap ?? () {},
+          );
+      if (narrow) {
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tile(0)),
+                const SizedBox(width: 10),
+                Expanded(child: tile(1)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: tile(2)),
+                const SizedBox(width: 10),
+                Expanded(child: tile(3)),
+              ],
+            ),
+          ],
+        );
+      }
       return Row(
         children: [
           for (var i = 0; i < tiles.length; i++) ...[
             if (i > 0) const SizedBox(width: 10),
-            Expanded(
-              child: LauncherGlassIconTile(
-                label: tiles[i].label,
-                count: tiles[i].value,
-                icon: tiles[i].icon,
-                accent: tiles[i].accent,
-                onTap: tiles[i].onTap ?? () {},
-              ),
-            ),
+            Expanded(child: tile(i)),
           ],
         ],
       );

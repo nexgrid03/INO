@@ -150,61 +150,74 @@ class _LockScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
+          minimum: const EdgeInsets.only(bottom: 16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                const FadeSlideIn(child: _SecureHeader()),
-                const Spacer(),
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 60),
-                  child: Column(
-                    children: [
-                      Text(
-                        'INO is locked',
-                        textAlign: TextAlign.center,
-                        style: AppText.display.copyWith(
-                          color: _palette.textPrimary,
-                          fontSize: 32,
-                        ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final short = constraints.maxHeight < 640;
+                final heroSize = short ? 132.0 : 176.0;
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    const FadeSlideIn(child: _SecureHeader()),
+                    if (short)
+                      const SizedBox(height: 24)
+                    else
+                      const Spacer(),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 60),
+                      child: Column(
+                        children: [
+                          Text(
+                            'INO is locked',
+                            textAlign: TextAlign.center,
+                            style: AppText.display.copyWith(
+                              color: _palette.textPrimary,
+                              fontSize: short ? 26 : 32,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Unlock with your fingerprint or Face ID to\naccess your vault.',
+                            textAlign: TextAlign.center,
+                            style: AppText.body.copyWith(
+                              color: _palette.textSecondary,
+                              fontSize: 14.5,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Unlock with your fingerprint or Face ID to\naccess your vault.',
-                        textAlign: TextAlign.center,
-                        style: AppText.body.copyWith(
-                          color: _palette.textSecondary,
-                          fontSize: 14.5,
-                          height: 1.5,
-                        ),
+                    ),
+                    SizedBox(height: short ? 28 : 44),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 140),
+                      child: _BiometricHero(
+                        busy: authenticating,
+                        onTap: onUnlock,
+                        size: heroSize,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 44),
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 140),
-                  child:
-                      _BiometricHero(busy: authenticating, onTap: onUnlock),
-                ),
-                const SizedBox(height: 36),
-                const FadeSlideIn(
-                  delay: Duration(milliseconds: 220),
-                  child: _EncryptionDivider(),
-                ),
-                const Spacer(),
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 300),
-                  child: PrimaryButton(
-                    label: 'Unlock',
-                    icon: Icons.lock_open_rounded,
-                    busy: authenticating,
-                    onPressed: onUnlock,
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
+                    ),
+                    SizedBox(height: short ? 24 : 36),
+                    const FadeSlideIn(
+                      delay: Duration(milliseconds: 220),
+                      child: _EncryptionDivider(),
+                    ),
+                    const Spacer(),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 300),
+                      child: PrimaryButton(
+                        label: 'Unlock',
+                        icon: Icons.lock_open_rounded,
+                        busy: authenticating,
+                        onPressed: onUnlock,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -279,19 +292,26 @@ class _SecureHeader extends StatelessWidget {
 /// disc with the fingerprint glyph. Tapping it re-invokes the same biometric
 /// prompt as the Unlock button.
 class _BiometricHero extends StatelessWidget {
-  const _BiometricHero({required this.busy, required this.onTap});
+  const _BiometricHero({
+    required this.busy,
+    required this.onTap,
+    this.size = 176,
+  });
 
   final bool busy;
   final VoidCallback onTap;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
+    final inner = size * 0.545;
+    final iconSize = size * 0.318;
     return PressableScale(
       child: GestureDetector(
         onTap: busy ? null : onTap,
         child: Container(
-          width: 176,
-          height: 176,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
@@ -300,8 +320,8 @@ class _BiometricHero extends StatelessWidget {
           ),
           child: Center(
             child: Container(
-              width: 96,
-              height: 96,
+              width: inner,
+              height: inner,
               decoration: BoxDecoration(
                 gradient: AppColors.brandGradient,
                 shape: BoxShape.circle,
@@ -313,8 +333,8 @@ class _BiometricHero extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.fingerprint_rounded,
-                  color: Colors.white, size: 56),
+              child: Icon(Icons.fingerprint_rounded,
+                  color: Colors.white, size: iconSize),
             ),
           ),
         ),

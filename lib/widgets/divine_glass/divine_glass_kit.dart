@@ -83,13 +83,10 @@ class DivineGlassAppBar extends StatelessWidget {
     // Title-only — second-line subtitles are omitted across the app.
     const contentH = barHeight;
 
-    // Title must stay readable on frost — never hardcode brand teal.
-    final titleStyle = TextStyle(
-      color: palette.textPrimary,
-      fontSize: centerTitle ? 18 : 17,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -0.35,
-      height: 1.15,
+    // Soft ink on a light frost — cozy, not a heavy white slab.
+    final titleStyle = AppText.appBarHeading(
+      palette.headingInk,
+      prominent: centerTitle,
     );
 
     final titleBlock = Text(
@@ -101,15 +98,14 @@ class DivineGlassAppBar extends StatelessWidget {
     );
 
     return Material(
-      // Solid base so scroll content never shows through the bar (overlap look).
       color: dark
-          ? palette.surface.withValues(alpha: 0.94)
-          : Colors.white.withValues(alpha: 0.88),
+          ? palette.surface.withValues(alpha: 0.72)
+          : Colors.white.withValues(alpha: 0.42),
       elevation: 0,
       child: LiquidGlass(
         borderRadius: BorderRadius.zero,
-        blur: 20,
-        frost: dark ? 0.85 : 0.75,
+        blur: 18,
+        frost: dark ? 0.55 : 0.38,
         tint: dark ? palette.surface : Colors.white,
         shadow: false,
         padding: EdgeInsets.zero,
@@ -123,9 +119,9 @@ class DivineGlassAppBar extends StatelessWidget {
                 border: Border(
                   bottom: BorderSide(
                     color: dark
-                        ? Colors.white.withValues(alpha: 0.10)
-                        : palette.border,
-                    width: 1,
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : palette.border.withValues(alpha: 0.55),
+                    width: 0.8,
                   ),
                 ),
               ),
@@ -180,13 +176,13 @@ class DivineGlassHeaderBar extends StatelessWidget {
     final dark = palette.isDark;
     return Material(
       color: dark
-          ? palette.surface.withValues(alpha: 0.94)
-          : Colors.white.withValues(alpha: 0.88),
+          ? palette.surface.withValues(alpha: 0.72)
+          : Colors.white.withValues(alpha: 0.42),
       elevation: 0,
       child: LiquidGlass(
         borderRadius: BorderRadius.zero,
-        blur: 20,
-        frost: dark ? 0.85 : 0.75,
+        blur: 18,
+        frost: dark ? 0.55 : 0.38,
         tint: dark ? palette.surface : Colors.white,
         shadow: false,
         padding: EdgeInsets.zero,
@@ -196,9 +192,9 @@ class DivineGlassHeaderBar extends StatelessWidget {
             border: Border(
               bottom: BorderSide(
                 color: dark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : palette.border,
-                width: 1,
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : palette.border.withValues(alpha: 0.55),
+                width: 0.8,
               ),
             ),
           ),
@@ -312,6 +308,8 @@ class DivineGlassStatusChip extends StatelessWidget {
       ),
       child: Text(
         label ?? _figmaLabel,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
@@ -492,9 +490,12 @@ class DivineGlassDocumentCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               if (trailing != null)
-                trailing!
+                Flexible(fit: FlexFit.loose, child: trailing!)
               else
-                DivineGlassStatusChip.fromStatus(status),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: DivineGlassStatusChip.fromStatus(status),
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -618,6 +619,8 @@ class DivineGlassHeroStrip extends StatelessWidget {
                 children: [
                   Text(
                     items[i].value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -628,6 +631,8 @@ class DivineGlassHeroStrip extends StatelessWidget {
                   Text(
                     items[i].label,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,

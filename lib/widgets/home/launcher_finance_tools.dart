@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import 'launcher_glass_icon_tile.dart';
@@ -75,8 +76,8 @@ class LauncherFinanceTools extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        // Phone: always 3 across so SIP is fully visible; never overflow.
-        const perRow = 3;
+        // Respect breakpoints: 2-across on small phones so tiles stay readable.
+        final perRow = context.toolsColumns.clamp(2, 3);
         final tileW = ((width - _gap * (perRow - 1)) / perRow)
             .clamp(0.0, width)
             .toDouble();

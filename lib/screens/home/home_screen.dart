@@ -326,6 +326,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final sidePadding = context.responsivePadding;
     // Rebuild Home when Profile → App theme changes (classic vs launcher layout).
     final style = InoStyle.of(context);
+    // Clear the floating nav (66 + 12 pad + safe area) so banners never sit on it.
+    final navClearance = MediaQuery.paddingOf(context).bottom + 110;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -373,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     sidePadding,
                                     AppSpacing.md,
                                     sidePadding,
-                                    100.rh,
+                                    navClearance,
                                   ),
                                   sliver: const SliverToBoxAdapter(
                                     child: DashboardSkeleton(),
@@ -385,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     sidePadding,
                                     AppSpacing.md,
                                     sidePadding,
-                                    24,
+                                    navClearance,
                                   ),
                                   sliver: SliverList(
                                     key: ValueKey(style),

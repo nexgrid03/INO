@@ -42,9 +42,9 @@ class SectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: palette.textPrimary,
+                fontSize: 16.5,
+                fontWeight: FontWeight.w600,
+                color: palette.headingInk,
                 letterSpacing: -0.2,
               ),
             ),

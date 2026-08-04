@@ -44,12 +44,14 @@ class QuickActionButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: enlarged ? 4 : 4),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Launcher: disc owns the column; glyph owns the disc.
+              // Launcher: disc owns the column; never exceed cell width
+              // (clamp floor of 64 overflowed on <360dp 4-across rows).
+              final maxDisc = constraints.maxWidth;
               final disc = enlarged
-                  ? (constraints.maxWidth * 0.88).clamp(64.0, 88.0)
-                  : constraints.maxWidth.clamp(40.0, 56.0);
+                  ? (maxDisc * 0.88).clamp(0.0, maxDisc).clamp(0.0, 88.0)
+                  : maxDisc.clamp(0.0, 56.0);
               final glyph = enlarged
-                  ? (disc * 0.58).clamp(36.0, 50.0)
+                  ? (disc * 0.58).clamp(28.0, 50.0)
                   : (disc * 0.42).clamp(16.0, 24.0);
               return Column(
                 mainAxisSize: MainAxisSize.min,

@@ -4,16 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_controller.dart';
 import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
-import '../shell/main_shell.dart';
+import 'onboarding_layout.dart';
 
 /// The "your documents are secured" moment between onboarding and the app.
 ///
@@ -109,21 +107,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
       // hiccup.
     }
     if (!mounted) return;
-    GuestMode.active = true;
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => MainShell(
-          profile: GuestMode.guestProfile(),
-          themeMode: ThemeController.mode.value,
-          onToggleTheme: () =>
-              ThemeController.toggle(InoApp.navigatorKey.currentContext!),
-        ),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
-      ),
-      (route) => false,
-    );
+    enterGuestExplore(context);
   }
 
   // ---- Build -----------------------------------------------------------------
@@ -161,20 +145,36 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
           ),
 
           SafeArea(
+            minimum: const EdgeInsets.only(
+              bottom: OnboardingLayout.safeBottomMinimum,
+            ),
             child: AnimatedBuilder(
               animation: Listenable.merge([_c, _float]),
               builder: (context, _) {
                 final floatT = math.sin(
                   _float.value * math.pi,
                 ); // 0→1→0 gentle wave
-                return Column(
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Leave room for copy + CTA so Spacers never force a
+                    // fixed 300 overflow on short phones.
+                    final sceneSide = (constraints.maxHeight - 150).clamp(
+                      OnboardingLayout.sceneMin,
+                      OnboardingLayout.sceneSize,
+                    );
+                    return Column(
                   children: [
-                    const Spacer(flex: 5),
+                    const Spacer(flex: OnboardingLayout.spacerTop),
                     // ---- The lock scene ---------------------------------
                     SizedBox(
-                      width: 300,
-                      height: 300,
-                      child: Stack(
+                      width: sceneSide,
+                      height: sceneSide,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: OnboardingLayout.sceneSize,
+                          height: OnboardingLayout.sceneSize,
+                          child: Stack(
                         alignment: Alignment.center,
                         clipBehavior: Clip.none,
                         children: [
@@ -263,11 +263,15 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                           ),
                         ],
                       ),
+                        ),
+                      ),
                     ),
-                    const Spacer(flex: 2),
+                    const Spacer(flex: OnboardingLayout.spacerMid),
                     // ---- Copy -------------------------------------------
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: OnboardingLayout.textHorizontal,
+                      ),
                       child: Column(
                         children: [
                           Opacity(
@@ -283,8 +287,8 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                                   textAlign: TextAlign.center,
                                   style: AppText.display.copyWith(
                                     color: Colors.white,
-                                    fontSize: 27,
-                                    height: 1.15,
+                                    fontSize: OnboardingLayout.titleSize,
+                                    height: OnboardingLayout.titleHeight,
                                   ),
                                 ),
                               ),
@@ -309,10 +313,15 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                         ],
                       ),
                     ),
-                    const Spacer(flex: 2),
+                    const Spacer(flex: OnboardingLayout.spacerBottom),
                     // ---- Get Started ------------------------------------
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 26),
+                      padding: const EdgeInsets.fromLTRB(
+                        OnboardingLayout.bottomHorizontal,
+                        0,
+                        OnboardingLayout.bottomHorizontal,
+                        OnboardingLayout.bottomPadding,
+                      ),
                       child: Opacity(
                         opacity: _seg(0.80, 0.97),
                         child: Transform.translate(
@@ -325,6 +334,8 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                       ),
                     ),
                   ],
+                    );
+                  },
                 );
               },
             ),
@@ -372,9 +383,20 @@ class _OrbitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final dark = palette.isDark;
     if (appear == 0) return const SizedBox.shrink();
     // Each chip bobs slightly out of step with its neighbours.
     final bob = math.sin(float * math.pi + phase * 1.6) * 5;
+    final chipFill = dark
+        ? Color.alphaBlend(
+            spec.color.withValues(alpha: 0.28),
+            const Color(0xFF1A2A3A),
+          )
+        : Color.alphaBlend(
+            spec.color.withValues(alpha: 0.12),
+            Colors.white,
+          );
+    final glyphColor = dark ? Colors.white : spec.color;
     return Transform.translate(
       // Flies in from further out along its own axis, then floats.
       offset: Offset(spec.dx * (0.55 + 0.45 * appear), spec.dy * appear + bob),
@@ -386,21 +408,20 @@ class _OrbitChip extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                spec.color.withValues(alpha: palette.isDark ? 0.22 : 0.10),
-                palette.surface,
-              ),
+              color: chipFill,
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: spec.color.withValues(alpha: 0.45)),
+              border: Border.all(
+                color: spec.color.withValues(alpha: dark ? 0.55 : 0.45),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: spec.color.withValues(alpha: 0.18),
+                  color: spec.color.withValues(alpha: dark ? 0.28 : 0.18),
                   blurRadius: 12,
                   offset: const Offset(0, 5),
                 ),
               ],
             ),
-            child: Icon(spec.icon, color: spec.color, size: 22),
+            child: Icon(spec.icon, color: glyphColor, size: 22),
           ),
         ),
       ),

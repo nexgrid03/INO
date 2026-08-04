@@ -13,6 +13,7 @@ import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import '../legal/legal_document_screen.dart';
 import '../profile/about_screen.dart';
+import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'biometric_setup_screen.dart';
 import 'login_screen.dart';
@@ -164,6 +165,10 @@ class _SignupScreenState extends State<SignupScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
+  }
+
+  void _continueAsGuest() {
+    enterGuestExplore(context);
   }
 
   void _openHelp() {
@@ -428,6 +433,34 @@ class _SignupScreenState extends State<SignupScreen> {
               label: l10n.t('createSecureAccount'),
               busy: _busy,
               onPressed: _busy ? null : _createAccount,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 340),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: _busy ? null : _continueAsGuest,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: BorderSide(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.45),
+                    width: 1.4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(
+                  l10n.t('continueAsGuest'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15.5,
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 22),

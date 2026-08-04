@@ -23,9 +23,10 @@ class ThemeController {
   static final ValueNotifier<ThemeMode> mode =
       ValueNotifier<ThemeMode>(ThemeMode.light);
 
-  /// The visual style (classic / bold / soft) picked in Profile → App theme.
+  /// The visual style (classic / bold / soft / aqua …) picked in Profile →
+  /// App theme. Defaults to Aqua so first-run splash/onboarding match brand.
   static final ValueNotifier<ThemeStyle> style =
-      ValueNotifier<ThemeStyle>(ThemeStyle.classic);
+      ValueNotifier<ThemeStyle>(ThemeStyle.aqua);
 
   /// Reads the persisted theme choices into [mode] and [style]. Call once at
   /// startup, before the first frame, so there's no flash of the wrong theme.
@@ -89,11 +90,13 @@ class ThemeController {
         return ThemeStyle.soft;
       case 'launcher':
         return ThemeStyle.launcher;
+      case 'classic':
+        return ThemeStyle.classic;
       case 'aqua':
         return ThemeStyle.aqua;
-      case 'classic':
       default:
-        return ThemeStyle.classic;
+        // First launch (no pref yet) → Aqua.
+        return ThemeStyle.aqua;
     }
   }
 

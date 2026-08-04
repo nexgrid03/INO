@@ -54,13 +54,13 @@ class AppText {
   AppText._();
 
   static const TextStyle display = TextStyle(
-      fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.8);
+      fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -0.6);
   static const TextStyle bigNumber = TextStyle(
-      fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1.0);
+      fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: -0.8);
   static const TextStyle headline = TextStyle(
-      fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5);
+      fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.35);
   static const TextStyle title = TextStyle(
-      fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.2);
+      fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.2);
   static const TextStyle subtitle =
       TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
   static const TextStyle body =
@@ -68,7 +68,26 @@ class AppText {
   static const TextStyle caption =
       TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500);
   static const TextStyle label =
-      TextStyle(fontSize: 13, fontWeight: FontWeight.w700);
+      TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
+
+  /// Large hub page title (Profile, Wallets, Family Vault) — cozy, not shouty.
+  static TextStyle pageHeading(Color color, {double size = 26}) => TextStyle(
+        color: color,
+        fontSize: size,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        height: 1.2,
+      );
+
+  /// Compact app-bar / toolbar title.
+  static TextStyle appBarHeading(Color color, {bool prominent = false}) =>
+      TextStyle(
+        color: color,
+        fontSize: prominent ? 17 : 16.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.25,
+        height: 1.2,
+      );
 }
 
 /// Semantic icon constants used across the home experience.

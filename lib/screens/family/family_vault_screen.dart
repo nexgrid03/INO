@@ -738,7 +738,6 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
           AppSpacing.screen, AppSpacing.sm),
@@ -752,16 +751,7 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   'Family Vault',
-                  style: launcher
-                      ? TextStyle(
-                          color: palette.textPrimary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          height: 1.1,
-                        )
-                      : AppText.headline
-                          .copyWith(color: palette.textPrimary, fontSize: 24),
+                  style: AppText.pageHeading(palette.headingInk),
                 ),
                 Text(
                   'Shared vaults for your family',

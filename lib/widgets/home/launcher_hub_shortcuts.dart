@@ -22,77 +22,93 @@ class LauncherHubShortcuts extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
+    final narrow = MediaQuery.sizeOf(context).width < 360;
 
     Widget chip({
       required String svg,
       required String label,
       required Color accent,
       required VoidCallback onTap,
+      bool expand = true,
     }) {
-      return Expanded(
-        child: PressableScale(
-          pressedScale: 0.97,
-          child: GestureDetector(
-            onTap: onTap,
-            behavior: HitTestBehavior.opaque,
-            child: LiquidGlass(
-              borderRadius: BorderRadius.circular(16),
-              enableBlur: false,
-              frost: palette.isDark ? 1.0 : 0.72,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: InoSvgIcon(svg, size: 20, color: accent),
+      final body = PressableScale(
+        pressedScale: 0.97,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: LiquidGlass(
+            borderRadius: BorderRadius.circular(16),
+            enableBlur: false,
+            frost: palette.isDark ? 1.0 : 0.72,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary,
-                      ),
+                  alignment: Alignment.center,
+                  child: InoSvgIcon(svg, size: 20, color: accent),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: palette.textFaint,
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
+              ],
             ),
           ),
         ),
+      );
+      return expand ? Expanded(child: body) : body;
+    }
+
+    final expenses = chip(
+      svg: InoHomeIcons.expenses,
+      label: l10n.t('expenses'),
+      accent: AppColors.accentCoral,
+      onTap: onExpenses,
+      expand: !narrow,
+    );
+    final netWorth = chip(
+      svg: InoHomeIcons.netWorth,
+      label: l10n.t('netWorth'),
+      accent: AppColors.primaryGreen,
+      onTap: onNetWorth,
+      expand: !narrow,
+    );
+
+    if (narrow) {
+      return Column(
+        children: [
+          expenses,
+          const SizedBox(height: 10),
+          netWorth,
+        ],
       );
     }
 
     return Row(
       children: [
-        chip(
-          svg: InoHomeIcons.expenses,
-          label: l10n.t('expenses'),
-          accent: AppColors.accentCoral,
-          onTap: onExpenses,
-        ),
+        expenses,
         const SizedBox(width: 10),
-        chip(
-          svg: InoHomeIcons.netWorth,
-          label: l10n.t('netWorth'),
-          accent: AppColors.primaryGreen,
-          onTap: onNetWorth,
-        ),
+        netWorth,
       ],
     );
   }

@@ -42,7 +42,8 @@ class FloatingMenu {
             border: Border.all(color: palette.border),
           ),
           child: SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
+              child: Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
                   AppSpacing.lg, AppSpacing.lg),
               child: Column(
@@ -95,6 +96,7 @@ class FloatingMenu {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         );

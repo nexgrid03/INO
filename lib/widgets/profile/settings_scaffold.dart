@@ -69,7 +69,7 @@ class SettingsScaffold extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: AppText.title.copyWith(color: palette.textPrimary),
+          style: AppText.appBarHeading(palette.headingInk, prominent: true),
         ),
         centerTitle: true,
         actions: actions,
