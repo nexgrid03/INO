@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 
 /// The signature INO decorative backdrop - a soft teal aurora.
 ///
 /// Layers (bottom → top):
 ///   1. A vertical mist gradient (teal-white wash → white → faint foam) so no
-///      screen ever sits on plain flat white.
+///      screen ever sits on plain flat white. **Aqua Light** skips this and
+///      paints a flat [AppPalette.bg] instead.
 ///   2. Two or three large organic blobs in the light tint ladder
 ///      (#38BDF8 / #7DD3FC / #BAE6FD at very low alpha) that drift slowly.
 ///   3. An optional whisper-subtle dot grid near the top for texture.
@@ -42,7 +44,7 @@ class InoBackground extends StatefulWidget {
 
   /// Hero-sky variant (light mode): a saturated brand-blue band at the top
   /// that melts into white by mid-screen - the app-wide backdrop (pass false
-  /// for the softer legacy wash). Ignored in dark mode.
+  /// for the softer legacy wash). Ignored in dark mode and Aqua Light.
   final bool sky;
 
   @override
@@ -59,17 +61,28 @@ class _InoBackgroundState extends State<InoBackground>
   @override
   void initState() {
     super.initState();
-    if (widget.animate) _drift.repeat(reverse: true);
+    // Style is read in [didChangeDependencies] once InheritedWidgets exist.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncDrift();
   }
 
   @override
   void didUpdateWidget(covariant InoBackground old) {
     super.didUpdateWidget(old);
-    if (widget.animate && !_drift.isAnimating) {
-      _drift.repeat(reverse: true);
-    } else if (!widget.animate && _drift.isAnimating) {
-      _drift.stop();
+    _syncDrift();
+  }
+
+  void _syncDrift() {
+    final flat = InoStyle.usesFlatBackdrop(context);
+    if (flat || !widget.animate) {
+      if (_drift.isAnimating) _drift.stop();
+      return;
     }
+    if (!_drift.isAnimating) _drift.repeat(reverse: true);
   }
 
   @override
@@ -81,6 +94,16 @@ class _InoBackgroundState extends State<InoBackground>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final flat = InoStyle.usesFlatBackdrop(context);
+
+    // Aqua Light: solid colour only — no gradient wash / blobs.
+    if (flat) {
+      return ColoredBox(
+        color: palette.bg,
+        child: widget.child,
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [

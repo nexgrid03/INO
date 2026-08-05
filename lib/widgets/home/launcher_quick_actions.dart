@@ -7,6 +7,8 @@ import '../common/ino_svg_icon.dart';
 import 'quick_action_button.dart';
 
 /// Launcher Quick Actions (4): Scan · Documents · Reminder · Voice.
+///
+/// Equal [Expanded] cells + shared disc sizing keep the row aligned.
 class LauncherQuickActions extends StatelessWidget {
   const LauncherQuickActions({
     super.key,
@@ -21,33 +23,35 @@ class LauncherQuickActions extends StatelessWidget {
   final VoidCallback onAddReminder;
   final VoidCallback onVoice;
 
+  static const double _gap = 12;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final actions = [
       QuickActionButton(
-        svgAsset: InoHomeIcons.scan,
+        imageAsset: InoHomeIcons3d.scan,
         label: l10n.t('scan'),
         color: AppColors.primaryGreen,
         onTap: onScan,
         enlarged: true,
       ),
       QuickActionButton(
-        svgAsset: InoHomeIcons.documents,
+        imageAsset: InoHomeIcons3d.documents,
         label: l10n.t('documents'),
         color: AppColors.primaryGreen,
         onTap: onAddDocument,
         enlarged: true,
       ),
       QuickActionButton(
-        svgAsset: InoHomeIcons.reminder,
+        imageAsset: InoHomeIcons3d.reminder,
         label: l10n.t('reminder'),
         color: AppColors.primaryGreen,
         onTap: onAddReminder,
         enlarged: true,
       ),
       QuickActionButton(
-        svgAsset: InoHomeIcons.voice,
+        imageAsset: InoHomeIcons3d.voice,
         label: l10n.t('voice'),
         color: AppColors.primaryGreen,
         onTap: onVoice,
@@ -55,36 +59,26 @@ class LauncherQuickActions extends StatelessWidget {
       ),
     ];
 
-    // Very narrow phones: 2×2 so discs stay tappable without horizontal overflow.
+    Widget rowOf(List<Widget> kids) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < kids.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(child: kids[i]),
+            ],
+          ],
+        );
+
     if (context.isMobileSmall) {
       return Column(
         children: [
-          Row(
-            children: [
-              Expanded(child: actions[0]),
-              const SizedBox(width: 8),
-              Expanded(child: actions[1]),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: actions[2]),
-              const SizedBox(width: 8),
-              Expanded(child: actions[3]),
-            ],
-          ),
+          rowOf([actions[0], actions[1]]),
+          const SizedBox(height: 12),
+          rowOf([actions[2], actions[3]]),
         ],
       );
     }
 
-    return Row(
-      children: [
-        for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(child: actions[i]),
-        ],
-      ],
-    );
+    return rowOf(actions);
   }
 }

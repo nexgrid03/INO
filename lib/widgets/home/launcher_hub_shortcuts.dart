@@ -2,12 +2,90 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
-/// Secondary hub shortcuts (Expenses · Net Worth) — kept below the first fold
-/// so Quick Actions stay the primary launcher row.
+/// Compact Offline entry — sits just under Quick Actions so it's visible on open
+/// without changing the 4-disc Quick Actions row.
+class LauncherOfflineShortcut extends StatelessWidget {
+  const LauncherOfflineShortcut({super.key, required this.onOffline});
+
+  final VoidCallback onOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    final flat = InoStyle.usesFlatBackdrop(context);
+    return PressableScale(
+      pressedScale: 0.97,
+      child: GestureDetector(
+        onTap: onOffline,
+        behavior: HitTestBehavior.opaque,
+        child: LiquidGlass(
+          borderRadius: BorderRadius.circular(16),
+          enableBlur: flat,
+          blur: flat ? 16 : 20,
+          frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
+          shadow: flat,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.accentCyan.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: InoSvgIcon(
+                  InoHomeIcons.offline,
+                  size: 20,
+                  color: AppColors.accentCyan,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.t('offline'),
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'View docs saved on this device',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: palette.textFaint,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Secondary hub shortcuts (Expenses · Net Worth) — below the fold.
 class LauncherHubShortcuts extends StatelessWidget {
   const LauncherHubShortcuts({
     super.key,
@@ -23,6 +101,7 @@ class LauncherHubShortcuts extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     final narrow = MediaQuery.sizeOf(context).width < 360;
+    final flat = InoStyle.usesFlatBackdrop(context);
 
     Widget chip({
       required String svg,
@@ -38,8 +117,10 @@ class LauncherHubShortcuts extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           child: LiquidGlass(
             borderRadius: BorderRadius.circular(16),
-            enableBlur: false,
-            frost: palette.isDark ? 1.0 : 0.72,
+            enableBlur: flat,
+            blur: flat ? 16 : 20,
+            frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
+            shadow: flat,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
               children: [

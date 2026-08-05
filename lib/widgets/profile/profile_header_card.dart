@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
-import '../common/liquid_glass.dart';
+import '../../theme/avatar_color.dart';
 import '../pressable_scale.dart';
 
 /// The compact identity header at the top of the Profile settings page.
 ///
-/// Just what a user needs to recognise the account and edit it: a gradient
-/// avatar, name, email, one subtle "Vault protected" trust cue, and a small
-/// edit affordance. The ENTIRE row is tappable ([onEdit]) - the Apple ID / your
-/// Google Account pattern - so there's no oversized "Edit Profile" button.
+/// Solid plate (not translucent glass) so it stays readable on the wash, with
+/// a per-user accent colour for the avatar ring / initials.
 class ProfileHeaderCard extends StatelessWidget {
   const ProfileHeaderCard({
     super.key,
@@ -33,20 +30,47 @@ class ProfileHeaderCard extends StatelessWidget {
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
+  String get _colorSeed =>
+      email.trim().isNotEmpty ? email : (fullName.trim().isEmpty ? 'ino' : fullName);
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final accent = AvatarColor.forKey(_colorSeed);
+    final accentGrad = AvatarColor.gradientFor(_colorSeed);
+    final plate =
+        Color.lerp(palette.surface, accent, palette.isDark ? 0.12 : 0.06)!;
+
     return PressableScale(
       pressedScale: 0.99,
       child: GestureDetector(
         onTap: onEdit,
         behavior: HitTestBehavior.opaque,
-        child: LiquidGlass(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          blur: 20,
-          frost: palette.isDark ? 1.05 : 0.72,
+        child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: plate,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: Color.lerp(palette.border, accent, 0.35)!,
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: palette.isDark ? 0.28 : 0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black
+                    .withValues(alpha: palette.isDark ? 0.35 : 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Stack(
             children: [
               SizedBox(
@@ -54,7 +78,13 @@ class ProfileHeaderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _Avatar(initials: _initials, photoUrl: photoUrl),
+                    _Avatar(
+                      initials: _initials,
+                      photoUrl: photoUrl,
+                      gradient: accentGrad,
+                      plate: plate,
+                      accent: accent,
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       fullName.trim().isEmpty ? 'Your Name' : fullName,
@@ -78,7 +108,7 @@ class ProfileHeaderCard extends StatelessWidget {
                           .copyWith(color: palette.textSecondary),
                     ),
                     const SizedBox(height: 10),
-                    const _VaultBadge(),
+                    _VaultBadge(accent: accent),
                   ],
                 ),
               ),
@@ -97,10 +127,19 @@ class ProfileHeaderCard extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.initials, this.photoUrl});
+  const _Avatar({
+    required this.initials,
+    required this.gradient,
+    required this.plate,
+    required this.accent,
+    this.photoUrl,
+  });
 
   final String initials;
   final String? photoUrl;
+  final Gradient gradient;
+  final Color plate;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +151,10 @@ class _Avatar extends StatelessWidget {
           height: 76,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: InoStyle.gradient(context, AppColors.brandGradient),
+            gradient: gradient,
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.26),
+                color: accent.withValues(alpha: 0.26),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -128,12 +167,11 @@ class _Avatar extends StatelessWidget {
                     photoUrl!,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) =>
-                        _InitialsFill(initials: initials),
+                        _InitialsFill(initials: initials, gradient: gradient),
                   )
-                : _InitialsFill(initials: initials),
+                : _InitialsFill(initials: initials, gradient: gradient),
           ),
         ),
-        // Small verified badge riding the avatar's bottom-right edge.
         Positioned(
           right: -2,
           bottom: -2,
@@ -141,9 +179,9 @@ class _Avatar extends StatelessWidget {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: AppColors.primaryGreen,
+              color: accent,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(color: plate, width: 2),
             ),
             child: const Icon(Icons.check_rounded,
                 size: 14, color: Colors.white),
@@ -155,14 +193,15 @@ class _Avatar extends StatelessWidget {
 }
 
 class _InitialsFill extends StatelessWidget {
-  const _InitialsFill({required this.initials});
+  const _InitialsFill({required this.initials, required this.gradient});
 
   final String initials;
+  final Gradient gradient;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: InoStyle.gradient(context, AppColors.brandGradient)),
+      decoration: BoxDecoration(gradient: gradient),
       child: Center(
         child: Text(
           initials,
@@ -177,30 +216,29 @@ class _InitialsFill extends StatelessWidget {
   }
 }
 
-/// The single, subtle trust cue allowed in the header - a Divine Glass pastel
-/// pill with the shield glyph and small-caps label.
 class _VaultBadge extends StatelessWidget {
-  const _VaultBadge();
+  const _VaultBadge({required this.accent});
+
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.tealFoam,
+        color: accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.tealPale),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-           Icon(Icons.verified_rounded,
-              size: 13, color: AppColors.primaryGreen),
+          Icon(Icons.verified_rounded, size: 13, color: accent),
           const SizedBox(width: 5),
           Text(
             'VAULT PROTECTED',
             style: AppText.label.copyWith(
-              color: AppColors.primaryGreen,
+              color: accent,
               fontSize: 10.5,
               letterSpacing: 0.8,
             ),

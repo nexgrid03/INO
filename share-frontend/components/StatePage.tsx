@@ -33,8 +33,8 @@ const MAP: Record<
   },
   not_found: {
     icon: <SearchIcon />,
-    bg: "rgba(100, 116, 139, 0.12)",
-    color: "#64748b",
+    bg: "rgba(9, 143, 144, 0.12)",
+    color: "#098F90",
     title: "Link not found",
     msg: "This shared link doesn’t exist or has been removed.",
   },

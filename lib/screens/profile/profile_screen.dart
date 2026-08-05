@@ -21,6 +21,7 @@ import '../../services/storage_stats_service.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/avatar_color.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
@@ -289,6 +290,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeLauncher');
       case ThemeStyle.aqua:
         return l10n.t('themeAqua');
+      case ThemeStyle.aquaLight:
+        return l10n.t('themeAquaLight');
     }
   }
 
@@ -304,6 +307,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeLauncherDesc');
       case ThemeStyle.aqua:
         return l10n.t('themeAquaDesc');
+      case ThemeStyle.aquaLight:
+        return l10n.t('themeAquaLightDesc');
     }
   }
 
@@ -741,6 +746,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   icon: Icons.account_circle_rounded,
                   title: a.displayName,
                   subtitle: a.email.isEmpty ? null : a.email,
+                  accent: AvatarColor.forKey(
+                    a.email.isNotEmpty ? a.email : (a.id.isNotEmpty ? a.id : a.displayName),
+                  ),
                   trailing: a.id == currentId
                       ? Text(
                           'Current',
@@ -988,11 +996,10 @@ class _Title extends StatelessWidget {
 }
 
 /// The centered identity hero (Stitch "profile_settings" pattern): a large
-/// avatar wrapped in a brand-gradient ring with a floating edit badge, the
-/// name + email underneath, and the single "Vault protected" trust pill.
+/// avatar with a per-user colour ring, name + email, and the trust pill.
 ///
-/// The ENTIRE card stays tappable → [onEdit], exactly like the previous
-/// compact header, so no behaviour changes.
+/// Solid surface fill so the card reads clearly on the soft wash background.
+/// The ENTIRE card stays tappable → [onEdit].
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({
     required this.fullName,
@@ -1013,118 +1020,159 @@ class _ProfileHero extends StatelessWidget {
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
+  String get _colorSeed =>
+      email.trim().isNotEmpty ? email : (fullName.trim().isEmpty ? 'ino' : fullName);
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.large,
-      onTap: onEdit,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 84,
-              height: 84,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Gradient progress-ring treatment around the avatar.
-                  Container(
-                    width: 84,
-                    height: 84,
-                    padding: const EdgeInsets.all(2.5),
-                    decoration:  BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppColors.brandGradient,
-                    ),
-                    child: Container(
+    final accent = AvatarColor.forKey(_colorSeed);
+    final accentGrad = AvatarColor.gradientFor(_colorSeed);
+    // Opaque plate — translucent glass was blending into the wash.
+    final plate = Color.lerp(palette.surface, accent, palette.isDark ? 0.12 : 0.06)!;
+
+    return PressableScale(
+      pressedScale: 0.99,
+      child: GestureDetector(
+        onTap: onEdit,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.lg,
+          ),
+          decoration: BoxDecoration(
+            color: plate,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(
+              color: Color.lerp(palette.border, accent, 0.35)!,
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: palette.isDark ? 0.28 : 0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: palette.isDark ? 0.35 : 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 84,
+                height: 84,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 84,
+                      height: 84,
                       padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: palette.surface,
+                        gradient: accentGrad,
                       ),
-                      child: ClipOval(
-                        child: (photoUrl != null && photoUrl!.isNotEmpty)
-                            ? Image.network(
-                                photoUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) =>
-                                    _HeroInitials(initials: _initials),
-                              )
-                            : _HeroInitials(initials: _initials),
-                      ),
-                    ),
-                  ),
-                  // Floating edit badge (bottom-right, Stitch pencil chip).
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppColors.brandGradient,
-                        border: Border.all(color: palette.surface, width: 2.5),
-                        boxShadow: AppShadows.glow(AppColors.primaryGreen),
-                      ),
-                      child: const Icon(
-                        Icons.edit_rounded,
-                        size: 13,
-                        color: Colors.white,
+                      child: Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: plate,
+                        ),
+                        child: ClipOval(
+                          child: (photoUrl != null && photoUrl!.isNotEmpty)
+                              ? Image.network(
+                                  photoUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => _HeroInitials(
+                                    initials: _initials,
+                                    gradient: accentGrad,
+                                  ),
+                                )
+                              : _HeroInitials(
+                                  initials: _initials,
+                                  gradient: accentGrad,
+                                ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: accentGrad,
+                          border: Border.all(color: plate, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.edit_rounded,
+                          size: 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              fullName.trim().isEmpty ? 'Your Name' : fullName,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-                color: palette.textPrimary,
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                fullName.trim().isEmpty ? 'Your Name' : fullName,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  color: palette.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              email,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.body.copyWith(color: palette.textSecondary),
-            ),
-            const SizedBox(height: 10),
-            const _HeroBadge(),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                email,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(color: palette.textSecondary),
+              ),
+              const SizedBox(height: 10),
+              _HeroBadge(accent: accent),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Gradient initials fallback when no profile photo is set (or it fails).
+/// Initials fallback — colour is stable per user via [gradient].
 class _HeroInitials extends StatelessWidget {
-  const _HeroInitials({required this.initials});
+  const _HeroInitials({required this.initials, required this.gradient});
 
   final String initials;
+  final Gradient gradient;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: AppColors.brandGradient),
+      decoration: BoxDecoration(gradient: gradient),
       child: Center(
         child: Text(
           initials,
@@ -1139,34 +1187,30 @@ class _HeroInitials extends StatelessWidget {
   }
 }
 
-/// The single trust pill under the identity hero (Stitch badge chip).
+/// The single trust pill under the identity hero.
 class _HeroBadge extends StatelessWidget {
-  const _HeroBadge();
+  const _HeroBadge({required this.accent});
+
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.10),
+        color: accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: AppColors.primaryGreen.withValues(alpha: 0.22),
-        ),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-           Icon(
-            Icons.verified_rounded,
-            size: 13,
-            color: AppColors.primaryGreen,
-          ),
+          Icon(Icons.verified_rounded, size: 13, color: accent),
           const SizedBox(width: 5),
           Text(
             'VAULT PROTECTED',
             style: AppText.label.copyWith(
-              color: AppColors.primaryGreen,
+              color: accent,
               fontSize: 10.5,
               letterSpacing: 0.8,
             ),
@@ -1369,6 +1413,14 @@ class _ThemeSwatch extends StatelessWidget {
         edge = AppColors.aquaPrimary;
         glyph = const Icon(
           Icons.water_drop_rounded,
+          color: AppColors.aquaPrimary,
+          size: 18,
+        );
+      case ThemeStyle.aquaLight:
+        fill = const Color(0xFFF3F9F9);
+        edge = AppColors.aquaPrimary;
+        glyph = const Icon(
+          Icons.water_drop_outlined,
           color: AppColors.aquaPrimary,
           size: 18,
         );

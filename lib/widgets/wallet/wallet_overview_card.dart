@@ -19,7 +19,7 @@ class WalletOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeStyle = InoStyle.of(context);
     final brand = AppColors.primaryGreen;
-    final brandSecondary = themeStyle == ThemeStyle.aqua
+    final brandSecondary = InoStyle.usesAquaBrand(themeStyle)
         ? AppColors.aquaSecondary
         : AppColors.secondaryGreen;
     final Gradient heroGradient;
@@ -43,6 +43,7 @@ class WalletOverviewCard extends StatelessWidget {
           ],
         );
       case ThemeStyle.aqua:
+      case ThemeStyle.aquaLight:
         heroGradient = const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

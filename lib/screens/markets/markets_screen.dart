@@ -10,9 +10,7 @@ import '../../widgets/dashboard/sparkline.dart';
 import '../../widgets/markets/live_metal_rates_card.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 
-/// Markets - the full list behind the Home "Market Snapshot": gold, silver and
-/// fuel rates with mini trends and change indicators. Rates are indicative
-/// (realistic fallback) until a live pricing feed is connected.
+/// Markets - gold & silver (live) with petrol / diesel fields on the same card.
 class MarketsScreen extends StatelessWidget {
   const MarketsScreen({super.key, required this.quotes});
 
@@ -22,6 +20,15 @@ class MarketsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    // Metals + fuel live on LiveMetalRatesCard; skip duplicates underneath.
+    final extra = quotes.where((q) {
+      final l = q.label.toLowerCase();
+      return !l.contains('gold') &&
+          !l.contains('silver') &&
+          !l.contains('petrol') &&
+          !l.contains('diesel');
+    }).toList();
+
     return SettingsScaffold(
       title: l10n.t('markets'),
       child: ListView(
@@ -32,15 +39,18 @@ class MarketsScreen extends StatelessWidget {
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [
           const LiveMetalRatesCard(),
-          const SizedBox(height: AppSpacing.md),
-          for (final q in quotes) ...[
-            _MarketRow(quote: q),
-            const SizedBox(height: AppSpacing.sm),
+          if (extra.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            for (final q in extra) ...[
+              _MarketRow(quote: q),
+              const SizedBox(height: AppSpacing.sm),
+            ],
           ],
           const SizedBox(height: AppSpacing.xs),
           Text(
             l10n.t('marketsInfoLine'),
-            style: AppText.caption.copyWith(color: palette.textFaint, height: 1.4),
+            style:
+                AppText.caption.copyWith(color: palette.textFaint, height: 1.4),
           ),
         ],
       ),

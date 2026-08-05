@@ -63,13 +63,14 @@ class AppColors {
   static const Color skyBrandMist = _skyMist;
   static const Color skyBrandFoam = _skyFoam;
 
-  /// When true, legacy brand getters resolve to the Aqua teal ladder.
+  /// When true, legacy brand getters resolve to the Aqua teal ladder
+  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaLight]).
   static bool _aquaActive = false;
 
   /// Sync brand getters with the picked [ThemeStyle]. Called from
   /// [ThemeController] on load and whenever the user switches App Theme.
   static void applyStyle(ThemeStyle style) {
-    _aquaActive = style == ThemeStyle.aqua;
+    _aquaActive = InoStyle.usesAquaBrand(style);
   }
 
   /// Primary brand teal - sky #0EA5E9, or aqua #098F90 in Aqua.
@@ -153,7 +154,9 @@ class AppColors {
   static const Color background = Color(0xFFEAF4FC);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF0F172A);
-  static const Color textMuted = Color(0xFF64748B);
+  /// Secondary body / captions. Darker than classic slate-500 so Aqua washes
+  /// don't wash grey copy out (auth + screens still using this const).
+  static const Color textMuted = Color(0xFF3D5266);
 
   // --- Premium gradient system (legacy aliases → AppGradients) ---------------
 
@@ -404,6 +407,8 @@ class AppPalette {
   );
 
   /// Aqua-style light: same layout tokens as classic, washed in teal #098F90.
+  /// Secondary/faint ink is intentionally deep — light slate greys vanish on
+  /// the aqua sky across Home, Profile, wallets and settings.
   static const AppPalette lightAqua = AppPalette(
     brightness: Brightness.light,
     bg: Color(0xFFE6F4F4), // soft aqua wash
@@ -413,12 +418,31 @@ class AppPalette {
     cardBottom: Color(0xFFF0F9F9),
     surfaceVariant: Color(0xFFDFF3F3),
     textPrimary: Color(0xFF0F172A),
-    textSecondary: Color(0xFF64748B),
-    textFaint: Color(0xFF94A3B8),
+    textSecondary: Color(0xFF2A3B4C), // deep slate — readable on aqua
+    textFaint: Color(0xFF445A6C),
     border: Color(0x26098F90),
     shadow: Color(0xFF098F90),
     ambient: Color(0xFF098F90),
     shadowStrength: 1.0,
+  );
+
+  /// Aqua Light: same teal brand + readable ink as Aqua, but a flat solid
+  /// scaffold colour (no sky / aurora gradient behind content).
+  static const AppPalette lightAquaLight = AppPalette(
+    brightness: Brightness.light,
+    bg: Color(0xFFF3F9F9), // flat aqua-white
+    bgElevated: Color(0xFFFFFFFF),
+    surface: Color(0xFFFFFFFF),
+    cardTop: Color(0xFFFFFFFF),
+    cardBottom: Color(0xFFF7FCFC),
+    surfaceVariant: Color(0xFFE8F4F4),
+    textPrimary: Color(0xFF0F172A),
+    textSecondary: Color(0xFF2A3B4C),
+    textFaint: Color(0xFF445A6C),
+    border: Color(0x26098F90),
+    shadow: Color(0xFF098F90),
+    ambient: Color(0xFF098F90),
+    shadowStrength: 0.85,
   );
 
   static const AppPalette dark = AppPalette(
@@ -472,7 +496,7 @@ class AppPalette {
     required ThemeStyle style,
   }) {
     if (brightness == Brightness.dark) {
-      return style == ThemeStyle.aqua ? darkAqua : dark;
+      return InoStyle.usesAquaBrand(style) ? darkAqua : dark;
     }
     switch (style) {
       case ThemeStyle.bold:
@@ -481,6 +505,8 @@ class AppPalette {
         return lightSoft;
       case ThemeStyle.aqua:
         return lightAqua;
+      case ThemeStyle.aquaLight:
+        return lightAquaLight;
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
         return light;
@@ -540,13 +566,13 @@ class AppTheme {
     final isDark = brightness == Brightness.dark;
     final palette = AppPalette.resolve(brightness: brightness, style: style);
     final fontFamily = GoogleFonts.manrope().fontFamily;
-    final isAqua = style == ThemeStyle.aqua;
-    final seed = isAqua ? AppColors.aquaPrimary : AppColors.primaryGreen;
-    final secondary = isAqua ? AppColors.aquaSecondary : AppColors.secondaryGreen;
-    final tertiary = isAqua ? AppColors.aquaSky : AppColors.skyBlue;
-    final pale = isAqua ? AppColors.aquaPale : AppColors.tealPale;
-    final mist = isAqua ? AppColors.aquaMist : AppColors.tealMist;
-    final foam = isAqua ? AppColors.aquaFoam : AppColors.tealFoam;
+    final isAqua = InoStyle.usesAquaBrand(style);
+    final seed = isAqua ? AppColors.aquaPrimary : AppColors._skyPrimary;
+    final secondary = isAqua ? AppColors.aquaSecondary : AppColors._skySecondary;
+    final tertiary = isAqua ? AppColors.aquaSky : AppColors._skySky;
+    final pale = isAqua ? AppColors.aquaPale : AppColors._skyPale;
+    final mist = isAqua ? AppColors.aquaMist : AppColors._skyMist;
+    final foam = isAqua ? AppColors.aquaFoam : AppColors._skyFoam;
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,

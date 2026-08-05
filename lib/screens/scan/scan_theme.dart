@@ -30,7 +30,7 @@ class ScanColors {
 
   /// Text on the light chrome.
   static const Color textPrimary = Color(0xFF0F172A); // slate-900
-  static const Color textSecondary = Color(0xFF64748B); // slate-500
+  static const Color textSecondary = Color(0xFF2A3B4C); // deep slate (Aqua-readable)
 
   /// Primary light-blue gradient used by the capture button & accents.
   static const LinearGradient gradient = LinearGradient(

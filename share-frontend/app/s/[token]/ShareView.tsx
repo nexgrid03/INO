@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
 import ExpiryPill from "@/components/ExpiryPill";
-import { FileTextIcon, ImageIcon, LockIcon, ShieldIcon } from "@/components/icons";
+import {
+  DownloadIcon,
+  EyeIcon,
+  FileTextIcon,
+  LockIcon,
+  ShieldIcon,
+} from "@/components/icons";
 import type { SharedDoc } from "@/lib/config";
 
-// The viewer pulls in pdf.js / zoom libs - load it client-only, on demand.
 const DocViewer = dynamic(() => import("./DocViewer"), {
   ssr: false,
   loading: () => (
@@ -17,11 +22,28 @@ const DocViewer = dynamic(() => import("./DocViewer"), {
   ),
 });
 
-const ICON: Record<string, React.ReactNode> = {
-  pdf: <FileTextIcon />,
-  image: <ImageIcon />,
-  other: <FileTextIcon />,
-};
+function typeBadge(doc: SharedDoc): string {
+  const raw = (doc.type || doc.mime || doc.kind || "FILE").toString();
+  if (raw.includes("/")) {
+    const sub = raw.split("/")[1] ?? raw;
+    return sub.replace(/[^a-z0-9]/gi, "").slice(0, 5).toUpperCase() || "FILE";
+  }
+  return raw.replace(/[^a-z0-9]/gi, "").slice(0, 5).toUpperCase() || "FILE";
+}
+
+function formatSharedAt(): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date());
+  } catch {
+    return "";
+  }
+}
 
 export default function ShareView({
   token,
@@ -33,71 +55,85 @@ export default function ShareView({
   expiresAt: string | null;
 }) {
   const [open, setOpen] = useState<SharedDoc | null>(null);
+  const when = useMemo(() => formatSharedAt(), []);
+  const countLabel = `${documents.length} document${documents.length === 1 ? "" : "s"}`;
 
-  // ── Single document → open it directly (Google-Drive style, no list). ──
-  if (documents.length === 1) {
-    return (
-      <div className="single">
-        <div className="topstrip">
-          <div className="row">
-            <div className="logo-sm">
-              <ShieldIcon />
-            </div>
-            <b>INO</b>
-            <div className="spacer" />
-            <ExpiryPill expiresAt={expiresAt} />
-          </div>
-        </div>
-        <DocViewer token={token} doc={documents[0]} />
-      </div>
-    );
-  }
-
-  // ── Multiple documents → a shared-folder page. ──
   return (
     <>
-      <Brand />
+      <Brand showSecure />
       <div className="wrap">
-        <div className="row">
-          <div>
-            <div className="title">Vault Viewer</div>
-            <div className="subtitle">
-              {documents.length} secure file{documents.length === 1 ? "" : "s"} shared with you
-            </div>
+        <div className="hero">
+          <div className="hero-banner">
+            <h1>Documents shared with you</h1>
+            <p>Review, view and download the files below.</p>
           </div>
-          <div className="spacer" />
-          <ExpiryPill expiresAt={expiresAt} />
+          <div className="hero-body">
+            <div className="hero-count">
+              <FileTextIcon />
+              {countLabel}
+            </div>
+            {expiresAt && (
+              <div className="hero-expiry">
+                <span className="label">Expires in</span>
+                <ExpiryPill expiresAt={expiresAt} compact />
+              </div>
+            )}
+            {when && <div className="hero-meta">{when}</div>}
+          </div>
         </div>
 
-        <div style={{ height: 16 }} />
+        <div className="section-label">Shared documents</div>
 
         {documents.map((d) => (
           <div className="card" key={d.id}>
             <div className="file">
-              <div className="ic">{ICON[d.kind] ?? <FileTextIcon />}</div>
+              <div className="ic" aria-hidden>
+                {typeBadge(d)}
+              </div>
               <div className="meta">
                 <b>{d.name}</b>
-                <span>{d.type}</span>
+                <span>{d.type || typeBadge(d)}</span>
               </div>
-            </div>
-            <div className="acts">
-              <button className="btn primary" onClick={() => setOpen(d)}>
-                Preview
-              </button>
-              <a className="btn ghost" href={`/api/s/${token}/file/${d.id}?mode=download`}>
-                Download
-              </a>
+              <div className="acts">
+                <button
+                  type="button"
+                  className="icon-act view"
+                  aria-label={`View ${d.name}`}
+                  onClick={() => setOpen(d)}
+                >
+                  <EyeIcon />
+                </button>
+                <a
+                  className="icon-act download"
+                  aria-label={`Download ${d.name}`}
+                  href={`/api/s/${token}/file/${d.id}?mode=download`}
+                >
+                  <DownloadIcon />
+                </a>
+              </div>
             </div>
           </div>
         ))}
 
         <div className="foot">
-          <LockIcon /> Shared securely via INO · you can only view these documents
+          <LockIcon />
+          These documents were shared securely via INO. Do not forward this link
+          — it is private and time-limited.
         </div>
       </div>
 
       {open && (
         <div className="overlay">
+          <div className="topstrip">
+            <div className="row">
+              <div className="logo-sm">
+                <ShieldIcon />
+              </div>
+              <b>INO</b>
+              <div className="spacer" />
+              <ExpiryPill expiresAt={expiresAt} />
+            </div>
+          </div>
           <DocViewer token={token} doc={open} onBack={() => setOpen(null)} />
         </div>
       )}

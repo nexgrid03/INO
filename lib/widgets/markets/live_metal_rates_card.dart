@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../models/metal_rates.dart';
 import '../../providers/metal_rates_provider.dart';
+import '../../services/fuel_rates_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../dashboard/ino_card.dart';
 import '../pressable_scale.dart';
 
-/// The LIVE Gold & Silver rates card.
+/// Live Gold & Silver rates plus user-entered Petrol & Diesel (₹/litre).
 ///
-/// Self-contained: it drives itself from the app-wide [MetalRatesProvider]
-/// singleton (starting the 15-min auto-refresh + background refresh on first
-/// mount) and rebuilds via [ListenableBuilder]. Handles every state - loading,
-/// loaded, offline (last-known values) and error - and offers a manual refresh.
+/// Metals come from [MetalRatesProvider]. Fuel is typed in when needed and
+/// persisted on-device via [FuelRatesStore].
 class LiveMetalRatesCard extends StatefulWidget {
   const LiveMetalRatesCard({super.key});
 
@@ -23,8 +22,13 @@ class LiveMetalRatesCard extends StatefulWidget {
 class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     with SingleTickerProviderStateMixin {
   final MetalRatesProvider _provider = MetalRatesProvider.instance;
+  final FuelRatesStore _fuel = FuelRatesStore.instance;
 
-  // Gentle pulse for the "LIVE" dot.
+  late final TextEditingController _petrol;
+  late final TextEditingController _diesel;
+  final _petrolFocus = FocusNode();
+  final _dieselFocus = FocusNode();
+
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -33,12 +37,54 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
   @override
   void initState() {
     super.initState();
-    // Idempotent - safe to call on every mount.
+    _petrol = TextEditingController();
+    _diesel = TextEditingController();
     _provider.ensureStarted();
+    _fuel.ensureLoaded().then((_) {
+      if (mounted) _syncFuelFields();
+    });
+    _fuel.addListener(_syncFuelFields);
+    _petrolFocus.addListener(() {
+      if (!_petrolFocus.hasFocus) _fuel.setPetrol(_parseFuel(_petrol.text));
+    });
+    _dieselFocus.addListener(() {
+      if (!_dieselFocus.hasFocus) _fuel.setDiesel(_parseFuel(_diesel.text));
+    });
+  }
+
+  void _syncFuelFields() {
+    if (!mounted) return;
+    if (!_petrolFocus.hasFocus) {
+      final v = _fuel.petrolPerLitre;
+      final text = v == null ? '' : _fmtFuel(v);
+      if (_petrol.text != text) _petrol.text = text;
+    }
+    if (!_dieselFocus.hasFocus) {
+      final v = _fuel.dieselPerLitre;
+      final text = v == null ? '' : _fmtFuel(v);
+      if (_diesel.text != text) _diesel.text = text;
+    }
+    setState(() {});
+  }
+
+  static String _fmtFuel(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.endsWith('00') ? v.toStringAsFixed(0) : s;
+  }
+
+  static double? _parseFuel(String raw) {
+    final t = raw.trim().replaceAll(',', '');
+    if (t.isEmpty) return null;
+    return double.tryParse(t);
   }
 
   @override
   void dispose() {
+    _fuel.removeListener(_syncFuelFields);
+    _petrol.dispose();
+    _diesel.dispose();
+    _petrolFocus.dispose();
+    _dieselFocus.dispose();
     _pulse.dispose();
     super.dispose();
   }
@@ -57,6 +103,8 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
               _header(context, p),
               const SizedBox(height: AppSpacing.md),
               _body(context, p),
+              const SizedBox(height: AppSpacing.md),
+              _fuelSection(context),
             ],
           ),
         );
@@ -64,7 +112,36 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     );
   }
 
-  // ---- Header: LIVE/OFFLINE badge · title · refresh ------------------------
+  Widget _fuelSection(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _FuelTile(
+            name: 'Petrol',
+            subtitle: '₹/L',
+            icon: Icons.local_gas_station_rounded,
+            color: AppColors.primaryGreen,
+            controller: _petrol,
+            focusNode: _petrolFocus,
+            onSubmit: (v) => _fuel.setPetrol(_parseFuel(v)),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FuelTile(
+            name: 'Diesel',
+            subtitle: '₹/L',
+            icon: Icons.oil_barrel_rounded,
+            color: AppColors.skyBlue,
+            controller: _diesel,
+            focusNode: _dieselFocus,
+            onSubmit: (v) => _fuel.setDiesel(_parseFuel(v)),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _header(BuildContext context, MetalRatesProvider p) {
     final palette = AppPalette.of(context);
@@ -75,7 +152,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
         const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
-            'Precious Metals',
+            'Market rates',
             style: AppText.subtitle.copyWith(
               color: palette.textPrimary,
               fontSize: 15,
@@ -155,14 +232,10 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     );
   }
 
-  // ---- Body: state machine -------------------------------------------------
-
   Widget _body(BuildContext context, MetalRatesProvider p) {
-    // First load, nothing cached yet.
     if (!p.hasData && p.status == MetalRatesStatus.loading) {
       return _loading(context);
     }
-    // Hard error with no data to fall back to.
     if (!p.hasData && p.status == MetalRatesStatus.error) {
       return _errorState(context, p);
     }
@@ -197,12 +270,12 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        _footer(context, p, rates),
+        _footer(context, p),
       ],
     );
   }
 
-  Widget _footer(BuildContext context, MetalRatesProvider p, MetalRates rates) {
+  Widget _footer(BuildContext context, MetalRatesProvider p) {
     final palette = AppPalette.of(context);
     final updated = p.lastUpdated;
     return Row(
@@ -294,9 +367,6 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     );
   }
 
-  // ---- Formatting ----------------------------------------------------------
-
-  /// ₹ with 2 decimals and Indian digit grouping, e.g. 7032.5 → "₹7,032.50".
   static String _inr(double value) {
     final fixed = value.toStringAsFixed(2);
     final dot = fixed.indexOf('.');
@@ -318,13 +388,149 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard>
     return '${groups.join(',')},$last3';
   }
 
-  /// 24-hour → "11:42 AM".
   static String _fmtTime(DateTime dt) {
     final h24 = dt.hour;
     final h = h24 % 12 == 0 ? 12 : h24 % 12;
     final m = dt.minute.toString().padLeft(2, '0');
     final ap = h24 < 12 ? 'AM' : 'PM';
     return '$h:$m $ap';
+  }
+}
+
+class _FuelTile extends StatelessWidget {
+  const _FuelTile({
+    required this.name,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.controller,
+    required this.focusNode,
+    required this.onSubmit,
+  });
+
+  final String name;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final fill = palette.isDark ? palette.surface : Colors.white;
+    // Same chrome as [_MetalTile] — icon + name + subtitle, then a styled
+    // input where the live price would sit.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: palette.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 12, color: color),
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                subtitle,
+                style: AppText.label.copyWith(
+                  color: palette.textFaint,
+                  fontSize: 10.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            focusNode: focusNode,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            style: AppText.headline.copyWith(
+              color: palette.textPrimary,
+              fontSize: 18,
+              letterSpacing: -0.3,
+              fontWeight: FontWeight.w800,
+            ),
+            onEditingComplete: () {
+              onSubmit(controller.text);
+              focusNode.unfocus();
+            },
+            onSubmitted: (v) {
+              onSubmit(v);
+              focusNode.unfocus();
+            },
+            decoration: InputDecoration(
+              hintText: '0.00',
+              hintStyle: AppText.headline.copyWith(
+                color: palette.textFaint,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              prefixText: '₹ ',
+              prefixStyle: AppText.subtitle.copyWith(
+                color: palette.textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+              isDense: true,
+              filled: true,
+              fillColor: fill,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: palette.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: palette.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: color, width: 1.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'per litre',
+            style: AppText.caption.copyWith(
+              color: palette.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -433,14 +639,14 @@ class _RefreshButton extends StatelessWidget {
             width: 36,
             height: 36,
             child: spinning
-                ?  Padding(
-                    padding: EdgeInsets.all(9),
+                ? Padding(
+                    padding: const EdgeInsets.all(9),
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
                       color: AppColors.primaryGreen,
                     ),
                   )
-                :  Icon(
+                : Icon(
                     Icons.refresh_rounded,
                     size: 19,
                     color: AppColors.primaryGreen,
@@ -452,7 +658,6 @@ class _RefreshButton extends StatelessWidget {
   }
 }
 
-/// A softly pulsing placeholder tile shown during the first load.
 class _ShimmerTile extends StatelessWidget {
   const _ShimmerTile({required this.pulse});
 

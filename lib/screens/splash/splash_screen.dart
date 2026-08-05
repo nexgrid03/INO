@@ -152,6 +152,7 @@ class _SplashScreenState extends State<SplashScreen>
     final shieldSize =
         (size.shortestSide * 0.68).clamp(240.0, 340.0).toDouble();
 
+    final flat = InoStyle.usesFlatBackdrop(context);
     final gradient = palette.isDark
         ? LinearGradient(
             begin: Alignment.topCenter,
@@ -162,20 +163,25 @@ class _SplashScreenState extends State<SplashScreen>
               palette.bgElevated,
             ],
           )
-        : LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.tealFoam,
-              AppColors.tealMist,
-              Color.lerp(AppColors.tealMist, brand, 0.08)!,
-            ],
-          );
+        : flat
+            ? null
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.tealFoam,
+                  AppColors.tealMist,
+                  Color.lerp(AppColors.tealMist, brand, 0.08)!,
+                ],
+              );
 
     return Scaffold(
       backgroundColor: palette.bg,
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: gradient),
+        decoration: BoxDecoration(
+          color: flat && !palette.isDark ? palette.bg : null,
+          gradient: gradient,
+        ),
         child: SafeArea(
           child: AnimatedBuilder(
             animation: Listenable.merge([_c, _float]),

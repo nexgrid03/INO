@@ -9,6 +9,7 @@ import '../../repositories/user_repository.dart';
 import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
 import '../auth/signup_screen.dart';
@@ -130,28 +131,29 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final flat = InoStyle.usesFlatBackdrop(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         child: Stack(
         children: [
-          // Soft ambient colour washes - teal top-right, cyan bottom-left, a
-          // whisper of purple behind the lock so the scene isn't monochrome.
-           Positioned(
-            top: -120,
-            right: -100,
-            child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
-          ),
-           Positioned(
-            bottom: -110,
-            left: -90,
-            child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
-          ),
-          const Positioned(
-            top: 190,
-            left: -60,
-            child: _AmbientBlob(color: Color(0xFF9B6DE0), size: 220),
-          ),
+          if (!flat) ...[
+            Positioned(
+              top: -120,
+              right: -100,
+              child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
+            ),
+            Positioned(
+              bottom: -110,
+              left: -90,
+              child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
+            ),
+            const Positioned(
+              top: 190,
+              left: -60,
+              child: _AmbientBlob(color: Color(0xFF9B6DE0), size: 220),
+            ),
+          ],
 
           SafeArea(
             minimum: const EdgeInsets.only(

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
-/// Property & Finance Tools grid for Launcher (SVG glass tiles).
+/// Property & Finance Tools grid for Launcher (soft-3D PNG glass tiles).
 ///
 /// Uses explicit tile widths from [LayoutBuilder] so three-across rows never
 /// overflow / clip the last tile (e.g. SIP Calc) on phone widths.
@@ -32,42 +33,40 @@ class LauncherFinanceTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // Clear Material glyphs as primary (SVGs kept as fallback accents via
-    // tinted stroke assets). Stamp/Unit/Tax SVGs were easy to misread.
     final tools = [
       (
         label: l10n.t('areaCalc'),
-        icon: Icons.square_foot_rounded,
+        image: InoHomeIcons3d.finArea,
         accent: AppColors.primaryGreen,
         onTap: onOpenArea,
       ),
       (
         label: l10n.t('emiCalc'),
-        icon: Icons.calendar_month_rounded,
+        image: InoHomeIcons3d.finEmi,
         accent: AppColors.accentIndigo,
         onTap: onOpenEmi,
       ),
       (
         label: l10n.t('sipCalc'),
-        icon: Icons.trending_up_rounded,
+        image: InoHomeIcons3d.finSip,
         accent: AppColors.accentViolet,
         onTap: onOpenSip,
       ),
       (
         label: l10n.t('stampDuty'),
-        icon: Icons.verified_rounded,
+        image: InoHomeIcons3d.finStamp,
         accent: AppColors.accentAmber,
         onTap: onOpenStampDuty,
       ),
       (
         label: l10n.t('unitConv'),
-        icon: Icons.swap_horiz_rounded,
+        image: InoHomeIcons3d.finUnit,
         accent: AppColors.accentCyan,
         onTap: onOpenUnitConv,
       ),
       (
         label: l10n.t('taxCalc'),
-        icon: Icons.percent_rounded,
+        image: InoHomeIcons3d.finTax,
         accent: AppColors.accentEmerald,
         onTap: onOpenTax,
       ),
@@ -76,7 +75,6 @@ class LauncherFinanceTools extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        // Respect breakpoints: 2-across on small phones so tiles stay readable.
         final perRow = context.toolsColumns.clamp(2, 3);
         final tileW = ((width - _gap * (perRow - 1)) / perRow)
             .clamp(0.0, width)
@@ -97,7 +95,7 @@ class LauncherFinanceTools extends StatelessWidget {
                     width: tileW,
                     child: LauncherGlassIconTile(
                       label: slice[j].label,
-                      icon: slice[j].icon,
+                      imageAsset: slice[j].image,
                       accent: slice[j].accent,
                       onTap: slice[j].onTap,
                     ),

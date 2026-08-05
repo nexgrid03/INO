@@ -117,16 +117,17 @@ class _AuthScaffoldState extends State<AuthScaffold>
           )
         : Padding(padding: widget.padding, child: content);
 
+    final flat = InoStyle.usesFlatBackdrop(context);
+
     return Scaffold(
       // Let the backdrop sit behind the keyboard rather than resizing abruptly.
       resizeToAvoidBottomInset: true,
       backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // App-wide hero-sky wash (matches InoBackground): the full brand
-          // skyBlue at the top melting to the pale base past mid-screen
-          // (light mode only; dark keeps its deep palette bg).
-          if (!palette.isDark)
+          // Flat Aqua Light: solid wash only. Other light themes keep the
+          // hero-sky gradient + ambient blobs.
+          if (!palette.isDark && !flat)
             Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
@@ -146,20 +147,19 @@ class _AuthScaffoldState extends State<AuthScaffold>
                 ),
               ),
             ),
-          // Ambient corner glows - a cyan wash bleeding in from the top-left
-          // and a teal wash from the bottom-right, both fading into the
-          // scaffold background. Works over the light AND dark palettes.
-           Positioned(
-            top: -170,
-            left: -130,
-            child: _AmbientBlob(color: AppColors.lightBlue, size: 400),
-          ),
-           Positioned(
-            bottom: -190,
-            right: -150,
-            child: _AmbientBlob(color: AppColors.primaryGreen, size: 460),
-          ),
-          Positioned.fill(child: FloatingParticles(animation: _particles)),
+          if (!flat) ...[
+            Positioned(
+              top: -170,
+              left: -130,
+              child: _AmbientBlob(color: AppColors.lightBlue, size: 400),
+            ),
+            Positioned(
+              bottom: -190,
+              right: -150,
+              child: _AmbientBlob(color: AppColors.primaryGreen, size: 460),
+            ),
+            Positioned.fill(child: FloatingParticles(animation: _particles)),
+          ],
 
           SafeArea(
             minimum: const EdgeInsets.only(bottom: 16),

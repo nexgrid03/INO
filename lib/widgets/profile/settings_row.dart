@@ -22,10 +22,14 @@ class SettingsRow extends StatelessWidget {
     this.onTap,
     this.danger = false,
     this.showChevron = true,
+    this.accent,
   });
 
   final IconData icon;
   final String title;
+
+  /// Optional badge colour (e.g. per-account avatar hue). Falls back to brand.
+  final Color? accent;
 
   /// An optional one-line explainer under the title (muted caption).
   final String? subtitle;
@@ -80,23 +84,36 @@ class SettingsRow extends StatelessWidget {
           : null;
     }
 
+    final Color? badgeAccent = danger ? null : accent;
+    final Gradient? badgeGradient = danger
+        ? null
+        : (badgeAccent != null
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  badgeAccent,
+                  Color.lerp(badgeAccent, const Color(0xFF0F172A), 0.28)!,
+                ],
+              )
+            : AppColors.brandGradient);
+
     final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          // A solid brand-gradient squircle with a white glyph - matches the
-          // Home quick-action circles so the whole app reads as one system.
-          // Destructive rows flip the fill to red.
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: danger ? null : AppColors.brandGradient,
+              gradient: badgeGradient,
               color: danger ? AppColors.critical : null,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: (danger ? AppColors.critical : AppColors.primaryGreen)
+                  color: (danger
+                          ? AppColors.critical
+                          : (badgeAccent ?? AppColors.primaryGreen))
                       .withValues(alpha: 0.26),
                   blurRadius: 10,
                   offset: const Offset(0, 4),

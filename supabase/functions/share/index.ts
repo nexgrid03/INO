@@ -44,8 +44,8 @@ const BUCKET = "documents";
 const SIGNED_URL_TTL = 60;
 
 // Brand palette (INO green + blue).
-const GREEN = "#00E676";
-const BLUE = "#29B6F6";
+const GREEN = "#098F90";
+const BLUE = "#2BA8A9";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -715,13 +715,15 @@ function shell(bodyInner: string, headExtra = ""): string {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
+<meta name="theme-color" content="${GREEN}"/>
 <title>INO - Shared Documents</title>
 <style>
-  :root{--green:${GREEN};--blue:${BLUE};}
+  :root{--brand:${GREEN};--brand-2:${BLUE};--muted:#3d5266;--faint:#5a6f82;--text:#0f172a;--hairline:rgba(9,143,144,.16)}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       color:#0f172a;background:#f1f5f9;min-height:100vh;-webkit-font-smoothing:antialiased}
-  .top{background:linear-gradient(135deg,var(--green),var(--blue));padding:20px 16px 44px}
+       color:var(--text);background:linear-gradient(180deg,#b3e0e0 0%,#dff3f3 42%,#e6f4f4 100%) fixed;
+       min-height:100vh;-webkit-font-smoothing:antialiased}
+  .top{background:linear-gradient(135deg,var(--brand),var(--brand-2));padding:20px 16px 44px}
   .top-in{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:12px}
   .logo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.22);
         display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:20px;
@@ -732,37 +734,37 @@ function shell(bodyInner: string, headExtra = ""): string {
   .head{margin:0 2px 16px}
   .head h1{font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:8px}
   .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .count{font-size:13.5px;color:#475569;font-weight:600}
-  .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(0,230,118,.12);
-        color:#047857;border:1px solid rgba(0,230,118,.35);border-radius:999px;
+  .count{font-size:13.5px;color:var(--muted);font-weight:600}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(9,143,144,.12);
+        color:var(--brand);border:1px solid rgba(9,143,144,.28);border-radius:999px;
         padding:5px 11px;font-size:12.5px;font-weight:700}
-  .card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:16px;margin-bottom:12px;
-        box-shadow:0 6px 20px rgba(2,32,71,.06)}
+  .card{background:#fff;border:1px solid var(--hairline);border-radius:18px;padding:16px;margin-bottom:12px;
+        box-shadow:0 8px 28px rgba(9,143,144,.1)}
   .row{display:flex;align-items:center;gap:13px}
   .ic{width:46px;height:46px;flex:0 0 auto;border-radius:13px;
-      background:linear-gradient(135deg,var(--green),var(--blue));
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
       display:flex;align-items:center;justify-content:center;font-size:22px}
   .info{min-width:0;flex:1}
   .info b{display:block;font-size:15.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .info span{font-size:12.5px;color:#64748b}
+  .info span{font-size:12.5px;color:var(--muted)}
   .acts{display:flex;gap:10px;margin-top:14px}
   .btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;
        height:44px;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent}
   .btn svg{width:17px;height:17px}
-  .btn.primary,.view{background:linear-gradient(135deg,var(--green),var(--blue));color:#fff}
-  .btn.ghost,.dl{background:#fff;border-color:rgba(14,165,233,.35);color:#0284c7}
-  .foot{max-width:680px;margin:24px auto 0;text-align:center;color:#94a3b8;font-size:12px;
-        display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn.primary,.view{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+  .btn.ghost,.dl{background:#fff;border-color:rgba(9,143,144,.28);color:var(--brand)}
+  .foot{max-width:680px;margin:24px auto 0;text-align:center;color:var(--muted);font-size:12.5px;
+        display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600}
   .state{max-width:520px;margin:8vh auto 0;padding:0 24px;text-align:center}
   .state .circle{width:96px;height:96px;border-radius:50%;margin:0 auto 20px;
                  display:flex;align-items:center;justify-content:center;font-size:44px}
   .state h2{font-size:22px;font-weight:800;margin-bottom:8px}
-  .state p{color:#64748b;font-size:14.5px;line-height:1.5}
+  .state p{color:var(--muted);font-size:14.5px;line-height:1.5}
   @media (prefers-color-scheme:dark){
-    body{background:#0b1220;color:#e8eef2}
-    .card{background:#111a2e;border-color:#1e293b;box-shadow:none}
-    .dl{background:#111a2e;border-color:#334155;color:#e8eef2}
-    .count{color:#94a3b8}.info span{color:#94a3b8}.state p{color:#94a3b8}
+    body{background:#0a1926;color:#edf5fb}
+    .card{background:#13293a;border-color:rgba(9,143,144,.28);box-shadow:none}
+    .dl{background:#13293a;border-color:rgba(9,143,144,.35);color:#edf5fb}
+    .count,.info span,.state p,.foot{color:#a8c2d6}
   }
 </style>${headExtra}</head><body>${bodyInner}</body></html>`;
 }

@@ -6,6 +6,7 @@ import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../navigation/wallet_module_router.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
@@ -261,8 +262,8 @@ class _WalletBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    if (palette.isDark) {
-      return Container(color: palette.bg, child: child);
+    if (palette.isDark || InoStyle.usesFlatBackdrop(context)) {
+      return ColoredBox(color: palette.bg, child: child);
     }
     return Container(
       decoration: BoxDecoration(

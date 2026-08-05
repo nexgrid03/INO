@@ -4,17 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
+import '../../theme/avatar_color.dart';
 import '../common/liquid_glass.dart';
 import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
 /// Section 1 - the personalised welcome bar.
 ///
-/// Left: a gradient avatar (initials) + a time-aware greeting and the brand
-/// "welcome back" line. Right: global search, a notification bell with an
-/// unread dot, and a light/dark theme toggle. A speaker chip plays a single
-/// gentle pulse on first build to stand in for the spoken greeting.
+/// Left: a per-user coloured avatar (same [AvatarColor] as Profile) + greeting.
+/// Right: notifications / help / theme controls.
 class WelcomeHeader extends StatefulWidget {
   const WelcomeHeader({
     super.key,
@@ -22,6 +20,7 @@ class WelcomeHeader extends StatefulWidget {
     required this.onNotifications,
     this.onProfile,
     this.photoUrl,
+    this.email,
     this.notificationCount = 0,
     this.voiceButtonKey,
     this.launcherStyle = false,
@@ -40,6 +39,9 @@ class WelcomeHeader extends StatefulWidget {
 
   /// Optional profile photo; falls back to gradient initials when null/empty.
   final String? photoUrl;
+
+  /// Used for stable per-user avatar colour (matches Profile).
+  final String? email;
 
   final int notificationCount;
 
@@ -83,6 +85,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
     ),
   );
 
+  String get _colorSeed {
+    final email = widget.email?.trim() ?? '';
+    if (email.isNotEmpty) return email;
+    final name = widget.fullName.trim();
+    return name.isEmpty ? 'ino' : name;
+  }
+
   String _greeting(AppLocalizations l10n) {
     final h = DateTime.now().hour;
     if (h < 5) return l10n.t('greetingNight');
@@ -102,11 +111,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final accent = AvatarColor.forKey(_colorSeed);
+    final accentGrad = AvatarColor.gradientFor(_colorSeed);
 
     return Row(
       children: [
         // Avatar with a soft pulsing halo (the "voice greeting" cue). Tapping it
-        // opens the Profile page.
+        // opens the Profile page. Colour matches Profile (per-user AvatarColor).
         PressableScale(
           pressedScale: 0.92,
           child: GestureDetector(
@@ -125,7 +136,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryGreen.withValues(
+                          color: accent.withValues(
                             alpha: (dark ? 0.16 : 0.35) * ring,
                           ),
                           blurRadius: dark ? 10 : 18,
@@ -136,15 +147,13 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                     child: child,
                   );
                 },
-                // Ringed avatar: a soft brand ring with a small gap around the
-                // gradient disc (the premium profile treatment).
                 child: Container(
                   padding: const EdgeInsets.all(2.5),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppColors.primaryGreen.withValues(
-                        alpha: AppPalette.of(context).isDark ? 0.22 : 0.30,
+                      color: accent.withValues(
+                        alpha: AppPalette.of(context).isDark ? 0.28 : 0.35,
                       ),
                       width: 2,
                     ),
@@ -154,7 +163,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                     height: 48,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: InoStyle.gradient(context, AppColors.brandGradient),
+                      gradient: accentGrad,
                     ),
                     alignment: Alignment.center,
                     clipBehavior: Clip.antiAlias,

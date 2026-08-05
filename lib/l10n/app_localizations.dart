@@ -156,6 +156,10 @@ const Map<String, Map<String, String>> _strings = {
     'themeAqua': 'Aqua',
     'themeAquaDesc':
         'Launcher layout with teal glass chrome',
+    'themeAquaLight': 'Aqua Light',
+    'themeAquaLightDesc':
+        'Same teal look as Aqua, with a flat background (no gradient wash)',
+    'offline': 'Offline',
     'vaultFullyProtected': 'Your Vault is 100% Protected',
     'viewCalendar': 'View Calendar',
     'dueSoon': 'Due Soon',

@@ -36,28 +36,28 @@ class MyVaultsRow extends StatelessWidget {
       (
         label: l10n.t('identity'),
         count: identityCount,
-        svg: InoHomeIcons.identity,
+        image: InoHomeIcons3d.identity,
         accent: AppColors.vaultIdentity,
         onTap: onIdentity,
       ),
       (
         label: l10n.t('property'),
         count: propertyCount,
-        svg: InoHomeIcons.property,
+        image: InoHomeIcons3d.property,
         accent: AppColors.vaultProperty,
         onTap: onProperty,
       ),
       (
         label: l10n.t('investments'),
         count: investmentCount,
-        svg: InoHomeIcons.investments,
+        image: InoHomeIcons3d.investments,
         accent: AppColors.vaultInvestments,
         onTap: onInvestments,
       ),
       (
         label: l10n.t('cards'),
         count: cardsCount,
-        svg: InoHomeIcons.cards,
+        image: InoHomeIcons3d.cards,
         accent: AppColors.vaultCards,
         onTap: onCards,
       ),
@@ -66,7 +66,7 @@ class MyVaultsRow extends StatelessWidget {
     Widget tile(int i) => LauncherGlassIconTile(
           label: items[i].label,
           count: items[i].count,
-          svgAsset: items[i].svg,
+          imageAsset: items[i].image,
           accent: items[i].accent,
           onTap: items[i].onTap,
         );

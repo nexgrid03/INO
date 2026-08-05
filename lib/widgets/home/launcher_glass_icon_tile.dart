@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
 /// Shared PhonePe-style launcher tile:
-/// same neutral glass box for every item → large coloured icon →
-/// optional count badge on the top-right → label under the box.
+/// same neutral glass box → centred 3D/SVG/icon → count badge on the corner.
 ///
-/// Never uses [BackdropFilter] — dense Home grids must stay smooth on
-/// Flutter web (blur-per-tile caused blank content + severe lag).
+/// Top inset leaves room for the badge so it is never clipped by the section
+/// above. **Aqua Light** uses a milkier frosted plate + rim so tiles stay
+/// readable on the flat solid backdrop.
 class LauncherGlassIconTile extends StatelessWidget {
   const LauncherGlassIconTile({
     super.key,
@@ -19,22 +20,81 @@ class LauncherGlassIconTile extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.svgAsset,
+    this.imageAsset,
     this.count,
-  }) : assert(icon != null || svgAsset != null, 'Provide icon or svgAsset');
+  }) : assert(
+          icon != null || svgAsset != null || imageAsset != null,
+          'Provide icon, svgAsset, or imageAsset',
+        );
 
   final String label;
   final Color accent;
   final VoidCallback onTap;
   final IconData? icon;
   final String? svgAsset;
-
-  /// Shown as a corner badge when non-null.
+  final String? imageAsset;
   final int? count;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
+    final flat = InoStyle.usesFlatBackdrop(context);
+
+    // Flat Aqua Light: opaque glass + rim + lift so tiles stay readable.
+    final frost = flat ? 1.35 : (dark ? 1.2 : 0.72);
+    // Tighter inset so 3D glyphs read larger inside the plate.
+    const iconPad = 6.0;
+    final plate = LiquidGlass(
+      borderRadius: BorderRadius.circular(20),
+      enableBlur: flat,
+      blur: flat ? 18 : 20,
+      frost: frost,
+      shadow: flat,
+      padding: const EdgeInsets.all(iconPad),
+      child: imageAsset != null
+          ? Image.asset(
+              imageAsset!,
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+              filterQuality: FilterQuality.high,
+              gaplessPlayback: true,
+            )
+          : Center(
+              child: svgAsset != null
+                  ? InoSvgIcon(
+                      svgAsset!,
+                      size: 50,
+                      color: accent,
+                    )
+                  : Icon(icon, color: accent, size: 50),
+            ),
+    );
+
+    final tile = flat
+        ? DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.85),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.10),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: plate,
+          )
+        : plate;
 
     return PressableScale(
       pressedScale: 0.96,
@@ -44,46 +104,27 @@ class LauncherGlassIconTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: LiquidGlass(
-                      borderRadius: BorderRadius.circular(20),
-                      enableBlur: false,
-                      frost: dark ? 1.2 : 0.72,
-                      shadow: false,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Finance / vault tiles: icon owns most of the cell.
-                          final glyph =
-                              (constraints.biggest.shortestSide * 0.70)
-                                  .clamp(40.0, 60.0);
-                          if (svgAsset != null) {
-                            return Center(
-                              child: InoSvgIcon(
-                                svgAsset!,
-                                size: glyph,
-                                color: accent,
-                              ),
-                            );
-                          }
-                          return Center(
-                            child: Icon(icon, color: accent, size: glyph),
-                          );
-                        },
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned.fill(child: tile),
+                    if (count != null)
+                      Positioned(
+                        top: -8,
+                        right: -4,
+                        child: _Badge(
+                          count: count!,
+                          accent: accent,
+                          dark: dark,
+                        ),
                       ),
-                    ),
-                  ),
-                  if (count != null)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: _Badge(count: count!, accent: accent, dark: dark),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),

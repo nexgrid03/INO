@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../../widgets/floating_particles.dart';
 import '../../widgets/pressable_scale.dart';
 import 'floating_satellites.dart';
@@ -171,12 +172,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final flat = InoStyle.usesFlatBackdrop(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: Stack(
         children: [
-          // Soft brand wash (light mode) — follows Aqua / Sky via AppColors.
-          if (!palette.isDark)
+          // Soft brand wash — skipped on Aqua Light (flat solid bg).
+          if (!palette.isDark && !flat)
             Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
@@ -196,21 +198,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
             ),
-          // Full-bleed soft gradient wash (Stitch "gradient mesh"): one warm
-          // teal bloom top-right, one cyan bloom bottom-left.
-           Positioned(
-            top: -120,
-            right: -90,
-            child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
-          ),
-           Positioned(
-            bottom: -140,
-            left: -110,
-            child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
-          ),
-
-          // Subtle floating shapes behind everything.
-          Positioned.fill(child: FloatingParticles(animation: _particles)),
+          if (!flat) ...[
+            Positioned(
+              top: -120,
+              right: -90,
+              child: _AmbientBlob(color: AppColors.primaryGreen, size: 340),
+            ),
+            Positioned(
+              bottom: -140,
+              left: -110,
+              child: _AmbientBlob(color: AppColors.lightBlue, size: 320),
+            ),
+            Positioned.fill(child: FloatingParticles(animation: _particles)),
+          ],
 
           SafeArea(
             minimum: const EdgeInsets.only(

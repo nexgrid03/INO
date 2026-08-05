@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
@@ -11,8 +12,8 @@ import 'launcher_glass_icon_tile.dart';
 
 /// The Home hero block, replicating the reference vault layout:
 ///
-///   1. A luminous glass hero card - static lock badge on the left, an
-///      eyebrow / headline / subtitle column with a gradient CTA on the
+///   1. A luminous glass hero card - digital-identity illustration on the left,
+///      an eyebrow / headline / subtitle column with a gradient CTA on the
 ///      right ("Your Vault is … / View Documents →").
 ///   2. A strip of four compact summary tiles beneath it (label on top, big
 ///      count + icon chip below) - the reference "Reminders" tile alignment.
@@ -195,7 +196,7 @@ class _DashboardCardState extends State<DashboardCard>
               builder: (context, constraints) {
                 // Shrink mascot on narrow phones so headline/CTA stay usable.
                 final mascotW =
-                    (constraints.maxWidth * 0.34).clamp(88.0, 124.0);
+                    (constraints.maxWidth * 0.38).clamp(100.0, 140.0);
                 final titleSize =
                     constraints.maxWidth < 280 ? 18.0 : 22.0;
                 return IntrinsicHeight(
@@ -204,12 +205,7 @@ class _DashboardCardState extends State<DashboardCard>
                     children: [
                       SizedBox(
                         width: mascotW,
-                        child: Center(
-                          child: Transform.scale(
-                            scale: mascotW / 124 * 2.1,
-                            child: const _MascotBadge(),
-                          ),
-                        ),
+                        child: const Center(child: _MascotBadge()),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -318,33 +314,25 @@ class _HeroCta extends StatelessWidget {
   }
 }
 
-/// Static lock badge for the hero header (no float / pulse).
+/// Hero visual — digital-identity illustration with transparent backdrop
+/// so it blends into the aqua / glass hero wash.
 class _MascotBadge extends StatelessWidget {
   const _MascotBadge();
 
+  static const _asset = 'assets/home/hero_digital_id.png';
+
   @override
   Widget build(BuildContext context) {
-    final dark = AppPalette.of(context).isDark;
-    return SizedBox(
-      width: 54,
-      height: 54,
-      child: Center(
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: AppColors.brandGradient,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: dark ? 0.35 : 0.55),
-              width: 1.5,
-            ),
-          ),
-          child: const Icon(
-            Icons.lock_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
+    return AspectRatio(
+      aspectRatio: 601 / 521,
+      child: Image.asset(
+        _asset,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, error, stackTrace) => Icon(
+          Icons.shield_rounded,
+          color: AppColors.primaryGreen,
+          size: 48,
         ),
       ),
     );
@@ -392,6 +380,7 @@ class HomeSummaryStrip extends StatelessWidget {
             label: l10n.t('pending'),
             value: pendingCount,
             icon: Icons.pending_actions_rounded,
+            image: InoHomeIcons3d.attnPending,
             accent: AppColors.accentCoral,
             onTap: onPending ?? onRemindersToday,
           )
@@ -399,6 +388,7 @@ class HomeSummaryStrip extends StatelessWidget {
             label: l10n.t('reminders'),
             value: remindersToday,
             icon: Icons.alarm_rounded,
+            image: InoHomeIcons3d.attnPending,
             accent: AppColors.accentCoral,
             onTap: onRemindersToday,
           );
@@ -407,6 +397,7 @@ class HomeSummaryStrip extends StatelessWidget {
       String label,
       int value,
       IconData icon,
+      String image,
       Color accent,
       VoidCallback? onTap,
     })>[
@@ -414,6 +405,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('expiring'),
         value: documentsExpiring,
         icon: Icons.warning_amber_rounded,
+        image: InoHomeIcons3d.attnExpiring,
         accent: AppColors.warning,
         onTap: onDocumentsExpiring,
       ),
@@ -421,6 +413,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('emiDue'),
         value: emiDue,
         icon: Icons.account_balance_wallet_rounded,
+        image: InoHomeIcons3d.attnEmi,
         accent: AppColors.accentBlue,
         onTap: onEmiDues,
       ),
@@ -429,6 +422,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('insurance'),
         value: insuranceRenewals,
         icon: Icons.shield_rounded,
+        image: InoHomeIcons3d.attnInsurance,
         accent: AppColors.vaultIdentity,
         onTap: onInsuranceRenewals,
       ),
@@ -441,7 +435,7 @@ class HomeSummaryStrip extends StatelessWidget {
       Widget tile(int i) => LauncherGlassIconTile(
             label: tiles[i].label,
             count: tiles[i].value,
-            icon: tiles[i].icon,
+            imageAsset: tiles[i].image,
             accent: tiles[i].accent,
             onTap: tiles[i].onTap ?? () {},
           );

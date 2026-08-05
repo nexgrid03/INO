@@ -430,6 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
         listenable: NotificationCenter.instance,
         builder: (context, _) => WelcomeHeader(
           fullName: widget.profile.fullName,
+          email: widget.profile.email,
           photoUrl: widget.profile.profilePhoto,
           notificationCount: NotificationCenter.instance.unreadCount,
           onProfile: () => _goToTab(4),
@@ -444,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _sections(_HomeData data, ThemeStyle style) {
     final l10n = AppLocalizations.of(context);
-    if (style == ThemeStyle.launcher || style == ThemeStyle.aqua) {
+    if (InoStyle.usesDivineGlassStyle(style)) {
       return _wrapSections(_launcherSections(data, l10n));
     }
     return _wrapSections(_classicSections(data, l10n));
@@ -558,6 +559,11 @@ class _HomeScreenState extends State<HomeScreen> {
               _push(RemindersScreen(profile: widget.profile)),
           onVoice: () => showVoiceCommandSheet(context),
         ),
+      ),
+
+      // Offline — high enough to see on open (keeps Quick Actions at 4 discs)
+      LauncherOfflineShortcut(
+        onOffline: () => _push(const OfflineDocumentsScreen()),
       ),
 
       // 3. My Vaults

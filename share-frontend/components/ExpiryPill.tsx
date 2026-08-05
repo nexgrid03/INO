@@ -3,9 +3,15 @@
 import { useEffect, useState } from "react";
 import { ClockIcon } from "./icons";
 
-/** Live "Expires in …" pill; reloads the page when the share lapses so the
- *  server re-renders the expired state. */
-export default function ExpiryPill({ expiresAt }: { expiresAt: string | null }) {
+/** Live expiry pill. With [compact], shows only the remaining time (hero row
+ *  supplies the "Expires in" label). Reloads when the share lapses. */
+export default function ExpiryPill({
+  expiresAt,
+  compact = false,
+}: {
+  expiresAt: string | null;
+  compact?: boolean;
+}) {
   const [label, setLabel] = useState("");
 
   useEffect(() => {
@@ -23,15 +29,17 @@ export default function ExpiryPill({ expiresAt }: { expiresAt: string | null }) 
       const h = Math.floor((s % 86400) / 3600);
       const m = Math.floor((s % 3600) / 60);
       const ss = s % 60;
-      if (d > 0) setLabel(`Expires in ${d} day${d > 1 ? "s" : ""}`);
-      else if (h > 0) setLabel(`Expires in ${h}h ${m}m`);
-      else if (m > 0) setLabel(`Expires in ${m}m ${ss}s`);
-      else setLabel(`Expires in ${ss}s`);
+      let remaining: string;
+      if (d > 0) remaining = `${d} day${d > 1 ? "s" : ""}`;
+      else if (h > 0) remaining = `${h}h ${m}m`;
+      else if (m > 0) remaining = `${m}m ${ss}s`;
+      else remaining = `${ss}s`;
+      setLabel(compact ? remaining : `Expires in ${remaining}`);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [expiresAt]);
+  }, [expiresAt, compact]);
 
   if (!expiresAt) return null;
   return (

@@ -35,7 +35,7 @@ class InoSvgIcon extends StatelessWidget {
   }
 }
 
-/// Bundled Home / launcher icon asset paths.
+  /// Bundled Home / launcher icon asset paths.
 abstract final class InoHomeIcons {
   static const documents = 'assets/icons/home/documents.svg';
   static const notes = 'assets/icons/home/notes.svg';
@@ -55,4 +55,32 @@ abstract final class InoHomeIcons {
   static const stamp = 'assets/icons/home/stamp.svg';
   static const unit = 'assets/icons/home/unit.svg';
   static const tax = 'assets/icons/home/tax.svg';
+}
+
+/// Clay / soft-3D PNG icons for Launcher · Aqua · Aqua Light Home only.
+///
+/// Full circular discs for Quick Actions; coloured glyphs for vault / strip /
+/// finance tiles (tile chrome + count badge stay in code). Offline keeps SVGs.
+abstract final class InoHomeIcons3d {
+  static const scan = 'assets/icons/home/3d/qa_scan.png';
+  static const documents = 'assets/icons/home/3d/qa_documents.png';
+  static const reminder = 'assets/icons/home/3d/qa_reminder.png';
+  static const voice = 'assets/icons/home/3d/qa_voice.png';
+
+  static const identity = 'assets/icons/home/3d/vault_identity_glyph.png';
+  static const property = 'assets/icons/home/3d/vault_property_glyph.png';
+  static const investments = 'assets/icons/home/3d/vault_investments_glyph.png';
+  static const cards = 'assets/icons/home/3d/vault_cards_glyph.png';
+
+  static const attnExpiring = 'assets/icons/home/3d/attn_expiring.png';
+  static const attnEmi = 'assets/icons/home/3d/attn_emi.png';
+  static const attnPending = 'assets/icons/home/3d/attn_pending.png';
+  static const attnInsurance = 'assets/icons/home/3d/attn_insurance.png';
+
+  static const finArea = 'assets/icons/home/3d/fin_area.png';
+  static const finEmi = 'assets/icons/home/3d/fin_emi.png';
+  static const finSip = 'assets/icons/home/3d/fin_sip.png';
+  static const finStamp = 'assets/icons/home/3d/fin_stamp.png';
+  static const finUnit = 'assets/icons/home/3d/fin_unit.png';
+  static const finTax = 'assets/icons/home/3d/fin_tax.png';
 }

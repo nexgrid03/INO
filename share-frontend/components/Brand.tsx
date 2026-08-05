@@ -1,7 +1,7 @@
 import { ShieldIcon } from "./icons";
 
-// Presentational, dual-use (server or client). The INO glass header.
-export default function Brand() {
+/** INO glass header — optional Secure share badge (Aqua share landing). */
+export default function Brand({ showSecure = false }: { showSecure?: boolean }) {
   return (
     <header className="brand">
       <div className="brand-in">
@@ -12,6 +12,12 @@ export default function Brand() {
           <b>INO</b>
           <span>Secure document share</span>
         </div>
+        {showSecure && (
+          <div className="secure">
+            <ShieldIcon />
+            Secure share
+          </div>
+        )}
       </div>
     </header>
   );

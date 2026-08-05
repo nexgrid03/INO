@@ -191,8 +191,7 @@ class _InoAppState extends State<InoApp> {
                   themeMode: mode,
                   // Launcher / Aqua: no M3 stretch overscroll (it scales the
                   // page and makes text look like it shrinks while scrolling).
-                  scrollBehavior:
-                      style == ThemeStyle.launcher || style == ThemeStyle.aqua
+                  scrollBehavior: InoStyle.usesDivineGlassStyle(style)
                       ? const InoNoStretchScrollBehavior()
                       : const MaterialScrollBehavior(),
                   locale: _localeForCode(langCode),
