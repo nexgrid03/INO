@@ -2,9 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
-
-import '../../utils/share_origin.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
@@ -13,9 +10,7 @@ import '../../repositories/user_repository.dart';
 import '../../services/account_switcher.dart';
 import '../../services/app_settings.dart';
 import '../../services/auth_service.dart';
-import '../../services/backup_service.dart';
 import '../../services/biometric_service.dart';
-import '../../services/data_export_service.dart';
 import '../../services/session_reset.dart';
 import '../../services/storage_stats_service.dart';
 import '../../services/two_factor_service.dart';
@@ -39,7 +34,6 @@ import '../family/family_vault_screen.dart';
 import '../legal/legal_document_screen.dart';
 import 'about_screen.dart';
 import 'change_password_screen.dart';
-import 'cloud_backup_screen.dart';
 import 'contact_support_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
@@ -85,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   late bool _biometric = BiometricService.instance.lockEnabled.value;
   late bool _notifications = AppSettings.instance.notifications.value;
   late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
-  late bool _autoBackup = AppSettings.instance.autoBackup.value;
   bool _twoFactor = AppSettings.instance.twoFactor.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
 
@@ -247,26 +240,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     // VoiceGreetingService listens to this setting.
     await AppSettings.instance.setWelcomeSound(value);
     _toast(value ? 'Startup greeting on' : 'Startup greeting muted');
-  }
-
-  Future<void> _toggleAutoBackup(bool value) async {
-    setState(() => _autoBackup = value);
-    await AppSettings.instance.setAutoBackup(value);
-    if (!mounted) return;
-    if (value) {
-      _toast('Auto backup on - backing up now…');
-      unawaited(_silentBackup());
-    } else {
-      _toast('Auto backup turned off');
-    }
-  }
-
-  Future<void> _silentBackup() async {
-    try {
-      await BackupService.instance.backupNow(profile: _profile);
-    } catch (_) {
-      // Silent - the manual Cloud Backup screen surfaces errors explicitly.
-    }
   }
 
   void _toggleDarkMode() {
@@ -472,41 +445,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     await _push(const TwoFactorScreen());
     if (!mounted) return;
     setState(() => _twoFactor = AppSettings.instance.twoFactor.value);
-  }
-
-  // ---- Data & storage ------------------------------------------------------
-
-  Future<void> _exportData({required String subject}) async {
-    final progress = ValueNotifier<double>(0);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _ProgressDialog(
-        title: AppLocalizations.of(context).t('preparingData'),
-        progress: progress,
-      ),
-    );
-    try {
-      final archive = await DataExportService.instance.build(
-        profile: _profile,
-        onProgress: (p) => progress.value = p,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(); // dismiss progress
-      await Share.shareXFiles(
-        [XFile(archive.file.path)],
-        subject: subject,
-        sharePositionOrigin: shareOrigin(context),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      _toast(AppLocalizations.of(context).t('exportFailed'), error: true);
-    } finally {
-      // Dispose after the dialog's exit transition, so its listener is already
-      // detached (avoids "used after disposed" on the fast error path).
-      Future.delayed(const Duration(milliseconds: 400), progress.dispose);
-    }
   }
 
   // ---- Destructive actions -------------------------------------------------
@@ -808,31 +746,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       ),
       SettingsGroup(
-        caption: l10n.t('dataStorage'),
-        children: [
-          SettingsRow(
-            icon: Icons.cloud_sync_rounded,
-            title: l10n.t('autoBackup'),
-            trailing: _switch(_autoBackup, _toggleAutoBackup),
-          ),
-          SettingsRow(
-            icon: Icons.backup_rounded,
-            title: l10n.t('cloudBackup'),
-            onTap: () => _push(CloudBackupScreen(profile: _profile)),
-          ),
-          SettingsRow(
-            icon: Icons.file_download_outlined,
-            title: l10n.t('exportData'),
-            onTap: () => _exportData(subject: 'INO data export'),
-          ),
-          SettingsRow(
-            icon: Icons.download_for_offline_outlined,
-            title: l10n.t('downloadAccountData'),
-            onTap: () => _exportData(subject: 'INO account archive'),
-          ),
-        ],
-      ),
-      SettingsGroup(
         caption: l10n.t('preferences'),
         children: [
           SettingsRow(
@@ -967,7 +880,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   /// The address Contact Support / Help Center compose to.
-  String get _supportEmail => 'support@ino.app';
+  String get _supportEmail => 'inosupport.app@gmail.com';
 
   Widget _switch(bool value, ValueChanged<bool> onChanged) {
     return Switch.adaptive(
@@ -1321,52 +1234,6 @@ class _StorageCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// A small, non-dismissible progress dialog for export / archive builds.
-class _ProgressDialog extends StatelessWidget {
-  const _ProgressDialog({required this.title, required this.progress});
-
-  final String title;
-  final ValueNotifier<double> progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Dialog(
-      backgroundColor: palette.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.large),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: AppText.title.copyWith(color: palette.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ValueListenableBuilder<double>(
-              valueListenable: progress,
-              builder: (context, value, _) => ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: LinearProgressIndicator(
-                  value: value == 0 ? null : value,
-                  minHeight: 6,
-                  backgroundColor: palette.surfaceVariant,
-                  valueColor:  AlwaysStoppedAnimation(
-                    AppColors.primaryGreen,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
