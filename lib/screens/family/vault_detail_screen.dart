@@ -16,6 +16,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -640,6 +641,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           child: Column(
             children: [
               _header(palette),
+              const SizedBox(height: AppSpacing.md),
               Expanded(
                 child: RefreshIndicator(
                   color: AppColors.primaryGreen,
@@ -992,41 +994,43 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   Widget _header(AppPalette palette) {
     final canOwn = _myRole.canManageVault;
-    final launcher = divineGlassEnabled(context);
+    final glass = divineGlassEnabled(context);
     final l10n = AppLocalizations.of(context);
     final user = AuthService.instance.currentUser;
     final photo = (user?.userMetadata?['profile_photo'] as String?) ??
         (user?.userMetadata?['avatar_url'] as String?);
 
-    final row = Row(
+    final avatar = GestureDetector(
+      onTap: _openProfile,
+      child: CircleAvatar(
+        radius: 16,
+        backgroundColor: AppColors.tealMist,
+        backgroundImage:
+            photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
+        child: photo == null || photo.isEmpty
+            ? Icon(Icons.person_rounded,
+                size: 18, color: AppColors.primaryGreen)
+            : null,
+      ),
+    );
+
+    final glassTrailing = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const InoBackButton(size: 42),
-        Expanded(
-          child: Text(
-            l10n.t('familyVault'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: launcher ? AppColors.primaryGreen : palette.textPrimary,
-              fontSize: launcher ? 18 : 17,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-        IconButton(
+        DivineGlassHeaderAction(
+          icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
           tooltip: 'Search',
-          onPressed: () => setState(() {
+          onTap: () => setState(() {
             _showSearch = !_showSearch;
             if (!_showSearch) _query = '';
           }),
-          icon: Icon(
-            _showSearch ? Icons.close_rounded : Icons.search_rounded,
-            color: AppColors.primaryGreen,
-          ),
         ),
-        if (canOwn)
+        if (canOwn) ...[
+          const SizedBox(width: 4),
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert_rounded, color: palette.textSecondary),
+            tooltip: 'More',
+            padding: EdgeInsets.zero,
+            offset: const Offset(0, 40),
             onSelected: (v) {
               if (v == 'rename') _renameVault();
               if (v == 'delete') _deleteVault();
@@ -1038,67 +1042,78 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   child: Text('Delete vault',
                       style: TextStyle(color: AppColors.critical))),
             ],
-          )
-        else
-          const SizedBox(width: 8),
-        GestureDetector(
-          onTap: _openProfile,
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.tealMist,
-            backgroundImage:
-                photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
-            child: photo == null || photo.isEmpty
-                ?  Icon(Icons.person_rounded,
-                    size: 18, color: AppColors.primaryGreen)
-                : null,
+            child: LiquidGlass(
+              circle: true,
+              blur: 12,
+              frost: 0.9,
+              shadow: false,
+              padding: EdgeInsets.zero,
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(
+                  Icons.more_vert_rounded,
+                  size: 18,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
+        const SizedBox(width: 4),
+        avatar,
       ],
     );
 
-    if (!launcher) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
-        child: row,
+    if (glass) {
+      return DivineGlassAppBar(
+        title: l10n.t('familyVault'),
+        onBack: () => Navigator.of(context).maybePop(),
+        trailing: glassTrailing,
+        centerTitle: true,
+        includeStatusBar: true,
       );
     }
 
-    return DivineGlassAppBar(
-      title: l10n.t('familyVault'),
-      centerTitle: true,
-      includeStatusBar: true,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
         children: [
-          DivineGlassHeaderAction(
-            icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
+          InoBackButton(
+            size: 42,
+            onTap: () => Navigator.of(context).maybePop(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              l10n.t('familyVault'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
+            ),
+          ),
+          IconButton(
             tooltip: 'Search',
-            onTap: () => setState(() {
+            onPressed: () => setState(() {
               _showSearch = !_showSearch;
               if (!_showSearch) _query = '';
             }),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: _openProfile,
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.tealMist,
-              backgroundImage:
-                  photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
-              child: photo == null || photo.isEmpty
-                  ?  Icon(Icons.person_rounded,
-                      size: 18, color: AppColors.primaryGreen)
-                  : null,
+            icon: Icon(
+              _showSearch ? Icons.close_rounded : Icons.search_rounded,
+              color: AppColors.primaryGreen,
             ),
           ),
-          if (canOwn) ...[
-            const SizedBox(width: 4),
+          if (canOwn)
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert_rounded,
-                  color: palette.textSecondary, size: 22),
+              icon: Icon(Icons.more_vert_rounded, color: palette.textSecondary),
               onSelected: (v) {
                 if (v == 'rename') _renameVault();
                 if (v == 'delete') _deleteVault();
@@ -1111,13 +1126,12 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                         style: TextStyle(color: AppColors.critical))),
               ],
             ),
-          ],
+          avatar,
         ],
       ),
     );
   }
 }
-
 class _HeroFilledButton extends StatelessWidget {
   const _HeroFilledButton({
     required this.icon,

@@ -57,10 +57,11 @@ abstract final class InoHomeIcons {
   static const tax = 'assets/icons/home/tax.svg';
 }
 
-/// Clay / soft-3D PNG icons for Launcher · Aqua · Aqua Light Home only.
+/// Clay / soft-3D PNG icons for [ThemeStyle.clay] Home only.
 ///
 /// Full circular discs for Quick Actions; coloured glyphs for vault / strip /
-/// finance tiles (tile chrome + count badge stay in code). Offline keeps SVGs.
+/// finance tiles (tile chrome + count badge stay in code). Aqua / Launcher /
+/// Aqua Light use [InoHomeIcons] SVGs instead — both sets stay in the bundle.
 abstract final class InoHomeIcons3d {
   static const scan = 'assets/icons/home/3d/qa_scan.png';
   static const documents = 'assets/icons/home/3d/qa_documents.png';

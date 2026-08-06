@@ -157,7 +157,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                   sliver: SliverToBoxAdapter(
                     child: ModuleSkeleton(height: 186, count: 2),
                   ),
@@ -179,7 +179,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 if (attention > 0)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
                       child: FadeSlideIn(
                         child: _AttentionBanner(count: attention),
                       ),
@@ -187,7 +187,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                   ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
                     child: FloatingSearchBar(
                       hint: 'Search cards',
                       height: 48,

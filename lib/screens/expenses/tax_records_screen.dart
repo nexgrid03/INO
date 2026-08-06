@@ -14,6 +14,7 @@ import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 
 /// The Tax Document Vault - Form 16, 26AS, AIS, TDS, salary slips, proofs, rent
@@ -155,53 +156,129 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
     ));
   }
 
+  Widget _header(AppPalette palette, String yearLabel, int count) {
+    final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
+    final share = DivineGlassHeaderAction(
+      icon: Icons.ios_share_rounded,
+      tooltip: l10n.t('share'),
+      onTap: _shareFolder,
+    );
+
+    if (glass) {
+      return DivineGlassAppBar(
+        title: l10n.t('taxRecords'),
+        onBack: () => Navigator.of(context).maybePop(),
+        trailing: share,
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t('taxRecords'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.headline.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 22,
+                  ),
+                ),
+                Text(
+                  l10n
+                      .t('fyDocumentsCount')
+                      .replaceFirst('{fy}', yearLabel)
+                      .replaceFirst('{n}', '$count'),
+                  style: AppText.caption.copyWith(color: palette.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          PressableScale(
+            pressedScale: 0.9,
+            child: Material(
+              color: AppColors.primaryGreen.withValues(alpha: 0.12),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _shareFolder,
+                child: SizedBox(
+                  width: AppSizes.iconContainerSm,
+                  height: AppSizes.iconContainerSm,
+                  child: Icon(Icons.ios_share_rounded,
+                      size: 20, color: AppColors.darkGreen),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: glass,
         child: SafeArea(
-        child: Stack(
-          children: [
-            ListenableBuilder(
-              listenable: _store,
-              builder: (context, _) {
-                final fy = _store.selectedYear;
-                final total = _store.taxDocumentsForYear(fy).length;
-                return Column(
-                  children: [
-                    _Header(
-                        yearLabel: fy.label,
-                        count: total,
-                        onShare: _shareFolder),
-                    Expanded(
-                      child: ListView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                            AppSpacing.screen, AppSpacing.xl),
-                        children: [
-                          for (final type in TaxDocType.values)
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: AppSpacing.sm),
-                              child: _TypeSection(
-                                type: type,
-                                docs: _store.taxDocumentsOfType(type, fy),
-                                onUpload: () => _upload(type),
-                                onRemove: _store.removeTaxDocument,
+          top: !glass,
+          child: Stack(
+            children: [
+              ListenableBuilder(
+                listenable: _store,
+                builder: (context, _) {
+                  final fy = _store.selectedYear;
+                  final total = _store.taxDocumentsForYear(fy).length;
+                  return Column(
+                    children: [
+                      _header(palette, fy.label, total),
+                      const SizedBox(height: AppSpacing.md),
+                      Expanded(
+                        child: ListView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
+                              AppSpacing.screen, AppSpacing.xl),
+                          children: [
+                            for (final type in TaxDocType.values)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: AppSpacing.sm),
+                                child: _TypeSection(
+                                  type: type,
+                                  docs: _store.taxDocumentsOfType(type, fy),
+                                  onUpload: () => _upload(type),
+                                  onRemove: _store.removeTaxDocument,
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            if (_busy)
-              Container(
-                color: Colors.black.withValues(alpha: 0.15),
+                    ],
+                  );
+                },
+              ),
+              if (_busy)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.15),
                 child: const Center(child: CircularProgressIndicator()),
               ),
           ],
@@ -331,66 +408,6 @@ class _TypeSection extends StatelessWidget {
                 ),
               ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header(
-      {required this.yearLabel,
-      required this.count,
-      required this.onShare});
-
-  final String yearLabel;
-  final int count;
-  final VoidCallback onShare;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.md),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l10n.t('taxRecords'),
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
-                Text(
-                    l10n
-                        .t('fyDocumentsCount')
-                        .replaceFirst('{fy}', yearLabel)
-                        .replaceFirst('{n}', '$count'),
-                    style: AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
-            ),
-          ),
-          PressableScale(
-            pressedScale: 0.9,
-            child: Material(
-              color: AppColors.primaryGreen.withValues(alpha: 0.12),
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onShare,
-                child:  SizedBox(
-                  width: AppSizes.iconContainerSm,
-                  height: AppSizes.iconContainerSm,
-                  child: Icon(Icons.ios_share_rounded,
-                      size: 20, color: AppColors.darkGreen),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

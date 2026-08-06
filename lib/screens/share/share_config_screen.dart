@@ -9,7 +9,6 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -138,54 +137,60 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
       backgroundColor: palette.bg,
       body: InoBackground(
         child: SafeArea(
-        child: Column(
-          children: [
-            _Header(count: docs.length, onClose: () => Navigator.of(context).pop()),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
-                children: [
-                  _sectionLabel(l10n.t('selectedDocuments'), palette),
-                  const SizedBox(height: AppSpacing.sm),
-                  InoCard(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < docs.length; i++) ...[
-                          if (i > 0)
-                            Divider(height: 1, color: palette.border),
-                          _DocRow(record: docs[i]),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _sectionLabel(l10n.t('expiryDuration'), palette),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    l10n.t('expiryDurationHint'),
-                    style: AppText.caption.copyWith(color: palette.textSecondary),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _DurationGrid(
-                    selected: _duration,
-                    onSelected: (d) => setState(() => _duration = d),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _SecurityNote(palette: palette),
-                ],
+          top: !divineGlassEnabled(context),
+          child: Column(
+            children: [
+              DivineGlassAppBar(
+                title: l10n.t('shareViaQr'),
+                onBack: () => Navigator.of(context).pop(),
+                centerTitle: true,
+                includeStatusBar: true,
               ),
-            ),
-            _ActionBar(
-              generating: _generating,
-              onCancel: () => Navigator.of(context).pop(),
-              onGenerate: _generate,
-            ),
-          ],
-        ),
+              Expanded(
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
+                  children: [
+                    _sectionLabel(l10n.t('selectedDocuments'), palette),
+                    const SizedBox(height: AppSpacing.sm),
+                    InoCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < docs.length; i++) ...[
+                            if (i > 0)
+                              Divider(height: 1, color: palette.border),
+                            _DocRow(record: docs[i]),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _sectionLabel(l10n.t('expiryDuration'), palette),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      l10n.t('expiryDurationHint'),
+                      style: AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DurationGrid(
+                      selected: _duration,
+                      onSelected: (d) => setState(() => _duration = d),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SecurityNote(palette: palette),
+                  ],
+                ),
+              ),
+              _ActionBar(
+                generating: _generating,
+                onCancel: () => Navigator.of(context).pop(),
+                onGenerate: _generate,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -195,44 +200,6 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
         text.toUpperCase(),
         style: AppText.label.copyWith(color: palette.textFaint, letterSpacing: 1.0),
       );
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.count, required this.onClose});
-
-  final int count;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      child: Row(
-        children: [
-          InoBackButton(onTap: onClose),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l10n.t('shareViaQr'),
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 21)),
-                const SizedBox(height: 2),
-                Text(
-                  l10n.t('docsSelected').replaceFirst('{n}', '$count'),
-                  style: AppText.caption.copyWith(color: palette.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _DocRow extends StatelessWidget {

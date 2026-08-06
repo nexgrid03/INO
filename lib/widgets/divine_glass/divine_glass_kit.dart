@@ -49,7 +49,7 @@ class DivineGlassAppBar extends StatelessWidget {
     VoidCallback? onBack,
     Widget? trailing,
     List<Widget>? actions,
-    bool centerTitle = false,
+    bool centerTitle = true,
   }) {
     final top = MediaQuery.viewPaddingOf(context).top;
     Widget? trail = trailing;

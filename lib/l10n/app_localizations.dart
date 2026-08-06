@@ -152,13 +152,16 @@ const Map<String, Map<String, String>> _strings = {
     'themeSoftDesc': 'Lighter tones with colourful icons',
     'themeLauncher': 'Launcher',
     'themeLauncherDesc':
-        'Compact Home layout with quick actions, vaults, and frosted glass screens',
+        'Compact Home with tinted SVG icons, vaults, and frosted glass screens',
     'themeAqua': 'Aqua',
     'themeAquaDesc':
-        'Launcher layout with teal glass chrome',
+        'Launcher layout with teal glass chrome and tinted SVG icons',
     'themeAquaLight': 'Aqua Light',
     'themeAquaLightDesc':
-        'Same teal look as Aqua, with a flat background (no gradient wash)',
+        'Teal SVG icons on a flat background (no gradient wash)',
+    'themeClay': 'Clay',
+    'themeClayDesc':
+        'Aqua teal look with soft 3D Home icons',
     'offline': 'Offline',
     'vaultFullyProtected': 'Your Vault is 100% Protected',
     'viewCalendar': 'View Calendar',
@@ -261,7 +264,7 @@ const Map<String, Map<String, String>> _strings = {
     'metricPasswords': 'passwords',
     'metricCards': 'cards',
     // Wallet detail (search / filters / summary / status)
-    'searchDocumentsHint': 'Search documents...',
+    'searchDocumentsHint': 'Search documents',
     'documents': 'Documents',
     'expiring': 'Expiring',
     'atRisk': 'At risk',

@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
@@ -121,9 +122,13 @@ class _DashboardCardState extends State<DashboardCard>
     );
   }
 
-  /// Shared vault hero (dark layout) for both brightnesses — light uses
-  /// warmer foam washes and brand teal eyebrow instead of skyBlue.
+  /// Vault hero. Clay uses the 3D vault mock (copy left, art right on glass).
+  /// Other themes keep the shared digital-ID mascot layout.
   Widget _buildHero(AppPalette palette) {
+    if (InoStyle.of(context) == ThemeStyle.clay) {
+      return _ClayVaultHero(onCta: widget.onCta);
+    }
+
     final dark = palette.isDark;
     final eyebrow = AppColors.primaryGreen;
     final washCore = dark
@@ -264,6 +269,185 @@ class _DashboardCardState extends State<DashboardCard>
   }
 }
 
+/// Clay vault hero — light glass card matching the Home mock: copy left,
+/// 3D vault art right. Readable in light and dark Clay.
+class _ClayVaultHero extends StatelessWidget {
+  const _ClayVaultHero({this.onCta});
+
+  final VoidCallback? onCta;
+
+  static const _asset = 'assets/home/hero_vault_3d.png';
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final dark = palette.isDark;
+    final l10n = AppLocalizations.of(context);
+
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.large),
+      enableBlur: false,
+      frost: dark ? 1.15 : 0.88,
+      shadow: true,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: dark
+                    ? palette.cardGradient
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.96),
+                          AppColors.secondaryGreen.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0.92),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
+              ),
+            ),
+          ),
+          // Soft teal wash behind the vault (right).
+          Positioned(
+            right: -28,
+            top: -40,
+            bottom: -40,
+            width: 200,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primaryGreen.withValues(alpha: dark ? 0.18 : 0.14),
+                    AppColors.skyBlue.withValues(alpha: dark ? 0.08 : 0.08),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // Corner shield — matches the mock.
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Icon(
+              Icons.verified_user_rounded,
+              size: 18,
+              color: AppColors.primaryGreen.withValues(alpha: 0.9),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 10, 18),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 340;
+                final titleSize = constraints.maxWidth < 300 ? 18.0 : 21.0;
+                final artW = narrow
+                    ? constraints.maxWidth * 0.72
+                    : (constraints.maxWidth * 0.44).clamp(128.0, 188.0);
+                final copy = _copy(
+                  palette: palette,
+                  titleSize: titleSize,
+                  headline: l10n.t('vaultFullyProtected'),
+                );
+                final art = SizedBox(
+                  width: artW,
+                  child: AspectRatio(
+                    aspectRatio: 597 / 553,
+                    child: Image.asset(
+                      _asset,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.shield_rounded,
+                        color: AppColors.primaryGreen,
+                        size: 56,
+                      ),
+                    ),
+                  ),
+                );
+
+                if (narrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(child: art),
+                      const SizedBox(height: 12),
+                      copy,
+                    ],
+                  );
+                }
+
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: copy),
+                      const SizedBox(width: 6),
+                      art,
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _copy({
+    required AppPalette palette,
+    required double titleSize,
+    required String headline,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'YOUR VAULT',
+          style: TextStyle(
+            color: AppColors.primaryGreen,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          headline,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: palette.textPrimary,
+            fontSize: titleSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'All your documents are safe and backed up',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: palette.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _HeroCta(onTap: onCta),
+      ],
+    );
+  }
+}
+
 /// The hero's gradient pill CTA - "View Documents →".
 class _HeroCta extends StatelessWidget {
   const _HeroCta({this.onTap});
@@ -375,12 +559,13 @@ class HomeSummaryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final use3d = InoStyle.usesHome3dIcons(context);
     final third = replaceRemindersWithPending
         ? (
             label: l10n.t('pending'),
             value: pendingCount,
             icon: Icons.pending_actions_rounded,
-            image: InoHomeIcons3d.attnPending,
+            image: use3d ? InoHomeIcons3d.attnPending : null,
             accent: AppColors.accentCoral,
             onTap: onPending ?? onRemindersToday,
           )
@@ -388,7 +573,7 @@ class HomeSummaryStrip extends StatelessWidget {
             label: l10n.t('reminders'),
             value: remindersToday,
             icon: Icons.alarm_rounded,
-            image: InoHomeIcons3d.attnPending,
+            image: use3d ? InoHomeIcons3d.attnPending : null,
             accent: AppColors.accentCoral,
             onTap: onRemindersToday,
           );
@@ -397,7 +582,7 @@ class HomeSummaryStrip extends StatelessWidget {
       String label,
       int value,
       IconData icon,
-      String image,
+      String? image,
       Color accent,
       VoidCallback? onTap,
     })>[
@@ -405,7 +590,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('expiring'),
         value: documentsExpiring,
         icon: Icons.warning_amber_rounded,
-        image: InoHomeIcons3d.attnExpiring,
+        image: use3d ? InoHomeIcons3d.attnExpiring : null,
         accent: AppColors.warning,
         onTap: onDocumentsExpiring,
       ),
@@ -413,7 +598,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('emiDue'),
         value: emiDue,
         icon: Icons.account_balance_wallet_rounded,
-        image: InoHomeIcons3d.attnEmi,
+        image: use3d ? InoHomeIcons3d.attnEmi : null,
         accent: AppColors.accentBlue,
         onTap: onEmiDues,
       ),
@@ -422,7 +607,7 @@ class HomeSummaryStrip extends StatelessWidget {
         label: l10n.t('insurance'),
         value: insuranceRenewals,
         icon: Icons.shield_rounded,
-        image: InoHomeIcons3d.attnInsurance,
+        image: use3d ? InoHomeIcons3d.attnInsurance : null,
         accent: AppColors.vaultIdentity,
         onTap: onInsuranceRenewals,
       ),
@@ -436,6 +621,7 @@ class HomeSummaryStrip extends StatelessWidget {
             label: tiles[i].label,
             count: tiles[i].value,
             imageAsset: tiles[i].image,
+            icon: tiles[i].image == null ? tiles[i].icon : null,
             accent: tiles[i].accent,
             onTap: tiles[i].onTap ?? () {},
           );

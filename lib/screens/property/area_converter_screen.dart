@@ -5,13 +5,12 @@ import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property/area_conversion_summary.dart';
 import '../../widgets/property/area_quick_converter.dart';
 import '../../widgets/property/area_unit_picker.dart';
+import '../../widgets/property_finance/calc_widgets.dart';
 
 /// Property Area Converter & Land Calculator.
 ///
@@ -59,49 +58,31 @@ class _AreaConverterScreenState extends State<AreaConverterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final value = _value;
 
-    return Scaffold(
-      backgroundColor: palette.bg,
-      body: InoBackground(
-        child: SafeArea(
-        child: Column(
-          children: [
-            _Header(onBack: () => Navigator.of(context).maybePop()),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                    AppSpacing.screen, AppSpacing.xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AreaInputCard(
-                      controller: _controller,
-                      unit: _unit,
-                      onChanged: () => setState(() {}),
-                      onPickUnit: _pickUnit,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    if (value > 0)
-                      AreaConversionSummary(value: value, fromUnit: _unit)
-                    else
-                      const _EmptyHint(),
-                    const SizedBox(height: AppSpacing.md),
-                    AreaQuickConverter(
-                      initialFrom: _unit,
-                      initialTo: AreaUnit.squareFeet,
-                      initialValue: value > 0 ? value : 1,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    return CalculatorScaffold(
+      title: l10n.t('areaConverter'),
+      subtitle: l10n.t('areaConverterSubtitle'),
+      children: [
+        _AreaInputCard(
+          controller: _controller,
+          unit: _unit,
+          onChanged: () => setState(() {}),
+          onPickUnit: _pickUnit,
         ),
+        const SizedBox(height: AppSpacing.md),
+        if (value > 0)
+          AreaConversionSummary(value: value, fromUnit: _unit)
+        else
+          const _EmptyHint(),
+        const SizedBox(height: AppSpacing.md),
+        AreaQuickConverter(
+          initialFrom: _unit,
+          initialTo: AreaUnit.squareFeet,
+          initialValue: value > 0 ? value : 1,
         ),
-      ),
+      ],
     );
   }
 }
@@ -255,45 +236,6 @@ class _EmptyHint extends StatelessWidget {
               AppLocalizations.of(context).t('areaHint'),
               style: AppText.body
                   .copyWith(color: palette.textSecondary, height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header
-// ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.lg),
-      child: Row(
-        children: [
-          InoBackButton(onTap: onBack),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppLocalizations.of(context).t('areaConverter'),
-                    style: AppText.headline.copyWith(
-                        color: palette.textPrimary, fontSize: 21)),
-                const SizedBox(height: 2),
-                Text(AppLocalizations.of(context).t('areaConverterSubtitle'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
             ),
           ),
         ],

@@ -5,8 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
+import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/reminders/month_calendar.dart';
 import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
@@ -47,23 +46,13 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Center(child: InoBackButton(size: 42)),
-        ),
-        title: Text(l10n.t('calendar'),
-            style: AppText.title.copyWith(color: palette.textPrimary)),
-      ),
-      body: InoBackground(
-        child: ListenableBuilder(
+    return SettingsScaffold(
+      title: l10n.t('calendar'),
+      child: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
-            return  Center(
+            return Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.primaryGreen,
@@ -118,7 +107,6 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
             ],
           );
         },
-        ),
       ),
     );
   }
@@ -150,7 +138,7 @@ class _NoReminderNote extends StatelessWidget {
               color: palette.surfaceVariant,
               borderRadius: BorderRadius.circular(AppRadius.chip - 2),
             ),
-            child:  Icon(Icons.event_available_rounded,
+            child: Icon(Icons.event_available_rounded,
                 size: 18, color: AppColors.primaryGreen),
           ),
           const SizedBox(width: 10),

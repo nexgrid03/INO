@@ -38,7 +38,10 @@ void main() {
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Remember me'), findsOneWidget);
     expect(find.text('Forgot password?'), findsOneWidget);
-    expect(find.text('Continue with Google'), findsOneWidget);
+    // Social providers are icon-only; tooltips keep the a11y labels.
+    expect(find.byTooltip('Continue with Google'), findsOneWidget);
+    expect(find.byTooltip('Continue with Phone Number'), findsOneWidget);
+    expect(find.byTooltip('Continue with Apple'), findsOneWidget);
     expect(find.text('Create Account'), findsOneWidget);
   });
 

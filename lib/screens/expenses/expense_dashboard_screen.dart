@@ -109,18 +109,121 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
     if (picked != null) _store.setSelectedYear(FinancialYear(picked));
   }
 
+  Widget _header(AppPalette palette, String yearLabel) {
+    final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
+    final yearChip = PressableScale(
+      pressedScale: 0.95,
+      child: glass
+          ? GestureDetector(
+              onTap: _pickYear,
+              behavior: HitTestBehavior.opaque,
+              child: LiquidGlass(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                blur: 12,
+                frost: 0.95,
+                shadow: false,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      yearLabel,
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.expand_more_rounded,
+                        size: 18, color: palette.textSecondary),
+                  ],
+                ),
+              ),
+            )
+          : Material(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: InkWell(
+                onTap: _pickYear,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        yearLabel,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.expand_more_rounded,
+                          size: 18, color: palette.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+
+    if (glass) {
+      return DivineGlassAppBar(
+        title: l10n.t('transactionVault'),
+        onBack: () => Navigator.of(context).maybePop(),
+        trailing: yearChip,
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              l10n.t('transactionVault'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
+            ),
+          ),
+          yearChip,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       floatingActionButton:
           _AddButton(onTap: () => _push(const AddExpenseScreen())),
       body: InoBackground(
-        sky: divineGlassEnabled(context),
+        sky: glass,
         child: SafeArea(
-          top: !divineGlassEnabled(context),
+          top: !glass,
           child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
@@ -132,10 +235,8 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
             final failed = _store.loadError != null && _store.isEmpty;
             return Column(
               children: [
-                _Header(
-                  yearLabel: fy.label,
-                  onPickYear: _pickYear,
-                ),
+                _header(palette, fy.label),
+                const SizedBox(height: AppSpacing.md),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                       AppSpacing.screen, AppSpacing.sm),
@@ -242,7 +343,8 @@ class _List extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen, 2, AppSpacing.screen, 100),
             itemCount: results.length,
-            separatorBuilder: (_, _) => Divider(height: 1, color: palette.border),
+            separatorBuilder: (_, _) =>
+                Divider(height: AppSpacing.md, color: palette.border),
             itemBuilder: (context, i) =>
                 TransactionTile(txn: results[i], onTap: () => onOpen(results[i])),
           ),
@@ -693,117 +795,3 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.yearLabel,
-    required this.onPickYear,
-  });
-
-  final String yearLabel;
-  final VoidCallback onPickYear;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final launcher = divineGlassEnabled(context);
-    final row = Row(
-      children: [
-        const InoBackButton(),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            AppLocalizations.of(context).t('transactionVault'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: palette.textPrimary,
-              fontSize: launcher ? 18 : 21,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.35,
-              height: 1.15,
-            ),
-          ),
-        ),
-        PressableScale(
-          pressedScale: 0.95,
-          child: launcher
-              ? GestureDetector(
-                  onTap: onPickYear,
-                  behavior: HitTestBehavior.opaque,
-                  child: LiquidGlass(
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    blur: 12,
-                    frost: 0.95,
-                    shadow: false,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          yearLabel,
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(Icons.expand_more_rounded,
-                            size: 18, color: palette.textSecondary),
-                      ],
-                    ),
-                  ),
-                )
-              : Material(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: InkWell(
-                    onTap: onPickYear,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            yearLabel,
-                            style: TextStyle(
-                              color: palette.textPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.expand_more_rounded,
-                              size: 18, color: palette.textSecondary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-        ),
-      ],
-    );
-
-    if (!launcher) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-            AppSpacing.screen, AppSpacing.md),
-        child: row,
-      );
-    }
-
-    final top = MediaQuery.viewPaddingOf(context).top;
-    return DivineGlassHeaderBar(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        top + 8,
-        AppSpacing.screen,
-        10,
-      ),
-      child: row,
-    );
-  }
-}

@@ -238,7 +238,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
                   sliver: SliverToBoxAdapter(
                     child: ModuleSkeleton(height: 72, count: 5),
                   ),
@@ -260,7 +260,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
               else ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 12),
                     child: FloatingSearchBar(
                       hint: 'Search nicknames…',
                       height: 48,
@@ -287,7 +287,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList.separated(
                       itemCount: visible.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
                       itemBuilder: (context, i) {
                         final entry = visible[i];
                         return FadeSlideIn(

@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import 'property_form_screen.dart';
 
@@ -95,14 +96,17 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     final appreciation = p.appreciation;
     final gain = p.gain;
 
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: glass,
         child: SafeArea(
+          // Frosted ModuleHeader paints under the status bar itself.
+          top: !glass,
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+          child: Column(
             children: [
               ModuleHeader(
                 title: p.name,
@@ -128,8 +132,10 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 40),
+                  children: [
               // ---- Hero: photo + status ----
               FadeSlideIn(child: _HeroCard(property: p)),
               const SizedBox(height: AppSpacing.md),
@@ -158,7 +164,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                             : '${_trim(p.area!)} ${p.areaUnit.shortLabel}',
                         label: 'Area',
                         icon: Icons.square_foot_rounded,
-                        accent: const Color(0xFF4383EA),
+                        accent: const Color(0xFF0D9488),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -430,6 +436,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 ),
               ),
             ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -558,7 +567,11 @@ class _HeroCard extends StatelessWidget {
           ),
         ),
         alignment: Alignment.center,
-        child: Icon(property.type.icon, size: 54, color: accent),
+        child: Icon(
+          property.type.icon,
+          size: 54,
+          color: Colors.white.withValues(alpha: 0.92),
+        ),
       );
 }
 

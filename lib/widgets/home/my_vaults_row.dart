@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
-/// My Vaults: same glass box for every vault + PhonePe-sized coloured SVGs.
+/// My Vaults: same glass box for every vault.
+///
+/// [ThemeStyle.clay] uses soft-3D glyphs; aqua / launcher / aquaLight use
+/// tinted SVGs (pre-3D asset set).
 class MyVaultsRow extends StatelessWidget {
   const MyVaultsRow({
     super.key,
@@ -32,32 +36,37 @@ class MyVaultsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final use3d = InoStyle.usesHome3dIcons(context);
     final items = [
       (
         label: l10n.t('identity'),
         count: identityCount,
-        image: InoHomeIcons3d.identity,
+        image: use3d ? InoHomeIcons3d.identity : null,
+        svg: use3d ? null : InoHomeIcons.identity,
         accent: AppColors.vaultIdentity,
         onTap: onIdentity,
       ),
       (
         label: l10n.t('property'),
         count: propertyCount,
-        image: InoHomeIcons3d.property,
+        image: use3d ? InoHomeIcons3d.property : null,
+        svg: use3d ? null : InoHomeIcons.property,
         accent: AppColors.vaultProperty,
         onTap: onProperty,
       ),
       (
         label: l10n.t('investments'),
         count: investmentCount,
-        image: InoHomeIcons3d.investments,
+        image: use3d ? InoHomeIcons3d.investments : null,
+        svg: use3d ? null : InoHomeIcons.investments,
         accent: AppColors.vaultInvestments,
         onTap: onInvestments,
       ),
       (
         label: l10n.t('cards'),
         count: cardsCount,
-        image: InoHomeIcons3d.cards,
+        image: use3d ? InoHomeIcons3d.cards : null,
+        svg: use3d ? null : InoHomeIcons.cards,
         accent: AppColors.vaultCards,
         onTap: onCards,
       ),
@@ -67,6 +76,7 @@ class MyVaultsRow extends StatelessWidget {
           label: items[i].label,
           count: items[i].count,
           imageAsset: items[i].image,
+          svgAsset: items[i].svg,
           accent: items[i].accent,
           onTap: items[i].onTap,
         );

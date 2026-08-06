@@ -748,7 +748,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   Widget _loadingSliver() {
     return const SliverPadding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 120),
+      padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
@@ -777,7 +777,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       // 2. Search (+ filter button under Launcher / Figma Identity).
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
+          padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, AppSpacing.sm),
           child: FadeSlideIn(
             child: divineGlassEnabled(context)
                 ? Row(

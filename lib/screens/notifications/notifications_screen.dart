@@ -5,9 +5,8 @@ import '../../services/notification_center.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
 import '../../widgets/home/empty_state.dart';
+import '../../widgets/profile/settings_scaffold.dart';
 
 /// Notifications - a real, categorised feed generated from app state (due
 /// reminders, expiring documents, security posture, backup health) with unread
@@ -30,80 +29,61 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        backgroundColor: palette.bg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Center(child: InoBackButton(size: 42)),
-        ),
-        title: Text(l10n.t('notifications'),
-            style: AppText.title.copyWith(color: palette.textPrimary)),
-        centerTitle: true,
-        actions: [
-          ListenableBuilder(
-            listenable: _center,
-            builder: (context, _) => _center.unreadCount == 0
-                ? const SizedBox.shrink()
-                : TextButton(
-                    onPressed: _center.markAllRead,
-                    child: Text(l10n.t('markAllRead'),
-                        style:  TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13)),
-                  ),
-          ),
-        ],
-      ),
-      body: InoBackground(
-        child: SafeArea(
-        top: false,
-        child: ListenableBuilder(
+    return SettingsScaffold(
+      title: l10n.t('notifications'),
+      actions: [
+        ListenableBuilder(
           listenable: _center,
-          builder: (context, _) {
-            final items = _center.notifications;
-            if (items.isEmpty) {
-              return EmptyState(
-                icon: Icons.notifications_off_rounded,
-                title: l10n.t('allCaughtUp'),
-                message: l10n.t('noNewNotifications'),
-              );
-            }
-            return RefreshIndicator(
-              color: AppColors.primaryGreen,
-              onRefresh: _center.refresh,
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                    AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (context, i) {
-                  final n = items[i];
-                  return Dismissible(
-                    key: ValueKey(n.id),
-                    direction: DismissDirection.endToStart,
-                    background: _dismissBg(),
-                    onDismissed: (_) => _center.dismiss(n.id),
-                    child: _NotificationTile(
-                      notification: n,
-                      onTap: () => _center.markRead(n.id),
-                    ),
-                  );
-                },
-              ),
+          builder: (context, _) => _center.unreadCount == 0
+              ? const SizedBox.shrink()
+              : TextButton(
+                  onPressed: _center.markAllRead,
+                  child: Text(l10n.t('markAllRead'),
+                      style: TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
+                ),
+        ),
+      ],
+      child: ListenableBuilder(
+        listenable: _center,
+        builder: (context, _) {
+          final items = _center.notifications;
+          if (items.isEmpty) {
+            return EmptyState(
+              icon: Icons.notifications_off_rounded,
+              title: l10n.t('allCaughtUp'),
+              message: l10n.t('noNewNotifications'),
             );
-          },
-        ),
-        ),
+          }
+          return RefreshIndicator(
+            color: AppColors.primaryGreen,
+            onRefresh: _center.refresh,
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics()),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
+                  AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, i) {
+                final n = items[i];
+                return Dismissible(
+                  key: ValueKey(n.id),
+                  direction: DismissDirection.endToStart,
+                  background: _dismissBg(),
+                  onDismissed: (_) => _center.dismiss(n.id),
+                  child: _NotificationTile(
+                    notification: n,
+                    onTap: () => _center.markRead(n.id),
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -192,7 +172,7 @@ class _NotificationTile extends StatelessWidget {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration:  BoxDecoration(
+                            decoration: BoxDecoration(
                                 color: AppColors.primaryGreen,
                                 shape: BoxShape.circle),
                           ),

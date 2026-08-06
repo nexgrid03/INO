@@ -92,7 +92,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final palette = AppPalette.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      extendBody: true,
       body: InoBackground(
         child: SafeArea(
           bottom: false,
@@ -180,7 +179,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       _filterChips(),
       _prioritiesSection(priorities),
       _viewAllRow(),
-      const SizedBox(height: 120),
+      SizedBox(height: MediaQuery.paddingOf(context).bottom + 110),
     ];
     return Column(
       children: [

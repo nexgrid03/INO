@@ -17,7 +17,6 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -227,32 +226,41 @@ class _QrShareScreenState extends State<QrShareScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final title = switch (_status) {
+      ShareStatus.active => l10n.t('secureShare'),
+      ShareStatus.revoked => l10n.t('shareRevokedTitle'),
+      ShareStatus.expired => l10n.t('shareLinkExpiredTitle'),
+    };
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         sky: true,
         child: SafeArea(
-        child: Column(
-          children: [
-            _Header(
-              status: _status,
-              onClose: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: ListView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
-                children: [
-                  if (_status == ShareStatus.active)
-                    _activeBody(palette)
-                  else
-                    _inactiveBody(palette),
-                ],
+          top: !divineGlassEnabled(context),
+          child: Column(
+            children: [
+              DivineGlassAppBar(
+                title: title,
+                onBack: () => Navigator.of(context).pop(),
+                centerTitle: true,
+                includeStatusBar: true,
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: ListView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
+                  children: [
+                    if (_status == ShareStatus.active)
+                      _activeBody(palette)
+                    else
+                      _inactiveBody(palette),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -378,55 +386,6 @@ class _QrShareScreenState extends State<QrShareScreen> {
 }
 
 // ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header({required this.status, required this.onClose});
-
-  final ShareStatus status;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    final title = switch (status) {
-      ShareStatus.active => l10n.t('secureShare'),
-      ShareStatus.revoked => l10n.t('shareRevokedTitle'),
-      ShareStatus.expired => l10n.t('shareLinkExpiredTitle'),
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      child: Row(
-        children: [
-          InoBackButton(onTap: onClose),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppText.headline.copyWith(
-                    color: status == ShareStatus.active
-                        ? AppColors.primaryGreen
-                        : palette.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(l10n.t('anyoneCanScan'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _QrCard extends StatelessWidget {
   const _QrCard({required this.url, required this.dark});

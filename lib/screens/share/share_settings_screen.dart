@@ -16,6 +16,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
@@ -288,9 +289,15 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
       body: InoBackground(
         sky: true,
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           child: Column(
             children: [
-              _Header(onClose: () => Navigator.of(context).pop()),
+              DivineGlassAppBar(
+                title: l10n.t('secureShare'),
+                onBack: () => Navigator.of(context).pop(),
+                centerTitle: true,
+                includeStatusBar: true,
+              ),
               Expanded(
                 child: ListView(
                   physics: const ClampingScrollPhysics(),
@@ -402,58 +409,6 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
 }
 
 // ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      child: SizedBox(
-        height: 44,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: PressableScale(
-                child: GestureDetector(
-                  onTap: onClose,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: palette.surface,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: palette.border),
-                    ),
-                    child: Icon(Icons.close_rounded,
-                        size: 20, color: palette.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              l10n.t('secureShare'),
-              style: AppText.headline.copyWith(
-                color: AppColors.primaryGreen,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _FileCard extends StatelessWidget {
   const _FileCard({

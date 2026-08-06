@@ -7,6 +7,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
@@ -101,23 +102,27 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     final palette = AppPalette.of(context);
     final strength = passwordStrength(_password.text);
 
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: glass,
         child: SafeArea(
+          top: !glass,
           bottom: false,
           child: Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+            child: Column(
               children: [
                 ModuleHeader(
                   title: _isEdit ? 'Edit password' : 'Add password',
                   subtitle: 'A nickname and the password · nothing else',
                 ),
-                const SizedBox(height: AppSpacing.md),
-
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 140),
+                    children: [
                 // ---- Nickname ----
                 FadeSlideIn(
                   child: ModuleSection(
@@ -178,6 +183,9 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
                       ),
                       StrengthMeter(strength: strength),
                     ],
+                  ),
+                ),
+              ],
                   ),
                 ),
               ],

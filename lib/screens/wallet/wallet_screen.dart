@@ -238,9 +238,10 @@ class _WalletScreenState extends State<WalletScreen> {
                               onLongPress: _onLongPress,
                             ),
                     ),
-                    // Clear the floating bottom nav (the shell extends the body
-                    // behind it).
-                    const SizedBox(height: 120),
+                    // Clear the floating bottom nav (matches Home).
+                    SizedBox(
+                      height: MediaQuery.paddingOf(context).bottom + 110,
+                    ),
                   ],
                 ),
               );

@@ -43,8 +43,9 @@ class LauncherGlassIconTile extends StatelessWidget {
 
     // Flat Aqua Light: opaque glass + rim + lift so tiles stay readable.
     final frost = flat ? 1.35 : (dark ? 1.2 : 0.72);
-    // Tighter inset so 3D glyphs read larger inside the plate.
-    const iconPad = 6.0;
+    // Tight inset so glyphs fill the plate without looking sparse.
+    const iconPad = 4.0;
+    const glyphSize = 62.0;
     final plate = LiquidGlass(
       borderRadius: BorderRadius.circular(20),
       enableBlur: flat,
@@ -64,10 +65,10 @@ class LauncherGlassIconTile extends StatelessWidget {
               child: svgAsset != null
                   ? InoSvgIcon(
                       svgAsset!,
-                      size: 50,
+                      size: glyphSize,
                       color: accent,
                     )
-                  : Icon(icon, color: accent, size: 50),
+                  : Icon(icon, color: accent, size: glyphSize),
             ),
     );
 

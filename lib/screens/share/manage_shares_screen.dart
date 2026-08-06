@@ -5,7 +5,6 @@ import '../../models/document_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
@@ -55,25 +54,32 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         child: SafeArea(
+          top: !glass,
           child: Column(
             children: [
-              const _Header(),
+              DivineGlassAppBar(
+                title: l10n.t('sharedLinksTitle'),
+                onBack: () => Navigator.of(context).maybePop(),
+                centerTitle: true,
+                includeStatusBar: true,
+              ),
               Expanded(
                 child: FutureBuilder<List<DocumentShare>>(
                   future: _future,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return  Center(
+                      return Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2.6,
                           color: AppColors.primaryGreen,
                         ),
                       );
-                
                     }
                     final shares = snapshot.data ?? const <DocumentShare>[];
                     if (shares.isEmpty) return _EmptyState(palette: palette);
@@ -160,54 +166,6 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
         ),
       );
     }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.sm,
-        AppSpacing.screen,
-        AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.t('sharedLinksTitle'),
-                  style: AppText.headline.copyWith(
-                    color: palette.textPrimary,
-                    fontSize: 20,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  l10n.t('sharedLinksSubtitle'),
-                  style: AppText.caption.copyWith(
-                    color: palette.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

@@ -103,9 +103,48 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     ));
   }
 
+  Widget _header(AppPalette palette) {
+    final glass = divineGlassEnabled(context);
+    final title = 'Family Vault';
+    if (glass) {
+      return DivineGlassAppBar(
+        title: title,
+        onBack: () => Navigator.of(context).maybePop(),
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       floatingActionButton: ListenableBuilder(
@@ -114,39 +153,42 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
             _store.isEmpty ? const SizedBox.shrink() : _CreateButton(onTap: _create),
       ),
       body: InoBackground(
+        sky: glass,
         child: SafeArea(
-        child: Column(
-          children: [
-            const _Header(),
-            // Pending invitations addressed to this user — shown above the
-            // vault list (and even when the user has no vaults yet).
-            ListenableBuilder(
-              listenable: _store,
-              builder: (context, _) => _PendingInvites(
-                invites: _store.pendingInvites,
-                onAccept: _accept,
-                onDecline: _decline,
-              ),
-            ),
-            Expanded(
-              child: ListenableBuilder(
+          top: !glass,
+          child: Column(
+            children: [
+              _header(palette),
+              const SizedBox(height: AppSpacing.md),
+              // Pending invitations addressed to this user — shown above the
+              // vault list (and even when the user has no vaults yet).
+              ListenableBuilder(
                 listenable: _store,
-                builder: (context, _) {
-                  final loading = _store.isLoading && !_store.isLoaded;
-                  final failed = _store.loadError != null && _store.isEmpty;
-                  if (loading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  Future<void> refreshAll() async {
-                    await _store.reload();
-                    await _store.refreshPendingInvitations();
-                  }
+                builder: (context, _) => _PendingInvites(
+                  invites: _store.pendingInvites,
+                  onAccept: _accept,
+                  onDecline: _decline,
+                ),
+              ),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _store,
+                  builder: (context, _) {
+                    final loading = _store.isLoading && !_store.isLoaded;
+                    final failed = _store.loadError != null && _store.isEmpty;
+                    if (loading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    Future<void> refreshAll() async {
+                      await _store.reload();
+                      await _store.refreshPendingInvitations();
+                    }
 
-                  return RefreshIndicator(
-                    color: AppColors.primaryGreen,
-                    onRefresh: refreshAll,
-                    child: failed
-                        ? _ErrorState(
+                    return RefreshIndicator(
+                      color: AppColors.primaryGreen,
+                      onRefresh: refreshAll,
+                      child: failed
+                          ? _ErrorState(
                             message: _store.loadError!, onRetry: _store.reload)
                         : _store.isEmpty
                             ? _EmptyState(onCreate: _create)
@@ -170,7 +212,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl * 2),
       itemCount: vaults.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, i) => FadeSlideIn(
         delay: Duration(milliseconds: (i * 40).clamp(0, 240)),
         child: _VaultCard(
@@ -727,41 +769,6 @@ class _CreateButton extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.sm),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Family Vault',
-                  style: AppText.pageHeading(palette.headingInk),
-                ),
-                Text(
-                  'Shared vaults for your family',
-                  style:
-                      AppText.caption.copyWith(color: palette.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

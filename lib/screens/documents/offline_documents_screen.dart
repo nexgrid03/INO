@@ -154,7 +154,7 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                   sliver: SliverToBoxAdapter(
                     child: ModuleSkeleton(height: 72, count: 4),
                   ),

@@ -4,9 +4,8 @@ import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/reminders/completed_reminder_tile.dart';
 
 /// The reminder history - everything that's been marked done. A quiet, read-only
@@ -33,23 +32,13 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      appBar: AppBar(
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Center(child: InoBackButton(size: 42)),
-        ),
-        title: Text(l10n.t('completed'),
-            style: AppText.title.copyWith(color: palette.textPrimary)),
-      ),
-      body: InoBackground(
-        child: ListenableBuilder(
+    return SettingsScaffold(
+      title: l10n.t('completed'),
+      child: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           if (!_store.isLoaded) {
-            return  Center(
+            return Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.primaryGreen,
@@ -106,7 +95,6 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
             ],
           );
         },
-        ),
       ),
     );
   }
@@ -125,7 +113,7 @@ class _RestoreBackground extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-           Icon(Icons.undo_rounded,
+          Icon(Icons.undo_rounded,
               size: 18, color: AppColors.primaryGreen),
           const SizedBox(width: 6),
           Text(
@@ -160,7 +148,7 @@ class _Empty extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: palette.border),
               ),
-              child:  Icon(Icons.task_alt_rounded,
+              child: Icon(Icons.task_alt_rounded,
                   size: 32, color: AppColors.primaryGreen),
             ),
             const SizedBox(height: AppSpacing.sm),

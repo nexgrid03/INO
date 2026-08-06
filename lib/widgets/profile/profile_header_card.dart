@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/avatar_color.dart';
+import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
 /// The compact identity header at the top of the Profile settings page.
 ///
 /// Solid plate (not translucent glass) so it stays readable on the wash, with
-/// a per-user accent colour for the avatar ring / initials.
+/// a theme-aware accent colour for the avatar ring / initials.
 class ProfileHeaderCard extends StatelessWidget {
   const ProfileHeaderCard({
     super.key,
@@ -36,8 +37,9 @@ class ProfileHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final accent = AvatarColor.forKey(_colorSeed);
-    final accentGrad = AvatarColor.gradientFor(_colorSeed);
+    final style = InoStyle.of(context);
+    final accent = AvatarColor.forStyle(style, _colorSeed);
+    final accentGrad = AvatarColor.gradientForStyle(style, _colorSeed);
     final plate =
         Color.lerp(palette.surface, accent, palette.isDark ? 0.12 : 0.06)!;
 
