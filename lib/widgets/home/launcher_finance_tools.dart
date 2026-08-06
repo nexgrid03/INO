@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
-/// Property & Finance Tools grid for Launcher (soft-3D PNG glass tiles).
+/// Property & Finance Tools grid for Divine Glass Home.
 ///
-/// Uses explicit tile widths from [LayoutBuilder] so three-across rows never
-/// overflow / clip the last tile (e.g. SIP Calc) on phone widths.
+/// [ThemeStyle.clay] uses soft-3D PNGs; aqua / launcher / aquaLight restore
+/// the tinted SVG set from before the 3D Home icons landed.
 class LauncherFinanceTools extends StatelessWidget {
   const LauncherFinanceTools({
     super.key,
@@ -33,40 +34,47 @@ class LauncherFinanceTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final use3d = InoStyle.usesHome3dIcons(context);
     final tools = [
       (
         label: l10n.t('areaCalc'),
-        image: InoHomeIcons3d.finArea,
+        image: use3d ? InoHomeIcons3d.finArea : null,
+        svg: use3d ? null : InoHomeIcons.area,
         accent: AppColors.primaryGreen,
         onTap: onOpenArea,
       ),
       (
         label: l10n.t('emiCalc'),
-        image: InoHomeIcons3d.finEmi,
+        image: use3d ? InoHomeIcons3d.finEmi : null,
+        svg: use3d ? null : InoHomeIcons.emi,
         accent: AppColors.accentIndigo,
         onTap: onOpenEmi,
       ),
       (
         label: l10n.t('sipCalc'),
-        image: InoHomeIcons3d.finSip,
+        image: use3d ? InoHomeIcons3d.finSip : null,
+        svg: use3d ? null : InoHomeIcons.sip,
         accent: AppColors.accentViolet,
         onTap: onOpenSip,
       ),
       (
         label: l10n.t('stampDuty'),
-        image: InoHomeIcons3d.finStamp,
+        image: use3d ? InoHomeIcons3d.finStamp : null,
+        svg: use3d ? null : InoHomeIcons.stamp,
         accent: AppColors.accentAmber,
         onTap: onOpenStampDuty,
       ),
       (
         label: l10n.t('unitConv'),
-        image: InoHomeIcons3d.finUnit,
+        image: use3d ? InoHomeIcons3d.finUnit : null,
+        svg: use3d ? null : InoHomeIcons.unit,
         accent: AppColors.accentCyan,
         onTap: onOpenUnitConv,
       ),
       (
         label: l10n.t('taxCalc'),
-        image: InoHomeIcons3d.finTax,
+        image: use3d ? InoHomeIcons3d.finTax : null,
+        svg: use3d ? null : InoHomeIcons.tax,
         accent: AppColors.accentEmerald,
         onTap: onOpenTax,
       ),
@@ -96,6 +104,7 @@ class LauncherFinanceTools extends StatelessWidget {
                     child: LauncherGlassIconTile(
                       label: slice[j].label,
                       imageAsset: slice[j].image,
+                      svgAsset: slice[j].svg,
                       accent: slice[j].accent,
                       onTap: slice[j].onTap,
                     ),

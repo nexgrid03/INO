@@ -109,13 +109,31 @@ class _AuthScaffoldState extends State<AuthScaffold>
       );
     }
 
-    Widget body = widget.scrollable
-        ? SingleChildScrollView(
+    Widget body;
+    if (widget.scrollable) {
+      // Center the (white) card when it fits; scroll when it overflows
+      // (keyboard open, short phones, long forms like Signup).
+      body = LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
             padding: widget.padding,
             physics: const BouncingScrollPhysics(),
-            child: content,
-          )
-        : Padding(padding: widget.padding, child: content);
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+                minWidth: constraints.maxWidth,
+              ),
+              child: Center(child: content),
+            ),
+          );
+        },
+      );
+    } else {
+      body = Padding(
+        padding: widget.padding,
+        child: Center(child: content),
+      );
+    }
 
     final flat = InoStyle.usesFlatBackdrop(context);
 

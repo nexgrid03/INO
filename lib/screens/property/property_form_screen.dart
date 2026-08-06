@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
@@ -350,17 +351,19 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
     final symbol = _currency.symbol;
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: glass,
         child: SafeArea(
+          top: !glass,
           bottom: false,
           child: Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+            child: Column(
               children: [
                 ModuleHeader(
                   title: _isEdit ? 'Edit property' : 'Add property',
@@ -368,8 +371,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                       ? widget.existing!.name
                       : 'Only the name is required',
                 ),
-                const SizedBox(height: AppSpacing.md),
-
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 140),
+                    children: [
                 // ---- Photo ----
                 FadeSlideIn(
                   child: _PhotoPicker(
@@ -843,6 +848,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         maxLines: 2,
                       ),
                     ],
+                  ),
+                ),
+              ],
                   ),
                 ),
               ],

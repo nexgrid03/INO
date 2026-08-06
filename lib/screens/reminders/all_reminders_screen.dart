@@ -5,8 +5,8 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/reminders/add_reminder_sheet.dart';
 import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
@@ -69,21 +69,15 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: palette.bg,
-      appBar: AppBar(
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Center(child: InoBackButton(size: 42)),
-        ),
-        title: Text(widget.scope.localizedTitle(l10n),
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+      appBar: DivineGlassAppBar.asPreferredSize(
+        context,
+        title: widget.scope.localizedTitle(l10n),
         actions: [
           IconButton(
             tooltip: l10n.t('calendar'),
             icon: const Icon(Icons.calendar_month_rounded),
             onPressed: _openCalendar,
           ),
-          const SizedBox(width: 4),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -93,60 +87,64 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         child: const Icon(Icons.add_rounded),
       ),
       body: InoBackground(
-        child: ListenableBuilder(
-        listenable: _store,
-        builder: (context, _) {
-          if (!_store.isLoaded) {
-            return  Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2.6,
-                color: AppColors.primaryGreen,
-              ),
-            );
-          }
-          final scoped =
-              _store.inScope(widget.scope).where(_filter.matches).toList();
-          final groups = groupRemindersByTime(scoped, _store.today);
+        child: SafeArea(
+          top: false,
+          child: ListenableBuilder(
+            listenable: _store,
+            builder: (context, _) {
+              if (!_store.isLoaded) {
+                return Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.6,
+                    color: AppColors.primaryGreen,
+                  ),
+                );
+              }
+              final scoped =
+                  _store.inScope(widget.scope).where(_filter.matches).toList();
+              final groups = groupRemindersByTime(scoped, _store.today);
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppSpacing.xs),
-              ReminderFilterChips(
-                selected: _filter,
-                onSelected: (k) => setState(() => _filter = k),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Expanded(
-                child: groups.isEmpty
-                    ? const _EmptyList()
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                            AppSpacing.screen, 120),
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          for (final g in groups) ...[
-                            _GroupHeader(
-                                labelKey: g.labelKey, count: g.items.length),
-                            for (final r in g.items)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: AppSpacing.xs),
-                                child: ReminderCard(
-                                  reminder: r,
-                                  today: _store.today,
-                                  onTap: () => showReminderDetail(context, r),
-                                  onComplete: () => _store.complete(r),
-                                ),
-                              ),
-                            const SizedBox(height: AppSpacing.sm),
-                          ],
-                        ],
-                      ),
-              ),
-            ],
-          );
-        },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: AppSpacing.xs),
+                  ReminderFilterChips(
+                    selected: _filter,
+                    onSelected: (k) => setState(() => _filter = k),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Expanded(
+                    child: groups.isEmpty
+                        ? const _EmptyList()
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.screen, 0, AppSpacing.screen, 120),
+                            physics: const BouncingScrollPhysics(),
+                            children: [
+                              for (final g in groups) ...[
+                                _GroupHeader(
+                                    labelKey: g.labelKey, count: g.items.length),
+                                for (final r in g.items)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        bottom: AppSpacing.xs),
+                                    child: ReminderCard(
+                                      reminder: r,
+                                      today: _store.today,
+                                      onTap: () =>
+                                          showReminderDetail(context, r),
+                                      onComplete: () => _store.complete(r),
+                                    ),
+                                  ),
+                                const SizedBox(height: AppSpacing.sm),
+                              ],
+                            ],
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

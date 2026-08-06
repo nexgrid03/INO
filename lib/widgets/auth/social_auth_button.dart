@@ -1,6 +1,5 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -100,107 +99,108 @@ class SocialAuthButton extends StatelessWidget {
   }
 }
 
-/// Multicolour Google "G" mark (official brand colours, no asset).
-class GoogleGlyph extends StatelessWidget {
-  const GoogleGlyph({super.key, this.size = 20});
+/// Icon-only social affordance — circular well with the brand glyph, no label.
+/// Used in a horizontal row under the OR divider on Login.
+class SocialAuthIconButton extends StatelessWidget {
+  const SocialAuthIconButton({
+    super.key,
+    required this.brand,
+    required this.onPressed,
+    required this.tooltip,
+    this.busy = false,
+    this.size = 52,
+  });
 
+  final Widget brand;
+  final VoidCallback? onPressed;
+  final String tooltip;
+  final bool busy;
   final double size;
-
-  static const blue = Color(0xFF4285F4);
-  static const green = Color(0xFF34A853);
-  static const yellow = Color(0xFFFBBC05);
-  static const red = Color(0xFFEA4335);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: const CustomPaint(painter: _GoogleGPainter()),
+    final palette = AppPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: PressableScale(
+        child: GestureDetector(
+          onTap: busy ? null : onPressed,
+          behavior: HitTestBehavior.opaque,
+          child: Semantics(
+            button: true,
+            label: tooltip,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: palette.isDark
+                    ? palette.surface
+                    : Colors.white.withValues(alpha: 0.9),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: palette.isDark
+                      ? AppColors.primaryGreen.withValues(alpha: 0.30)
+                      : AppColors.tealPale,
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: palette.shadow
+                        .withValues(alpha: 0.05 * palette.shadowStrength),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: busy
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: palette.textSecondary,
+                      ),
+                    )
+                  : brand,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _GoogleGPainter extends CustomPainter {
-  const _GoogleGPainter();
+/// Official multicolour Google "G" mark (SVG, full viewBox — no clipping).
+class GoogleGlyph extends StatelessWidget {
+  const GoogleGlyph({super.key, this.size = 22});
+
+  final double size;
+
+  /// Official Google "G" paths (48×48 viewBox).
+  static const _svg = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 9.78l7.97-6.19z"/>
+  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+</svg>
+''';
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.shortestSide;
-    final stroke = s * 0.22;
-    final center = Offset(s / 2, s / 2);
-    final radius = (s - stroke) / 2;
-    final ring = Rect.fromCircle(center: center, radius: radius);
-
-    Paint arcPaint(Color color) => Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt
-      ..isAntiAlias = true;
-
-    // Flutter arcs: 0 = right, increases clockwise.
-    // Leave a mouth gap on the right so it reads as "G", not a closed "O".
-    const gapStart = -0.38; // ~−22°
-    const gapEnd = 0.72; // ~+41°
-
-    // Blue: top → just above the mouth.
-    canvas.drawArc(
-      ring,
-      -math.pi / 2,
-      gapStart - (-math.pi / 2),
-      false,
-      arcPaint(GoogleGlyph.blue),
-    );
-    // Green: below the mouth → bottom.
-    canvas.drawArc(
-      ring,
-      gapEnd,
-      math.pi / 2 - gapEnd,
-      false,
-      arcPaint(GoogleGlyph.green),
-    );
-    // Yellow: bottom → left.
-    canvas.drawArc(
-      ring,
-      math.pi / 2,
-      math.pi / 2,
-      false,
-      arcPaint(GoogleGlyph.yellow),
-    );
-    // Red: left → top.
-    canvas.drawArc(
-      ring,
-      math.pi,
-      math.pi / 2,
-      false,
-      arcPaint(GoogleGlyph.red),
-    );
-
-    // Blue crossbar through the mouth (center → right rim).
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(
-          center.dx - stroke * 0.08,
-          center.dy - stroke / 2,
-          center.dx + radius + stroke / 2,
-          center.dy + stroke / 2,
-        ),
-        Radius.circular(stroke * 0.12),
-      ),
-      Paint()
-        ..color = GoogleGlyph.blue
-        ..isAntiAlias = true,
+  Widget build(BuildContext context) {
+    return SvgPicture.string(
+      _svg,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
     );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Apple logo for Sign in with Apple.
 class AppleGlyph extends StatelessWidget {
-  const AppleGlyph({super.key, this.size = 22, this.color});
+  const AppleGlyph({super.key, this.size = 24, this.color});
 
   final double size;
   final Color? color;

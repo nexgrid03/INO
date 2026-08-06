@@ -45,7 +45,7 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            const gap = AppSpacing.sm;
+            const gap = AppSpacing.md;
             final cardWidth = (constraints.maxWidth - gap) / 2;
             return Wrap(
               spacing: gap,

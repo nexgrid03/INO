@@ -14,12 +14,14 @@ import 'package:flutter/material.dart';
 ///    badges go glass with **colourful** glyphs instead of white.
 ///  • [launcher] - Compact Home layout (quick actions → vaults →
 ///    needs-attention) plus frosted glass chrome on feature screens.
-///    Colour rules match classic (#0EA5E9).
+///    Colour rules match classic (#0EA5E9). Home icons are tinted SVGs.
 ///  • [aqua]     - Same compact Home + Divine Glass chrome as [launcher],
-///    branded with teal #098F90 (gradient sky wash).
+///    branded with teal #098F90 (gradient sky wash). Home icons are tinted SVGs.
 ///  • [aquaLight] - Same teal brand + Divine Glass as [aqua], but a **flat**
-///    solid backdrop (no aurora / sky gradient).
-enum ThemeStyle { classic, bold, soft, launcher, aqua, aquaLight }
+///    solid backdrop (no aurora / sky gradient). Home icons are tinted SVGs.
+///  • [clay]     - Same compact Home + Divine Glass chrome as [aqua]
+///    (teal #098F90), with soft-3D / clay PNG Home icons.
+enum ThemeStyle { classic, bold, soft, launcher, aqua, aquaLight, clay }
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
 /// widget that consults the active style - directly via [InoStyle.of] or
@@ -47,7 +49,7 @@ class InoStyle {
   /// Sky brand (#0EA5E9) — classic / bold / soft / launcher.
   static const Color _skyBrand = Color(0xFF0EA5E9);
 
-  /// Aqua brand (#098F90) — aqua / aquaLight.
+  /// Aqua brand (#098F90) — aqua / aquaLight / clay.
   static const Color _aquaBrand = Color(0xFF098F90);
 
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
@@ -57,22 +59,35 @@ class InoStyle {
   static bool isLauncher(BuildContext context) =>
       of(context) == ThemeStyle.launcher;
 
-  /// Teal #098F90 brand family ([aqua] or [aquaLight]).
+  /// Teal #098F90 brand family ([aqua], [aquaLight], or [clay]).
   static bool isAqua(BuildContext context) => usesAquaBrand(of(context));
 
   static bool usesAquaBrand(ThemeStyle style) =>
-      style == ThemeStyle.aqua || style == ThemeStyle.aquaLight;
+      style == ThemeStyle.aqua ||
+      style == ThemeStyle.aquaLight ||
+      style == ThemeStyle.clay;
 
   /// Flat solid scaffold wash — no aurora / sky gradient ([aquaLight]).
   static bool usesFlatBackdrop(BuildContext context) =>
       of(context) == ThemeStyle.aquaLight;
 
-  /// Compact Home + Divine Glass chrome — launcher + aqua family.
+  /// Compact Home + Divine Glass chrome — launcher + aqua family + clay.
   static bool usesDivineGlass(BuildContext context) =>
       usesDivineGlassStyle(of(context));
 
   static bool usesDivineGlassStyle(ThemeStyle style) =>
-      style == ThemeStyle.launcher || usesAquaBrand(style);
+      style == ThemeStyle.launcher ||
+      style == ThemeStyle.clay ||
+      style == ThemeStyle.aqua ||
+      style == ThemeStyle.aquaLight;
+
+  /// Soft-3D / clay PNG Home icons (Quick Actions, vaults, tools, attention).
+  /// Only [ThemeStyle.clay]; aqua / launcher / aquaLight keep tinted SVGs.
+  static bool usesHome3dIcons(BuildContext context) =>
+      usesHome3dIconsStyle(of(context));
+
+  static bool usesHome3dIconsStyle(ThemeStyle style) =>
+      style == ThemeStyle.clay;
 
   /// Brand accent for the active style: teal #098F90 in Aqua family, else sky.
   static Color brandAccent(BuildContext context) {
@@ -98,7 +113,7 @@ class InoStyle {
   }
 
   /// An accent resolved for the active style: deeper in bold, a touch lighter
-  /// in soft, untouched in classic / launcher / aqua family.
+  /// in soft, untouched in classic / launcher / aqua family / clay.
   static Color accent(BuildContext context, Color c) {
     switch (of(context)) {
       case ThemeStyle.bold:
@@ -109,6 +124,7 @@ class InoStyle {
       case ThemeStyle.launcher:
       case ThemeStyle.aqua:
       case ThemeStyle.aquaLight:
+      case ThemeStyle.clay:
         return c;
     }
   }
@@ -126,11 +142,12 @@ class InoStyle {
 
   /// A branded gradient resolved for the active style: every stop runs deeper
   /// in bold and a touch lighter in soft. Non-linear gradients pass through
-  /// untouched. Classic, launcher and aqua family leave the gradient as authored.
+  /// untouched. Classic, launcher, clay and aqua family leave the gradient as authored.
   static Gradient gradient(BuildContext context, Gradient g) {
     final style = of(context);
     if (style == ThemeStyle.classic ||
         style == ThemeStyle.launcher ||
+        style == ThemeStyle.clay ||
         usesAquaBrand(style) ||
         g is! LinearGradient) {
       return g;

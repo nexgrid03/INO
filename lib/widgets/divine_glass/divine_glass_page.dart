@@ -32,7 +32,7 @@ class DivineGlassPage extends StatelessWidget {
       appBar: DivineGlassAppBar.asPreferredSize(
         context,
         title: title,
-        centerTitle: false,
+        centerTitle: true,
         onBack: showBack ? () => Navigator.of(context).maybePop() : null,
         actions: actions,
       ),

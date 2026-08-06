@@ -507,6 +507,9 @@ class AppPalette {
         return lightAqua;
       case ThemeStyle.aquaLight:
         return lightAquaLight;
+      case ThemeStyle.clay:
+        // Clay shares Aqua's teal palette; only Home icons differ (3D).
+        return lightAqua;
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
         return light;

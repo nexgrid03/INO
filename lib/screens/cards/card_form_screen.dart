@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import 'cards_wallet_screen.dart' show BankCardFace;
@@ -182,23 +183,28 @@ class _CardFormScreenState extends State<CardFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: glass,
         child: SafeArea(
+          top: !glass,
           bottom: false,
           child: Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+            child: Column(
               children: [
                 ModuleHeader(
                   title: _isEdit ? 'Edit card' : 'Add card',
                   subtitle: 'Last 4 digits only · no CVV',
                 ),
-                const SizedBox(height: AppSpacing.md),
-
+                Expanded(
+                  child: ListView(
+                    padding:
+                        const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 140),
+                    children: [
                 // ---- Live preview ----
                 FadeSlideIn(
                   child: BankCardFace(
@@ -349,6 +355,9 @@ class _CardFormScreenState extends State<CardFormScreen> {
                         maxLines: 3,
                       ),
                     ],
+                  ),
+                ),
+              ],
                   ),
                 ),
               ],

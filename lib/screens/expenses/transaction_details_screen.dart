@@ -14,6 +14,7 @@ import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/expense_widgets.dart';
 import '../../widgets/pressable_scale.dart';
 import 'add_expense_screen.dart';
@@ -62,16 +63,113 @@ class TransactionDetailsScreen extends StatelessWidget {
     }
   }
 
+  Widget _header(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
+
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DivineGlassHeaderAction(
+          icon: Icons.edit_rounded,
+          tooltip: l10n.t('edit'),
+          onTap: () {
+            final t = ExpenseStore.instance.byId(id);
+            if (t == null) return;
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => AddExpenseScreen(existing: t)));
+          },
+        ),
+        const SizedBox(width: 4),
+        DivineGlassHeaderAction(
+          icon: Icons.delete_outline_rounded,
+          tooltip: l10n.t('delete'),
+          onTap: () => _confirmDelete(context),
+        ),
+      ],
+    );
+
+    if (glass) {
+      return DivineGlassAppBar(
+        title: l10n.t('transaction'),
+        onBack: () => Navigator.of(context).maybePop(),
+        trailing: trailing,
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+
+    Widget btn(IconData icon, VoidCallback onTap, [Color? color]) =>
+        PressableScale(
+          pressedScale: 0.9,
+          child: Material(
+            color: palette.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              side: BorderSide(color: palette.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: SizedBox(
+                width: AppSizes.iconContainerSm,
+                height: AppSizes.iconContainerSm,
+                child: Icon(icon, size: 20, color: color ?? palette.textPrimary),
+              ),
+            ),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              l10n.t('transaction'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
+            ),
+          ),
+          btn(Icons.edit_rounded, () {
+            final t = ExpenseStore.instance.byId(id);
+            if (t == null) return;
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => AddExpenseScreen(existing: t)));
+          }, AppColors.primaryGreen),
+          const SizedBox(width: AppSpacing.xs),
+          btn(Icons.delete_outline_rounded, () => _confirmDelete(context),
+              AppColors.critical),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = ExpenseStore.instance;
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: glass,
         child: SafeArea(
-        child: ListenableBuilder(
+          top: !glass,
+          child: ListenableBuilder(
           listenable: store,
           builder: (context, _) {
             final t = store.byId(id);
@@ -84,11 +182,8 @@ class TransactionDetailsScreen extends StatelessWidget {
             final credited = t.isCredited;
             return Column(
               children: [
-                _Header(
-                  onEdit: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => AddExpenseScreen(existing: t))),
-                  onDelete: () => _confirmDelete(context),
-                ),
+                _header(context),
+                const SizedBox(height: AppSpacing.md),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -379,59 +474,6 @@ class _ShareButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    Widget btn(IconData icon, VoidCallback onTap, [Color? color]) =>
-        PressableScale(
-          pressedScale: 0.9,
-          child: Material(
-            color: palette.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-              side: BorderSide(color: palette.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: SizedBox(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
-                child: Icon(icon, size: 20, color: color ?? palette.textPrimary),
-              ),
-            ),
-          ),
-        );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.md),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(AppLocalizations.of(context).t('transaction'),
-                style: AppText.headline
-                    .copyWith(color: palette.textPrimary, fontSize: 21)),
-          ),
-          btn(Icons.edit_rounded, onEdit, AppColors.primaryGreen),
-          const SizedBox(width: AppSpacing.xs),
-          btn(Icons.delete_outline_rounded, onDelete, AppColors.critical),
-        ],
       ),
     );
   }

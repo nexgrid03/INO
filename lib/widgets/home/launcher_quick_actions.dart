@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import 'quick_action_button.dart';
 
 /// Launcher Quick Actions (4): Scan · Documents · Reminder · Voice.
 ///
 /// Equal [Expanded] cells + shared disc sizing keep the row aligned.
+/// [ThemeStyle.clay] uses soft-3D PNGs; aqua / launcher / aquaLight use SVGs.
 class LauncherQuickActions extends StatelessWidget {
   const LauncherQuickActions({
     super.key,
@@ -28,30 +30,35 @@ class LauncherQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final use3d = InoStyle.usesHome3dIcons(context);
     final actions = [
       QuickActionButton(
-        imageAsset: InoHomeIcons3d.scan,
+        imageAsset: use3d ? InoHomeIcons3d.scan : null,
+        svgAsset: use3d ? null : InoHomeIcons.scan,
         label: l10n.t('scan'),
         color: AppColors.primaryGreen,
         onTap: onScan,
         enlarged: true,
       ),
       QuickActionButton(
-        imageAsset: InoHomeIcons3d.documents,
+        imageAsset: use3d ? InoHomeIcons3d.documents : null,
+        svgAsset: use3d ? null : InoHomeIcons.documents,
         label: l10n.t('documents'),
         color: AppColors.primaryGreen,
         onTap: onAddDocument,
         enlarged: true,
       ),
       QuickActionButton(
-        imageAsset: InoHomeIcons3d.reminder,
+        imageAsset: use3d ? InoHomeIcons3d.reminder : null,
+        svgAsset: use3d ? null : InoHomeIcons.reminder,
         label: l10n.t('reminder'),
         color: AppColors.primaryGreen,
         onTap: onAddReminder,
         enlarged: true,
       ),
       QuickActionButton(
-        imageAsset: InoHomeIcons3d.voice,
+        imageAsset: use3d ? InoHomeIcons3d.voice : null,
+        svgAsset: use3d ? null : InoHomeIcons.voice,
         label: l10n.t('voice'),
         color: AppColors.primaryGreen,
         onTap: onVoice,

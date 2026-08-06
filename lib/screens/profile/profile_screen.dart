@@ -292,6 +292,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeAqua');
       case ThemeStyle.aquaLight:
         return l10n.t('themeAquaLight');
+      case ThemeStyle.clay:
+        return l10n.t('themeClay');
     }
   }
 
@@ -309,6 +311,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeAquaDesc');
       case ThemeStyle.aquaLight:
         return l10n.t('themeAquaLightDesc');
+      case ThemeStyle.clay:
+        return l10n.t('themeClayDesc');
     }
   }
 
@@ -746,8 +750,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                   icon: Icons.account_circle_rounded,
                   title: a.displayName,
                   subtitle: a.email.isEmpty ? null : a.email,
-                  accent: AvatarColor.forKey(
-                    a.email.isNotEmpty ? a.email : (a.id.isNotEmpty ? a.id : a.displayName),
+                  accent: AvatarColor.forStyle(
+                    InoStyle.of(context),
+                    a.email.isNotEmpty
+                        ? a.email
+                        : (a.id.isNotEmpty ? a.id : a.displayName),
                   ),
                   trailing: a.id == currentId
                       ? Text(
@@ -948,7 +955,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     AppSpacing.screen,
                     AppSpacing.md,
                     AppSpacing.screen,
-                    bottomInset + 100,
+                    bottomInset + 110,
                   ),
                   itemCount: blocks.length,
                   separatorBuilder: (_, _) =>
@@ -996,7 +1003,7 @@ class _Title extends StatelessWidget {
 }
 
 /// The centered identity hero (Stitch "profile_settings" pattern): a large
-/// avatar with a per-user colour ring, name + email, and the trust pill.
+/// avatar with a theme-aware colour ring, name + email, and the trust pill.
 ///
 /// Solid surface fill so the card reads clearly on the soft wash background.
 /// The ENTIRE card stays tappable → [onEdit].
@@ -1026,8 +1033,9 @@ class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final accent = AvatarColor.forKey(_colorSeed);
-    final accentGrad = AvatarColor.gradientFor(_colorSeed);
+    final style = InoStyle.of(context);
+    final accent = AvatarColor.forStyle(style, _colorSeed);
+    final accentGrad = AvatarColor.gradientForStyle(style, _colorSeed);
     // Opaque plate — translucent glass was blending into the wash.
     final plate = Color.lerp(palette.surface, accent, palette.isDark ? 0.12 : 0.06)!;
 
@@ -1421,6 +1429,14 @@ class _ThemeSwatch extends StatelessWidget {
         edge = AppColors.aquaPrimary;
         glyph = const Icon(
           Icons.water_drop_outlined,
+          color: AppColors.aquaPrimary,
+          size: 18,
+        );
+      case ThemeStyle.clay:
+        fill = AppColors.aquaFoam;
+        edge = AppColors.aquaPrimary;
+        glyph = const Icon(
+          Icons.view_in_ar_rounded,
           color: AppColors.aquaPrimary,
           size: 18,
         );

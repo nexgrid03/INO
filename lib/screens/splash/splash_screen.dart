@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,7 +12,7 @@ import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
-/// Clean cozy splash — theme-tinted sky, brand shield, then I → N → O.
+/// Splash — theme sky, clay soft-3D brand shield, then I → N → O on the face.
 ///
 /// After the reveal:
 ///   • first launch → [OnboardingScreen]
@@ -37,7 +38,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   bool _navigated = false;
 
-  static const _shieldAsset = 'assets/splash/splash_shield_blank.png';
+  /// Flat silhouette used as the clay-3D mask (same shape as before).
+  static const _shieldMask = 'assets/splash/splash_shield_blank.png';
 
   @override
   void initState() {
@@ -45,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4600),
+      duration: const Duration(milliseconds: 5200),
     )..addStatusListener(_onStatusChanged);
 
     _float = AnimationController(
@@ -53,16 +55,18 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(seconds: 5),
     )..repeat(reverse: true);
 
-    _shieldFade = _phase(0.00, 0.26, Curves.easeOut);
+    // 1) Shield alone — fully settled before any letters.
+    _shieldFade = _phase(0.00, 0.32, Curves.easeOut);
     _shieldScale = Tween<double>(begin: 0.86, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.00, 0.30, curve: Curves.easeOutCubic),
+        curve: const Interval(0.00, 0.38, curve: Curves.easeOutCubic),
       ),
     );
 
-    const starts = [0.34, 0.46, 0.58];
-    const ends = [0.50, 0.62, 0.74];
+    // 2) Then I → N → O, after a clear beat on the settled shield.
+    const starts = [0.48, 0.58, 0.68];
+    const ends = [0.60, 0.70, 0.80];
     _letterFade = [
       for (var i = 0; i < 3; i++) _phase(starts[i], ends[i], Curves.easeOut),
     ];
@@ -200,22 +204,29 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
+                            // Soft floor shadow (clay icon style).
                             Transform.translate(
-                              offset: Offset(0, shieldSize * 0.06),
+                              offset: Offset(0, shieldSize * 0.08),
                               child: Container(
-                                width: shieldSize * 0.55,
+                                width: shieldSize * 0.52,
                                 height: shieldSize * 0.12,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.all(
                                     Radius.elliptical(
-                                      shieldSize * 0.55,
+                                      shieldSize * 0.52,
                                       shieldSize * 0.12,
                                     ),
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: brand.withValues(alpha: 0.22),
-                                      blurRadius: 28,
+                                      color: Colors.black
+                                          .withValues(alpha: 0.22),
+                                      blurRadius: 26,
+                                      spreadRadius: 1,
+                                    ),
+                                    BoxShadow(
+                                      color: brand.withValues(alpha: 0.20),
+                                      blurRadius: 32,
                                       spreadRadius: 2,
                                     ),
                                   ],
@@ -223,13 +234,14 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                             ),
 
-                            _GlassyShieldMark(
-                              asset: _shieldAsset,
+                            // Clay soft-3D shield (same silhouette as before).
+                            _ClayShield3d(
+                              maskAsset: _shieldMask,
                               size: shieldSize,
                               accent: brand,
-                              shine: InoStyle.of(context) == ThemeStyle.soft,
                             ),
 
+                            // INO reveal on the shield face.
                             Transform.translate(
                               offset: Offset(0, -shieldSize * 0.02),
                               child: Row(
@@ -249,6 +261,14 @@ class _SplashScreenState extends State<SplashScreen>
                                             fontSize: shieldSize * 0.23,
                                             fontWeight: FontWeight.w800,
                                             height: 1.0,
+                                            shadows: [
+                                              Shadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.28),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -272,45 +292,59 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-/// Brand-green shield with a soft glass gloss — solid green fill, white letters
-/// sit on top in the splash.
-class _GlassyShieldMark extends StatelessWidget {
-  const _GlassyShieldMark({
-    required this.asset,
+/// Soft-3D clay shield — same blank silhouette, layered like Home clay icons
+/// (thick lit rim, deeper face, specular kiss). Letters sit on the face.
+class _ClayShield3d extends StatelessWidget {
+  const _ClayShield3d({
+    required this.maskAsset,
     required this.size,
     required this.accent,
-    required this.shine,
   });
 
-  final String asset;
+  final String maskAsset;
   final double size;
   final Color accent;
-  final bool shine;
 
-  Color _lift(Color c, double amount) {
+  Color _tone(Color c, {double light = 0, double sat = 0}) {
     final hsl = HSLColor.fromColor(c);
     return hsl
-        .withLightness((hsl.lightness + amount).clamp(0.0, 1.0))
-        .withSaturation((hsl.saturation + amount * 0.5).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + light).clamp(0.05, 0.92))
+        .withSaturation((hsl.saturation + sat).clamp(0.0, 1.0))
         .toColor();
   }
 
-  Widget _masked(Shader shader) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (_) => shader,
-      child: Image.asset(
-        asset,
+  Widget _masked({
+    required double scale,
+    required Shader Function(Rect) shader,
+    double opacity = 1,
+  }) {
+    final side = size * scale;
+    return Opacity(
+      opacity: opacity,
+      child: SizedBox(
         width: size,
         height: size,
-        fit: BoxFit.contain,
-        color: Colors.white,
-        colorBlendMode: BlendMode.srcIn,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (_, _, _) => Icon(
-          Icons.shield_rounded,
-          size: size * 0.85,
-          color: Colors.white,
+        child: Center(
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) => shader(
+              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+            ),
+            child: Image.asset(
+              maskAsset,
+              width: side,
+              height: side,
+              fit: BoxFit.contain,
+              color: Colors.white,
+              colorBlendMode: BlendMode.srcIn,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.shield_rounded,
+                size: side * 0.88,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -318,29 +352,12 @@ class _GlassyShieldMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rect = Rect.fromLTWH(0, 0, size, size);
-
-    // Saturated green fill (same colour edge → centre), with a soft lift for depth.
-    final bodyShader = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        _lift(accent, 0.12),
-        accent,
-        _lift(accent, 0.02),
-      ],
-      stops: const [0.0, 0.45, 1.0],
-    ).createShader(rect);
-
-    final glossShader = RadialGradient(
-      center: const Alignment(-0.55, -0.70),
-      radius: 1.0,
-      colors: [
-        Colors.white.withValues(alpha: 0.42),
-        Colors.white.withValues(alpha: 0),
-      ],
-      stops: const [0.0, 0.85],
-    ).createShader(rect);
+    final rimHi = _tone(accent, light: 0.28, sat: 0.05);
+    final rimMid = _tone(accent, light: 0.10);
+    final rimLo = _tone(accent, light: -0.12, sat: 0.08);
+    final faceHi = _tone(accent, light: 0.14);
+    final faceMid = accent;
+    final faceLo = _tone(accent, light: -0.10, sat: 0.06);
 
     return SizedBox(
       width: size,
@@ -348,27 +365,99 @@ class _GlassyShieldMark extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          _masked(bodyShader),
-          _masked(glossShader),
-          if (shine)
-            Opacity(
-              opacity: 0.35,
-              child: _masked(
-                SweepGradient(
-                  transform: const GradientRotation(-math.pi),
-                  colors: [
-                    Colors.white.withValues(alpha: 0),
-                    Colors.white.withValues(alpha: 0.85),
-                    Colors.white.withValues(alpha: 0),
-                    Colors.white.withValues(alpha: 0.30),
-                    Colors.white.withValues(alpha: 0),
-                  ],
-                  stops: const [0.0, 0.12, 0.34, 0.62, 0.86],
-                ).createShader(rect),
-              ),
+          // Outer rim (slightly larger) — clay bevel edge.
+          _masked(
+            scale: 1.0,
+            shader: (rect) => LinearGradient(
+              begin: const Alignment(-0.9, -1.0),
+              end: const Alignment(0.85, 1.0),
+              colors: [rimHi, rimMid, rimLo],
+              stops: const [0.0, 0.42, 1.0],
+            ).createShader(rect),
+          ),
+          // Recessed face (inset) — deeper body like clay icons.
+          _masked(
+            scale: 0.86,
+            shader: (rect) => LinearGradient(
+              begin: const Alignment(-0.6, -0.95),
+              end: const Alignment(0.7, 0.95),
+              colors: [faceHi, faceMid, faceLo],
+              stops: const [0.0, 0.48, 1.0],
+            ).createShader(rect),
+          ),
+          // Soft inner bowl shade on face.
+          _masked(
+            scale: 0.86,
+            opacity: 0.55,
+            shader: (rect) => RadialGradient(
+              center: const Alignment(0.05, 0.15),
+              radius: 0.95,
+              colors: [
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.18),
+              ],
+              stops: const [0.45, 1.0],
+            ).createShader(rect),
+          ),
+          // Specular kiss — top-left gloss like clay PNGs.
+          _masked(
+            scale: 0.86,
+            opacity: 0.9,
+            shader: (rect) => RadialGradient(
+              center: const Alignment(-0.45, -0.62),
+              radius: 0.72,
+              colors: [
+                Colors.white.withValues(alpha: 0.55),
+                Colors.white.withValues(alpha: 0.12),
+                Colors.white.withValues(alpha: 0.0),
+              ],
+              stops: const [0.0, 0.35, 0.75],
+            ).createShader(rect),
+          ),
+          // Thin lit rim highlight along the outer edge.
+          IgnorePointer(
+            child: CustomPaint(
+              size: Size(size, size),
+              painter: _ClayRimSheenPainter(accent: accent),
             ),
+          ),
         ],
       ),
     );
   }
+}
+
+class _ClayRimSheenPainter extends CustomPainter {
+  _ClayRimSheenPainter({required this.accent});
+
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(size.width * 0.15, size.height * 0.12),
+        Offset(size.width * 0.55, size.height * 0.45),
+        [
+          Colors.white.withValues(alpha: 0.35),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+      )
+      ..blendMode = BlendMode.softLight
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.035;
+    final path = Path()
+      ..addOval(
+        Rect.fromCenter(
+          center: Offset(size.width * 0.5, size.height * 0.48),
+          width: size.width * 0.72,
+          height: size.height * 0.78,
+        ),
+      );
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClayRimSheenPainter oldDelegate) =>
+      oldDelegate.accent != accent;
 }

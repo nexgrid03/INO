@@ -191,7 +191,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                   sliver: SliverToBoxAdapter(
                     child: ModuleSkeleton(height: 132, count: 3),
                   ),
@@ -213,7 +213,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                 // Portfolio hero.
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                     child: FadeSlideIn(
                       child: _PortfolioCard(
                         total: _store.totalValue,

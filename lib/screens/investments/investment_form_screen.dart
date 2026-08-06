@@ -12,6 +12,7 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
 /// Add / edit one holding.
@@ -225,23 +226,28 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
     final profit = current - invested;
     final hasNumbers = invested > 0 || current > 0;
 
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         showDots: false,
+        sky: glass,
         child: SafeArea(
+          top: !glass,
           bottom: false,
           child: Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+            child: Column(
               children: [
                 ModuleHeader(
                   title: _isEdit ? 'Edit investment' : 'Add investment',
                   subtitle: _isEdit ? widget.existing!.name : _type.label,
                 ),
-                const SizedBox(height: AppSpacing.md),
-
+                Expanded(
+                  child: ListView(
+                    padding:
+                        const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 140),
+                    children: [
                 // ---- Instrument ----
                 FadeSlideIn(
                   child: ModuleSection(
@@ -484,6 +490,9 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                         maxLines: 3,
                       ),
                     ],
+                  ),
+                ),
+              ],
                   ),
                 ),
               ],

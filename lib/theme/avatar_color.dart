@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Stable per-user accent colors so avatars / profile cards stay distinct
-/// across accounts (same key → same color every launch).
+import 'theme_style.dart';
+
+/// Avatar / profile accent colours.
+///
+/// Classic / bold / soft keep a stable per-user swatch. Launcher and the Aqua
+/// family use one fixed brand fill for every account so Home + Profile match.
 class AvatarColor {
   AvatarColor._();
+
+  /// Launcher profile avatar — shared for every user.
+  static const Color launcherProfile = Color(0xFF0A75A6);
+
+  /// Aqua / Aqua Light / Clay profile avatar — shared for every user.
+  static const Color aquaProfile = Color(0xFF055E5E);
 
   static const List<Color> _swatches = [
     Color(0xFF0D9488), // teal
@@ -31,10 +41,35 @@ class AvatarColor {
     return _swatches[hash.abs() % _swatches.length];
   }
 
-  /// Two-stop gradient for avatar rings / initials fills.
+  /// Theme-aware profile accent: fixed brand on Launcher / Aqua family,
+  /// otherwise the per-user [forKey] swatch.
+  static Color forStyle(ThemeStyle style, String seed) {
+    switch (style) {
+      case ThemeStyle.launcher:
+        return launcherProfile;
+      case ThemeStyle.aqua:
+      case ThemeStyle.aquaLight:
+      case ThemeStyle.clay:
+        return aquaProfile;
+      case ThemeStyle.classic:
+      case ThemeStyle.bold:
+      case ThemeStyle.soft:
+        return forKey(seed);
+    }
+  }
+
+  /// Two-stop gradient for avatar rings / initials fills (per-user).
   static LinearGradient gradientFor(String seed) {
-    final c = forKey(seed);
-    final deep = Color.lerp(c, const Color(0xFF0F172A), 0.28)!;
+    return _gradientFrom(forKey(seed));
+  }
+
+  /// Theme-aware avatar gradient (Home header + Profile hero).
+  static LinearGradient gradientForStyle(ThemeStyle style, String seed) {
+    return _gradientFrom(forStyle(style, seed));
+  }
+
+  static LinearGradient _gradientFrom(Color c) {
+    final deep = Color.lerp(c, const Color(0xFF0F172A), 0.22)!;
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,

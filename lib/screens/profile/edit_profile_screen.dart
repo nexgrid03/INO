@@ -8,10 +8,11 @@ import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/avatar_color.dart';
+import '../../theme/theme_style.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_text_field.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
+import '../../widgets/profile/settings_scaffold.dart';
 import '../auth/auth_validators.dart';
 
 /// Edit Profile - the primary action of the Profile settings page.
@@ -98,115 +99,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final validate = AuthValidators.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      // Let the sky gradient flow up behind the transparent app bar - no flat
-      // colour band above the content (matches SettingsScaffold chrome).
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leadingWidth: 60,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Center(
-            child: InoBackButton(
-              size: 42,
-              onTap: () {
-                if (!_busy) Navigator.of(context).maybePop();
-              },
-            ),
-          ),
-        ),
-        title: Text(
-          l10n.t('editProfile'),
-          style: AppText.title.copyWith(color: palette.textPrimary),
-        ),
-        centerTitle: true,
-      ),
-      body: InoBackground(
-        sky: false,
-        intensity: 0.55,
-        showDots: false,
-        child: SafeArea(
-        top: false,
-        child: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          // A centred, width-capped column so the form reads as one tidy
-          // block on any screen instead of stretching edge to edge.
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                // Re-apply the inset the extended body no longer receives.
-                kToolbarHeight +
-                    MediaQuery.paddingOf(context).top +
-                    AppSpacing.md,
-                AppSpacing.screen,
-                AppSpacing.xl),
-            children: [
-              _AvatarEditor(
-                initials: _initials,
-                photoUrl: widget.profile.profilePhoto,
-                onTap: () =>
-                    _snack(l10n.t('changePhotoComingSoon'), isError: false),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              AuthTextField(
-                controller: _nameController,
-                label: l10n.t('fullName'),
-                icon: Icons.person_outline_rounded,
-                keyboardType: TextInputType.name,
-                textInputAction: TextInputAction.next,
-                textCapitalization: TextCapitalization.words,
-                autofillHints: const [AutofillHints.name],
-                validator: validate.name,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AuthTextField(
-                controller:
-                    TextEditingController(text: widget.profile.email),
-                label: l10n.t('emailAddress'),
-                icon: Icons.mail_outline_rounded,
-                enabled: false,
-              ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Text(
-                  l10n.t('emailTiedToSignIn'),
-                  style: AppText.caption.copyWith(color: palette.textFaint),
+    return SettingsScaffold(
+      title: l10n.t('editProfile'),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        // A centred, width-capped column so the form reads as one tidy
+        // block on any screen instead of stretching edge to edge.
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
+              children: [
+                _AvatarEditor(
+                  initials: _initials,
+                  colorSeed: widget.profile.email.trim().isNotEmpty
+                      ? widget.profile.email
+                      : widget.profile.fullName,
+                  photoUrl: widget.profile.profilePhoto,
+                  onTap: () =>
+                      _snack(l10n.t('changePhotoComingSoon'), isError: false),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AuthTextField(
-                controller: _phoneController,
-                label: l10n.t('mobileNumber'),
-                hint: l10n.t('mobileHint'),
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.telephoneNumber],
-                validator: validate.phone,
-                onSubmitted: (_) => _save(),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              AuthPrimaryButton(
-                label: l10n.t('saveChanges'),
-                busy: _busy,
-                onPressed: _busy ? null : _save,
-              ),
-            ],
-              ),
+                const SizedBox(height: AppSpacing.xl),
+                AuthTextField(
+                  controller: _nameController,
+                  label: l10n.t('fullName'),
+                  icon: Icons.person_outline_rounded,
+                  keyboardType: TextInputType.name,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.name],
+                  validator: validate.name,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AuthTextField(
+                  controller:
+                      TextEditingController(text: widget.profile.email),
+                  label: l10n.t('emailAddress'),
+                  icon: Icons.mail_outline_rounded,
+                  enabled: false,
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    l10n.t('emailTiedToSignIn'),
+                    style: AppText.caption.copyWith(color: palette.textFaint),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AuthTextField(
+                  controller: _phoneController,
+                  label: l10n.t('mobileNumber'),
+                  hint: l10n.t('mobileHint'),
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                  validator: validate.phone,
+                  onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                AuthPrimaryButton(
+                  label: l10n.t('saveChanges'),
+                  busy: _busy,
+                  onPressed: _busy ? null : _save,
+                ),
+              ],
             ),
           ),
-        ),
         ),
       ),
     );
@@ -218,17 +182,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 class _AvatarEditor extends StatelessWidget {
   const _AvatarEditor({
     required this.initials,
+    required this.colorSeed,
     required this.onTap,
     this.photoUrl,
   });
 
   final String initials;
+  final String colorSeed;
   final String? photoUrl;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final style = InoStyle.of(context);
+    final accent = AvatarColor.forStyle(style, colorSeed);
+    final accentGrad = AvatarColor.gradientForStyle(style, colorSeed);
     return Center(
       child: GestureDetector(
         onTap: onTap,
@@ -243,10 +212,10 @@ class _AvatarEditor extends StatelessWidget {
                 height: 92,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: AppColors.brandGradient,
+                  gradient: accentGrad,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.28),
+                      color: accent.withValues(alpha: 0.28),
                       blurRadius: 18,
                       offset: const Offset(0, 8),
                     ),
@@ -258,10 +227,15 @@ class _AvatarEditor extends StatelessWidget {
                       ? Image.network(
                           photoUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _InitialsFill(initials: initials),
+                          errorBuilder: (_, _, _) => _InitialsFill(
+                            initials: initials,
+                            gradient: accentGrad,
+                          ),
                         )
-                      : _InitialsFill(initials: initials),
+                      : _InitialsFill(
+                          initials: initials,
+                          gradient: accentGrad,
+                        ),
                 ),
               ),
               Positioned(
@@ -282,8 +256,8 @@ class _AvatarEditor extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child:  Icon(Icons.camera_alt_rounded,
-                      size: 15, color: AppColors.primaryGreen),
+                  child: Icon(Icons.camera_alt_rounded,
+                      size: 15, color: accent),
                 ),
               ),
             ],
@@ -295,14 +269,15 @@ class _AvatarEditor extends StatelessWidget {
 }
 
 class _InitialsFill extends StatelessWidget {
-  const _InitialsFill({required this.initials});
+  const _InitialsFill({required this.initials, required this.gradient});
 
   final String initials;
+  final Gradient gradient;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: AppColors.brandGradient),
+      decoration: BoxDecoration(gradient: gradient),
       child: Center(
         child: Text(
           initials,

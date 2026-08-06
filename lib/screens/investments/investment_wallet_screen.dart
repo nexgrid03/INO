@@ -207,13 +207,18 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                 ),
               if (hasAny)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    AppSpacing.md,
+                    16,
+                    0,
+                  ),
                   child: _SegmentedTabs(controller: _tabs),
                 ),
               Expanded(
                 child: !_store.isLoaded
                     ? const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                         child: ModuleSkeleton(height: 120, count: 3),
                       )
                     : !hasAny
@@ -371,7 +376,7 @@ class _OverviewTab extends StatelessWidget {
     final growth = <double>[for (final i in byDate) running += i.value];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       children: [
         // ---- Total investments hero ----
@@ -872,7 +877,7 @@ class _HoldingsTab extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, AppSpacing.sm),
           child: FloatingSearchBar(
             hint: 'Search holdings',
             height: 48,
@@ -904,7 +909,7 @@ class _HoldingsTab extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.md),
         Expanded(
           child: investments.isEmpty
               ? Center(
@@ -918,12 +923,12 @@ class _HoldingsTab extends StatelessWidget {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                  padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
                   physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics()),
                   itemCount: investments.length,
                   separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: AppSpacing.md),
                   itemBuilder: (context, i) => FadeSlideIn(
                     delay: Duration(milliseconds: (i * 40).clamp(0, 280)),
                     offset: 12,
@@ -1160,11 +1165,11 @@ class _ActivityTab extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
       physics:
           const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       itemCount: events.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, i) {
         final e = events[i];
         return FadeSlideIn(

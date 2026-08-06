@@ -876,68 +876,83 @@ class ModuleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final launcher = divineGlassEnabled(context);
-    final row = Row(
-      children: [
-        InoBackButton(size: 40, onTap: onBack),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: palette.textSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: palette.textPrimary,
-                        fontSize: launcher ? 18 : 21,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.35,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: palette.textSecondary),
-                ),
-              ],
-            ],
-          ),
-        ),
-        for (final a in actions) ...[const SizedBox(width: 8), a],
-      ],
-    );
 
-    if (!launcher) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-        child: row,
+    if (launcher) {
+      Widget? trailing;
+      if (actions.isNotEmpty) {
+        trailing = actions.length == 1
+            ? actions.first
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    actions[i],
+                  ],
+                ],
+              );
+      }
+      return DivineGlassAppBar(
+        title: title,
+        onBack: onBack ?? () => Navigator.of(context).maybePop(),
+        trailing: trailing,
+        centerTitle: true,
+        includeStatusBar: true,
       );
     }
 
-    // Status-bar inset only — do not use a giant 28px title (caused overlap).
-    final top = MediaQuery.viewPaddingOf(context).top;
-    return DivineGlassHeaderBar(
-      padding: EdgeInsets.fromLTRB(12, top + 8, 12, 10),
-      child: row,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Row(
+        children: [
+          InoBackButton(size: 40, onTap: onBack),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (icon != null) ...[
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: palette.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.35,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        AppText.caption.copyWith(color: palette.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          for (final a in actions) ...[const SizedBox(width: 8), a],
+        ],
+      ),
     );
   }
 }

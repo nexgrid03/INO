@@ -16,9 +16,9 @@ import '../../repositories/view_once_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart' show remainingShareLabel;
 
@@ -235,27 +235,40 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final live = _share.isLive;
+    final title = switch (_share.status) {
+      ViewOnceStatus.ready => l10n.t('secureShare'),
+      ViewOnceStatus.viewed => l10n.t('viewOnceOpenedTitle'),
+      ViewOnceStatus.revoked => l10n.t('viewOnceRevokedTitle'),
+      _ => l10n.t('shareLinkExpiredTitle'),
+    };
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
         sky: true,
         child: SafeArea(
-        child: Column(
-          children: [
-            _Header(status: _share.status, onClose: () => Navigator.of(context).pop()),
-            Expanded(
-              child: ListView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
-                children: [
-                  if (live) _liveBody(palette) else _spentBody(palette),
-                ],
+          top: !divineGlassEnabled(context),
+          child: Column(
+            children: [
+              DivineGlassAppBar(
+                title: title,
+                onBack: () => Navigator.of(context).pop(),
+                centerTitle: true,
+                includeStatusBar: true,
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: ListView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
+                  children: [
+                    if (live) _liveBody(palette) else _spentBody(palette),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -394,56 +407,6 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
 }
 
 // ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header({required this.status, required this.onClose});
-
-  final ViewOnceStatus status;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    final title = switch (status) {
-      ViewOnceStatus.ready => l10n.t('secureShare'),
-      ViewOnceStatus.viewed => l10n.t('viewOnceOpenedTitle'),
-      ViewOnceStatus.revoked => l10n.t('viewOnceRevokedTitle'),
-      _ => l10n.t('shareLinkExpiredTitle'),
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      child: Row(
-        children: [
-          InoBackButton(onTap: onClose),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppText.headline.copyWith(
-                    color: status == ViewOnceStatus.ready
-                        ? AppColors.primaryGreen
-                        : palette.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(l10n.t('viewOnceHeaderSubtitle'),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _QrCard extends StatelessWidget {
   const _QrCard({required this.url, required this.dark});

@@ -257,6 +257,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final l10n = AppLocalizations.of(context);
     final validate = AuthValidators.of(context);
     final busy = _busy || _googleBusy || _guestBusy;
+    final screenH = MediaQuery.sizeOf(context).height;
+    // Tighten vertical rhythm on short phones so the form fits without
+    // endless scrolling; keep a little breathing room on taller screens.
+    final compact = screenH < 740;
+    final gapXs = compact ? 6.0 : 8.0;
+    final gapSm = compact ? 10.0 : 12.0;
+    final gapMd = compact ? 14.0 : 16.0;
+    final gapLg = compact ? 16.0 : 20.0;
+    final logoSize = compact ? 56.0 : 64.0;
+    final titleStyle = AppText.display.copyWith(
+      color: Colors.white,
+      fontSize: compact ? 28 : 32,
+    );
+
     return AuthScaffold(
       // Login is sometimes pushed (guest-mode "Sign In") and sometimes a
       // stack-cleared root (after sign-out); the back button hides itself
@@ -266,9 +280,8 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // --- Brand identity header (Stitch hero treatment) ---------------
-          const SizedBox(height: 36),
-          FadeSlideIn(child: Center(child: InoLogo(size: 72))),
-          const SizedBox(height: 22),
+          FadeSlideIn(child: Center(child: InoLogo(size: logoSize))),
+          SizedBox(height: gapMd),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: ShaderMask(
@@ -278,20 +291,23 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(
                 l10n.t('authWelcomeBack'),
                 textAlign: TextAlign.center,
-                style: AppText.display.copyWith(color: Colors.white),
+                style: titleStyle,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: gapXs),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
             child: Text(
               l10n.t('authSignInSubtitle'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14.5, color: palette.textSecondary),
+              style: TextStyle(
+                fontSize: compact ? 13.5 : 14.5,
+                color: palette.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: gapLg),
 
           // Email / password first, then federated options.
           FadeSlideIn(
@@ -314,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         autofillHints: const [AutofillHints.username],
                         validator: validate.emailOrPhone,
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: gapMd),
                       AuthTextField(
                         controller: _passwordController,
                         label: l10n.t('password'),
@@ -334,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: gapXs),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -356,17 +372,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: gapSm),
 
                 AuthPrimaryButton(
                   label: l10n.t('signIn'),
                   busy: _busy,
                   onPressed: busy ? null : _signIn,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: gapSm),
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: compact ? 48 : 52,
                   child: OutlinedButton(
                     onPressed: busy ? null : () => enterGuestExplore(context),
                     style: OutlinedButton.styleFrom(
@@ -390,7 +406,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 if (isDemoBuild) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: gapSm),
                   _GuestLoginButton(
                     label: l10n.t('loginAsGuest'),
                     busy: _guestBusy,
@@ -398,35 +414,44 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
 
-                const SizedBox(height: 22),
+                SizedBox(height: gapLg),
                 _OrDivider(label: l10n.t('orDivider')),
-                const SizedBox(height: 22),
+                SizedBox(height: gapLg),
 
-                SocialAuthButton(
-                  label: l10n.t('continueWithGoogle'),
-                  brand: const GoogleGlyph(),
-                  busy: _googleBusy,
-                  onPressed: busy ? null : _continueWithGoogle,
+                // Icon-only federated row: Google · Phone · Apple.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SocialAuthIconButton(
+                      tooltip: l10n.t('continueWithGoogle'),
+                      brand: const GoogleGlyph(size: 24),
+                      busy: _googleBusy,
+                      onPressed: busy ? null : _continueWithGoogle,
+                    ),
+                    const SizedBox(width: 18),
+                    SocialAuthIconButton(
+                      tooltip: l10n.t('continueWithPhone'),
+                      brand: Icon(
+                        Icons.smartphone_rounded,
+                        color: AppColors.primaryGreen,
+                        size: 24,
+                      ),
+                      onPressed: busy ? null : _continueWithPhone,
+                    ),
+                    if (_showApple) ...[
+                      const SizedBox(width: 18),
+                      SocialAuthIconButton(
+                        tooltip: l10n.t('continueWithApple'),
+                        brand: const AppleGlyph(size: 26),
+                        onPressed: busy ? null : _continueWithApple,
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 12),
-                SocialAuthButton(
-                  label: l10n.t('continueWithPhone'),
-                  brand: Icon(Icons.smartphone_rounded,
-                      color: AppColors.primaryGreen, size: 20),
-                  onPressed: busy ? null : _continueWithPhone,
-                ),
-                if (_showApple) ...[
-                  const SizedBox(height: 12),
-                  SocialAuthButton(
-                    label: l10n.t('continueWithApple'),
-                    brand: const AppleGlyph(),
-                    onPressed: busy ? null : _continueWithApple,
-                  ),
-                ],
               ],
             ),
           ),
-          const SizedBox(height: 26),
+          SizedBox(height: gapLg),
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 320),
@@ -436,7 +461,6 @@ class _LoginScreenState extends State<LoginScreen> {
               onTap: busy ? null : _goToSignup,
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );

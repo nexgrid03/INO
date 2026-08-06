@@ -15,6 +15,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/direction_toggle.dart';
 import '../../widgets/pressable_scale.dart';
 
@@ -481,25 +482,67 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
+  Widget _header(String title) {
+    final glass = divineGlassEnabled(context);
+    if (glass) {
+      return DivineGlassAppBar(
+        title: title,
+        onBack: () => Navigator.of(context).maybePop(),
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final editing = widget.existing != null;
+    final glass = divineGlassEnabled(context);
+    final title = l10n.t(editing ? 'editTransaction' : 'addTransaction');
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        sky: glass,
         child: SafeArea(
-        child: Column(
-          children: [
-            _Header(
-                title: l10n.t(editing ? 'editTransaction' : 'addTransaction')),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                    AppSpacing.screen, AppSpacing.lg),
-                child: Column(
+          top: !glass,
+          child: Column(
+            children: [
+              _header(title),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
+                      AppSpacing.screen, AppSpacing.lg),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _Segmented(
@@ -638,6 +681,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           label: l10n.t(editing ? 'saveChanges' : 'addTransaction')),
     );
   }
+
 
   Widget _input(TextEditingController c, String hint,
       {TextCapitalization cap = TextCapitalization.none,
@@ -1269,30 +1313,6 @@ class _SaveBar extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.lg),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const SizedBox(width: AppSpacing.sm),
-          Text(title,
-              style: AppText.headline
-                  .copyWith(color: palette.textPrimary, fontSize: 21)),
-        ],
       ),
     );
   }

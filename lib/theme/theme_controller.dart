@@ -96,6 +96,8 @@ class ThemeController {
         return ThemeStyle.aqua;
       case 'aquaLight':
         return ThemeStyle.aquaLight;
+      case 'clay':
+        return ThemeStyle.clay;
       default:
         // First launch (no pref yet) → Aqua.
         return ThemeStyle.aqua;

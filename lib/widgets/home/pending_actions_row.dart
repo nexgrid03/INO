@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
@@ -26,7 +25,7 @@ class LauncherPendingItem {
 
 /// Full-width review-banner strip under Needs attention.
 ///
-/// Same fixed height whether empty or filled; multiple items scroll inside.
+/// Renders nothing when there are no items (no empty "No pending" plate).
 class PendingActionsRow extends StatefulWidget {
   const PendingActionsRow({
     super.key,
@@ -63,11 +62,13 @@ class _PendingActionsRowState extends State<PendingActionsRow> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final visible = _visible;
+    // Never render an empty "No pending items" plate — Home omits the strip.
+    if (visible.isEmpty) return const SizedBox.shrink();
+
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
     final frost = dark ? _glass.frostDark : _glass.frostLight;
-    final visible = _visible;
 
     return SizedBox(
       height: PendingActionsRow.stripHeight,
@@ -78,51 +79,33 @@ class _PendingActionsRowState extends State<PendingActionsRow> {
         frost: frost,
         shadow: true,
         padding: EdgeInsets.zero,
-        child: visible.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l10n.t('noPendingItems'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: palette.textSecondary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                    ),
-                  ),
+        child: visible.length == 1
+            ? _ReviewBanner(
+                item: visible.first.value,
+                onReview: visible.first.value.onTap ?? widget.onViewAll,
+                onDismiss: () => setState(
+                  () => _dismissed.add(visible.first.key),
                 ),
               )
-            : visible.length == 1
-                ? _ReviewBanner(
-                    item: visible.first.value,
-                    onReview:
-                        visible.first.value.onTap ?? widget.onViewAll,
-                    onDismiss: () => setState(
-                      () => _dismissed.add(visible.first.key),
+            : ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                itemCount: visible.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final entry = visible[i];
+                  return SizedBox(
+                    width: MediaQuery.sizeOf(context).width * 0.85,
+                    child: _ReviewBanner(
+                      item: entry.value,
+                      onReview: entry.value.onTap ?? widget.onViewAll,
+                      onDismiss: () =>
+                          setState(() => _dismissed.add(entry.key)),
                     ),
-                  )
-                : ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    itemCount: visible.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (context, i) {
-                      final entry = visible[i];
-                      return SizedBox(
-                        width: MediaQuery.sizeOf(context).width * 0.85,
-                        child: _ReviewBanner(
-                          item: entry.value,
-                          onReview: entry.value.onTap ?? widget.onViewAll,
-                          onDismiss: () =>
-                              setState(() => _dismissed.add(entry.key)),
-                        ),
-                      );
-                    },
-                  ),
+                  );
+                },
+              ),
       ),
     );
   }

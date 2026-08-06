@@ -8,6 +8,7 @@ import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'note_editor_screen.dart';
 
@@ -177,6 +178,7 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
       floatingActionButton: ListenableBuilder(
@@ -186,107 +188,94 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
       body: InoBackground(
         child: SafeArea(
-        child: ListenableBuilder(
-          listenable: _store,
-          builder: (context, _) {
-            final loading = _store.isLoading && !_store.isLoaded;
-            final failed = _store.loadError != null && _store.isEmpty;
-            final empty = _store.isEmpty;
-            final notes = _visible();
-            return Column(
-              children: [
-                _header(palette),
-                if (!loading && !failed && !empty) ...[
-                  _searchBar(palette),
-                  const SizedBox(height: AppSpacing.sm),
-                  _filterRow(palette),
-                  const SizedBox(height: AppSpacing.sm),
+          top: !glass,
+          child: ListenableBuilder(
+            listenable: _store,
+            builder: (context, _) {
+              final loading = _store.isLoading && !_store.isLoaded;
+              final failed = _store.loadError != null && _store.isEmpty;
+              final empty = _store.isEmpty;
+              final notes = _visible();
+              return Column(
+                children: [
+                  _header(palette),
+                  if (!loading && !failed && !empty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _searchBar(palette),
+                    const SizedBox(height: AppSpacing.md),
+                    _filterRow(palette),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  Expanded(
+                    child: loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : RefreshIndicator(
+                            color: AppColors.primaryGreen,
+                            onRefresh: _store.reload,
+                            child: failed
+                                ? _ErrorState(
+                                    message: _store.loadError!,
+                                    onRetry: _store.reload,
+                                  )
+                                : empty
+                                    ? _EmptyState(onAdd: _openEditor)
+                                    : notes.isEmpty
+                                        ? _noMatches(palette)
+                                        : _grid
+                                            ? _gridView(notes)
+                                            : _listView(notes),
+                          ),
+                  ),
                 ],
-                Expanded(
-                  child: loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          color: AppColors.primaryGreen,
-                          onRefresh: _store.reload,
-                          child: failed
-                              ? _ErrorState(
-                                  message: _store.loadError!,
-                                  onRetry: _store.reload,
-                                )
-                              : empty
-                                  ? _EmptyState(onAdd: _openEditor)
-                                  : notes.isEmpty
-                                      ? _noMatches(palette)
-                                      : _grid
-                                          ? _gridView(notes)
-                                          : _listView(notes),
-                        ),
-                ),
-              ],
-            );
-          },
-        ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _header(AppPalette palette) {
+    final trailing = DivineGlassHeaderAction(
+      icon: _grid ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
+      tooltip: _grid ? 'List view' : 'Grid view',
+      onTap: () => setState(() => _grid = !_grid),
+    );
+
+    if (divineGlassEnabled(context)) {
+      return DivineGlassAppBar(
+        title: 'Notes Vault',
+        onBack: () => Navigator.of(context).maybePop(),
+        trailing: trailing,
+        centerTitle: true,
+        includeStatusBar: true,
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.screen, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.md,
+      ),
       child: Row(
         children: [
-          const InoBackButton(),
+          InoBackButton(onTap: () => Navigator.of(context).maybePop()),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Notes Vault',
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 24)),
-                Text('Your private notes & records',
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ],
+            child: Text(
+              'Notes Vault',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
             ),
           ),
-          _iconButton(
-            palette,
-            icon: _grid ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
-            tooltip: _grid ? 'List view' : 'Grid view',
-            onTap: () => setState(() => _grid = !_grid),
-          ),
+          trailing,
         ],
-      ),
-    );
-  }
-
-  Widget _iconButton(AppPalette palette,
-      {required IconData icon,
-      required String tooltip,
-      required VoidCallback onTap}) {
-    return PressableScale(
-      pressedScale: 0.9,
-      child: Material(
-        color: palette.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
-          side: BorderSide(color: palette.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Tooltip(
-            message: tooltip,
-            child: SizedBox(
-              width: AppSizes.iconContainerSm,
-              height: AppSizes.iconContainerSm,
-              child: Icon(icon, size: 21, color: palette.textPrimary),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -373,10 +362,14 @@ class _NotesScreenState extends State<NotesScreen> {
     return ListView.separated(
       physics:
           const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen,
-          AppSpacing.xl * 2),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        AppSpacing.xl * 3,
+      ),
       itemCount: notes.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, i) => FadeSlideIn(
         delay: Duration(milliseconds: (i * 30).clamp(0, 240)),
         child: _NoteCard(
@@ -393,13 +386,17 @@ class _NotesScreenState extends State<NotesScreen> {
     return GridView.builder(
       physics:
           const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen,
-          AppSpacing.xl * 2),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        AppSpacing.xl * 3,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: AppSpacing.sm,
-        crossAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 0.82,
+        mainAxisSpacing: AppSpacing.md,
+        crossAxisSpacing: AppSpacing.md,
+        childAspectRatio: 0.72,
       ),
       itemCount: notes.length,
       itemBuilder: (context, i) => FadeSlideIn(
@@ -471,9 +468,10 @@ class _NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final accent = note.category.color;
+    final iconSize = grid ? 36.0 : AppSizes.iconContainerSm;
     return InoCard(
       radius: AppRadius.card,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(grid ? AppSpacing.sm + 2 : AppSpacing.md),
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,22 +480,22 @@ class _NoteCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: Icon(note.category.icon, color: accent, size: 20),
+                child: Icon(note.category.icon, color: accent, size: grid ? 18 : 20),
               ),
               const Spacer(),
               if (note.isPinned)
-                Icon(Icons.push_pin_rounded, size: 15, color: accent),
+                Icon(Icons.push_pin_rounded, size: 14, color: accent),
               if (note.isFavorite)
                 const Padding(
                   padding: EdgeInsets.only(left: 4),
                   child: Icon(Icons.star_rounded,
-                      size: 15, color: AppColors.warning),
+                      size: 14, color: AppColors.warning),
                 ),
               GestureDetector(
                 onTap: onMore,
@@ -510,53 +508,96 @@ class _NoteCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            note.title.isEmpty ? 'Untitled' : note.title,
-            maxLines: grid ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.subtitle
-                .copyWith(color: palette.textPrimary, fontSize: 15),
-          ),
-          if (note.description.isNotEmpty) ...[
-            const SizedBox(height: 4),
+          SizedBox(height: grid ? 8 : AppSpacing.sm),
+          if (grid)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    note.title.isEmpty ? 'Untitled' : note.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle
+                        .copyWith(color: palette.textPrimary, fontSize: 14.5),
+                  ),
+                  if (note.description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: Text(
+                        note.description,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else ...[
             Text(
-              note.description,
-              maxLines: grid ? 4 : 2,
+              note.title.isEmpty ? 'Untitled' : note.title,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.caption
-                  .copyWith(color: palette.textSecondary, height: 1.4),
+              style: AppText.subtitle
+                  .copyWith(color: palette.textPrimary, fontSize: 15),
             ),
+            if (note.description.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                note.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption
+                    .copyWith(color: palette.textSecondary, height: 1.4),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
           ],
-          if (grid) const Spacer(),
-          const SizedBox(height: AppSpacing.sm),
+          if (grid) const SizedBox(height: 8),
           Row(
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(note.category.label,
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    note.category.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        color: accent,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700)),
+                      color: accent,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
-              const Spacer(),
-              if (!grid)
-                Text(_fmtDate(note.updatedAt),
-                    style: AppText.label
-                        .copyWith(color: palette.textFaint, fontSize: 11)),
+              if (!grid) ...[
+                const Spacer(),
+                Text(
+                  _fmtDate(note.updatedAt),
+                  style: AppText.label
+                      .copyWith(color: palette.textFaint, fontSize: 11),
+                ),
+              ],
             ],
           ),
           if (grid) ...[
             const SizedBox(height: 4),
-            Text(_fmtDate(note.updatedAt),
-                style:
-                    AppText.label.copyWith(color: palette.textFaint, fontSize: 11)),
+            Text(
+              _fmtDate(note.updatedAt),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  AppText.label.copyWith(color: palette.textFaint, fontSize: 11),
+            ),
           ],
         ],
       ),

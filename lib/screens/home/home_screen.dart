@@ -36,7 +36,7 @@ import '../../widgets/home/launcher_hub_shortcuts.dart';
 import '../../widgets/home/launcher_quick_actions.dart';
 import '../../widgets/home/skeletons.dart';
 import '../../widgets/home/voice_mic_button.dart';
-import '../../widgets/scan/bottom_qr_scanner_sheet.dart';
+import '../../widgets/scan/home_qr_panel.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../expenses/tax_records_screen.dart';
@@ -340,73 +340,69 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // 1. Greeting header - FIXED at the top.
               _header(palette),
-              // 2. Scrollable feed — pull up at the bottom to slide the QR
-              //    panel in (PhonePe-style); scroll back and it slides away.
+              // 2. Scrollable feed — QR upload attached at the bottom (no overlay).
               Expanded(
-                child: HomeQrReveal(
-                  builder: (context, scrollController, qrRunway) {
-                    return RefreshIndicator(
-                      color: AppColors.primaryGreen,
-                      onRefresh: _refresh,
-                      child: FutureBuilder<_HomeData>(
-                        future: _future,
-                        builder: (context, snapshot) {
-                          final data = snapshot.data;
-                          final hasError = snapshot.connectionState ==
-                                  ConnectionState.done &&
+                child: RefreshIndicator(
+                  color: AppColors.primaryGreen,
+                  onRefresh: _refresh,
+                  child: FutureBuilder<_HomeData>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      final data = snapshot.data;
+                      final hasError =
+                          snapshot.connectionState == ConnectionState.done &&
                               snapshot.hasError;
-                          return CustomScrollView(
-                            controller: scrollController,
-                            physics: AlwaysScrollableScrollPhysics(
-                              parent:
-                                  InoStyle.usesDivineGlass(context)
-                                      ? const ClampingScrollPhysics()
-                                      : const BouncingScrollPhysics(),
-                            ),
-                            slivers: [
-                              if (hasError)
-                                SliverFillRemaining(
-                                  hasScrollBody: false,
-                                  child: ErrorRetry(onRetry: _refresh),
-                                )
-                              else if (data == null)
-                                SliverPadding(
-                                  padding: EdgeInsets.fromLTRB(
-                                    sidePadding,
-                                    AppSpacing.md,
-                                    sidePadding,
-                                    navClearance,
-                                  ),
-                                  sliver: const SliverToBoxAdapter(
-                                    child: DashboardSkeleton(),
-                                  ),
-                                )
-                              else ...[
-                                SliverPadding(
-                                  padding: EdgeInsets.fromLTRB(
-                                    sidePadding,
-                                    AppSpacing.md,
-                                    sidePadding,
-                                    navClearance,
-                                  ),
-                                  sliver: SliverList(
-                                    key: ValueKey(style),
-                                    delegate: SliverChildListDelegate(
-                                      _sections(data, style),
-                                      addAutomaticKeepAlives: false,
-                                    ),
-                                  ),
+                      return CustomScrollView(
+                        physics: AlwaysScrollableScrollPhysics(
+                          parent: InoStyle.usesDivineGlass(context)
+                              ? const ClampingScrollPhysics()
+                              : const BouncingScrollPhysics(),
+                        ),
+                        slivers: [
+                          if (hasError)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: ErrorRetry(onRetry: _refresh),
+                            )
+                          else if (data == null)
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                sidePadding,
+                                AppSpacing.md,
+                                sidePadding,
+                                navClearance,
+                              ),
+                              sliver: const SliverToBoxAdapter(
+                                child: DashboardSkeleton(),
+                              ),
+                            )
+                          else ...[
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                sidePadding,
+                                AppSpacing.md,
+                                sidePadding,
+                                AppSpacing.md,
+                              ),
+                              sliver: SliverList(
+                                key: ValueKey(style),
+                                delegate: SliverChildListDelegate(
+                                  [
+                                    ..._sections(data, style),
+                                    const HomeQrPanel(),
+                                  ],
+                                  addAutomaticKeepAlives: false,
                                 ),
-                                // Scroll runway: drag through this to pull
-                                // the QR panel up with your finger.
-                                qrRunway,
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    );
-                  },
+                              ),
+                            ),
+                            SliverToBoxAdapter(
+                              child: SizedBox(height: navClearance),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
@@ -561,11 +557,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // Offline — high enough to see on open (keeps Quick Actions at 4 discs)
-      LauncherOfflineShortcut(
-        onOffline: () => _push(const OfflineDocumentsScreen()),
-      ),
-
       // 3. My Vaults
       _Section(
         header: SectionHeader(
@@ -603,20 +594,24 @@ class _HomeScreenState extends State<HomeScreen> {
               onPending: openPending,
               onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
             ),
-            const SizedBox(height: 12),
-            PendingActionsRow(
-              items: [
-                for (final p in data.pendingItems)
-                  LauncherPendingItem(
-                    title: p.title,
-                    status: p.status,
-                    icon: p.icon,
-                    accent: p.accent,
-                    onTap: openPending,
-                  ),
-              ],
-              onViewAll: openPending,
-            ),
+            // Skip the empty "No pending items" glass card when there's
+            // nothing to review (e.g. no expiring docs / due reminders).
+            if (data.pendingItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              PendingActionsRow(
+                items: [
+                  for (final p in data.pendingItems)
+                    LauncherPendingItem(
+                      title: p.title,
+                      status: p.status,
+                      icon: p.icon,
+                      accent: p.accent,
+                      onTap: openPending,
+                    ),
+                ],
+                onViewAll: openPending,
+              ),
+            ],
           ],
         ),
       ),
@@ -953,8 +948,8 @@ class _ToolTile extends StatelessWidget {
     final bold = themeStyle == ThemeStyle.bold;
     final soft = themeStyle == ThemeStyle.soft;
 
-    final iconBox = 32.0;
-    final iconSize = bold ? 26.0 : 18.0;
+    final iconBox = 40.0;
+    final iconSize = bold ? 30.0 : 24.0;
 
     final Widget glyph = Icon(
       icon,

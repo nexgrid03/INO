@@ -71,7 +71,7 @@ class CalculatorScaffold extends StatelessWidget {
           context,
           title: title,
           subtitle: subtitle,
-          centerTitle: false,
+          centerTitle: true,
           trailing: trailing,
         ),
         body: InoBackground(
