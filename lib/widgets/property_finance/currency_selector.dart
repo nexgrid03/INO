@@ -133,32 +133,39 @@ class _CurrencySheetState extends State<_CurrencySheet> {
           const SizedBox(height: AppSpacing.sm),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: TextField(
-              autofocus: false,
-              onChanged: (v) => setState(() => _query = v),
-              style: AppText.body.copyWith(color: palette.textPrimary),
-              decoration: InputDecoration(
-                hintText: widget.searchHint,
-                hintStyle: AppText.body.copyWith(color: palette.textFaint),
-                prefixIcon: Icon(Icons.search_rounded,
-                    size: 20, color: palette.textFaint),
-                filled: true,
-                fillColor: palette.surfaceVariant,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  borderSide: BorderSide(color: palette.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  borderSide: BorderSide(color: palette.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  borderSide: BorderSide(
-                      color: AppColors.primaryGreen, width: 1.6),
-                ),
+            // One search surface — no nested TextField chrome on top of theme fill.
+            child: Container(
+              decoration: BoxDecoration(
+                color: palette.surfaceVariant,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                border: Border.all(color: palette.border),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded,
+                      size: 20, color: palette.textFaint),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      autofocus: false,
+                      onChanged: (v) => setState(() => _query = v),
+                      style: AppText.body.copyWith(color: palette.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: widget.searchHint,
+                        hintStyle:
+                            AppText.body.copyWith(color: palette.textFaint),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
