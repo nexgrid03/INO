@@ -149,5 +149,25 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- Scanned payment QRs: required on Android 11+ so the app can DISCOVER
+             which UPI apps (Google Pay, PhonePe, Paytm, BHIM, …) are installed
+             and offer them in the payment picker. Without this, package
+             visibility hides them all and the picker silently comes up empty.
+
+             BOTH forms are needed. UPI apps declare their filter as
+             `scheme="upi" host="pay"`, and a queries entry carrying only the
+             scheme describes the URI `upi://` - which does NOT match a filter
+             that requires a host, so the query returns nothing. The
+             scheme+host entry is the one that actually matches; the
+             scheme-only entry is kept for apps that register the scheme
+             without a host. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" android:host="pay" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
     </queries>
 </manifest>

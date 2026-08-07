@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
+import '../repositories/qr_code_repository.dart';
 import 'app_settings.dart';
 import 'card_store.dart';
 import 'category_store.dart';
@@ -90,6 +91,11 @@ class SessionReset {
     // next account loads its OWN RLS-scoped memberships.
     await _guard('familyVaults',
         () async => FamilyVaultStore.instance.clear());
+
+    // "My QR" memo. The row itself is RLS-scoped, but the cache is a plain
+    // in-memory field: without this the next account to sign in on this device
+    // would see the previous user's payment QR on Home until a refetch.
+    await _guard('myQr', () async => QrCodeRepository.instance.invalidate());
 
     // Re-arm the spoken welcome so the next sign-in is greeted at the start of
     // ITS session - still exactly once per session.

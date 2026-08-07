@@ -65,6 +65,16 @@ dependencies:
   package_info_plus: ^8.3.1
   url_launcher: ^6.3.2
   google_mlkit_text_recognition: ^0.15.1
+  # QR scanning. Same ML Kit family (and the same `google_mlkit_commons`
+  # transitive) as the document scanner + text recognition already above, so it
+  # reuses the native toolchain already in the build graph rather than pulling a
+  # second camera/vision stack - which matters given the AGP 9 pins below.
+  #
+  # Pinned to the 0.14.x line on purpose: 0.15.0 requires
+  # google_mlkit_commons ^0.12.0, which google_mlkit_text_recognition 0.15.1
+  # (the OCR pipeline) cannot take. 0.14.2 shares commons ^0.11.0 with it, so
+  # barcode scanning is added without disturbing OCR. Lift both together.
+  google_mlkit_barcode_scanning: ^0.14.2
   # PDF upload: pick a PDF from device storage via the system file picker (SAF
   # on Android), validated before it enters the vault.
   file_picker: ^8.1.6

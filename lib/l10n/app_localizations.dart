@@ -1438,6 +1438,30 @@ const Map<String, Map<String, String>> _strings = {
     'keepReading': 'Keep reading',
     'closeAction': 'Close',
     'continueAction': 'Continue',
+
+    // ---- QR scanning + payment QRs ----
+    'scanQrCode': 'Scan QR Code',
+    'qrScanHint':
+        'Point the camera at a QR code. Payment codes open in your UPI app.',
+    'payUsing': 'Pay using',
+    'useAnotherApp': 'Use another app',
+    'amountEnteredInApp': "You'll enter the amount in your payment app",
+    'paymentHandedOffNote':
+        'INO does not process the payment. The amount and PIN are handled by '
+            'the app you choose.',
+    'noPaymentAppsFound':
+        'No UPI app was found on this device. You can still hand the payment '
+            'to your system apps.',
+    'openWithAnyApp': 'Continue anyway',
+    'couldNotOpenPaymentApp': 'Could not open that payment app.',
+    'openLinkTitle': 'Open this link?',
+    'couldNotOpenLink': 'Could not open that link.',
+    'scannedCode': 'Scanned code',
+    'copy': 'Copy',
+    'cameraPermissionBody': 'INO needs camera access to scan QR codes.',
+    'cameraPermissionSettingsBody':
+        'Camera access is blocked. Enable it in Settings to scan QR codes.',
+    'qrScannerUnavailable': 'The camera is not available on this device.',
   },
   'hi': {
     'home': 'होम',
@@ -2667,6 +2691,30 @@ const Map<String, Map<String, String>> _strings = {
     'keepReading': 'पढ़ते रहें',
     'closeAction': 'बंद करें',
     'continueAction': 'जारी रखें',
+
+    // ---- QR scanning + payment QRs ----
+    'scanQrCode': 'QR कोड स्कैन करें',
+    'qrScanHint':
+        'कैमरा QR कोड पर रखें। भुगतान कोड आपके UPI ऐप में खुलेंगे।',
+    'payUsing': 'इससे भुगतान करें',
+    'useAnotherApp': 'दूसरा ऐप चुनें',
+    'amountEnteredInApp': 'राशि आप अपने भुगतान ऐप में डालेंगे',
+    'paymentHandedOffNote':
+        'INO भुगतान नहीं करता। राशि और PIN आपके चुने हुए ऐप में संभाले जाते हैं।',
+    'noPaymentAppsFound':
+        'इस डिवाइस पर कोई UPI ऐप नहीं मिला। आप फिर भी सिस्टम ऐप से भुगतान कर '
+            'सकते हैं।',
+    'openWithAnyApp': 'फिर भी जारी रखें',
+    'couldNotOpenPaymentApp': 'वह भुगतान ऐप नहीं खुल सका।',
+    'openLinkTitle': 'यह लिंक खोलें?',
+    'couldNotOpenLink': 'वह लिंक नहीं खुल सका।',
+    'scannedCode': 'स्कैन किया गया कोड',
+    'copy': 'कॉपी करें',
+    'cameraPermissionBody':
+        'QR कोड स्कैन करने के लिए INO को कैमरा एक्सेस चाहिए।',
+    'cameraPermissionSettingsBody':
+        'कैमरा एक्सेस अवरुद्ध है। QR स्कैन करने के लिए सेटिंग्स में इसे चालू करें।',
+    'qrScannerUnavailable': 'इस डिवाइस पर कैमरा उपलब्ध नहीं है।',
   },
   'te': {
     'home': 'హోమ్',
@@ -3919,5 +3967,28 @@ const Map<String, Map<String, String>> _strings = {
     'keepReading': 'చదువుతూ ఉండు',
     'closeAction': 'మూసివేయి',
     'continueAction': 'కొనసాగించు',
+
+    // ---- QR scanning + payment QRs ----
+    'scanQrCode': 'QR కోడ్ స్కాన్ చేయండి',
+    'qrScanHint':
+        'కెమెరాను QR కోడ్‌పై ఉంచండి. చెల్లింపు కోడ్‌లు మీ UPI యాప్‌లో తెరుచుకుంటాయి.',
+    'payUsing': 'దీనితో చెల్లించండి',
+    'useAnotherApp': 'మరో యాప్ ఎంచుకోండి',
+    'amountEnteredInApp': 'మొత్తాన్ని మీ చెల్లింపు యాప్‌లో నమోదు చేస్తారు',
+    'paymentHandedOffNote':
+        'INO చెల్లింపును ప్రాసెస్ చేయదు. మొత్తం మరియు PIN మీరు ఎంచుకున్న '
+            'యాప్‌లో నిర్వహించబడతాయి.',
+    'noPaymentAppsFound':
+        'ఈ పరికరంలో UPI యాప్ కనబడలేదు. అయినా సిస్టమ్ యాప్‌తో చెల్లించవచ్చు.',
+    'openWithAnyApp': 'అయినా కొనసాగించు',
+    'couldNotOpenPaymentApp': 'ఆ చెల్లింపు యాప్‌ను తెరవలేకపోయాము.',
+    'openLinkTitle': 'ఈ లింక్‌ను తెరవాలా?',
+    'couldNotOpenLink': 'ఆ లింక్‌ను తెరవలేకపోయాము.',
+    'scannedCode': 'స్కాన్ చేసిన కోడ్',
+    'copy': 'కాపీ చేయి',
+    'cameraPermissionBody': 'QR కోడ్‌లను స్కాన్ చేయడానికి INOకి కెమెరా అనుమతి కావాలి.',
+    'cameraPermissionSettingsBody':
+        'కెమెరా అనుమతి నిరోధించబడింది. QR స్కాన్ చేయడానికి సెట్టింగ్‌లలో ప్రారంభించండి.',
+    'qrScannerUnavailable': 'ఈ పరికరంలో కెమెరా అందుబాటులో లేదు.',
   }
 };

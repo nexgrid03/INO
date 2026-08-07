@@ -91,6 +91,16 @@
 		<string>tel</string>
 		<string>https</string>
 		<string>http</string>
+		<!-- Scanned payment QRs. iOS cannot enumerate installed apps, so the
+		     payment picker can only offer apps whose scheme is declared here -
+		     a UPI app missing from this list always reports "not installed".
+		     `upi` itself is the generic fallback handed to the OS. -->
+		<string>upi</string>
+		<string>gpay</string>
+		<string>tez</string>
+		<string>phonepe</string>
+		<string>paytmmp</string>
+		<string>bhim</string>
 	</array>
 
 	<!-- Custom URL schemes the app can be opened with. -->
