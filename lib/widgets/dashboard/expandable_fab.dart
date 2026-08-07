@@ -18,10 +18,14 @@ class ExpandableFab extends StatefulWidget {
     super.key,
     required this.actions,
     this.onAction,
+    this.accent,
   });
 
   final List<QuickAction> actions;
   final void Function(QuickAction action)? onAction;
+
+  /// Optional vault accent for the main FAB glow (defaults to brand teal).
+  final Color? accent;
 
   @override
   State<ExpandableFab> createState() => _ExpandableFabState();
@@ -111,7 +115,11 @@ class _ExpandableFabState extends State<ExpandableFab>
                   onTap: () => _select(widget.actions[i]),
                 ),
               const SizedBox(height: 6),
-              _MainButton(controller: _c, onTap: _toggle),
+              _MainButton(
+                controller: _c,
+                onTap: _toggle,
+                accent: widget.accent,
+              ),
             ],
           ),
         ),
@@ -221,13 +229,22 @@ class _MiniAction extends StatelessWidget {
 }
 
 class _MainButton extends StatelessWidget {
-  const _MainButton({required this.controller, required this.onTap});
+  const _MainButton({
+    required this.controller,
+    required this.onTap,
+    this.accent,
+  });
 
   final AnimationController controller;
   final VoidCallback onTap;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
+    final tint = accent ?? AppColors.primaryGreen;
+    final fill = accent != null
+        ? AppColors.vaultFillGradient(accent!)
+        : InoStyle.gradient(context, AppColors.brandGradient);
     return PressableScale(
       pressedScale: 0.92,
       child: Container(
@@ -235,17 +252,16 @@ class _MainButton extends StatelessWidget {
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: InoStyle.gradient(context, AppColors.brandGradient),
+          gradient: fill,
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.40),
+              color: tint.withValues(alpha: 0.40),
               blurRadius: 18,
               spreadRadius: 1,
               offset: const Offset(0, 8),
             ),
-            // Light-blue ambient halo for a premium floating feel.
             BoxShadow(
-              color: AppColors.lightBlue.withValues(alpha: 0.30),
+              color: tint.withValues(alpha: 0.22),
               blurRadius: 24,
               spreadRadius: -2,
               offset: const Offset(0, 10),

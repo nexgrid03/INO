@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -72,43 +71,21 @@ class MyVaultsRow extends StatelessWidget {
       ),
     ];
 
-    Widget tile(int i) => LauncherGlassIconTile(
-          label: items[i].label,
-          count: items[i].count,
-          imageAsset: items[i].image,
-          svgAsset: items[i].svg,
-          accent: items[i].accent,
-          onTap: items[i].onTap,
-        );
-
-    // Narrow phones: 2×2 keeps labels readable.
-    if (context.isMobileSmall) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: tile(0)),
-              const SizedBox(width: 10),
-              Expanded(child: tile(1)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: tile(2)),
-              const SizedBox(width: 10),
-              Expanded(child: tile(3)),
-            ],
-          ),
-        ],
-      );
-    }
-
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < items.length; i++) ...[
           if (i > 0) const SizedBox(width: 10),
-          Expanded(child: tile(i)),
+          Expanded(
+            child: LauncherGlassIconTile(
+              label: items[i].label,
+              count: items[i].count,
+              imageAsset: items[i].image,
+              svgAsset: items[i].svg,
+              accent: items[i].accent,
+              onTap: items[i].onTap,
+            ),
+          ),
         ],
       ],
     );

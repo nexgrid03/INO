@@ -63,7 +63,7 @@ class ReminderCard extends StatelessWidget {
                         color: categoryColor,
                         size: AppSizes.iconContainerSm,
                         iconSize: 22,
-                        radius: AppRadius.chip,
+                        radius: AppRadius.chip,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
@@ -74,10 +74,13 @@ class ReminderCard extends StatelessWidget {
                             // Meta line: due chip + category, above the title.
                             Row(
                               children: [
-                                _DueBadge(
+                                Flexible(
+                                  child: _DueBadge(
                                     label: reminder.localizedDueLabel(
                                         today, l10n),
-                                    color: urgency),
+                                    color: urgency,
+                                  ),
+                                ),
                                 const SizedBox(width: 7),
                                 Flexible(
                                   child: Text(
@@ -95,7 +98,7 @@ class ReminderCard extends StatelessWidget {
                             const SizedBox(height: 5),
                             Text(
                               reminder.title,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppText.subtitle.copyWith(
                                 color: palette.textPrimary,
@@ -145,9 +148,13 @@ class _DueBadge extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppText.label.copyWith(color: color, fontSize: 11),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.label.copyWith(color: color, fontSize: 11),
+            ),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_options_sheet.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
 import '../divine_glass/divine_glass.dart';
@@ -14,10 +15,17 @@ import '../pressable_scale.dart';
 /// null if the user dismissed it. The wallet is already persisted to
 /// [CustomWalletStore] by the time this resolves.
 Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
+  final palette = AppPalette.of(context);
+  final glass = divineGlassEnabled(context);
   return showModalBottomSheet<CustomWallet>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    showDragHandle: false,
+    backgroundColor: glass ? Colors.transparent : palette.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+    ),
     builder: (_) => const CreateWalletSheet(),
   );
 }
@@ -143,36 +151,20 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: palette.border,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-            ),
+            const Center(child: InoSheetGrip()),
             const SizedBox(height: AppSpacing.md),
-            if (launcher)
-              DivineGlassCard(
-                radius: AppRadius.card,
-                blur: 14,
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: _previewRow(l10n, color, palette),
-              )
-            else
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  gradient: palette.cardGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  border: Border.all(color: palette.border),
-                  boxShadow: AppShadows.card,
-                ),
-                child: _previewRow(l10n, color, palette),
+            // Live preview of the wallet card (solid surface — not nested glass).
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                gradient: palette.cardGradient,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: palette.border),
+                boxShadow: AppShadows.card,
               ),
+              child: _previewRow(l10n, color, palette),
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.t('walletName'),
@@ -323,15 +315,7 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
                 child: body,
               ),
             )
-          : Container(
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.large),
-                ),
-              ),
-              child: body,
-            ),
+          : body,
     );
   }
 

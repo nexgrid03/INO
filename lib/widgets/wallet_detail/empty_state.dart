@@ -17,6 +17,7 @@ class WalletEmptyState extends StatelessWidget {
     required this.onScan,
     required this.onUpload,
     required this.onCreate,
+    this.accent,
   });
 
   final String title;
@@ -24,18 +25,24 @@ class WalletEmptyState extends StatelessWidget {
   final VoidCallback onScan;
   final VoidCallback onUpload;
   final VoidCallback onCreate;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final launcher = divineGlassEnabled(context);
+    final tint = accent ?? AppColors.primaryGreen;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
       child: Column(
         children: [
           if (launcher)
-            DivineGlassEmptyPanel(title: title, subtitle: subtitle)
+            DivineGlassEmptyPanel(
+              title: title,
+              subtitle: subtitle,
+              accent: tint,
+            )
           else
             Container(
               width: double.infinity,
@@ -50,7 +57,7 @@ class WalletEmptyState extends StatelessWidget {
                 children: [
                    ShinyIcon(
                     icon: Icons.folder_open_rounded,
-                    color: AppColors.primaryGreen,
+                    color: tint,
                     size: 110,
                     iconSize: 52,
                     radius: 32,
@@ -104,6 +111,7 @@ class WalletEmptyState extends StatelessWidget {
                   icon: Icons.upload_file_rounded,
                   label: l10n.t('upload'),
                   onTap: onUpload,
+                  accent: tint,
                 ),
               ),
               const SizedBox(width: 12),
@@ -112,6 +120,7 @@ class WalletEmptyState extends StatelessWidget {
                   icon: Icons.add_circle_outline_rounded,
                   label: l10n.t('create'),
                   onTap: onCreate,
+                  accent: tint,
                 ),
               ),
             ],
@@ -127,22 +136,25 @@ class _SecondaryButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.accent,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final launcher = divineGlassEnabled(context);
+    final tint = accent ?? AppColors.primaryGreen;
     final child = Padding(
       padding: const EdgeInsets.symmetric(vertical: 13),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 18, color: AppColors.primaryGreen),
+          Icon(icon, size: 18, color: tint),
           const SizedBox(width: 8),
           Text(
             label,

@@ -239,7 +239,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   onTap: () => _openScope(RemindersScope.today),
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ReminderSummaryCard(
                   icon: Icons.date_range_rounded,
@@ -251,7 +251,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
@@ -263,7 +263,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   onTap: () => _openScope(RemindersScope.expiring),
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ReminderSummaryCard(
                   icon: Icons.check_circle_rounded,
@@ -304,6 +304,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 Expanded(
                   child: Text(
                     l10n.t('todaysPriorities'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppText.title.copyWith(
                       color: AppPalette.of(context).textPrimary,
                     ),
@@ -320,6 +322,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       ),
                       child: Text(
                         l10n.t('viewAll'),
+                        maxLines: 1,
                         style: AppText.label.copyWith(
                           color: AppColors.primaryGreen,
                           fontSize: 13,
@@ -342,7 +345,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
             for (var i = 0; i < priorities.length; i++)
               Padding(
                 padding: EdgeInsets.only(
-                  bottom: i == priorities.length - 1 ? 0 : AppSpacing.xs,
+                  bottom: i == priorities.length - 1 ? 0 : AppSpacing.sm,
                 ),
                 child: ReminderCard(
                   reminder: priorities[i],
@@ -456,13 +459,13 @@ class _WeekStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = [for (var i = -2; i <= 6; i++) today.add(Duration(days: i))];
     return SizedBox(
-      height: 66,
+      height: 72,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         itemCount: days.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) => _DayPill(
           day: days[index],
           isToday: index == 2,
@@ -583,19 +586,23 @@ class _ViewAllButton extends StatelessWidget {
           onTap: onTap,
           child: Container(
             height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.button),
               border: Border.all(color: palette.border),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  AppLocalizations.of(context).t('viewAllReminders'),
-                  style: AppText.subtitle.copyWith(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w700,
+                Flexible(
+                  child: Text(
+                    AppLocalizations.of(context).t('viewAllReminders'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),

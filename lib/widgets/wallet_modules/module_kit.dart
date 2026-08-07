@@ -5,6 +5,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
+import '../common/ino_options_sheet.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_icon.dart';
 import '../common/success_tick_mark.dart';
@@ -751,13 +752,18 @@ class ModuleChipRow extends StatelessWidget {
   final List<int>? counts;
   final EdgeInsetsGeometry padding;
 
+  /// Tall enough for pill + hairline without clipping; vertical pad keeps
+  /// selected glow from being cut by the scroll viewport.
+  static const double rowHeight = 48;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
+      height: rowHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: padding,
+        clipBehavior: Clip.none,
+        padding: padding.add(const EdgeInsets.symmetric(vertical: 6)),
         itemCount: labels.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) => ModuleChip(
@@ -802,7 +808,7 @@ class ModuleChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 170),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: selected
@@ -813,9 +819,16 @@ class ModuleChip extends StatelessWidget {
           border: Border.all(
             color: selected ? Colors.transparent : palette.border,
           ),
+          // Soft selected glow only — card shadows clip in short chip rows.
           boxShadow: selected
-              ? AppShadows.glow(color, opacity: 0.22)
-              : palette.cardShadow,
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -864,6 +877,7 @@ class ModuleHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.icon,
+    this.accent,
     this.actions = const [],
     this.onBack,
   });
@@ -871,6 +885,9 @@ class ModuleHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData? icon;
+
+  /// Optional vault accent for the title glyph (Home My Vaults colour).
+  final Color? accent;
   final List<Widget> actions;
   final VoidCallback? onBack;
 
@@ -919,7 +936,7 @@ class ModuleHeader extends StatelessWidget {
                       Icon(
                         icon,
                         size: 18,
-                        color: palette.textSecondary,
+                        color: accent ?? palette.textSecondary,
                       ),
                       const SizedBox(width: 6),
                     ],
@@ -1206,70 +1223,13 @@ Future<int?> showModulePicker(
   List<Color>? colors,
   int? selectedIndex,
 }) {
-  final palette = AppPalette.of(context);
-  return showModalBottomSheet<int>(
-    context: context,
-    backgroundColor: palette.surface,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-    ),
-    builder: (context) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.border,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(title,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: AppSpacing.xs),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: labels.length,
-                itemBuilder: (context, i) {
-                  final selected = i == selectedIndex;
-                  final color = colors == null
-                      ? AppColors.primaryGreen
-                      : colors[i % colors.length];
-                  return ListTile(
-                    leading: icons == null
-                        ? null
-                        : Icon(icons[i % icons.length], color: color, size: 21),
-                    title: Text(
-                      labels[i],
-                      style: AppText.body.copyWith(
-                        color: palette.textPrimary,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                    ),
-                    trailing: selected
-                        ?  Icon(Icons.check_rounded,
-                            color: AppColors.primaryGreen)
-                        : null,
-                    onTap: () => Navigator.of(context).pop(i),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
-      ),
-    ),
+  return showInoOptionPicker(
+    context,
+    title: title,
+    labels: labels,
+    icons: icons,
+    colors: colors,
+    selectedIndex: selectedIndex,
   );
 }
 

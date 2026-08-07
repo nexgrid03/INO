@@ -16,6 +16,7 @@ class CategoryChips extends StatelessWidget {
     required this.categories,
     required this.selected,
     required this.onSelected,
+    this.accent,
   });
 
   /// Category labels, excluding the implicit leading "All".
@@ -27,26 +28,34 @@ class CategoryChips extends StatelessWidget {
   /// Emits the tapped category, or `null` when "All" is chosen.
   final ValueChanged<String?> onSelected;
 
+  /// Home vault accent — selected chip fill.
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) {
+    final tint = accent ?? AppColors.primaryGreen;
     return SizedBox(
-      height: 38,
+      height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.zero,
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(vertical: 6),
         children: [
           _CategoryChip(
             label: 'All',
             selected: selected == null,
             onTap: () => onSelected(null),
+            accent: tint,
           ),
           for (final c in categories)
             _CategoryChip(
               label: c,
               selected: c == selected,
               onTap: () => onSelected(c),
+              accent: tint,
             ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -58,11 +67,13 @@ class _CategoryChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.accent,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -80,16 +91,23 @@ class _CategoryChip extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOut,
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: selected ? null : palette.surface,
-                gradient: selected ? AppColors.brandGradient : null,
+                gradient:
+                    selected ? AppColors.vaultFillGradient(accent) : null,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
                   color: selected ? Colors.transparent : palette.border,
                 ),
                 boxShadow: selected
-                    ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.26)
+                    ? [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.22),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
                     : null,
               ),
               child: Text(

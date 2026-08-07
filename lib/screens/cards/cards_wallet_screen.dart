@@ -141,15 +141,19 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                     subtitle: hasAny
                         ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
                         : 'Debit & credit cards',
+                    icon: Icons.credit_card_rounded,
+                    accent: AppColors.vaultCards,
                     actions: [
                       ModuleIconButton(
                         icon: Icons.folder_shared_rounded,
                         tooltip: 'Banking documents',
+                        color: AppColors.vaultCards,
                         onTap: _openDocuments,
                       ),
                       ModuleIconButton(
                         icon: Icons.add_rounded,
                         tooltip: 'Add card',
+                        color: AppColors.vaultCards,
                         onTap: _add,
                       ),
                     ],
@@ -204,10 +208,11 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 38,
+                    height: ModuleChipRow.rowHeight,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      clipBehavior: Clip.none,
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                       children: [
                         ModuleChip(
                           label: 'All',
@@ -229,7 +234,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
                 if (visible.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -312,7 +317,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                            Icon(Icons.verified_user_outlined,
-                              size: 16, color: AppColors.primaryGreen),
+                              size: 16, color: AppColors.vaultCards),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(

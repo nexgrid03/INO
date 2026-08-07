@@ -18,19 +18,27 @@ class DocumentFilterBar extends StatelessWidget {
     required this.filters,
     required this.selected,
     required this.onFilter,
+    this.accent,
   });
 
   final List<WalletFilter> filters;
   final WalletFilter selected;
   final ValueChanged<WalletFilter> onFilter;
 
+  /// Home vault accent — selected chip fill.
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
+    final tint = accent ?? AppColors.primaryGreen;
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(vertical: 6),
         children: [
           for (final f in filters)
             Padding(
@@ -39,8 +47,10 @@ class DocumentFilterBar extends StatelessWidget {
                 label: f.localizedLabel(l10n),
                 selected: f == selected,
                 onTap: () => onFilter(f),
+                accent: tint,
               ),
             ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -52,11 +62,13 @@ class _Chip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.accent,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -71,16 +83,22 @@ class _Chip extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: selected ? null : palette.surface,
-              gradient: selected ? AppColors.brandGradient : null,
+              gradient: selected ? AppColors.vaultFillGradient(accent) : null,
               borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
                 color: selected ? Colors.transparent : palette.border,
               ),
               boxShadow: selected
-                  ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.28)
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.22),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
                   : null,
             ),
             child: Text(

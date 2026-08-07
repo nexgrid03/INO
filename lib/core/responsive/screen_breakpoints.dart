@@ -68,6 +68,25 @@ class ScreenBreakpoints {
     }
   }
 
+  /// Home icon grids (My Vaults, Needs Attention): use a 2×2 layout whenever
+  /// a 4-across row would crush labels like "Investments" on phones.
+  static bool useTwoByTwoIconGrid(double width) => width < tabletMin;
+
+  /// Horizontal gap between home icon tiles.
+  static double getIconGridGap(double width) {
+    final type = getDeviceType(width);
+    switch (type) {
+      case InoDeviceType.mobileSmall:
+        return 8.0;
+      case InoDeviceType.mobileNormal:
+        return 10.0;
+      case InoDeviceType.mobileLarge:
+        return 12.0;
+      case InoDeviceType.tablet:
+        return 14.0;
+    }
+  }
+
   /// Calculates child aspect ratio for finance tool grid tiles.
   /// Wider-than-tall so the tiles stay compact - no airy internal whitespace
   /// that would read as an extra gap below the section.
@@ -75,13 +94,13 @@ class ScreenBreakpoints {
     final type = getDeviceType(width);
     switch (type) {
       case InoDeviceType.mobileSmall:
-        return 1.55;
+        return 1.35;
       case InoDeviceType.mobileNormal:
-        return 1.70;
+        return 1.45;
       case InoDeviceType.mobileLarge:
-        return 1.80;
+        return 1.55;
       case InoDeviceType.tablet:
-        return 1.95;
+        return 1.75;
     }
   }
 }

@@ -23,11 +23,15 @@ class ReminderFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SizedBox(
-      height: 36,
+      height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screen,
+          vertical: 4,
+        ),
         children: [
           for (final kind in ReminderFilterKind.values)
             _Chip(

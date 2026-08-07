@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/category_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_options_sheet.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
@@ -12,10 +13,16 @@ import '../pressable_scale.dart';
 /// or null if the user dismissed it. The category is already persisted to
 /// [CategoryStore] by the time this resolves.
 Future<DocumentCategory?> showCreateCategorySheet(BuildContext context) {
+  final palette = AppPalette.of(context);
   return showModalBottomSheet<DocumentCategory>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    showDragHandle: false,
+    backgroundColor: palette.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+    ),
     builder: (_) => const CreateCategorySheet(),
   );
 }
@@ -81,43 +88,27 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.large)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-                AppSpacing.screen, AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Grabber.
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: palette.border,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+              AppSpacing.screen, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Center(child: InoSheetGrip()),
+              const SizedBox(height: AppSpacing.md),
+              // Header: live preview badge + titles.
+              Row(
+                children: [
+                  ShinyIcon(
+                    icon: categoryIconFor(_iconKey),
+                    color: color,
+                    size: AppSizes.iconContainer,
+                    iconSize: 26,
+                    radius: AppRadius.chip,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                // Header: live preview badge + titles.
-                Row(
-                  children: [
-                    ShinyIcon(
-                      icon: categoryIconFor(_iconKey),
-                      color: color,
-                      size: AppSizes.iconContainer,
-                      iconSize: 26,
-                      radius: AppRadius.chip,
-                    ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(
@@ -261,7 +252,6 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
             ),
           ),
         ),
-      ),
     );
   }
 

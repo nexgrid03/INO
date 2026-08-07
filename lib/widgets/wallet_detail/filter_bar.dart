@@ -27,13 +27,16 @@ class FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
+    return SizedBox(
+      height: 48,
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              clipBehavior: Clip.none,
+              padding: const EdgeInsets.symmetric(vertical: 6),
               children: [
                 for (final f in WalletFilter.values)
                   Padding(
@@ -47,44 +50,44 @@ class FilterBar extends StatelessWidget {
               ],
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        // Sort control.
-        PressableScale(
-          pressedScale: 0.92,
-          child: Material(
-            color: palette.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-              side: BorderSide(color: palette.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onSortTap,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                     Icon(Icons.swap_vert_rounded,
-                        size: 18, color: AppColors.primaryGreen),
-                    const SizedBox(width: 5),
-                    Text(
-                      sort.label,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary,
+          const SizedBox(width: 8),
+          // Sort control.
+          PressableScale(
+            pressedScale: 0.92,
+            child: Material(
+              color: palette.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                side: BorderSide(color: palette.border),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onSortTap,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_vert_rounded,
+                          size: 18, color: AppColors.primaryGreen),
+                      const SizedBox(width: 5),
+                      Text(
+                        sort.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: palette.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -113,7 +116,7 @@ class _Chip extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: selected ? null : palette.surface,
               gradient: selected ? AppColors.brandGradient : null,
@@ -122,7 +125,13 @@ class _Chip extends StatelessWidget {
                 color: selected ? Colors.transparent : palette.border,
               ),
               boxShadow: selected
-                  ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.28)
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.22),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
                   : null,
             ),
             child: Text(

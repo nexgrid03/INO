@@ -57,14 +57,21 @@ class ReminderSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(
-              color: palette.textSecondary,
-              fontWeight: FontWeight.w600,
-              fontSize: 11.5,
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: AppText.caption.copyWith(
+                  color: palette.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11.5,
+                ),
+              ),
             ),
           ),
         ],

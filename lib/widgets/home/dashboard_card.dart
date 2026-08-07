@@ -614,9 +614,8 @@ class HomeSummaryStrip extends StatelessWidget {
     ];
 
     if (enlargedIcons) {
-      // Launcher: same glass as My Vaults — no FadeSlideIn (web lag / blank).
-      // Narrow phones: 2×2 so square tiles don't crush labels.
-      final narrow = MediaQuery.sizeOf(context).width < 360;
+      // Launcher: same glass as My Vaults — single 4-across row (unchanged layout).
+      // Labels stay one line via FittedBox inside LauncherGlassIconTile.
       Widget tile(int i) => LauncherGlassIconTile(
             label: tiles[i].label,
             count: tiles[i].value,
@@ -625,28 +624,8 @@ class HomeSummaryStrip extends StatelessWidget {
             accent: tiles[i].accent,
             onTap: tiles[i].onTap ?? () {},
           );
-      if (narrow) {
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tile(0)),
-                const SizedBox(width: 10),
-                Expanded(child: tile(1)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: tile(2)),
-                const SizedBox(width: 10),
-                Expanded(child: tile(3)),
-              ],
-            ),
-          ],
-        );
-      }
       return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < tiles.length; i++) ...[
             if (i > 0) const SizedBox(width: 10),

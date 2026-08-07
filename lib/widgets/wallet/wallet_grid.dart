@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_border.dart';
 import '../dashboard/fade_slide_in.dart';
@@ -76,36 +77,32 @@ class WalletGrid extends StatefulWidget {
   static const double _gap = 12;
   static const double _cardHeight = 122;
 
-  /// Fallback accent for any wallet not in [_accents].
-  static const Color uniformAccent = Color(0xFF0EA5E9);
+  /// Fallback accent for any wallet not in the curated map.
+  static Color get uniformAccent => AppColors.primaryGreen;
 
-  /// Each wallet wears its own light pastel accent. The accent drives the whole
-  /// card - the soft fill wash, the border, the drifting blob and the icon -
-  /// so a single colour per wallet keeps everything cohesive.
-  ///
-  /// Investment Wallet deliberately uses the Home page's "Reminders Today"
-  /// coral (0xFFF5704A) - no pink.
-  static const Map<String, Color> _accents = {
-    'Identity Wallet': Color(0xFF0EA5E9), // brand sky blue
-    'Document Wallet': Color(0xFF4383EA), // blue
-    'Property Wallet': Color(0xFF9B6DE0), // purple (swapped with Health)
-    'Insurance Wallet': Color(0xFFF5704A), // coral (swapped with Investment)
-    'Health Wallet': Color(0xFF22C55E), // mint green (swapped with Property)
-    'Investment Wallet': Color(0xFF10B981), // green (swapped with Insurance)
-    'Banking Wallet': Color(0xFF4E7FE0), // blue
-    'Password Vault': Color(0xFFF2B33D), // amber
-  };
+  /// Accent for a built-in wallet — same map as Home My Vaults.
+  static Color accentFor(String name) => AppColors.vaultAccentFor(name);
 
-  /// The pastel accent for a built-in wallet name (falls back to
-  /// [uniformAccent]). Custom wallets carry their own accent - use
-  /// [accentForCategory].
-  static Color accentFor(String name) => _accents[name] ?? uniformAccent;
-
-  /// The accent a card should wear: the curated one for a built-in wallet, or
-  /// the colour the user picked when they created their own.
-  static Color accentForCategory(WalletCategory category) =>
-      _accents[category.name] ??
-      (category.gradient.isEmpty ? uniformAccent : category.gradient.first);
+  /// The accent a card should wear: Home vault colour for built-ins, or the
+  /// colour the user picked when they created their own.
+  static Color accentForCategory(WalletCategory category) {
+    const builtIns = {
+      'Identity Wallet',
+      'Document Wallet',
+      'Property Wallet',
+      'Insurance Wallet',
+      'Health Wallet',
+      'Investment Wallet',
+      'Banking Wallet',
+      'Password Vault',
+    };
+    if (builtIns.contains(category.name)) {
+      return AppColors.vaultAccentFor(category.name);
+    }
+    return category.gradient.isEmpty
+        ? uniformAccent
+        : category.gradient.first;
+  }
 
   @override
   State<WalletGrid> createState() => _WalletGridState();
@@ -270,10 +267,11 @@ class _WalletCard extends StatelessWidget {
                         ? SizedBox(
                             width: 38,
                             height: 38,
-                            child: Icon(
-                              category.icon,
-                              color: Colors.white,
+                            child: _VaultGlyph(
+                              category: category,
+                              accent: Colors.white,
                               size: 30,
+                              use3d: false,
                             ),
                           )
                         : Container(
@@ -288,10 +286,11 @@ class _WalletCard extends StatelessWidget {
                                 color: accent.withValues(alpha: 0.25),
                               ),
                             ),
-                            child: Icon(
-                              category.icon,
-                              color: accent,
+                            child: _VaultGlyph(
+                              category: category,
+                              accent: accent,
                               size: 22,
+                              use3d: InoStyle.usesHome3dIcons(context),
                             ),
                           ),
                     const Spacer(),
@@ -305,15 +304,20 @@ class _WalletCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 9),
-                Text(
-                  localizedWalletName(l10n, category.name),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                    letterSpacing: -0.2,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    localizedWalletName(l10n, category.name),
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                      letterSpacing: -0.2,
+                      height: 1.1,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -528,5 +532,44 @@ class _Blob extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Same Home My Vaults glyph (3D / SVG) when available; else [WalletCategory.icon].
+class _VaultGlyph extends StatelessWidget {
+  const _VaultGlyph({
+    required this.category,
+    required this.accent,
+    required this.size,
+    required this.use3d,
+  });
+
+  final WalletCategory category;
+  final Color accent;
+  final double size;
+  final bool use3d;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = use3d ? InoHomeIcons3d.vaultGlyph(category.name) : null;
+    final svg = image == null ? InoHomeIcons.vaultSvg(category.name) : null;
+    if (image != null) {
+      return Center(
+        child: Image.asset(
+          image,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+        ),
+      );
+    }
+    if (svg != null) {
+      return Center(
+        child: InoSvgIcon(svg, size: size, color: accent),
+      );
+    }
+    return Icon(category.icon, color: accent, size: size);
   }
 }

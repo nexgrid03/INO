@@ -135,11 +135,51 @@ class AppColors {
   static const Color silver = Color(0xFF8C9BA5);
 
   // --- Category accents (launcher vaults / tools / attention tiles) ---------
+  // Home My Vaults is the source of truth — navigated screens must match.
 
   static const Color vaultIdentity = Color(0xFF8B6CEF);
   static const Color vaultProperty = Color(0xFF22C55E);
   static const Color vaultInvestments = Color(0xFFF59E0B);
-  static const Color vaultCards = Color(0xFF4383EA);
+  static const Color _vaultCardsSky = Color(0xFF4383EA);
+  static const Color vaultInsurance = Color(0xFFF5704A);
+  static const Color vaultHealth = Color(0xFF22C55E);
+  static const Color vaultPassword = Color(0xFFF2B33D);
+
+  /// Cards / Banking — sky blue on Classic/Clay; Aqua brand teal under Aqua.
+  static Color get vaultCards =>
+      _aquaActive ? aquaPrimary : _vaultCardsSky;
+
+  /// Document Wallet — same as Cards (Home hub consistency); Aqua → brand teal.
+  static Color get vaultDocuments =>
+      _aquaActive ? aquaPrimary : _vaultCardsSky;
+
+  /// Accent for a built-in wallet name (Home My Vaults / Wallet Hub).
+  /// Under Aqua styles, chrome follows the brand teal ladder for blue vaults
+  /// so Document / Cards screens match the theme instead of sky-blue.
+  static Color vaultAccentFor(String name) => switch (name) {
+        'Identity Wallet' => vaultIdentity,
+        'Property Wallet' => vaultProperty,
+        'Investment Wallet' => vaultInvestments,
+        'Banking Wallet' => vaultCards,
+        'Document Wallet' => vaultDocuments,
+        'Insurance Wallet' => vaultInsurance,
+        'Health Wallet' => vaultHealth,
+        'Password Vault' => vaultPassword,
+        _ => primaryGreen,
+      };
+
+  /// Soft two-stop gradient for wallet chrome, derived from [vaultAccentFor].
+  static List<Color> vaultGradientFor(String name) {
+    final c = vaultAccentFor(name);
+    return [c, Color.lerp(c, Colors.white, 0.28)!];
+  }
+
+  /// Selected-chip / FAB fill for a vault accent (matches Home tile tint).
+  static LinearGradient vaultFillGradient(Color accent) => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [accent, Color.lerp(accent, Colors.white, 0.18)!],
+      );
 
   static const Color accentCoral = Color(0xFFF5704A);
   static const Color accentBlue = Color(0xFF2563EB);
@@ -858,8 +898,9 @@ class AppTheme {
         backgroundColor: palette.bgElevated,
         surfaceTintColor: Colors.transparent,
         modalBackgroundColor: palette.bgElevated,
-        showDragHandle: true,
-        dragHandleColor: pale,
+        // Content owns the grip via [InoSheetGrip] — Material's handle would
+        // stack and look like a double overlay on every picker sheet.
+        showDragHandle: false,
         elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

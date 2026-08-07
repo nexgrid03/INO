@@ -13,7 +13,8 @@ import 'qr_scan_frame.dart';
 
 /// QR upload block at the bottom of the Home feed.
 ///
-/// Matches other Home sections: section gap → header → glass card → CTA.
+/// Matches other Home sections: header → glass card → CTA (compact, no
+/// leftover empty band above the floating nav).
 class HomeQrPanel extends StatefulWidget {
   const HomeQrPanel({super.key});
 
@@ -74,10 +75,11 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
     final width = MediaQuery.sizeOf(context).width;
     final narrow = width < 380;
     final flat = InoStyle.usesFlatBackdrop(context);
-    final frameSize = (width * 0.38).clamp(128.0, 156.0);
+    // Compact frame — tall frames left a large empty band above the nav.
+    final frameSize = (width * 0.28).clamp(96.0, 120.0);
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.section),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -93,9 +95,10 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
             blur: flat ? 16 : 20,
             frost: flat ? 1.35 : (palette.isDark ? 1.1 : 0.78),
             shadow: true,
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   hasQr
@@ -106,10 +109,10 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                     color: palette.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    height: 1.35,
+                    height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 PressableScale(
                   pressedScale: 0.98,
                   child: Material(
@@ -118,13 +121,13 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                       onTap: _pickQr,
                       borderRadius: BorderRadius.circular(18),
                       child: SizedBox(
-                        height: frameSize + 8,
+                        height: frameSize,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
                             if (hasQr && _qrProvider != null)
                               Padding(
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(8),
                                 child: Image(
                                   image: _qrProvider!,
                                   fit: BoxFit.contain,
@@ -135,7 +138,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                             else
                               Icon(
                                 Icons.qr_code_2_rounded,
-                                size: 40,
+                                size: 36,
                                 color: AppColors.primaryGreen
                                     .withValues(alpha: 0.85),
                               ),
@@ -152,9 +155,9 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SizedBox(
-                  height: 48,
+                  height: 44,
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _pickQr,

@@ -323,8 +323,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final sidePadding = context.responsivePadding;
     // Rebuild Home when Profile → App theme changes (classic vs launcher layout).
     final style = InoStyle.of(context);
-    // Clear the floating nav (66 + 12 pad + safe area) so banners never sit on it.
-    final navClearance = MediaQuery.paddingOf(context).bottom + 110;
+    // Clear the floating nav — keep tight so My QR isn't stranded above empty teal.
+    final navClearance = MediaQuery.paddingOf(context).bottom + 72;
 
     return Scaffold(
       backgroundColor: palette.bg,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -66,26 +65,14 @@ class LauncherQuickActions extends StatelessWidget {
       ),
     ];
 
-    Widget rowOf(List<Widget> kids) => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < kids.length; i++) ...[
-              if (i > 0) const SizedBox(width: _gap),
-              Expanded(child: kids[i]),
-            ],
-          ],
-        );
-
-    if (context.isMobileSmall) {
-      return Column(
-        children: [
-          rowOf([actions[0], actions[1]]),
-          const SizedBox(height: 12),
-          rowOf([actions[2], actions[3]]),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: _gap),
+          Expanded(child: actions[i]),
         ],
-      );
-    }
-
-    return rowOf(actions);
+      ],
+    );
   }
 }

@@ -8,6 +8,9 @@ import '../../theme/app_theme.dart';
 /// Default [showModalBottomSheet] caps height at ~half the screen — a tall
 /// list overflows with yellow/black stripes and hides trailing options. This
 /// helper allows up to [maxHeightFraction] of the screen and scrolls the rest.
+///
+/// Always uses a single chrome owner: theme/modal surface + one [InoSheetGrip]
+/// in content (Material drag handle is disabled).
 Future<T?> showInoOptionsSheet<T>({
   required BuildContext context,
   required Color backgroundColor,
@@ -18,6 +21,7 @@ Future<T?> showInoOptionsSheet<T>({
     context: context,
     backgroundColor: backgroundColor,
     isScrollControlled: true,
+    showDragHandle: false,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(AppRadius.large),
@@ -32,6 +36,55 @@ Future<T?> showInoOptionsSheet<T>({
         ),
       );
     },
+  );
+}
+
+/// Simple label-list picker with optional icons/colors and a selected check.
+/// Returns the chosen index, or null when dismissed.
+Future<int?> showInoOptionPicker(
+  BuildContext context, {
+  required String title,
+  required List<String> labels,
+  List<IconData>? icons,
+  List<Color>? colors,
+  int? selectedIndex,
+  double maxHeightFraction = 0.7,
+}) {
+  final palette = AppPalette.of(context);
+  return showInoOptionsSheet<int>(
+    context: context,
+    backgroundColor: palette.surface,
+    maxHeightFraction: maxHeightFraction,
+    builder: (context, _) => InoOptionsSheetBody(
+      title: title,
+      titleStyle: AppText.title.copyWith(color: palette.textPrimary),
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          ListTile(
+            leading: icons == null
+                ? null
+                : Icon(
+                    icons[i % icons.length],
+                    color: colors == null
+                        ? AppColors.primaryGreen
+                        : colors[i % colors.length],
+                    size: 21,
+                  ),
+            title: Text(
+              labels[i],
+              style: AppText.body.copyWith(
+                color: palette.textPrimary,
+                fontWeight:
+                    i == selectedIndex ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            trailing: i == selectedIndex
+                ? Icon(Icons.check_rounded, color: AppColors.primaryGreen)
+                : null,
+            onTap: () => Navigator.of(context).pop(i),
+          ),
+      ],
+    ),
   );
 }
 

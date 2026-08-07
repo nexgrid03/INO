@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_border.dart';
 import '../common/shiny_icon.dart';
@@ -10,6 +11,8 @@ import '../pressable_scale.dart';
 
 /// A premium gradient grid card for the Property & Finance Tools hub - a large
 /// icon badge, title and short description, with a ripple + press animation.
+///
+/// Prefer [imageAsset] / [svgAsset] (same Home finance glyphs) when set.
 class ToolGridCard extends StatelessWidget {
   const ToolGridCard({
     super.key,
@@ -18,6 +21,8 @@ class ToolGridCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.imageAsset,
+    this.svgAsset,
   });
 
   final IconData icon;
@@ -25,6 +30,8 @@ class ToolGridCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final String? imageAsset;
+  final String? svgAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +50,23 @@ class ToolGridCard extends StatelessWidget {
         : palette.cardGradient;
     final edge = bold ? InoStyle.boldBorder(color) : palette.border;
 
+    Widget glyph({required double size, required Color tint}) {
+      if (imageAsset != null) {
+        return Image.asset(
+          imageAsset!,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+        );
+      }
+      if (svgAsset != null) {
+        return InoSvgIcon(svgAsset!, size: size, color: tint);
+      }
+      return Icon(icon, color: tint, size: size);
+    }
+
     final inner = Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -53,7 +77,9 @@ class ToolGridCard extends StatelessWidget {
               ? SizedBox(
                   width: 46,
                   height: 46,
-                  child: Icon(icon, color: Colors.white, size: 36),
+                  child: Center(
+                    child: glyph(size: 36, tint: Colors.white),
+                  ),
                 )
               : launcher
                   ? Container(
@@ -63,16 +89,30 @@ class ToolGridCard extends StatelessWidget {
                         color: color.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(icon, color: color, size: 26),
+                      child: Center(
+                        child: glyph(size: 28, tint: color),
+                      ),
                     )
-                  : ShinyIcon(
-                      icon: icon,
-                      color: color,
-                      size: 46,
-                      iconSize: 24,
-                      radius: AppRadius.chip,
-                      style: ShinyIconStyle.glass,
-                    ),
+                  : imageAsset != null || svgAsset != null
+                      ? Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.chip),
+                          ),
+                          child: Center(
+                            child: glyph(size: 26, tint: color),
+                          ),
+                        )
+                      : ShinyIcon(
+                          icon: icon,
+                          color: color,
+                          size: 46,
+                          iconSize: 24,
+                          radius: AppRadius.chip,
+                          style: ShinyIconStyle.glass,
+                        ),
           const SizedBox(height: AppSpacing.sm),
           Column(
             crossAxisAlignment: CrossAxisAlignment.center,

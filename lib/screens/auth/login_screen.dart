@@ -353,20 +353,36 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: gapXs),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _RememberMe(
-                      label: l10n.t('rememberMe'),
-                      value: _rememberMe,
-                      onChanged: (v) => setState(() => _rememberMe = v),
+                    Flexible(
+                      child: _RememberMe(
+                        label: l10n.t('rememberMe'),
+                        value: _rememberMe,
+                        onChanged: (v) => setState(() => _rememberMe = v),
+                      ),
                     ),
-                    TextButton(
-                      onPressed: busy ? null : _goToForgotPassword,
-                      child: Text(
-                        l10n.t('forgotPasswordQ'),
-                        style: TextStyle(
-                          color: AppColors.primaryGreen,
-                          fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: busy ? null : _goToForgotPassword,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              l10n.t('forgotPasswordQ'),
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: AppColors.primaryGreen,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -563,7 +579,6 @@ class _RememberMe extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 160),
@@ -586,11 +601,15 @@ class _RememberMe extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -653,7 +672,9 @@ class _AuthSwitchRow extends StatelessWidget {
         Flexible(
           child: Text(
             prompt,
+            textAlign: TextAlign.center,
             style: const TextStyle(color: AppColors.textMuted),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -666,7 +687,7 @@ class _AuthSwitchRow extends StatelessWidget {
           ),
           child: Text(
             action,
-            style:  TextStyle(
+            style: TextStyle(
               color: AppColors.primaryGreen,
               fontWeight: FontWeight.w700,
             ),

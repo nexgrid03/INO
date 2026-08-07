@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_options_sheet.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
@@ -13,10 +14,16 @@ import '../pressable_scale.dart';
 /// due date, with real actions (mark done / delete). Mutations go straight to
 /// the [ReminderStore] so every screen updates.
 Future<void> showReminderDetail(BuildContext context, Reminder reminder) {
+  final palette = AppPalette.of(context);
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    showDragHandle: false,
+    backgroundColor: palette.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+    ),
     builder: (_) => _ReminderDetailSheet(reminder: reminder),
   );
 }
@@ -34,12 +41,7 @@ class _ReminderDetailSheet extends StatelessWidget {
     final categoryColor = reminder.category.color;
     final urgency = reminderUrgencyColor(reminder, store.today);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.bg,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-      ),
+    return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
       child: SafeArea(
@@ -48,17 +50,8 @@ class _ReminderDetailSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: palette.border,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-            ),
+            const Center(child: InoSheetGrip()),
+            const SizedBox(height: AppSpacing.md),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

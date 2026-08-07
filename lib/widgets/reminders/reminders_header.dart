@@ -59,6 +59,8 @@ class RemindersHeader extends StatelessWidget {
             children: [
               Text(
                 l10n.t('reminders'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,

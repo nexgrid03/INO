@@ -9,6 +9,7 @@ import '../pressable_scale.dart';
 ///
 /// Prefer [imageAsset] (3D PNG glyphs on a Flutter disc). Layout uses a fixed
 /// square disc slot + label column so every Quick Action cell aligns.
+/// Labels stay on one line via [FittedBox] (scale down — never wrap).
 class QuickActionButton extends StatelessWidget {
   const QuickActionButton({
     super.key,
@@ -118,9 +119,8 @@ class QuickActionButton extends StatelessWidget {
               );
             }
 
-            // Fixed disc slot + fixed label slot → shared baseline across the row.
-            final discSlot = enlarged ? 96.0 : 56.0;
-            final labelH = enlarged ? 18.0 : 16.0;
+            // Disc slot matches the circle — no empty air under the icon.
+            final discSlot = disc;
 
             return SizedBox(
               width: cellW,
@@ -132,20 +132,18 @@ class QuickActionButton extends StatelessWidget {
                     height: discSlot,
                     child: Center(child: discChild),
                   ),
-                  SizedBox(height: enlarged ? 8 : AppSpacing.xs),
-                  SizedBox(
-                    height: labelH,
-                    width: cellW,
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
                     child: Text(
                       label,
                       maxLines: 1,
                       softWrap: false,
-                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: AppText.caption.copyWith(
                         color: palette.textPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: enlarged ? 13 : 12,
+                        fontSize: enlarged ? 12.5 : 12,
                         height: 1.0,
                       ),
                     ),

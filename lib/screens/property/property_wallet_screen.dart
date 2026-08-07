@@ -175,15 +175,19 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                     subtitle: hasAny
                         ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
                         : 'Your property register',
+                    icon: Icons.home_work_rounded,
+                    accent: AppColors.vaultProperty,
                     actions: [
                       ModuleIconButton(
                         icon: Icons.folder_shared_rounded,
                         tooltip: 'Property documents',
+                        color: AppColors.vaultProperty,
                         onTap: _openDocuments,
                       ),
                       ModuleIconButton(
                         icon: Icons.add_rounded,
                         tooltip: 'Add property',
+                        color: AppColors.vaultProperty,
                         onTap: _addProperty,
                       ),
                     ],
@@ -251,7 +255,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 SliverToBoxAdapter(
                   child: ModuleChipRow(
                     labels: [for (final f in _PropertyFilter.values) f.label],
@@ -265,7 +269,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                         setState(() => _filter = _PropertyFilter.values[i]),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 if (visible.isEmpty)
                   SliverToBoxAdapter(
                     child: _NoMatches(
@@ -412,7 +416,7 @@ class _PortfolioCard extends StatelessWidget {
                     label: 'Properties',
                     value: '$count',
                     icon: Icons.home_work_rounded,
-                    color: AppColors.primaryGreen,
+                    color: AppColors.vaultProperty,
                   ),
                 ),
                 _Divider(palette: palette),
@@ -530,7 +534,7 @@ class _SortButton extends StatelessWidget {
           child: Icon(
             Icons.swap_vert_rounded,
             size: 22,
-            color: AppColors.primaryGreen,
+            color: AppColors.vaultProperty,
           ),
         ),
       ),

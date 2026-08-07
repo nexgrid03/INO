@@ -40,6 +40,9 @@ class FinanceTool {
 }
 
 /// The available tools, in display order. Append new calculators here.
+///
+/// [id] matches Home [InoHomeIcons] / [InoHomeIcons3d] finance glyphs so the
+/// hub and Home stay visually uniform.
 final List<FinanceTool> financeTools = [
   FinanceTool(
     id: 'area',

@@ -23,6 +23,7 @@ class WalletHeader extends StatelessWidget {
     required this.title,
     required this.onBack,
     this.icon,
+    this.accent,
     this.onManageShares,
     this.onAreaConverter,
   });
@@ -32,6 +33,9 @@ class WalletHeader extends StatelessWidget {
 
   /// The wallet's glyph, shown in a small brand-gradient chip beside the title.
   final IconData? icon;
+
+  /// Wallet accent from Home My Vaults — keeps header chrome colour-matched.
+  final Color? accent;
 
   /// Optional - opens the "Shared Links" manager (the QR / scan action).
   final VoidCallback? onManageShares;
@@ -76,6 +80,7 @@ class WalletHeader extends StatelessWidget {
   Widget _classicHeader(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final chip = accent ?? AppColors.primaryGreen;
     return Row(
       children: [
         InoBackButton(size: 42, onTap: onBack),
@@ -83,7 +88,7 @@ class WalletHeader extends StatelessWidget {
         if (icon != null) ...[
           ShinyIcon(
             icon: icon!,
-            color: AppColors.primaryGreen,
+            color: chip,
             size: 40,
             iconSize: 21,
             radius: 13,
@@ -114,6 +119,7 @@ class WalletHeader extends StatelessWidget {
             icon: Icons.straighten_rounded,
             tooltip: l10n.t('areaConverter'),
             onTap: onAreaConverter!,
+            accent: chip,
           ),
           const SizedBox(width: 8),
         ],
@@ -123,6 +129,7 @@ class WalletHeader extends StatelessWidget {
             tooltip: l10n.t('sharedLinks'),
             onTap: onManageShares!,
             highlighted: true,
+            accent: chip,
           ),
       ],
     );
@@ -137,28 +144,31 @@ class _CircleIcon extends StatelessWidget {
     required this.onTap,
     required this.tooltip,
     this.highlighted = false,
+    this.accent,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final String tooltip;
   final bool highlighted;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final tint = accent ?? AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
         message: tooltip,
         child: Material(
           color: highlighted
-              ? AppColors.primaryGreen.withValues(alpha: 0.12)
+              ? tint.withValues(alpha: 0.12)
               : palette.surface,
           shape: CircleBorder(
             side: BorderSide(
               color: highlighted
-                  ? AppColors.primaryGreen.withValues(alpha: 0.35)
+                  ? tint.withValues(alpha: 0.35)
                   : palette.border,
             ),
           ),
@@ -171,9 +181,7 @@ class _CircleIcon extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 21,
-                color: highlighted
-                    ? AppColors.primaryGreen
-                    : palette.textPrimary,
+                color: highlighted ? tint : palette.textPrimary,
               ),
             ),
           ),

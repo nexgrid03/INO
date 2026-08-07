@@ -4,6 +4,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 import '../wallet_modules/module_kit.dart';
+import 'ino_options_sheet.dart';
 
 /// The save-consent gate every wallet record passes through.
 ///
@@ -24,7 +25,12 @@ Future<bool> showDataConsentSheet(
   final agreed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    showDragHandle: false,
+    backgroundColor: AppPalette.of(context).surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+    ),
     builder: (_) => _DataConsentSheet(what: what),
   );
   return agreed == true;
@@ -38,12 +44,7 @@ class _DataConsentSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-      ),
+    return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: SafeArea(
         top: false,
@@ -51,16 +52,7 @@ class _DataConsentSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.tealPale,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-            ),
+            const Center(child: InoSheetGrip()),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [

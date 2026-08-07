@@ -12,6 +12,8 @@ import '../pressable_scale.dart';
 /// Top inset leaves room for the badge so it is never clipped by the section
 /// above. **Aqua Light** uses a milkier frosted plate + rim so tiles stay
 /// readable on the flat solid backdrop.
+///
+/// Labels always stay on **one line** via [FittedBox] (scale down, never wrap).
 class LauncherGlassIconTile extends StatelessWidget {
   const LauncherGlassIconTile({
     super.key,
@@ -129,16 +131,22 @@ class LauncherGlassIconTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                height: 1.15,
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
               ),
             ),
           ],

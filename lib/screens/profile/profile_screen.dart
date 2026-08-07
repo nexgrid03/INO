@@ -455,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: palette.surface,
+      showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppRadius.large),

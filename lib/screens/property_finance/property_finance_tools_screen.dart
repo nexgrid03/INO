@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
+import '../../theme/theme_style.dart';
+import '../../widgets/common/ino_svg_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/tool_card.dart';
@@ -41,6 +43,7 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final use3d = InoStyle.usesHome3dIcons(context);
     return CalculatorScaffold(
       title: l10n.t('propertyFinanceTools'),
       subtitle: l10n.t('financeToolsSubtitle'),
@@ -61,11 +64,19 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
                       delay: Duration(milliseconds: (i * 60).clamp(0, 300)),
                       child: ToolGridCard(
                         icon: financeTools[i].icon,
+                        imageAsset: use3d
+                            ? InoHomeIcons3d.financeGlyph(financeTools[i].id)
+                            : null,
+                        svgAsset: use3d
+                            ? null
+                            : InoHomeIcons.financeSvg(financeTools[i].id),
                         title: titleOf(l10n, financeTools[i]),
                         subtitle: subtitleOf(l10n, financeTools[i]),
                         color: financeTools[i].color,
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: financeTools[i].builder),
+                          MaterialPageRoute(
+                            builder: financeTools[i].builder,
+                          ),
                         ),
                       ),
                     ),

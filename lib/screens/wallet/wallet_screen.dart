@@ -10,6 +10,7 @@ import '../../theme/theme_style.dart';
 import '../../navigation/wallet_module_router.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/home/voice_mic_button.dart';
@@ -116,10 +117,16 @@ class _WalletScreenState extends State<WalletScreen> {
   /// more wallets opens the document search constrained to those wallets - the
   /// filter icon never opens the plain search itself.
   Future<void> _openFilters(List<WalletCategory> categories) async {
+    final palette = AppPalette.of(context);
     final selected = await showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      showDragHandle: false,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+      ),
       builder: (_) => _WalletFilterSheet(categories: categories),
     );
     if (selected == null || !mounted) return;
@@ -488,117 +495,102 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: LiquidGlass(
-          borderRadius: BorderRadius.circular(AppRadius.large),
-          blur: 24,
-          frost: palette.isDark ? 1.1 : 0.78,
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Center(child: InoSheetGrip()),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Filter documents',
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final c in widget.categories)
+                  _FilterChip(
+                    label: c.name,
+                    selected: _selected.contains(c.name),
+                    onTap: () => setState(() {
+                      _selected.contains(c.name)
+                          ? _selected.remove(c.name)
+                          : _selected.add(c.name);
+                    }),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                if (_selected.isNotEmpty)
+                  Expanded(
+                    child: PressableScale(
+                      child: Material(
+                        color: Colors.transparent,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          side: BorderSide(color: palette.border),
+                        ),
+                        child: InkWell(
+                          onTap: () => setState(_selected.clear),
+                          child: SizedBox(
+                            height: AppSizes.button,
+                            child: Center(
+                              child: Text(
+                                'Clear',
+                                style: AppText.subtitle
+                                    .copyWith(color: palette.textSecondary),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_selected.isNotEmpty) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  flex: 2,
+                  child: PressableScale(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(_selected),
+                      child: Container(
+                        height: AppSizes.button,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          boxShadow: AppShadows.glow(
+                            AppColors.primaryGreen,
+                            opacity: 0.28,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _selected.isEmpty
+                                ? 'Search all documents'
+                                : 'Show results (${_selected.length})',
+                            style: AppText.subtitle.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Filter documents',
-                style: AppText.title.copyWith(color: palette.textPrimary),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final c in widget.categories)
-                    _FilterChip(
-                      label: c.name,
-                      selected: _selected.contains(c.name),
-                      onTap: () => setState(() {
-                        _selected.contains(c.name)
-                            ? _selected.remove(c.name)
-                            : _selected.add(c.name);
-                      }),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Row(
-                children: [
-                  if (_selected.isNotEmpty)
-                    Expanded(
-                      child: PressableScale(
-                        child: Material(
-                          color: Colors.transparent,
-                          clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            side: BorderSide(color: palette.border),
-                          ),
-                          child: InkWell(
-                            onTap: () => setState(_selected.clear),
-                            child: SizedBox(
-                              height: AppSizes.button,
-                              child: Center(
-                                child: Text(
-                                  'Clear',
-                                  style: AppText.subtitle
-                                      .copyWith(color: palette.textSecondary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_selected.isNotEmpty) const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    flex: 2,
-                    child: PressableScale(
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).pop(_selected),
-                        child: Container(
-                          height: AppSizes.button,
-                          decoration: BoxDecoration(
-                            gradient: AppColors.brandGradient,
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            boxShadow: AppShadows.glow(
-                              AppColors.primaryGreen,
-                              opacity: 0.28,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _selected.isEmpty
-                                  ? 'Search all documents'
-                                  : 'Show results (${_selected.length})',
-                              style: AppText.subtitle.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );

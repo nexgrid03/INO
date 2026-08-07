@@ -45,14 +45,15 @@ abstract class WalletRepository {
 class SupabaseWalletRepository implements WalletRepository {
   /// The eight wallet "buckets" the app offers. These are the app's structure
   /// (not stored data) - the counts below are filled in from real documents.
-  static const List<WalletCategory> _categories = [
+  /// Gradients match Home My Vaults accents ([AppColors.vaultAccentFor]).
+  static final List<WalletCategory> _categories = [
     WalletCategory(
       name: 'Identity Wallet',
       icon: Icons.badge_rounded,
       contents: ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID'],
       metric: '0',
       metricLabel: 'documents',
-      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
+      gradient: AppColors.vaultGradientFor('Identity Wallet'),
     ),
     WalletCategory(
       name: 'Document Wallet',
@@ -60,7 +61,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Certificates', 'Contracts', 'Personal Documents'],
       metric: '0',
       metricLabel: 'files',
-      gradient: [Color(0xFF3B82F6), AppColors.skyBrandSky],
+      gradient: AppColors.vaultGradientFor('Document Wallet'),
     ),
     WalletCategory(
       name: 'Property Wallet',
@@ -68,7 +69,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Property Documents', 'Tax Records', 'Sale Deeds'],
       metric: '0',
       metricLabel: 'properties',
-      gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
+      gradient: AppColors.vaultGradientFor('Property Wallet'),
     ),
     WalletCategory(
       name: 'Insurance Wallet',
@@ -76,7 +77,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Health', 'Vehicle', 'Life Insurance'],
       metric: '0',
       metricLabel: 'policies',
-      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
+      gradient: AppColors.vaultGradientFor('Insurance Wallet'),
     ),
     WalletCategory(
       name: 'Health Wallet',
@@ -84,7 +85,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Medical Records', 'Reports', 'Prescriptions'],
       metric: '0',
       metricLabel: 'records',
-      gradient: [Color(0xFF3B82F6), AppColors.skyBrandSecondary],
+      gradient: AppColors.vaultGradientFor('Health Wallet'),
     ),
     WalletCategory(
       name: 'Investment Wallet',
@@ -92,7 +93,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Gold', 'Stocks', 'Mutual Funds', 'Land'],
       metric: '0',
       metricLabel: 'holdings',
-      gradient: [AppColors.skyBrandSecondary, AppColors.skyBrandSky],
+      gradient: AppColors.vaultGradientFor('Investment Wallet'),
     ),
     WalletCategory(
       name: 'Banking Wallet',
@@ -100,7 +101,7 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Accounts', 'Statements', 'Cards'],
       metric: '0',
       metricLabel: 'accounts',
-      gradient: [AppColors.skyBrand, AppColors.skyBrand],
+      gradient: AppColors.vaultGradientFor('Banking Wallet'),
     ),
     WalletCategory(
       name: 'Password Vault',
@@ -108,12 +109,12 @@ class SupabaseWalletRepository implements WalletRepository {
       contents: ['Website Credentials', 'Bank Credentials'],
       metric: '0',
       metricLabel: 'passwords',
-      gradient: [AppColors.skyBrand, AppColors.skyBrandSecondary],
+      gradient: AppColors.vaultGradientFor('Password Vault'),
     ),
   ];
 
   /// The eight wallets the app ships with (never deletable).
-  static const List<WalletCategory> builtIns = _categories;
+  static List<WalletCategory> get builtIns => _categories;
 
   /// Every wallet the user has: the built-ins followed by the wallets they
   /// created themselves ([CustomWalletStore]). Every picker, filter and the hub

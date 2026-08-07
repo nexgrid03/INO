@@ -37,6 +37,13 @@ extension ResponsiveContextX on BuildContext {
 
   /// Child aspect ratio for Property & Finance Tools grid.
   double get toolsAspectRatio => ScreenBreakpoints.getToolsAspectRatio(screenWidth);
+
+  /// True when My Vaults / Needs Attention should use a 2×2 grid.
+  bool get useTwoByTwoIconGrid =>
+      ScreenBreakpoints.useTwoByTwoIconGrid(screenWidth);
+
+  /// Gap between home icon tiles.
+  double get iconGridGap => ScreenBreakpoints.getIconGridGap(screenWidth);
 }
 
 /// Extension on [num] wrapping flutter_screenutil for type safety and brevity.

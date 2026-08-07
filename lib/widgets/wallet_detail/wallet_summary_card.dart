@@ -19,11 +19,15 @@ class WalletSummaryCard extends StatelessWidget {
     required this.totalDocuments,
     required this.expiring,
     required this.protected,
+    this.accent,
   });
 
   final int totalDocuments;
   final int expiring;
   final bool protected;
+
+  /// Home My Vaults accent for this wallet.
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
@@ -41,15 +45,16 @@ class WalletSummaryCard extends StatelessWidget {
         ],
       );
     }
+    final vault = accent ?? AppColors.primaryGreen;
     final protectedColor = protected
-        ? AppColors.primaryGreen
+        ? vault
         : palette.textFaint;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _StatCard(
-            accent: AppColors.primaryGreen,
+            accent: vault,
             label: l10n.t('documents'),
             icon: Icons.folder_open_rounded,
             child: _BigValue(

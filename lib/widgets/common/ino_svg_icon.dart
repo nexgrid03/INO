@@ -55,6 +55,26 @@ abstract final class InoHomeIcons {
   static const stamp = 'assets/icons/home/stamp.svg';
   static const unit = 'assets/icons/home/unit.svg';
   static const tax = 'assets/icons/home/tax.svg';
+
+  /// Home My Vaults SVG for a built-in wallet name, or null.
+  static String? vaultSvg(String walletName) => switch (walletName) {
+        'Identity Wallet' => identity,
+        'Property Wallet' => property,
+        'Investment Wallet' => investments,
+        'Banking Wallet' => cards,
+        _ => null,
+      };
+
+  /// Home finance-tool SVG for a tool id, or null.
+  static String? financeSvg(String toolId) => switch (toolId) {
+        'area' => area,
+        'emi' => emi,
+        'sip' => sip,
+        'stamp' || 'valuation' => stamp,
+        'unit' => unit,
+        'tax' || 'fx' => tax,
+        _ => null,
+      };
 }
 
 /// Clay / soft-3D PNG icons for [ThemeStyle.clay] Home only.
@@ -84,4 +104,24 @@ abstract final class InoHomeIcons3d {
   static const finStamp = 'assets/icons/home/3d/fin_stamp.png';
   static const finUnit = 'assets/icons/home/3d/fin_unit.png';
   static const finTax = 'assets/icons/home/3d/fin_tax.png';
+
+  /// Home My Vaults glyph for a built-in wallet name, or null.
+  static String? vaultGlyph(String walletName) => switch (walletName) {
+        'Identity Wallet' => identity,
+        'Property Wallet' => property,
+        'Investment Wallet' => investments,
+        'Banking Wallet' => cards,
+        _ => null,
+      };
+
+  /// Home finance-tool glyph for a tool id, or null.
+  static String? financeGlyph(String toolId) => switch (toolId) {
+        'area' => finArea,
+        'emi' => finEmi,
+        'sip' => finSip,
+        'stamp' || 'valuation' => finStamp,
+        'unit' => finUnit,
+        'tax' || 'fx' => finTax,
+        _ => null,
+      };
 }

@@ -17,11 +17,13 @@ class DetailSearchBar extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.accent,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +76,7 @@ class DetailSearchBar extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(launcher ? 12 : AppRadius.search),
           borderSide:
-              BorderSide(color: AppColors.primaryGreen, width: 1.6),
+              BorderSide(color: accent ?? AppColors.primaryGreen, width: 1.6),
         ),
       ),
     );

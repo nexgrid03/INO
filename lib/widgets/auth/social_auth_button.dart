@@ -120,8 +120,13 @@ class SocialAuthIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    // Hover tooltips on web linger over the footer ("Continue with Google").
+    // Long-press keeps accessibility without a sticky overlay.
     return Tooltip(
       message: tooltip,
+      waitDuration: const Duration(milliseconds: 600),
+      preferBelow: true,
+      triggerMode: TooltipTriggerMode.longPress,
       child: PressableScale(
         child: GestureDetector(
           onTap: busy ? null : onPressed,

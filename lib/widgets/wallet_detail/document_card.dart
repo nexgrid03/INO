@@ -20,14 +20,17 @@ class DocumentCard extends StatelessWidget {
     required this.onOpen,
     required this.onFavorite,
     required this.onMore,
+    this.walletAccent,
     this.protected = false,
     this.selectionMode = false,
     this.selected = false,
     this.onLongPress,
   });
 
-  /// The uniform document icon colour inside a wallet - the app theme teal.
-  static Color _iconColor = AppColors.primaryGreen;
+  /// Home My Vaults accent for this wallet — default chrome when no doc-type tint.
+  final Color? walletAccent;
+
+  Color get _iconColor => walletAccent ?? AppColors.primaryGreen;
 
   final DocumentRecord record;
   final VoidCallback onOpen;
@@ -54,8 +57,8 @@ class DocumentCard extends StatelessWidget {
       return _card(
         context,
         onTap: onOpen,
-        borderColor: selected ? AppColors.primaryGreen : null,
-        trailing: _SelectionCheck(selected: selected),
+        borderColor: selected ? _iconColor : null,
+        trailing: _SelectionCheck(selected: selected, accent: _iconColor),
       );
     }
     final l10n = AppLocalizations.of(context);
@@ -67,7 +70,7 @@ class DocumentCard extends StatelessWidget {
         // confirmDismiss performs the action then returns false so the row stays.
         background: _swipeBg(
           align: Alignment.centerLeft,
-          color: AppColors.primaryGreen,
+          color: _iconColor,
           icon: record.isFavorite
               ? Icons.star_rounded
               : Icons.star_outline_rounded,
@@ -155,7 +158,7 @@ class DocumentCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryGreen,
+                      color: _iconColor,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.5),
                     ),
@@ -185,7 +188,7 @@ class DocumentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 _MetaLine(record: record),
-                _ExtractedSummary(record: record),
+                _ExtractedSummary(record: record, accent: _iconColor),
                 const SizedBox(height: 7),
                 _StatusBadge(status: record.status),
               ],
@@ -243,16 +246,24 @@ class DocumentCard extends StatelessWidget {
     if (type.contains('pan')) return const Color(0xFFCC9200);
     if (type.contains('passport')) return const Color(0xFF6B7FD7);
     if (type.contains('driving') || type.contains('license')) {
-      return AppColors.primaryGreen;
+      return _iconColor;
     }
     if (type.contains('aadhaar') || type.contains('aadhar')) {
-      return AppColors.primaryGreen;
+      return _iconColor;
     }
     final name = record.name.toLowerCase();
     if (name.contains('pan')) return const Color(0xFFCC9200);
     if (name.contains('passport')) return const Color(0xFF6B7FD7);
     if (name.contains('license') || name.contains('driving')) {
       return const Color(0xFF89F3F9);
+    }
+    // Health / medical docs get the mint accent used on the Health Wallet tile.
+    final category = record.category.toLowerCase();
+    if (category.contains('medical') ||
+        category.contains('health') ||
+        category.contains('prescription') ||
+        category.contains('report')) {
+      return const Color(0xFF22C55E);
     }
     return _iconColor;
   }
@@ -279,11 +290,11 @@ class DocumentCard extends StatelessWidget {
           label: 'Security',
           value: 'Encrypted',
           alignEnd: true,
-          valueColor: AppColors.primaryGreen,
-          leading:  Icon(
+          valueColor: _iconColor,
+          leading: Icon(
             Icons.lock_rounded,
             size: 14,
-            color: AppColors.primaryGreen,
+            color: _iconColor,
           ),
         ),
       );
@@ -308,7 +319,7 @@ class DocumentCard extends StatelessWidget {
           label: 'Status',
           value: 'Verified',
           alignEnd: true,
-          valueColor: AppColors.primaryGreen,
+          valueColor: _iconColor,
         ),
       );
     }
@@ -369,9 +380,10 @@ class DocumentCard extends StatelessWidget {
 
 /// The circular check shown in place of the ⋮ button while multi-selecting.
 class _SelectionCheck extends StatelessWidget {
-  const _SelectionCheck({required this.selected});
+  const _SelectionCheck({required this.selected, required this.accent});
 
   final bool selected;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -384,9 +396,9 @@ class _SelectionCheck extends StatelessWidget {
         height: 24,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: selected ? AppColors.primaryGreen : Colors.transparent,
+          color: selected ? accent : Colors.transparent,
           border: Border.all(
-            color: selected ? AppColors.primaryGreen : palette.textFaint,
+            color: selected ? accent : palette.textFaint,
             width: 2,
           ),
         ),
@@ -420,9 +432,10 @@ class _MetaLine extends StatelessWidget {
 /// wallet list without opening the document. Renders nothing for documents with
 /// no extracted data, so non-OCR records look exactly as before.
 class _ExtractedSummary extends StatelessWidget {
-  const _ExtractedSummary({required this.record});
+  const _ExtractedSummary({required this.record, this.accent});
 
   final DocumentRecord record;
+  final Color? accent;
 
   /// Masks the document number for a list view: the last 4 stay visible, the
   /// rest are hidden. A 12-digit Aadhaar keeps its familiar "XXXX XXXX 1234"
@@ -448,7 +461,8 @@ class _ExtractedSummary extends StatelessWidget {
     void add(IconData icon, String? value) {
       final v = value?.trim();
       if (v != null && v.isNotEmpty) {
-        chips.add(_MiniChip(icon: icon, label: v, palette: palette));
+        chips.add(_MiniChip(
+            icon: icon, label: v, palette: palette, accent: accent));
       }
     }
 
@@ -470,14 +484,17 @@ class _MiniChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.palette,
+    this.accent,
   });
 
   final IconData icon;
   final String label;
   final AppPalette palette;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
+    final tint = accent ?? AppColors.primaryGreen;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
@@ -488,7 +505,7 @@ class _MiniChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: AppColors.primaryGreen),
+          Icon(icon, size: 11, color: tint),
           const SizedBox(width: 4),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 150),

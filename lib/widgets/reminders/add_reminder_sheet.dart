@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_options_sheet.dart';
 import '../pressable_scale.dart';
 
 /// Opens the "New Reminder" bottom sheet. Returns the created [Reminder] (also
@@ -14,10 +15,16 @@ Future<Reminder?> showAddReminderSheet(
   BuildContext context, {
   ReminderCategory? initialCategory,
 }) {
+  final palette = AppPalette.of(context);
   return showModalBottomSheet<Reminder>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    showDragHandle: false,
+    backgroundColor: palette.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+    ),
     builder: (_) => _AddReminderSheet(initialCategory: initialCategory),
   );
 }
@@ -37,10 +44,16 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       widget.initialCategory ?? ReminderCategory.custom;
   ReminderPriority _priority = ReminderPriority.normal;
   late DateTime _date = dateOnly(DateTime.now()).add(const Duration(days: 1));
+  bool _titleEmpty = true;
+  bool _showCalendar = false;
 
   @override
   void initState() {
     super.initState();
+    _titleController.addListener(() {
+      final empty = _titleController.text.trim().isEmpty;
+      if (empty != _titleEmpty) setState(() => _titleEmpty = empty);
+    });
   }
 
   @override
@@ -49,25 +62,19 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final today = dateOnly(DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: today,
-      lastDate: DateTime(today.year + 6),
-    );
-    if (picked != null) setState(() => _date = dateOnly(picked));
+  void _setDate(DateTime d) {
+    setState(() {
+      _date = dateOnly(d);
+      _showCalendar = false;
+    });
   }
 
   void _create() {
     final title = _titleController.text.trim();
-    final finalTitle = title.isEmpty
-        ? _category.localizedLabel(AppLocalizations.of(context))
-        : title;
+    if (title.isEmpty) return;
     final reminder = Reminder(
       id: 'u${DateTime.now().microsecondsSinceEpoch}',
-      title: finalTitle,
+      title: title,
       subtitle: _category.label,
       category: _category,
       priority: _priority,
@@ -83,96 +90,128 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final today = dateOnly(DateTime.now());
+    final tomorrow = today.add(const Duration(days: 1));
+    final nextWeek = today.add(const Duration(days: 7));
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: BoxDecoration(
-          color: palette.bg,
-          borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.large)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Grip.
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: palette.border,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Center(child: InoSheetGrip()),
+              const SizedBox(height: AppSpacing.md),
+              Text(l10n.t('newReminder'),
+                  style:
+                      AppText.headline.copyWith(color: palette.textPrimary)),
+              const SizedBox(height: AppSpacing.md),
+
+              _FieldLabel(l10n.t('reminderTitle')),
+              const SizedBox(height: AppSpacing.xs),
+              TextField(
+                controller: _titleController,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _create(),
+                style: AppText.body.copyWith(color: palette.textPrimary),
+                decoration:
+                    _inputDecoration(palette, l10n.t('reminderTitleHint')),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _FieldLabel(l10n.t('type')),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final c in ReminderCategory.values)
+                    _TypeChip(
+                      category: c,
+                      selected: c == _category,
+                      onTap: () => setState(() => _category = c),
                     ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _FieldLabel(l10n.t('dueDate')),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _QuickDateChip(
+                    label: 'Today',
+                    selected: _date == today,
+                    onTap: () => _setDate(today),
+                  ),
+                  _QuickDateChip(
+                    label: 'Tomorrow',
+                    selected: _date == tomorrow,
+                    onTap: () => _setDate(tomorrow),
+                  ),
+                  _QuickDateChip(
+                    label: 'In 7 days',
+                    selected: _date == nextWeek,
+                    onTap: () => _setDate(nextWeek),
+                  ),
+                  _QuickDateChip(
+                    label: reminderShortDate(_date),
+                    selected: _date != today &&
+                        _date != tomorrow &&
+                        _date != nextWeek,
+                    icon: Icons.calendar_month_rounded,
+                    onTap: () =>
+                        setState(() => _showCalendar = !_showCalendar),
+                  ),
+                ],
+              ),
+              if (_showCalendar) ...[
+                const SizedBox(height: AppSpacing.sm),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: palette.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.chip),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: _date.isBefore(today) ? today : _date,
+                    firstDate: today,
+                    lastDate: DateTime(today.year + 6),
+                    onDateChanged: _setDate,
                   ),
                 ),
-                Text(l10n.t('newReminder'),
-                    style: AppText.headline.copyWith(color: palette.textPrimary)),
-                const SizedBox(height: AppSpacing.md),
-
-                _FieldLabel(l10n.t('reminderTitle'), optional: true),
-                const SizedBox(height: AppSpacing.xs),
-                TextField(
-                  controller: _titleController,
-                  autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _create(),
-                  style: AppText.body.copyWith(color: palette.textPrimary),
-                  decoration:
-                      _inputDecoration(palette, l10n.t('reminderTitleHint')),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                _FieldLabel(l10n.t('type')),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    for (final c in ReminderCategory.values)
-                      _TypeChip(
-                        category: c,
-                        selected: c == _category,
-                        onTap: () => setState(() => _category = c),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                _FieldLabel(l10n.t('dueDate')),
-                const SizedBox(height: AppSpacing.xs),
-                _DateRow(date: _date, onTap: _pickDate),
-                const SizedBox(height: AppSpacing.md),
-
-                _FieldLabel(l10n.t('priority')),
-                const SizedBox(height: AppSpacing.xs),
-                Row(
-                  children: [
-                    for (final p in ReminderPriority.values) ...[
-                      if (p != ReminderPriority.values.first)
-                        const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: _PriorityChip(
-                          priority: p,
-                          selected: p == _priority,
-                          onTap: () => setState(() => _priority = p),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-
-                _CreateButton(enabled: true, onTap: _create),
               ],
-            ),
+              const SizedBox(height: AppSpacing.md),
+
+              _FieldLabel(l10n.t('priority')),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  for (final p in ReminderPriority.values) ...[
+                    if (p != ReminderPriority.values.first)
+                      const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: _PriorityChip(
+                        priority: p,
+                        selected: p == _priority,
+                        onTap: () => setState(() => _priority = p),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              _CreateButton(enabled: !_titleEmpty, onTap: _create),
+            ],
           ),
         ),
       ),
@@ -199,35 +238,19 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text, {this.optional = false});
+  const _FieldLabel(this.text);
   final String text;
-  final bool optional;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Row(
-      children: [
-        Text(
-          text.toUpperCase(),
-          style: AppText.label.copyWith(
-            color: palette.textFaint,
-            fontSize: 11,
-            letterSpacing: 0.6,
-          ),
-        ),
-        if (optional) ...[
-          const SizedBox(width: 6),
-          Text(
-            '(${AppLocalizations.of(context).t('optional').toUpperCase()})',
-            style: AppText.label.copyWith(
-              color: palette.textFaint,
-              fontSize: 10,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ],
-      ],
+    return Text(
+      text.toUpperCase(),
+      style: AppText.label.copyWith(
+        color: palette.textFaint,
+        fontSize: 11,
+        letterSpacing: 0.6,
+      ),
     );
   }
 }
@@ -288,43 +311,58 @@ class _TypeChip extends StatelessWidget {
   }
 }
 
-class _DateRow extends StatelessWidget {
-  const _DateRow({required this.date, required this.onTap});
+class _QuickDateChip extends StatelessWidget {
+  const _QuickDateChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
 
-  final DateTime date;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(AppRadius.button),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-            border: Border.all(color: palette.border),
-          ),
-          child: Row(
-            children: [
-               Icon(Icons.event_rounded,
-                  size: 19, color: AppColors.primaryGreen),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                reminderShortDate(date),
-                style: AppText.body.copyWith(
-                  color: palette.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+    final color = AppColors.primaryGreen;
+    return PressableScale(
+      pressedScale: 0.95,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? color.withValues(alpha: 0.14) : palette.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: selected ? color : palette.border,
+                width: selected ? 1.4 : 1,
               ),
-              const Spacer(),
-              Icon(Icons.chevron_right_rounded, color: palette.textFaint),
-            ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      size: 15,
+                      color: selected ? color : palette.textSecondary),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  label,
+                  style: AppText.label.copyWith(
+                    fontSize: 12,
+                    color: selected ? color : palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

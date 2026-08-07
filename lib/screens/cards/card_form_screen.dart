@@ -6,6 +6,7 @@ import '../../services/card_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
@@ -117,26 +118,20 @@ class _CardFormScreenState extends State<CardFormScreen> {
   Future<void> _pickExpiry() async {
     final now = DateTime.now();
     final years = [for (var y = now.year; y <= now.year + 20; y++) y];
-    final monthIndex = await showModulePicker(
-      context,
-      title: 'Expiry month',
-      labels: [
-        for (var m = 1; m <= 12; m++)
-          '${m.toString().padLeft(2, '0')} · ${kMonthNames[m - 1]}',
-      ],
-      selectedIndex: _expiryMonth == null ? null : _expiryMonth! - 1,
+    final result = await showInoOptionsSheet<(int, int)>(
+      context: context,
+      backgroundColor: AppPalette.of(context).surface,
+      maxHeightFraction: 0.75,
+      builder: (context, _) => _ExpiryPickerBody(
+        initialMonth: _expiryMonth,
+        initialYear: _expiryYear,
+        years: years,
+      ),
     );
-    if (monthIndex == null || !mounted) return;
-    final yearIndex = await showModulePicker(
-      context,
-      title: 'Expiry year',
-      labels: [for (final y in years) '$y'],
-      selectedIndex: _expiryYear == null ? null : years.indexOf(_expiryYear!),
-    );
-    if (yearIndex == null || !mounted) return;
+    if (result == null || !mounted) return;
     setState(() {
-      _expiryMonth = monthIndex + 1;
-      _expiryYear = years[yearIndex];
+      _expiryMonth = result.$1;
+      _expiryYear = result.$2;
     });
   }
 
@@ -464,6 +459,130 @@ class _ThemeSwatch extends StatelessWidget {
               : null,
         ),
       ),
+    );
+  }
+}
+
+/// Month + year in one sheet so expiry never stacks two pickers.
+class _ExpiryPickerBody extends StatefulWidget {
+  const _ExpiryPickerBody({
+    required this.initialMonth,
+    required this.initialYear,
+    required this.years,
+  });
+
+  final int? initialMonth;
+  final int? initialYear;
+  final List<int> years;
+
+  @override
+  State<_ExpiryPickerBody> createState() => _ExpiryPickerBodyState();
+}
+
+class _ExpiryPickerBodyState extends State<_ExpiryPickerBody> {
+  late int _month = widget.initialMonth ?? DateTime.now().month;
+  late int _year = widget.initialYear ?? widget.years.first;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        const InoSheetGrip(),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Card expiry',
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Flexible(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: 12,
+                  itemBuilder: (context, i) {
+                    final m = i + 1;
+                    final selected = m == _month;
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        '${m.toString().padLeft(2, '0')} · ${kMonthNames[i]}',
+                        style: AppText.body.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                      trailing: selected
+                          ? Icon(Icons.check_rounded,
+                              color: AppColors.primaryGreen, size: 18)
+                          : null,
+                      onTap: () => setState(() => _month = m),
+                    );
+                  },
+                ),
+              ),
+              VerticalDivider(width: 1, color: palette.border),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: widget.years.length,
+                  itemBuilder: (context, i) {
+                    final y = widget.years[i];
+                    final selected = y == _year;
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        '$y',
+                        style: AppText.body.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                      trailing: selected
+                          ? Icon(Icons.check_rounded,
+                              color: AppColors.primaryGreen, size: 18)
+                          : null,
+                      onTap: () => setState(() => _year = y),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+          child: SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop((_month, _year)),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+              ),
+              child: Text(
+                'Done · ${_month.toString().padLeft(2, '0')}/$_year',
+                style: AppText.subtitle.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

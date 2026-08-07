@@ -24,6 +24,7 @@ import '../../widgets/wallet_detail/document_card.dart';
 import '../../widgets/wallet_detail/document_filter_bar.dart';
 import '../../widgets/wallet_detail/document_quick_view.dart';
 import '../../widgets/wallet_detail/document_skeleton.dart';
+import '../../widgets/wallet_detail/category_chips.dart';
 import '../../widgets/wallet_detail/empty_state.dart';
 import '../../widgets/wallet_detail/search_section.dart';
 import '../../widgets/wallet_detail/smart_banner.dart';
@@ -73,6 +74,26 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
+  /// Same accent as Home My Vaults / Wallet Hub for this category.
+  Color get _vaultAccent {
+    const builtIns = {
+      'Identity Wallet',
+      'Document Wallet',
+      'Property Wallet',
+      'Insurance Wallet',
+      'Health Wallet',
+      'Investment Wallet',
+      'Banking Wallet',
+      'Password Vault',
+    };
+    if (builtIns.contains(widget.category.name)) {
+      return AppColors.vaultAccentFor(widget.category.name);
+    }
+    return widget.category.gradient.isNotEmpty
+        ? widget.category.gradient.first
+        : AppColors.primaryGreen;
+  }
+
   // The brief's focused status filter set (Recent lives inside Sort).
   static const _filters = <WalletFilter>[
     WalletFilter.all,
@@ -107,7 +128,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
+        backgroundColor: _vaultAccent,
       ),
     );
   }
@@ -122,8 +143,12 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       _createCategory();
       return;
     }
-    // Upload actions go straight to Add Document, pre-selecting this wallet.
-    const uploadActions = {'Upload PDF', 'Import Image'};
+    // Upload / health-record actions go straight to Add Document.
+    const uploadActions = {
+      'Upload PDF',
+      'Import Image',
+      'Add Health Record',
+    };
     if (uploadActions.contains(action.label)) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -146,16 +171,55 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _createCategory() async {
     final created = await showCreateCategorySheet(context);
     if (created == null || !mounted) return;
+    setState(() => _category = created.name);
     _toast('Category “${created.name}” created');
   }
 
   // ---- Derived data --------------------------------------------------------
 
+  bool get _isHealthWallet => widget.category.name == 'Health Wallet';
+
+  bool get _isPropertyWallet => widget.category.name == 'Property Wallet';
+
+  List<QuickAction> get _fabActionsForWallet {
+    final scan = QuickAction(
+      label: 'Scan Document',
+      icon: Icons.document_scanner_rounded,
+      color: _vaultAccent,
+    );
+    final rest = _detailFabActions.skip(1);
+    if (!_isHealthWallet) return [scan, ...rest];
+    return [
+      QuickAction(
+        label: 'Add Health Record',
+        icon: Icons.medical_services_rounded,
+        color: _vaultAccent,
+      ),
+      ...rest,
+    ];
+  }
+
+  /// Category chips: wallet folder labels plus any categories present on records.
+  List<String> get _categoryChips {
+    final labels = <String>{
+      ...widget.category.contents,
+      for (final r in _records)
+        if (r.category.trim().isNotEmpty) r.category.trim(),
+    };
+    final list = labels.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return list;
+  }
+
   bool _matchesCategory(DocumentRecord r) {
     if (_category == null) return true;
-    final c = _category!.toLowerCase();
-    return r.category.toLowerCase() == c ||
-        r.tags.any((t) => t.toLowerCase() == c);
+    final c = _category!.toLowerCase().trim();
+    final rc = r.category.toLowerCase().trim();
+    if (rc == c) return true;
+    if (r.tags.any((t) => t.toLowerCase().trim() == c)) return true;
+    // Soft match so "Medical Records" still hits category "Medical".
+    if (rc.isNotEmpty && (rc.contains(c) || c.contains(rc))) return true;
+    return false;
   }
 
   List<DocumentRecord> get _visible {
@@ -301,9 +365,6 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// Card long-press: enters selection (or toggles when already selecting).
   void _onCardLongPress(DocumentRecord r) =>
       _selecting ? _toggleSelect(r) : _enterSelection(r);
-
-  /// True for the Property wallet, which gets the extra Area Converter action.
-  bool get _isPropertyWallet => widget.category.name == 'Property Wallet';
 
   /// Opens the Property Area Converter tool (a pure calculator - touches no
   /// documents, so it can't affect existing property data).
@@ -677,6 +738,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                                     widget.category.name,
                                   ),
                                   icon: widget.category.icon,
+                                  accent: _vaultAccent,
                                   onBack: () =>
                                       Navigator.of(context).maybePop(),
                                   onManageShares: _openManageShares,
@@ -693,6 +755,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                                       widget.category.name,
                                     ),
                                     icon: widget.category.icon,
+                                    accent: _vaultAccent,
                                     onBack: () =>
                                         Navigator.of(context).maybePop(),
                                     onManageShares: _openManageShares,
@@ -724,13 +787,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     ),
                   )
                 else
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                      child: ExpandableFab(
-                        actions: _detailFabActions,
-                        onAction: _onFabAction,
-                      ),
+                  Positioned(
+                    right: 16,
+                    bottom: 96,
+                    child: ExpandableFab(
+                      actions: _fabActionsForWallet,
+                      onAction: _onFabAction,
+                      accent: _vaultAccent,
                     ),
                   ),
               ],
@@ -786,6 +849,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         child: DetailSearchBar(
                           controller: _searchController,
                           focusNode: _searchFocus,
+                          accent: _vaultAccent,
                           onChanged: (v) => setState(() => _query = v),
                         ),
                       ),
@@ -796,6 +860,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 : DetailSearchBar(
                     controller: _searchController,
                     focusNode: _searchFocus,
+                    accent: _vaultAccent,
                     onChanged: (v) => setState(() => _query = v),
                   ),
           ),
@@ -804,12 +869,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       // 3. Compact summary card.
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: FadeSlideIn(
             child: WalletSummaryCard(
               totalDocuments: _records.length,
               expiring: expiring,
               protected: data.security.vaultLocked,
+              accent: _vaultAccent,
             ),
           ),
         ),
@@ -818,7 +884,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       if (showBanner)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: FadeSlideIn(
               child: SmartBanner(
                 message: _bannerMessage(attention),
@@ -837,23 +903,38 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       // 5. Status filter chips (scrolls; sort moved to "View recents").
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
           child: DocumentFilterBar(
             filters: _filters,
             selected: _filter,
+            accent: _vaultAccent,
             onFilter: (f) => setState(() => _filter = f),
           ),
         ),
       ),
-      // 7. Documents - the primary focus. Count on the left, a "View recents"
-      // affordance (opens sort) aligned to the end.
+      // 6. Category chips from wallet folders + document categories.
+      if (_categoryChips.isNotEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+            child: CategoryChips(
+              categories: _categoryChips,
+              selected: _category,
+              accent: _vaultAccent,
+              onSelected: (c) => setState(() => _category = c),
+            ),
+          ),
+        ),
+      // 7. Documents - count on the left, "View recents" on the right.
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
           child: Row(
             children: [
               Text(
-                AppLocalizations.of(context).t('documents'),
+                _isHealthWallet
+                    ? AppLocalizations.of(context).t('records')
+                    : AppLocalizations.of(context).t('documents'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -866,7 +947,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 style: TextStyle(fontSize: 12, color: palette.textFaint),
               ),
               const Spacer(),
-              _ViewRecentsButton(onTap: _openSort),
+              _ViewRecentsButton(onTap: _openSort, accent: _vaultAccent),
             ],
           ),
         ),
@@ -886,13 +967,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: WalletEmptyState(
             title: emptyAll
-                ? AppLocalizations.of(context).t('noDocumentsYet')
+                ? (_isHealthWallet
+                    ? 'No health records yet'
+                    : AppLocalizations.of(context).t('noDocumentsYet'))
                 : 'No matching documents',
             subtitle: emptyAll
-                ? 'Start building your digital vault.'
-                : 'Try a different category, filter or search term.',
-            onScan: () => _onFabAction(_detailFabActions.first),
-            onUpload: () => _onFabAction(_detailFabActions[1]),
+                ? (_isHealthWallet
+                    ? 'Add prescriptions, lab reports and medical records to your private vault.'
+                    : 'Start building your digital vault.')
+                : 'Try a different filter or search term.',
+            accent: _vaultAccent,
+            onScan: () => _onFabAction(_fabActionsForWallet.first),
+            onUpload: () => _onFabAction(_fabActionsForWallet[1]),
             onCreate: _createCategory,
           ),
         ),
@@ -907,6 +993,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           final record = visible[i ~/ 2];
           return DocumentCard(
             record: record,
+            walletAccent: _vaultAccent,
             protected: DocumentProtectionStore.instance.isProtected(record.id),
             selectionMode: _selecting,
             selected: _selectedIds.contains(record.id),
@@ -924,12 +1011,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 /// A compact "View recents" affordance on the document-count row - a small
 /// label + arrow that opens the sort options (Recent / A–Z / …).
 class _ViewRecentsButton extends StatelessWidget {
-  const _ViewRecentsButton({required this.onTap});
+  const _ViewRecentsButton({required this.onTap, this.accent});
 
   final VoidCallback onTap;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
+    final tint = accent ?? AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.94,
       child: GestureDetector(
@@ -937,20 +1026,20 @@ class _ViewRecentsButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children:  [
+          children: [
             Text(
               'View recents',
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryGreen,
+                color: tint,
               ),
             ),
-            SizedBox(width: 3),
+            const SizedBox(width: 3),
             Icon(
               Icons.arrow_forward_rounded,
               size: 15,
-              color: AppColors.primaryGreen,
+              color: tint,
             ),
           ],
         ),

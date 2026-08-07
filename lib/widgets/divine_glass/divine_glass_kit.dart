@@ -489,13 +489,9 @@ class DivineGlassDocumentCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              if (trailing != null)
-                Flexible(fit: FlexFit.loose, child: trailing!)
-              else
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: DivineGlassStatusChip.fromStatus(status),
-                ),
+              // Keep trailing (status + ⋮) at intrinsic width so it never
+              // squeezes the title or clips the card edge.
+              ?trailing,
             ],
           ),
           const SizedBox(height: 14),
@@ -616,15 +612,18 @@ class DivineGlassHeroStrip extends StatelessWidget {
               ),
             Expanded(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    items[i].value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: palette.textPrimary,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      items[i].value,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: palette.textPrimary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -656,11 +655,13 @@ class DivineGlassEmptyPanel extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.icon = Icons.folder_open_rounded,
+    this.accent,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
@@ -673,7 +674,7 @@ class DivineGlassEmptyPanel extends StatelessWidget {
         children: [
           DivineGlassRoundIcon(
             icon: icon,
-            accent: AppColors.primaryGreen,
+            accent: accent ?? AppColors.primaryGreen,
             size: 96,
             iconSize: 44,
           ),
