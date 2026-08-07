@@ -22,7 +22,7 @@ import '../screens/share/manage_shares_screen.dart';
 import '../services/voice_nav.dart';
 
 /// A voice-navigable destination: the phrases that select it (across English,
-/// Hinglish, Telugu, Hindi and Tamil), a display [route] for the confirmation
+/// Hinglish, Telugu, and Hindi), a display [route] for the confirmation
 /// UI, the label spoken back, and the [navigate] action that opens it.
 ///
 /// Matching is deliberately loose (substring + fuzzy) - accents and phrasing
@@ -457,7 +457,7 @@ VoiceCommand? matchVoiceCommand(String words) {
 
   // Pass 2 - fuzzy, token by token, Latin keywords only.
   final tokens = text
-      .split(RegExp(r'[^a-z0-9ఀ-౿ऀ-ॿ஀-௿]+'))
+      .split(RegExp(r'[^a-z0-9ఀ-౿ऀ-ॿ]+'))
       .where((t) => t.isNotEmpty)
       .toList();
   if (tokens.isEmpty) return null;

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
@@ -72,6 +73,37 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     await _store.remove(p.id);
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+
+  bool _isValidGoogleMapsUrl(String url) {
+    final clean = url.trim();
+    return clean.startsWith('https://maps.app.goo.gl/') ||
+        clean.startsWith('https://maps.google.com/') ||
+        clean.startsWith('https://www.google.com/maps/');
+  }
+
+  Future<void> _openMaps(String url) async {
+    final clean = url.trim();
+    if (!_isValidGoogleMapsUrl(clean)) {
+      showModuleToast(context, 'Invalid Google Maps link.', error: true);
+      return;
+    }
+    final uri = Uri.parse(clean);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        showModuleToast(context, 'Could not open maps link.', error: true);
+      }
+    }
   }
 
   @override
@@ -210,8 +242,44 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       DetailRow(label: 'PIN code', value: p.pinCode),
                       DetailRow(
                         label: 'Maps',
-                        value: p.mapsUrl,
-                        copyable: true,
+                        value: (p.mapsUrl ?? '').trim().isEmpty
+                            ? 'No location added.'
+                            : p.mapsUrl,
+                        copyable: (p.mapsUrl ?? '').trim().isNotEmpty,
+                        copyMessage: 'Location link copied.',
+                        onTap: (p.mapsUrl ?? '').trim().isNotEmpty
+                            ? () => _openMaps(p.mapsUrl!)
+                            : null,
+                        valueColor: (p.mapsUrl ?? '').trim().isNotEmpty
+                            ? AppColors.primaryGreen
+                            : null,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ElevatedButton.icon(
+                        onPressed: (p.mapsUrl ?? '').trim().isNotEmpty
+                            ? () => _openMaps(p.mapsUrl!)
+                            : null,
+                        icon: const Text('📍', style: TextStyle(fontSize: 16)),
+                        label: const Text(
+                          'Open in Google Maps',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              palette.border.withValues(alpha: 0.3),
+                          disabledForegroundColor: palette.textFaint,
+                          minimumSize: const Size.fromHeight(46),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.button),
+                          ),
+                        ),
                       ),
                     ],
                   ),

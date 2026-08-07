@@ -105,6 +105,7 @@ class DetailRow extends StatelessWidget {
     this.onTap,
     this.copyable = false,
     this.monospace = false,
+    this.copyMessage,
   });
 
   final String label;
@@ -116,6 +117,7 @@ class DetailRow extends StatelessWidget {
   /// Adds a copy button that puts [value] on the clipboard.
   final bool copyable;
   final bool monospace;
+  final String? copyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +161,7 @@ class DetailRow extends StatelessWidget {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: v));
                 HapticFeedback.selectionClick();
-                showModuleToast(context, '$label copied');
+                showModuleToast(context, copyMessage ?? '$label copied');
               },
             ),
           ],

@@ -140,8 +140,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         return 'हिन्दी';
       case 'te':
         return 'తెలుగు';
-      case 'ta':
-        return 'தமிழ்';
       default:
         return 'English';
     }
@@ -153,8 +151,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         return 'hi';
       case 'తెలుగు':
         return 'te';
-      case 'தமிழ்':
-        return 'ta';
       default:
         return 'en';
     }
@@ -174,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _pickLanguage() async {
     final palette = AppPalette.of(context);
-    const options = ['English', 'हिन्दी', 'తెలుగు', 'தமிழ்'];
+    const options = ['English', 'हिन्दी', 'తెలుగు'];
     final picked = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,

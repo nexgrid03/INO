@@ -47,7 +47,7 @@ void main() {
     for (final title in const [
       'Change Password',
       'Trusted Devices',
-      'Help Center',
+      "FAQ'S",
       'Logout',
     ]) {
       expect(find.text(title), findsWidgets, reason: '$title missing');

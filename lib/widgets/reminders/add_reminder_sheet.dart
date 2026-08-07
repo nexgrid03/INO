@@ -37,15 +37,10 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       widget.initialCategory ?? ReminderCategory.custom;
   ReminderPriority _priority = ReminderPriority.normal;
   late DateTime _date = dateOnly(DateTime.now()).add(const Duration(days: 1));
-  bool _titleEmpty = true;
 
   @override
   void initState() {
     super.initState();
-    _titleController.addListener(() {
-      final empty = _titleController.text.trim().isEmpty;
-      if (empty != _titleEmpty) setState(() => _titleEmpty = empty);
-    });
   }
 
   @override
@@ -67,10 +62,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
 
   void _create() {
     final title = _titleController.text.trim();
-    if (title.isEmpty) return;
+    final finalTitle = title.isEmpty
+        ? _category.localizedLabel(AppLocalizations.of(context))
+        : title;
     final reminder = Reminder(
       id: 'u${DateTime.now().microsecondsSinceEpoch}',
-      title: title,
+      title: finalTitle,
       subtitle: _category.label,
       category: _category,
       priority: _priority,
@@ -120,7 +117,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                     style: AppText.headline.copyWith(color: palette.textPrimary)),
                 const SizedBox(height: AppSpacing.md),
 
-                _FieldLabel(l10n.t('reminderTitle')),
+                _FieldLabel(l10n.t('reminderTitle'), optional: true),
                 const SizedBox(height: AppSpacing.xs),
                 TextField(
                   controller: _titleController,
@@ -173,7 +170,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
-                _CreateButton(enabled: !_titleEmpty, onTap: _create),
+                _CreateButton(enabled: true, onTap: _create),
               ],
             ),
           ),
@@ -202,19 +199,35 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
+  const _FieldLabel(this.text, {this.optional = false});
   final String text;
+  final bool optional;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Text(
-      text.toUpperCase(),
-      style: AppText.label.copyWith(
-        color: palette.textFaint,
-        fontSize: 11,
-        letterSpacing: 0.6,
-      ),
+    return Row(
+      children: [
+        Text(
+          text.toUpperCase(),
+          style: AppText.label.copyWith(
+            color: palette.textFaint,
+            fontSize: 11,
+            letterSpacing: 0.6,
+          ),
+        ),
+        if (optional) ...[
+          const SizedBox(width: 6),
+          Text(
+            '(${AppLocalizations.of(context).t('optional').toUpperCase()})',
+            style: AppText.label.copyWith(
+              color: palette.textFaint,
+              fontSize: 10,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

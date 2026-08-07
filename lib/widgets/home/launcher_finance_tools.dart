@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
-import '../../theme/app_theme.dart';
+import '../../screens/property_finance/finance_tools.dart';
+import '../../screens/property_finance/property_finance_tools_screen.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
@@ -12,73 +13,50 @@ import 'launcher_glass_icon_tile.dart';
 /// [ThemeStyle.clay] uses soft-3D PNGs; aqua / launcher / aquaLight restore
 /// the tinted SVG set from before the 3D Home icons landed.
 class LauncherFinanceTools extends StatelessWidget {
-  const LauncherFinanceTools({
-    super.key,
-    required this.onOpenArea,
-    required this.onOpenEmi,
-    required this.onOpenSip,
-    required this.onOpenStampDuty,
-    required this.onOpenUnitConv,
-    required this.onOpenTax,
-  });
-
-  final VoidCallback onOpenArea;
-  final VoidCallback onOpenEmi;
-  final VoidCallback onOpenSip;
-  final VoidCallback onOpenStampDuty;
-  final VoidCallback onOpenUnitConv;
-  final VoidCallback onOpenTax;
+  const LauncherFinanceTools({super.key});
 
   static const double _gap = 10;
+
+  static String? _svgPath(String id) => switch (id) {
+        'area' => InoHomeIcons.area,
+        'emi' => InoHomeIcons.emi,
+        'sip' => InoHomeIcons.sip,
+        'valuation' => InoHomeIcons.stamp,
+        'gold' => InoHomeIcons.tax,
+        'fx' => InoHomeIcons.unit,
+        'stamp' => InoHomeIcons.stamp,
+        'tax' => InoHomeIcons.tax,
+        _ => null,
+      };
+
+  static String? _imagePath(String id) => switch (id) {
+        'area' => InoHomeIcons3d.finArea,
+        'emi' => InoHomeIcons3d.finEmi,
+        'sip' => InoHomeIcons3d.finSip,
+        'valuation' => InoHomeIcons3d.finStamp,
+        'gold' => InoHomeIcons3d.finTax,
+        'fx' => InoHomeIcons3d.finUnit,
+        'stamp' => InoHomeIcons3d.finStamp,
+        'tax' => InoHomeIcons3d.finTax,
+        _ => null,
+      };
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final use3d = InoStyle.usesHome3dIcons(context);
-    final tools = [
-      (
-        label: l10n.t('areaCalc'),
-        image: use3d ? InoHomeIcons3d.finArea : null,
-        svg: use3d ? null : InoHomeIcons.area,
-        accent: AppColors.primaryGreen,
-        onTap: onOpenArea,
-      ),
-      (
-        label: l10n.t('emiCalc'),
-        image: use3d ? InoHomeIcons3d.finEmi : null,
-        svg: use3d ? null : InoHomeIcons.emi,
-        accent: AppColors.accentIndigo,
-        onTap: onOpenEmi,
-      ),
-      (
-        label: l10n.t('sipCalc'),
-        image: use3d ? InoHomeIcons3d.finSip : null,
-        svg: use3d ? null : InoHomeIcons.sip,
-        accent: AppColors.accentViolet,
-        onTap: onOpenSip,
-      ),
-      (
-        label: l10n.t('stampDuty'),
-        image: use3d ? InoHomeIcons3d.finStamp : null,
-        svg: use3d ? null : InoHomeIcons.stamp,
-        accent: AppColors.accentAmber,
-        onTap: onOpenStampDuty,
-      ),
-      (
-        label: l10n.t('unitConv'),
-        image: use3d ? InoHomeIcons3d.finUnit : null,
-        svg: use3d ? null : InoHomeIcons.unit,
-        accent: AppColors.accentCyan,
-        onTap: onOpenUnitConv,
-      ),
-      (
-        label: l10n.t('taxCalc'),
-        image: use3d ? InoHomeIcons3d.finTax : null,
-        svg: use3d ? null : InoHomeIcons.tax,
-        accent: AppColors.accentEmerald,
-        onTap: onOpenTax,
-      ),
-    ];
+
+    final tools = financeTools.take(6).map((tool) {
+      return (
+        label: PropertyFinanceToolsScreen.titleOf(l10n, tool),
+        image: use3d ? _imagePath(tool.id) : null,
+        svg: use3d ? null : _svgPath(tool.id),
+        accent: tool.color,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: tool.builder),
+        ),
+      );
+    }).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {

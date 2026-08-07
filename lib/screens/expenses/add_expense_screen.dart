@@ -422,10 +422,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _save() {
     final l10n = AppLocalizations.of(context);
     final desc = _description.text.trim();
-    if (desc.isEmpty) {
-      _toast(l10n.t('enterDescription'), error: true);
-      return;
-    }
+    final finalDesc = desc.isEmpty ? _category.label(l10n) : desc;
     if (_value <= 0) {
       _toast(l10n.t('enterAmountGreaterThanZero'), error: true);
       return;
@@ -437,7 +434,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final e = widget.existing;
     if (e == null) {
       _store.add(
-        description: desc,
+        description: finalDesc,
         amount: _value,
         dateTime: _date,
         type: _type,
@@ -453,7 +450,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
     } else {
       _store.update(e.replace(
-        description: desc,
+        description: finalDesc,
         amount: _value,
         dateTime: _date,
         type: _type,
@@ -601,6 +598,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     const SizedBox(height: AppSpacing.md),
                     _Field(
                       label: l10n.t('description'),
+                      optional: true,
                       child: _input(_description, l10n.t('descriptionHint'),
                           cap: TextCapitalization.sentences),
                     ),

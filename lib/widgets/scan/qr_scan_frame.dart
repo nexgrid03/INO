@@ -23,14 +23,15 @@ class QrScanFrame extends StatefulWidget {
 
 class _QrScanFrameState extends State<QrScanFrame>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _line = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
+  late final AnimationController _line;
 
   @override
   void initState() {
     super.initState();
+    _line = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
     if (widget.active) _line.repeat(reverse: true);
   }
 

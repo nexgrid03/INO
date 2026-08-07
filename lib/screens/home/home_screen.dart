@@ -39,17 +39,14 @@ import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/scan/home_qr_panel.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
-import '../expenses/tax_records_screen.dart';
 import '../home/pending_actions_screen.dart';
 import '../markets/markets_screen.dart';
 import '../notes/notes_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/help_center_screen.dart';
-import '../property/area_converter_screen.dart';
 import '../property_finance/emi_calculator_screen.dart';
 import '../property_finance/property_finance_tools_screen.dart';
-import '../property_finance/property_valuation_screen.dart';
-import '../property_finance/sip_calculator_screen.dart';
+import '../property_finance/finance_tools.dart';
 import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
@@ -508,14 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actionLabel: l10n.t('viewAll'),
           onAction: () => _push(const PropertyFinanceToolsScreen()),
         ),
-        child: _SixFinanceTools(
-          onOpenArea: () => _push(const AreaConverterScreen()),
-          onOpenEmi: () => _push(const EmiCalculatorScreen()),
-          onOpenSip: () => _push(const SipCalculatorScreen()),
-          onOpenStampDuty: () => _push(const PropertyValuationScreen()),
-          onOpenUnitConv: () => _push(const AreaConverterScreen()),
-          onOpenTax: () => _push(const TaxRecordsScreen()),
-        ),
+        child: const _SixFinanceTools(),
       ),
       _Section(
         header: SectionHeader(
@@ -623,14 +613,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actionLabel: l10n.t('viewAll'),
           onAction: () => _push(const PropertyFinanceToolsScreen()),
         ),
-        child: LauncherFinanceTools(
-          onOpenArea: () => _push(const AreaConverterScreen()),
-          onOpenEmi: () => _push(const EmiCalculatorScreen()),
-          onOpenSip: () => _push(const SipCalculatorScreen()),
-          onOpenStampDuty: () => _push(const PropertyValuationScreen()),
-          onOpenUnitConv: () => _push(const AreaConverterScreen()),
-          onOpenTax: () => _push(const TaxRecordsScreen()),
-        ),
+        child: const LauncherFinanceTools(),
       ),
 
       // 6. Secondary hubs (below the fold)
@@ -855,65 +838,14 @@ class _QuickActionsRow extends StatelessWidget {
 
 /// Property & Finance Tools grid for Classic / Bold / Soft.
 class _SixFinanceTools extends StatelessWidget {
-  const _SixFinanceTools({
-    required this.onOpenArea,
-    required this.onOpenEmi,
-    required this.onOpenSip,
-    required this.onOpenStampDuty,
-    required this.onOpenUnitConv,
-    required this.onOpenTax,
-  });
-
-  final VoidCallback onOpenArea;
-  final VoidCallback onOpenEmi;
-  final VoidCallback onOpenSip;
-  final VoidCallback onOpenStampDuty;
-  final VoidCallback onOpenUnitConv;
-  final VoidCallback onOpenTax;
+  const _SixFinanceTools();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final columns = context.toolsColumns;
 
-    final tools = [
-      _ToolTile(
-        title: l10n.t('areaCalc'),
-        icon: Icons.straighten_rounded,
-        color: AppColors.primaryGreen,
-        onTap: onOpenArea,
-      ),
-      _ToolTile(
-        title: l10n.t('emiCalc'),
-        icon: Icons.account_balance_rounded,
-        color: AppColors.accentIndigo,
-        onTap: onOpenEmi,
-      ),
-      _ToolTile(
-        title: l10n.t('sipCalc'),
-        icon: Icons.trending_up_rounded,
-        color: AppColors.accentViolet,
-        onTap: onOpenSip,
-      ),
-      _ToolTile(
-        title: l10n.t('stampDuty'),
-        icon: Icons.gavel_rounded,
-        color: AppColors.accentAmber,
-        onTap: onOpenStampDuty,
-      ),
-      _ToolTile(
-        title: l10n.t('unitConv'),
-        icon: Icons.swap_horiz_rounded,
-        color: AppColors.accentCyan,
-        onTap: onOpenUnitConv,
-      ),
-      _ToolTile(
-        title: l10n.t('taxCalc'),
-        icon: Icons.receipt_long_rounded,
-        color: AppColors.accentEmerald,
-        onTap: onOpenTax,
-      ),
-    ];
+    final tools = financeTools.take(6).toList();
 
     return GridView.count(
       crossAxisCount: columns,
@@ -923,7 +855,17 @@ class _SixFinanceTools extends StatelessWidget {
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       childAspectRatio: context.toolsAspectRatio,
-      children: tools,
+      children: [
+        for (final tool in tools)
+          _ToolTile(
+            title: PropertyFinanceToolsScreen.titleOf(l10n, tool),
+            icon: tool.icon,
+            color: tool.color,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: tool.builder),
+            ),
+          ),
+      ],
     );
   }
 }

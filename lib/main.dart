@@ -222,7 +222,7 @@ class _InoAppState extends State<InoApp> {
   }
 }
 
-/// Maps a persisted language code (`en` / `hi` / `te` / `ta`) to its [Locale],
+/// Maps a persisted language code (`en` / `hi` / `te`) to its [Locale],
 /// defaulting to English for anything unknown.
 Locale _localeForCode(String code) {
   switch (code) {
@@ -230,8 +230,6 @@ Locale _localeForCode(String code) {
       return const Locale('hi');
     case 'te':
       return const Locale('te');
-    case 'ta':
-      return const Locale('ta');
     default:
       return const Locale('en');
   }

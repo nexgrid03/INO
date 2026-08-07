@@ -80,7 +80,7 @@ class VoiceNavigationService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Begins a listening session. [languageCode] ('en' / 'te' / 'hi' / 'ta')
+  /// Begins a listening session. [languageCode] ('en' / 'te' / 'hi')
   /// selects the recognition locale; English resolves to **en_IN** first.
   ///
   /// [preferOffline] forces on-device-only recognition. It defaults to **false**

@@ -56,7 +56,7 @@ void main() {
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Confirm password'), findsOneWidget);
-    expect(find.text('Create Account'), findsWidgets);
+    expect(find.text('Create Secure Account →'), findsOneWidget);
   });
 
   testWidgets('Forgot Password validates and shows its reset CTA',

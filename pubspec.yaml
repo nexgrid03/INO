@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # App-wide localization (English / Hindi / Telugu / Tamil). Provides the
+  # App-wide localization (English / Hindi / Telugu). Provides the
   # Material/Cupertino/Widgets localization delegates used alongside our own
   # AppLocalizations.
   flutter_localizations:

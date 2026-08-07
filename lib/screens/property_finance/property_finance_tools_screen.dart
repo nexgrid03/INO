@@ -15,17 +15,19 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
   /// The registry stores English strings (it's built without a context);
   /// resolve each tool's title/subtitle through l10n by id, falling back to
   /// the registry text for any future tool without translations yet.
-  static String _title(AppLocalizations l10n, FinanceTool t) => switch (t.id) {
+  static String titleOf(AppLocalizations l10n, FinanceTool t) => switch (t.id) {
         'area' => l10n.t('areaConverter'),
         'valuation' => l10n.t('propertyValuation'),
         'emi' => l10n.t('emiCalculator'),
         'sip' => l10n.t('sipCalculator'),
         'gold' => l10n.t('goldCalculator'),
         'fx' => l10n.t('currencyCalculator'),
+        'tax' => l10n.t('taxCalc'),
+        'stamp' => l10n.t('stampDuty'),
         _ => t.title,
       };
 
-  static String _subtitle(AppLocalizations l10n, FinanceTool t) =>
+  static String subtitleOf(AppLocalizations l10n, FinanceTool t) =>
       switch (t.id) {
         'area' => l10n.t('areaConverterSubtitle'),
         'valuation' => l10n.t('valuationSubtitle'),
@@ -59,8 +61,8 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
                       delay: Duration(milliseconds: (i * 60).clamp(0, 300)),
                       child: ToolGridCard(
                         icon: financeTools[i].icon,
-                        title: _title(l10n, financeTools[i]),
-                        subtitle: _subtitle(l10n, financeTools[i]),
+                        title: titleOf(l10n, financeTools[i]),
+                        subtitle: subtitleOf(l10n, financeTools[i]),
                         color: financeTools[i].color,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: financeTools[i].builder),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../expenses/tax_records_screen.dart';
 import '../property/area_converter_screen.dart';
 import 'currency_calculator_screen.dart';
 import 'emi_calculator_screen.dart';
@@ -55,7 +56,7 @@ final List<FinanceTool> financeTools = [
     shortTitle: 'Valuation',
     subtitle: 'Area × rate → market value & profit',
     icon: Icons.home_work_rounded,
-    color: AppColors.lightBlue,
+    color: AppColors.accentAmber,
     builder: (_) => const PropertyValuationScreen(),
   ),
   FinanceTool(
@@ -64,7 +65,7 @@ final List<FinanceTool> financeTools = [
     shortTitle: 'EMI',
     subtitle: 'Loan EMI, interest & total payment',
     icon: Icons.account_balance_rounded,
-    color: AppColors.secondaryGreen,
+    color: AppColors.accentIndigo,
     builder: (_) => const EmiCalculatorScreen(),
   ),
   FinanceTool(
@@ -73,17 +74,8 @@ final List<FinanceTool> financeTools = [
     shortTitle: 'SIP',
     subtitle: 'Project mutual-fund growth',
     icon: Icons.trending_up_rounded,
-    color: const Color(0xFF8B6CEF),
+    color: AppColors.accentViolet,
     builder: (_) => const SipCalculatorScreen(),
-  ),
-  FinanceTool(
-    id: 'fx',
-    title: 'Currency Converter',
-    shortTitle: 'Currency',
-    subtitle: 'Rupee → dollar, pound & 60 more',
-    icon: Icons.currency_exchange_rounded,
-    color: AppColors.skyBlue,
-    builder: (_) => const CurrencyCalculatorScreen(),
   ),
   FinanceTool(
     id: 'gold',
@@ -91,7 +83,34 @@ final List<FinanceTool> financeTools = [
     shortTitle: 'Gold',
     subtitle: 'Value gold by weight & purity',
     icon: Icons.diamond_rounded,
-    color: AppColors.gold,
+    color: AppColors.accentEmerald,
     builder: (_) => const GoldCalculatorScreen(),
+  ),
+  FinanceTool(
+    id: 'fx',
+    title: 'Currency Converter',
+    shortTitle: 'Currency',
+    subtitle: 'Rupee → dollar, pound & 60 more',
+    icon: Icons.currency_exchange_rounded,
+    color: AppColors.accentCyan,
+    builder: (_) => const CurrencyCalculatorScreen(),
+  ),
+  FinanceTool(
+    id: 'stamp',
+    title: 'Stamp Duty Calculator',
+    shortTitle: 'Stamp Duty',
+    subtitle: 'Calculate stamp duty on property',
+    icon: Icons.gavel_rounded,
+    color: AppColors.accentAmber,
+    builder: (_) => const PropertyValuationScreen(),
+  ),
+  FinanceTool(
+    id: 'tax',
+    title: 'Tax Calculator',
+    shortTitle: 'Tax',
+    subtitle: 'Manage tax records & summary',
+    icon: Icons.receipt_long_rounded,
+    color: AppColors.accentEmerald,
+    builder: (_) => const TaxRecordsScreen(),
   ),
 ];

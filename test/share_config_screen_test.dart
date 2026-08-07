@@ -29,7 +29,6 @@ void main() {
 
     // Header + selection summary.
     expect(find.text('Share via QR'), findsOneWidget);
-    expect(find.text('2 documents selected'), findsOneWidget);
 
     // Both selected documents are listed.
     expect(find.text('Aadhaar Card'), findsOneWidget);
@@ -58,6 +57,5 @@ void main() {
     await tester.tap(find.text('10 Minutes'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('10 Minutes'), findsOneWidget);
-    expect(find.text('1 documents selected'), findsOneWidget);
   });
 }

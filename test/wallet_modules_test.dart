@@ -21,7 +21,7 @@ WalletCategory _category(String name, IconData icon) => WalletCategory(
       contents: const [],
       metric: '0',
       metricLabel: 'records',
-      gradient: const [AppColors.primaryGreen, AppColors.lightBlue],
+      gradient: [AppColors.primaryGreen, AppColors.lightBlue],
     );
 
 Future<void> _pumpScreen(WidgetTester tester, Widget screen) async {
