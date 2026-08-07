@@ -74,25 +74,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
-  /// Same accent as Home My Vaults / Wallet Hub for this category.
-  Color get _vaultAccent {
-    const builtIns = {
-      'Identity Wallet',
-      'Document Wallet',
-      'Property Wallet',
-      'Insurance Wallet',
-      'Health Wallet',
-      'Investment Wallet',
-      'Banking Wallet',
-      'Password Vault',
-    };
-    if (builtIns.contains(widget.category.name)) {
-      return AppColors.vaultAccentFor(widget.category.name);
-    }
-    return widget.category.gradient.isNotEmpty
-        ? widget.category.gradient.first
-        : AppColors.primaryGreen;
-  }
+  /// Theme brand for in-wallet chrome / icons (Home hub tiles keep vault accents).
+  Color get _vaultAccent => AppColors.primaryGreen;
 
   // The brief's focused status filter set (Recent lives inside Sort).
   static const _filters = <WalletFilter>[
@@ -793,7 +776,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     child: ExpandableFab(
                       actions: _fabActionsForWallet,
                       onAction: _onFabAction,
-                      accent: _vaultAccent,
+                      accent: AppColors.primaryGreen,
                     ),
                   ),
               ],

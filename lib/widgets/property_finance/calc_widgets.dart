@@ -71,7 +71,7 @@ class CalculatorScaffold extends StatelessWidget {
           context,
           title: title,
           subtitle: subtitle,
-          centerTitle: true,
+          centerTitle: false,
           trailing: trailing,
         ),
         body: InoBackground(
@@ -454,17 +454,19 @@ class CalcSegmented<T> extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.chip),
             border: Border.all(color: palette.border),
           ),
-          child: Row(
-            children: [
-              for (final o in options)
-                Expanded(
-                  child: PressableScale(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final o in options)
+                  PressableScale(
                     pressedScale: 0.97,
                     child: GestureDetector(
                       onTap: () => onChanged(o),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
                         height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           gradient: o == selected
@@ -477,7 +479,7 @@ class CalcSegmented<T> extends StatelessWidget {
                         child: Text(
                           labelOf(o),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
                           style: AppText.subtitle.copyWith(
                             color: o == selected
                                 ? Colors.white
@@ -488,8 +490,8 @@ class CalcSegmented<T> extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

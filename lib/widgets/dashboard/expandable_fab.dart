@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,9 +12,8 @@ import '../pressable_scale.dart';
 /// Section 14 - the expandable Floating Action Button.
 ///
 /// Tapping the brand-gradient FAB fans out a labelled stack of "Add …" actions
-/// (document, reminder, investment, property, insurance, health record) and
-/// dims the screen behind a scrim. The main button rotates into a close icon.
-/// Driven by a single controller; each mini-action staggers in via an Interval.
+/// and blurs the full screen behind an overlay (same pattern as the nav `+`
+/// menu). The main button stays in-tree and rotates into a close icon.
 class ExpandableFab extends StatefulWidget {
   const ExpandableFab({
     super.key,
@@ -37,93 +38,143 @@ class _ExpandableFabState extends State<ExpandableFab>
     vsync: this,
     duration: const Duration(milliseconds: 320),
   );
+  OverlayEntry? _entry;
   bool _open = false;
+
+  bool get _isOpen => _entry != null;
 
   void _toggle() {
     HapticFeedback.selectionClick();
-    setState(() => _open = !_open);
-    if (_open) {
-      _c.forward();
+    if (_isOpen) {
+      _closeMenu();
     } else {
-      _c.reverse();
+      _openMenu();
     }
   }
 
-  void _select(QuickAction action) {
-    _toggle();
+  void _openMenu() {
+    if (_isOpen) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final fabOrigin = box.localToGlobal(Offset.zero);
+    final fabSize = box.size;
+    final overlay = Overlay.of(context);
+
+    _entry = OverlayEntry(
+      builder: (ctx) => _FabMenuOverlay(
+        animation: _c,
+        fabOrigin: fabOrigin,
+        fabSize: fabSize,
+        actions: widget.actions,
+        onDismiss: _closeMenu,
+        onSelect: _select,
+      ),
+    );
+    overlay.insert(_entry!);
+    setState(() => _open = true);
+    _c.forward(from: 0);
+  }
+
+  Future<void> _closeMenu() async {
+    if (!_isOpen) return;
+    await _c.reverse();
+    _entry?.remove();
+    _entry = null;
+    if (mounted) setState(() => _open = false);
+  }
+
+  Future<void> _select(QuickAction action) async {
+    await _closeMenu();
+    if (!mounted) return;
     widget.onAction?.call(action);
   }
 
   @override
   void dispose() {
+    _entry?.remove();
+    _entry = null;
     _c.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final count = widget.actions.length;
+    return _MainButton(
+      controller: _c,
+      onTap: _toggle,
+      accent: widget.accent,
+      open: _open,
+    );
+  }
+}
 
-    return Stack(
-      alignment: Alignment.bottomRight,
-      clipBehavior: Clip.none,
-      children: [
-        // Scrim - only hit-testable while open. A luminous sky wash (rather
-        // than a dark dim) per the Divine Glass action-sheet language.
-        if (_open || _c.value > 0)
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !_open,
-              child: FadeTransition(
-                opacity: _c,
+/// Full-screen blur scrim + action stack, positioned above the FAB.
+class _FabMenuOverlay extends StatelessWidget {
+  const _FabMenuOverlay({
+    required this.animation,
+    required this.fabOrigin,
+    required this.fabSize,
+    required this.actions,
+    required this.onDismiss,
+    required this.onSelect,
+  });
+
+  final Animation<double> animation;
+  final Offset fabOrigin;
+  final Size fabSize;
+  final List<QuickAction> actions;
+  final VoidCallback onDismiss;
+  final void Function(QuickAction) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final count = actions.length;
+
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              Positioned.fill(
                 child: GestureDetector(
-                  onTap: _toggle,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          palette.bg.withValues(alpha: 0.82),
-                          AppColors.tealMist.withValues(
-                              alpha: palette.isDark ? 0.10 : 0.92),
-                        ],
-                      ),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onDismiss,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.15 * v),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-
-        // Action stack + main button.
-        Padding(
-          padding: const EdgeInsets.only(right: 4, bottom: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < count; i++)
-                _MiniAction(
-                  controller: _c,
-                  // Later items lead so the column opens top-down smoothly.
-                  index: count - 1 - i,
-                  total: count,
-                  action: widget.actions[i],
-                  palette: palette,
-                  onTap: () => _select(widget.actions[i]),
+              Positioned(
+                right: size.width - fabOrigin.dx - fabSize.width,
+                bottom: size.height - fabOrigin.dy + 6,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (var i = 0; i < count; i++)
+                      _MiniAction(
+                        controller: animation,
+                        index: count - 1 - i,
+                        total: count,
+                        action: actions[i],
+                        palette: palette,
+                        onTap: () => onSelect(actions[i]),
+                      ),
+                  ],
                 ),
-              const SizedBox(height: 6),
-              _MainButton(
-                controller: _c,
-                onTap: _toggle,
-                accent: widget.accent,
               ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -138,7 +189,7 @@ class _MiniAction extends StatelessWidget {
     required this.onTap,
   });
 
-  final AnimationController controller;
+  final Animation<double> controller;
   final int index;
   final int total;
   final QuickAction action;
@@ -172,7 +223,6 @@ class _MiniAction extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Label pill.
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
@@ -232,11 +282,13 @@ class _MainButton extends StatelessWidget {
   const _MainButton({
     required this.controller,
     required this.onTap,
+    required this.open,
     this.accent,
   });
 
   final AnimationController controller;
   final VoidCallback onTap;
+  final bool open;
   final Color? accent;
 
   @override
@@ -278,8 +330,11 @@ class _MainButton extends StatelessWidget {
               animation: controller,
               builder: (context, _) => Transform.rotate(
                 angle: controller.value * 0.785398, // 45°
-                child: const Icon(Icons.add_rounded,
-                    color: Colors.white, size: 30),
+                child: Icon(
+                  open ? Icons.close_rounded : Icons.add_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
               ),
             ),
           ),

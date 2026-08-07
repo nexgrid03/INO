@@ -254,7 +254,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
               DivineGlassAppBar(
                 title: title,
                 onBack: () => Navigator.of(context).pop(),
-                centerTitle: true,
+                centerTitle: false,
                 includeStatusBar: true,
               ),
               Expanded(

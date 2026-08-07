@@ -7,11 +7,21 @@ import '../../services/expense_store.dart';
 import '../../services/tax_summary_pdf.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/ino_scroll_behavior.dart';
 import '../../utils/indian_number_format.dart';
 import '../../utils/share_origin.dart';
-import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+
+/// Locks Tax Summary: no scrolling and no overscroll stretch/bounce.
+class _TaxSummaryScrollBehavior extends InoNoStretchScrollBehavior {
+  const _TaxSummaryScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const NeverScrollableScrollPhysics();
+  }
+}
 
 /// ITR Tax Summary for the selected financial year, with a PDF export.
 class TaxSummaryScreen extends StatefulWidget {
@@ -63,105 +73,114 @@ class _TaxSummaryScreenState extends State<TaxSummaryScreen> {
     final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
       title: l10n.t('taxSummary'),
-      child: ListenableBuilder(
-        listenable: _store,
-        builder: (context, _) {
-          final s = _store.taxSummary();
-          final net = s.totalIncome - s.totalExpenses;
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
-                AppSpacing.screen, AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.internal),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.card),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.28),
-                        blurRadius: 22,
-                        offset: const Offset(0, 12),
+      child: ScrollConfiguration(
+        behavior: const _TaxSummaryScrollBehavior(),
+        child: ListenableBuilder(
+          listenable: _store,
+          builder: (context, _) {
+            final s = _store.taxSummary();
+            final net = s.totalIncome - s.totalExpenses;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.internal),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.28),
+                          blurRadius: 22,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.t('netIncomeMinusExpenses'),
+                            style: AppText.caption.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9))),
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                              '${net < 0 ? '-' : ''}${rupees(net.abs().round())}',
+                              style: AppText.bigNumber
+                                  .copyWith(color: Colors.white)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                            l10n
+                                .t('transactionsForYear')
+                                .replaceFirst('{n}', '${s.transactionCount}')
+                                .replaceFirst('{fy}', s.year.label),
+                            style: AppText.caption.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // Solid surface card — no LiquidGlass frost / white wash.
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.internal,
+                          vertical: AppSpacing.xs),
+                      child: Column(
+                        children: [
+                          _line(context, l10n.t('totalIncome'), s.totalIncome,
+                              Icons.south_west_rounded,
+                              color: AppColors.primaryGreen),
+                          _div(palette),
+                          _line(context, l10n.t('totalExpenses'), s.totalExpenses,
+                              Icons.north_east_rounded),
+                          _div(palette),
+                          _line(context, l10n.t('totalInvestments'),
+                              s.totalInvestments, Icons.trending_up_rounded),
+                          _div(palette),
+                          _line(context, l10n.t('insurancePremiums'),
+                              s.insurancePremiums, Icons.shield_rounded),
+                          _div(palette),
+                          _line(context, l10n.t('medicalExpenses'),
+                              s.medicalExpenses, Icons.favorite_rounded),
+                          _div(palette),
+                          _line(context, l10n.t('rentPaid'), s.rentPaid,
+                              Icons.home_rounded),
+                          _div(palette),
+                          _line(context, l10n.t('taxPaid'), s.taxPaid,
+                              Icons.gavel_rounded),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.t('netIncomeMinusExpenses'),
-                          style: AppText.caption.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9))),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                            '${net < 0 ? '-' : ''}${rupees(net.abs().round())}',
-                            style: AppText.bigNumber
-                                .copyWith(color: Colors.white)),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                          l10n
-                              .t('transactionsForYear')
-                              .replaceFirst('{n}', '${s.transactionCount}')
-                              .replaceFirst('{fy}', s.year.label),
-                          style: AppText.caption.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85))),
-                    ],
+                  const SizedBox(height: AppSpacing.lg),
+                  _ExportButton(
+                    busy: _exporting,
+                    onTap: () => _export(s),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                InoCard(
-                  radius: AppRadius.card,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.internal,
-                      vertical: AppSpacing.xs),
-                  child: Column(
-                    children: [
-                      _line(context, l10n.t('totalIncome'), s.totalIncome,
-                          Icons.south_west_rounded,
-                          color: AppColors.primaryGreen),
-                      _div(palette),
-                      _line(context, l10n.t('totalExpenses'), s.totalExpenses,
-                          Icons.north_east_rounded),
-                      _div(palette),
-                      _line(context, l10n.t('totalInvestments'),
-                          s.totalInvestments, Icons.trending_up_rounded),
-                      _div(palette),
-                      _line(context, l10n.t('insurancePremiums'),
-                          s.insurancePremiums, Icons.shield_rounded),
-                      _div(palette),
-                      _line(context, l10n.t('medicalExpenses'),
-                          s.medicalExpenses, Icons.favorite_rounded),
-                      _div(palette),
-                      _line(context, l10n.t('rentPaid'), s.rentPaid,
-                          Icons.home_rounded),
-                      _div(palette),
-                      _line(context, l10n.t('taxPaid'), s.taxPaid,
-                          Icons.gavel_rounded),
-                    ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    l10n.t('taxSummaryDisclaimer'),
+                    style: AppText.caption
+                        .copyWith(color: palette.textFaint, height: 1.4),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _ExportButton(
-                  busy: _exporting,
-                  onTap: () => _export(s),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  l10n.t('taxSummaryDisclaimer'),
-                  style: AppText.caption
-                      .copyWith(color: palette.textFaint, height: 1.4),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

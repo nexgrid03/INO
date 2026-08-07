@@ -717,7 +717,7 @@ class AppTheme {
         foregroundColor: palette.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         titleTextStyle: TextStyle(fontFamily: fontFamily, 
           fontSize: 17,
           fontWeight: FontWeight.w700,

@@ -38,7 +38,7 @@ class SettingsScaffold extends StatelessWidget {
         appBar: DivineGlassAppBar.asPreferredSize(
           context,
           title: title,
-          centerTitle: true,
+          centerTitle: false,
           actions: actions,
         ),
         // Soft wash (sky: false) — saturated hero-sky made body/labels
@@ -73,7 +73,7 @@ class SettingsScaffold extends StatelessWidget {
           title,
           style: AppText.appBarHeading(palette.headingInk, prominent: true),
         ),
-        centerTitle: true,
+        centerTitle: false,
         actions: actions,
       ),
       body: InoBackground(

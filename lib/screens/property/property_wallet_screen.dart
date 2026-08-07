@@ -165,9 +165,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
           top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
+            physics: const ClampingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: ModuleHeader(
@@ -176,18 +174,18 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                         ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
                         : 'Your property register',
                     icon: Icons.home_work_rounded,
-                    accent: AppColors.vaultProperty,
+                    accent: AppColors.primaryGreen,
                     actions: [
                       ModuleIconButton(
                         icon: Icons.folder_shared_rounded,
                         tooltip: 'Property documents',
-                        color: AppColors.vaultProperty,
+                        color: AppColors.primaryGreen,
                         onTap: _openDocuments,
                       ),
                       ModuleIconButton(
                         icon: Icons.add_rounded,
                         tooltip: 'Add property',
-                        color: AppColors.vaultProperty,
+                        color: AppColors.primaryGreen,
                         onTap: _addProperty,
                       ),
                     ],
@@ -416,7 +414,7 @@ class _PortfolioCard extends StatelessWidget {
                     label: 'Properties',
                     value: '$count',
                     icon: Icons.home_work_rounded,
-                    color: AppColors.vaultProperty,
+                    color: AppColors.primaryGreen,
                   ),
                 ),
                 _Divider(palette: palette),
@@ -425,7 +423,7 @@ class _PortfolioCard extends StatelessWidget {
                     label: 'Rented',
                     value: '$rentedCount',
                     icon: Icons.key_rounded,
-                    color: const Color(0xFF4383EA),
+                    color: AppColors.primaryGreen,
                   ),
                 ),
                 _Divider(palette: palette),
@@ -534,7 +532,7 @@ class _SortButton extends StatelessWidget {
           child: Icon(
             Icons.swap_vert_rounded,
             size: 22,
-            color: AppColors.vaultProperty,
+            color: AppColors.primaryGreen,
           ),
         ),
       ),

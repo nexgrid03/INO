@@ -247,7 +247,7 @@ class _NotesScreenState extends State<NotesScreen> {
         title: 'Notes Vault',
         onBack: () => Navigator.of(context).maybePop(),
         trailing: trailing,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

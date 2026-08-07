@@ -170,7 +170,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
         title: l10n.t('taxRecords'),
         onBack: () => Navigator.of(context).maybePop(),
         trailing: share,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

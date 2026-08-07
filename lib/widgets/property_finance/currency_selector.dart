@@ -164,11 +164,13 @@ class _CurrencySheetState extends State<_CurrencySheet> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs,
-                  AppSpacing.md, AppSpacing.md),
-              itemCount: matches.length,
-              itemBuilder: (context, i) {
+            child: ClipRect(
+              child: ListView.builder(
+                clipBehavior: Clip.hardEdge,
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs,
+                    AppSpacing.md, AppSpacing.md),
+                itemCount: matches.length,
+                itemBuilder: (context, i) {
                 final c = matches[i];
                 final isSelected = c.code == widget.selected.code;
                 return ListTile(
@@ -203,6 +205,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                       : null,
                 );
               },
+              ),
             ),
           ),
         ],

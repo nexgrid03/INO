@@ -14,7 +14,6 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
-import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/direction_toggle.dart';
 import '../../widgets/pressable_scale.dart';
@@ -485,7 +484,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return DivineGlassAppBar(
         title: title,
         onBack: () => Navigator.of(context).maybePop(),
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }
@@ -725,10 +724,15 @@ class _AmountField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.card,
+    // Same surfaceVariant + border language as [_input] — no frosted InoCard.
+    return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: palette.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: palette.border),
+      ),
       child: Row(
         children: [
           Text('₹',

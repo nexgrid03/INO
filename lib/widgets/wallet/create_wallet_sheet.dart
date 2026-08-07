@@ -14,9 +14,43 @@ import '../pressable_scale.dart';
 /// Opens the Create Wallet sheet and returns the created [CustomWallet], or
 /// null if the user dismissed it. The wallet is already persisted to
 /// [CustomWalletStore] by the time this resolves.
+///
+/// Phone: capped bottom sheet (not full-screen). Wide / desktop / web: centered
+/// dialog popup so it never occupies the entire viewport.
 Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
   final palette = AppPalette.of(context);
   final glass = divineGlassEnabled(context);
+  final width = MediaQuery.sizeOf(context).width;
+  final useDialog = width >= 600;
+
+  if (useDialog) {
+    return showDialog<CustomWallet>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        final maxH = MediaQuery.sizeOf(ctx).height * 0.85;
+        final inset = MediaQuery.viewInsetsOf(ctx);
+        return Padding(
+          padding: EdgeInsets.only(bottom: inset.bottom),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 440,
+                maxHeight: maxH,
+              ),
+              child: Material(
+                color: glass ? Colors.transparent : palette.surface,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                clipBehavior: Clip.antiAlias,
+                child: const CreateWalletSheet(asDialog: true),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   return showModalBottomSheet<CustomWallet>(
     context: context,
     isScrollControlled: true,
@@ -26,7 +60,15 @@ Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
     ),
-    builder: (_) => const CreateWalletSheet(),
+    builder: (ctx) {
+      final maxH = MediaQuery.sizeOf(ctx).height * 0.85;
+      return SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: const CreateWalletSheet(),
+        ),
+      );
+    },
   );
 }
 
@@ -34,7 +76,10 @@ Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
 /// (validated, de-duplicated against built-ins too), an icon picker and an
 /// accent picker, with a live preview of the card it will become.
 class CreateWalletSheet extends StatefulWidget {
-  const CreateWalletSheet({super.key});
+  const CreateWalletSheet({super.key, this.asDialog = false});
+
+  /// When true, content is framed for a centered dialog (rounded on all sides).
+  final bool asDialog;
 
   @override
   State<CreateWalletSheet> createState() => _CreateWalletSheetState();
@@ -151,7 +196,10 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Center(child: InoSheetGrip()),
+            if (widget.asDialog)
+              const SizedBox(height: AppSpacing.sm)
+            else
+              const Center(child: InoSheetGrip()),
             const SizedBox(height: AppSpacing.md),
             // Live preview of the wallet card (solid surface — not nested glass).
             Container(
@@ -297,17 +345,19 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
       ),
     );
 
+    final radius = widget.asDialog
+        ? BorderRadius.circular(AppRadius.large)
+        : const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.large),
+          );
+
     return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
+      padding: EdgeInsets.only(bottom: widget.asDialog ? 0 : bottomInset),
       child: launcher
           ? ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.large),
-              ),
+              borderRadius: radius,
               child: LiquidGlass(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.large),
-                ),
+                borderRadius: radius,
                 blur: 28,
                 frost: 1.05,
                 shadow: false,

@@ -110,7 +110,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
       return DivineGlassAppBar(
         title: title,
         onBack: () => Navigator.of(context).maybePop(),
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

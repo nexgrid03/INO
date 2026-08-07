@@ -143,7 +143,7 @@ class _ShareConfigScreenState extends State<ShareConfigScreen> {
               DivineGlassAppBar(
                 title: l10n.t('shareViaQr'),
                 onBack: () => Navigator.of(context).pop(),
-                centerTitle: true,
+                centerTitle: false,
                 includeStatusBar: true,
               ),
               Expanded(

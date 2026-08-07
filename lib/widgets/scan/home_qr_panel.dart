@@ -68,6 +68,60 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
     });
   }
 
+  void _openQrPreview() {
+    final provider = _qrProvider;
+    if (provider == null) return;
+    HapticFeedback.selectionClick();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.88),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image(
+                      image: provider,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      filterQuality: FilterQuality.high,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Icon(Icons.close_rounded, size: 22),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -75,7 +129,6 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
     final width = MediaQuery.sizeOf(context).width;
     final narrow = width < 380;
     final flat = InoStyle.usesFlatBackdrop(context);
-    // Compact frame — tall frames left a large empty band above the nav.
     final frameSize = (width * 0.28).clamp(96.0, 120.0);
 
     return Padding(
@@ -95,7 +148,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
             blur: flat ? 16 : 20,
             frost: flat ? 1.35 : (palette.isDark ? 1.1 : 0.78),
             shadow: true,
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -112,50 +165,51 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                     height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 PressableScale(
                   pressedScale: 0.98,
                   child: Material(
                     type: MaterialType.transparency,
                     child: InkWell(
-                      onTap: _pickQr,
+                      // Empty → upload; with QR → open full preview (X to close).
+                      onTap: hasQr ? _openQrPreview : _pickQr,
                       borderRadius: BorderRadius.circular(18),
-                      child: SizedBox(
-                        height: frameSize,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (hasQr && _qrProvider != null)
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Image(
-                                  image: _qrProvider!,
-                                  fit: BoxFit.contain,
-                                  gaplessPlayback: true,
-                                  filterQuality: FilterQuality.medium,
-                                ),
-                              )
-                            else
-                              Icon(
-                                Icons.qr_code_2_rounded,
-                                size: 36,
-                                color: AppColors.primaryGreen
-                                    .withValues(alpha: 0.85),
+                      child: hasQr && _qrProvider != null
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Image(
+                                image: _qrProvider!,
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                                gaplessPlayback: true,
+                                filterQuality: FilterQuality.medium,
                               ),
-                            IgnorePointer(
-                              child: QrScanFrame(
-                                size: frameSize,
-                                active: false,
-                                accent: AppColors.primaryGreen,
+                            )
+                          : SizedBox(
+                              height: frameSize,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.qr_code_2_rounded,
+                                    size: 36,
+                                    color: AppColors.primaryGreen
+                                        .withValues(alpha: 0.85),
+                                  ),
+                                  IgnorePointer(
+                                    child: QrScanFrame(
+                                      size: frameSize,
+                                      active: false,
+                                      accent: AppColors.primaryGreen,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 SizedBox(
                   height: 44,
                   width: double.infinity,

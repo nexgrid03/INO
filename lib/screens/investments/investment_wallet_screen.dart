@@ -125,7 +125,7 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
             const SizedBox(height: AppSpacing.xs),
             ListTile(
               leading:
-                  Icon(Icons.edit_rounded, color: AppColors.vaultInvestments),
+                  Icon(Icons.edit_rounded, color: AppColors.primaryGreen),
               title: Text('Edit holding',
                   style: TextStyle(color: palette.textPrimary)),
               onTap: () {
@@ -193,18 +193,18 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                       ? '${_store.count} holding${_store.count == 1 ? '' : 's'} · ${moneyWords(_store.totalValue, _currency)}'
                       : 'Your portfolio',
                   icon: Icons.trending_up_rounded,
-                  accent: AppColors.vaultInvestments,
+                  accent: AppColors.primaryGreen,
                   actions: [
                     ModuleIconButton(
                       icon: Icons.folder_shared_rounded,
                       tooltip: 'Investment documents',
-                      color: AppColors.vaultInvestments,
+                      color: AppColors.primaryGreen,
                       onTap: _openDocuments,
                     ),
                     ModuleIconButton(
                       icon: Icons.add_rounded,
                       tooltip: 'Add investment',
-                      color: AppColors.vaultInvestments,
+                      color: AppColors.primaryGreen,
                       onTap: _add,
                     ),
                   ],
@@ -326,7 +326,7 @@ class _SegmentedTabs extends StatelessWidget {
                         : null,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     boxShadow: controller.index == i
-                        ? AppShadows.glow(AppColors.vaultInvestments, opacity: 0.22)
+                        ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.22)
                         : null,
                   ),
                   child: Text(
@@ -459,7 +459,7 @@ class _OverviewTab extends StatelessWidget {
                     width: double.infinity,
                     child: Sparkline(
                       values: growth,
-                      color: AppColors.vaultInvestments,
+                      color: AppColors.primaryGreen,
                     ),
                   ),
                 ],
@@ -471,7 +471,7 @@ class _OverviewTab extends StatelessWidget {
                         value: moneyWords(store.totalInvested, currency),
                         label: 'Invested',
                         icon: Icons.savings_rounded,
-                        accent: const Color(0xFF4383EA),
+                        accent: AppColors.primaryGreen,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -493,7 +493,7 @@ class _OverviewTab extends StatelessWidget {
                         value: '${store.count}',
                         label: 'Holdings',
                         icon: Icons.inventory_2_rounded,
-                        accent: AppColors.vaultInvestments,
+                        accent: AppColors.primaryGreen,
                         onTap: onSeeHoldings,
                       ),
                     ),
@@ -552,7 +552,7 @@ class _OverviewTab extends StatelessWidget {
           child: ModuleSection(
             title: 'Top holdings',
             icon: Icons.leaderboard_rounded,
-            accent: const Color(0xFF9B6DE0),
+            accent: AppColors.primaryGreen,
             trailing: TextButton(
               onPressed: onSeeHoldings,
               style: TextButton.styleFrom(

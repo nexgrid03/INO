@@ -72,7 +72,7 @@ class WalletHeader extends StatelessWidget {
       title: title,
       onBack: onBack,
       trailing: trailing,
-      centerTitle: true,
+      centerTitle: false,
       includeStatusBar: true,
     );
   }
@@ -119,7 +119,7 @@ class WalletHeader extends StatelessWidget {
             icon: Icons.straighten_rounded,
             tooltip: l10n.t('areaConverter'),
             onTap: onAreaConverter!,
-            accent: chip,
+            accent: AppColors.primaryGreen,
           ),
           const SizedBox(width: 8),
         ],
@@ -129,7 +129,7 @@ class WalletHeader extends StatelessWidget {
             tooltip: l10n.t('sharedLinks'),
             onTap: onManageShares!,
             highlighted: true,
-            accent: chip,
+            accent: AppColors.primaryGreen,
           ),
       ],
     );
