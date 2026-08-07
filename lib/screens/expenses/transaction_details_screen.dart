@@ -95,7 +95,7 @@ class TransactionDetailsScreen extends StatelessWidget {
         title: l10n.t('transaction'),
         onBack: () => Navigator.of(context).maybePop(),
         trailing: trailing,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

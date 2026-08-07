@@ -178,7 +178,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
         title: l10n.t('transactionVault'),
         onBack: () => Navigator.of(context).maybePop(),
         trailing: yearChip,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }
@@ -216,98 +216,100 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final glass = divineGlassEnabled(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      floatingActionButton:
-          _AddButton(onTap: () => _push(const AddExpenseScreen())),
-      body: InoBackground(
-        sky: glass,
-        child: SafeArea(
-          top: !glass,
-          child: ListenableBuilder(
-          listenable: _store,
-          builder: (context, _) {
-            final fy = _store.selectedYear;
-            final all = _store.transactionsForYear(fy);
-            final results = _store.searchTransactions(_query, fy);
-            final empty = all.isEmpty;
-            final loading = _store.isLoading && !_store.isLoaded;
-            final failed = _store.loadError != null && _store.isEmpty;
-            return Column(
-              children: [
-                _header(palette, fy.label),
-                const SizedBox(height: AppSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                      AppSpacing.screen, AppSpacing.sm),
-                  child: _SummaryCard(
-                    count: _store.countForYear(fy),
-                    amount: _store.totalForYear(fy),
-                    credited: _store.creditedForYear(fy),
-                    debited: _store.debitedForYear(fy),
-                    yearLabel: fy.label,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                      AppSpacing.screen, AppSpacing.sm),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _ActionChip(
-                          icon: Icons.folder_special_rounded,
-                          label: l10n.t('taxRecords'),
-                          onTap: () => _push(const TaxRecordsScreen()),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: _ActionChip(
-                          icon: Icons.summarize_rounded,
-                          label: l10n.t('taxSummary'),
-                          onTap: () => _push(const TaxSummaryScreen()),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!loading && !failed && !empty)
+    return ListenableBuilder(
+      listenable: _store,
+      builder: (context, _) {
+        final fy = _store.selectedYear;
+        final all = _store.transactionsForYear(fy);
+        final results = _store.searchTransactions(_query, fy);
+        final empty = all.isEmpty;
+        final loading = _store.isLoading && !_store.isLoaded;
+        final failed = _store.loadError != null && _store.isEmpty;
+        return Scaffold(
+          backgroundColor: palette.bg,
+          floatingActionButton: empty
+              ? null
+              : _AddButton(onTap: () => _push(const AddExpenseScreen())),
+          body: InoBackground(
+            sky: glass,
+            child: SafeArea(
+              top: !glass,
+              child: Column(
+                children: [
+                  _header(palette, fy.label),
+                  const SizedBox(height: AppSpacing.md),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                         AppSpacing.screen, AppSpacing.sm),
-                    child: _SearchBar(
-                      controller: _search,
-                      onChanged: (v) => setState(() => _query = v),
+                    child: _SummaryCard(
+                      count: _store.countForYear(fy),
+                      amount: _store.totalForYear(fy),
+                      credited: _store.creditedForYear(fy),
+                      debited: _store.debitedForYear(fy),
+                      yearLabel: fy.label,
                     ),
                   ),
-                Expanded(
-                  child: loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          color: AppColors.primaryGreen,
-                          onRefresh: _store.reload,
-                          child: failed
-                              ? _ErrorState(
-                                  message: _store.loadError!,
-                                  onRetry: _store.reload,
-                                )
-                              : empty
-                                  ? _EmptyState(
-                                      onAdd: () =>
-                                          _push(const AddExpenseScreen()))
-                                  : _List(
-                                      results: results,
-                                      onOpen: (t) => _push(
-                                          TransactionDetailsScreen(id: t.id)),
-                                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
+                        AppSpacing.screen, AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.folder_special_rounded,
+                            label: l10n.t('taxRecords'),
+                            onTap: () => _push(const TaxRecordsScreen()),
+                          ),
                         ),
-                ),
-              ],
-            );
-          },
-        ),
-        ),
-      ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.summarize_rounded,
+                            label: l10n.t('taxSummary'),
+                            onTap: () => _push(const TaxSummaryScreen()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!loading && !failed && !empty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
+                          AppSpacing.screen, AppSpacing.sm),
+                      child: _SearchBar(
+                        controller: _search,
+                        onChanged: (v) => setState(() => _query = v),
+                      ),
+                    ),
+                  Expanded(
+                    child: loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : RefreshIndicator(
+                            color: AppColors.primaryGreen,
+                            onRefresh: _store.reload,
+                            child: failed
+                                ? _ErrorState(
+                                    message: _store.loadError!,
+                                    onRetry: _store.reload,
+                                  )
+                                : empty
+                                    ? _EmptyState(
+                                        onAdd: () =>
+                                            _push(const AddExpenseScreen()))
+                                    : _List(
+                                        results: results,
+                                        onOpen: (t) => _push(
+                                            TransactionDetailsScreen(
+                                                id: t.id)),
+                                      ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

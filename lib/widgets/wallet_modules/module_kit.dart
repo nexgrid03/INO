@@ -719,7 +719,7 @@ class ModuleSwitchField extends StatelessWidget {
             ),
             Switch.adaptive(
               value: value,
-              activeThumbColor: AppColors.primaryGreen,
+              activeTrackColor: AppColors.primaryGreen,
               onChanged: (v) {
                 HapticFeedback.selectionClick();
                 onChanged(v);
@@ -915,7 +915,7 @@ class ModuleHeader extends StatelessWidget {
         title: title,
         onBack: onBack ?? () => Navigator.of(context).maybePop(),
         trailing: trailing,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

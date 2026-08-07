@@ -75,41 +75,41 @@ class ToolGridCard extends StatelessWidget {
         children: [
           bold
               ? SizedBox(
-                  width: 46,
-                  height: 46,
+                  width: 64,
+                  height: 64,
                   child: Center(
-                    child: glyph(size: 36, tint: Colors.white),
+                    child: glyph(size: 48, tint: Colors.white),
                   ),
                 )
               : launcher
                   ? Container(
-                      width: 52,
-                      height: 52,
+                      width: 68,
+                      height: 68,
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                       child: Center(
-                        child: glyph(size: 28, tint: color),
+                        child: glyph(size: 38, tint: color),
                       ),
                     )
                   : imageAsset != null || svgAsset != null
                       ? Container(
-                          width: 46,
-                          height: 46,
+                          width: 60,
+                          height: 60,
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(AppRadius.chip),
                           ),
                           child: Center(
-                            child: glyph(size: 26, tint: color),
+                            child: glyph(size: 34, tint: color),
                           ),
                         )
                       : ShinyIcon(
                           icon: icon,
                           color: color,
-                          size: 46,
-                          iconSize: 24,
+                          size: 60,
+                          iconSize: 32,
                           radius: AppRadius.chip,
                           style: ShinyIconStyle.glass,
                         ),

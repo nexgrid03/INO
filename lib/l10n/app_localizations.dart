@@ -590,7 +590,7 @@ const Map<String, Map<String, String>> _strings = {
     'noNewNotifications':
         'No new notifications right now. We’ll let you know when something needs your attention.',
     'marketsInfoLine':
-        'Gold & silver are LIVE (spot price × ₹ exchange rate, updated on refresh). Petrol & diesel are indicative.',
+        'Gold & silver prices are indicative (₹ per gram). Petrol & diesel are user-entered.',
     'netWorth': 'Net Worth',
     'netWorthTotalLabel': 'Total net worth',
     'monthlyTrend': 'Monthly trend',

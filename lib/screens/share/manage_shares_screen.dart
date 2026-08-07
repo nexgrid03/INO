@@ -66,7 +66,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
               DivineGlassAppBar(
                 title: l10n.t('sharedLinksTitle'),
                 onBack: () => Navigator.of(context).maybePop(),
-                centerTitle: true,
+                centerTitle: false,
                 includeStatusBar: true,
               ),
               Expanded(

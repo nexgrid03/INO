@@ -47,7 +47,6 @@ import '../profile/help_center_screen.dart';
 import '../property_finance/emi_calculator_screen.dart';
 import '../property_finance/property_finance_tools_screen.dart';
 import '../property_finance/finance_tools.dart';
-import '../reminders/reminders_screen.dart';
 import '../scan/scan_flow_screen.dart';
 import '../shell/shell_controller.dart';
 import '../../navigation/wallet_module_router.dart';
@@ -323,8 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final sidePadding = context.responsivePadding;
     // Rebuild Home when Profile → App theme changes (classic vs launcher layout).
     final style = InoStyle.of(context);
-    // Clear the floating nav — keep tight so My QR isn't stranded above empty teal.
-    final navClearance = MediaQuery.paddingOf(context).bottom + 72;
+    // Clear the floating nav — keep tight under My QR (no large empty band).
+    final navClearance = MediaQuery.paddingOf(context).bottom + 56;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -379,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 sidePadding,
                                 AppSpacing.md,
                                 sidePadding,
-                                AppSpacing.md,
+                                navClearance,
                               ),
                               sliver: SliverList(
                                 key: ValueKey(style),
@@ -391,9 +390,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   addAutomaticKeepAlives: false,
                                 ),
                               ),
-                            ),
-                            SliverToBoxAdapter(
-                              child: SizedBox(height: navClearance),
                             ),
                           ],
                         ],
@@ -477,8 +473,10 @@ class _HomeScreenState extends State<HomeScreen> {
         emiDue: data.emiDue,
         onDocumentsExpiring: () => _push(const PendingActionsScreen()),
         onEmiDues: () => _push(const EmiCalculatorScreen()),
-        onRemindersToday: () =>
-            _push(RemindersScreen(profile: widget.profile)),
+        onRemindersToday: () {
+          Navigator.of(context).popUntil((r) => r.isFirst);
+          _goToTab(3);
+        },
         onInsuranceRenewals: () => _openWallet('Insurance Wallet'),
         onCta: () => _openWallet('Document Wallet'),
       ),
@@ -541,8 +539,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: LauncherQuickActions(
           onScan: _scan,
           onAddDocument: () => _openWallet('Document Wallet'),
-          onAddReminder: () =>
-              _push(RemindersScreen(profile: widget.profile)),
+          onAddReminder: () {
+            Navigator.of(context).popUntil((r) => r.isFirst);
+            _goToTab(3);
+          },
           onVoice: () => showVoiceCommandSheet(context),
         ),
       ),

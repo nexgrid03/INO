@@ -295,7 +295,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
               DivineGlassAppBar(
                 title: l10n.t('secureShare'),
                 onBack: () => Navigator.of(context).pop(),
-                centerTitle: true,
+                centerTitle: false,
                 includeStatusBar: true,
               ),
               Expanded(

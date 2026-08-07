@@ -20,7 +20,7 @@ class DivineGlassAppBar extends StatelessWidget {
     String? subtitle,
     this.onBack,
     this.trailing,
-    this.centerTitle = true,
+    this.centerTitle = false,
     this.includeStatusBar = false,
   });
 
@@ -28,8 +28,7 @@ class DivineGlassAppBar extends StatelessWidget {
   final VoidCallback? onBack;
   final Widget? trailing;
 
-  /// Identity / wallet style centers the title; settings-style left-aligns
-  /// next to the back control ([asPreferredSize] default).
+  /// When false (default), title sits left next to the back control.
   final bool centerTitle;
 
   /// When true, paints frost under the status bar.
@@ -49,7 +48,7 @@ class DivineGlassAppBar extends StatelessWidget {
     VoidCallback? onBack,
     Widget? trailing,
     List<Widget>? actions,
-    bool centerTitle = true,
+    bool centerTitle = false,
   }) {
     final top = MediaQuery.viewPaddingOf(context).top;
     Widget? trail = trailing;
@@ -86,7 +85,7 @@ class DivineGlassAppBar extends StatelessWidget {
     // Soft ink on a light frost — cozy, not a heavy white slab.
     final titleStyle = AppText.appBarHeading(
       palette.headingInk,
-      prominent: centerTitle,
+      prominent: true,
     );
 
     final titleBlock = Text(

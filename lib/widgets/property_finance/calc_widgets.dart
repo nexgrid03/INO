@@ -71,7 +71,7 @@ class CalculatorScaffold extends StatelessWidget {
           context,
           title: title,
           subtitle: subtitle,
-          centerTitle: true,
+          centerTitle: false,
           trailing: trailing,
         ),
         body: InoBackground(
@@ -138,6 +138,9 @@ class _CalcHeader extends StatelessWidget {
 }
 
 /// A card grouping a set of inputs under an optional [title].
+///
+/// Solid surface (not frosted glass) so nested [CalcField]s don't read as a
+/// second card stacked inside the first.
 class CalcInputCard extends StatelessWidget {
   const CalcInputCard({super.key, this.title, required this.children});
 
@@ -147,9 +150,14 @@ class CalcInputCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.card,
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.internal),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -166,6 +174,9 @@ class CalcInputCard extends StatelessWidget {
 }
 
 /// A labelled numeric input with an optional ₹/unit prefix and suffix.
+///
+/// Flat field that sits inside [CalcInputCard] — no nested bordered box.
+/// Currency symbol is an inline prefix in the same row as the text.
 class CalcField extends StatelessWidget {
   const CalcField({
     super.key,
@@ -189,43 +200,64 @@ class CalcField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
-          borderSide: BorderSide(color: c, width: w),
-        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
             style: AppText.label
                 .copyWith(color: palette.textFaint, fontSize: 11.5)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType:
-              TextInputType.numberWithOptions(decimal: allowDecimal),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(
-                RegExp(allowDecimal ? r'[0-9.]' : r'[0-9]')),
-          ],
-          onChanged: (_) => onChanged(),
-          style: AppText.title.copyWith(color: palette.textPrimary),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: AppText.body.copyWith(color: palette.textFaint),
-            prefixText: prefix == null ? null : '$prefix  ',
-            prefixStyle:
-                AppText.title.copyWith(color: palette.textSecondary),
-            suffixText: suffix,
-            suffixStyle:
-                AppText.subtitle.copyWith(color: palette.textFaint),
-            filled: true,
-            fillColor: palette.surfaceVariant,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: border(palette.border),
-            enabledBorder: border(palette.border),
-            focusedBorder: border(AppColors.primaryGreen, 1.6),
+        const SizedBox(height: 4),
+        // Single input row on the parent card — no second card chrome.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: palette.border, width: 1),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (prefix != null) ...[
+                Text(
+                  prefix!,
+                  style: AppText.title.copyWith(
+                    color: palette.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.numberWithOptions(
+                      decimal: allowDecimal),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                        RegExp(allowDecimal ? r'[0-9.]' : r'[0-9]')),
+                  ],
+                  onChanged: (_) => onChanged(),
+                  style: AppText.title.copyWith(color: palette.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: AppText.body.copyWith(color: palette.textFaint),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              if (suffix != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  suffix!,
+                  style: AppText.subtitle.copyWith(color: palette.textFaint),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -421,7 +453,10 @@ class CalcHint extends StatelessWidget {
 }
 
 /// A segmented single-choice selector (e.g. purity 18K/22K/24K, unit Grams/Tola).
-class CalcSegmented<T> extends StatelessWidget {
+///
+/// Horizontally scrollable chips; selecting an option scrolls it to the center
+/// so clipped options on the right stay discoverable.
+class CalcSegmented<T> extends StatefulWidget {
   const CalcSegmented({
     super.key,
     required this.label,
@@ -438,57 +473,142 @@ class CalcSegmented<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
+  State<CalcSegmented<T>> createState() => _CalcSegmentedState<T>();
+}
+
+class _CalcSegmentedState<T> extends State<CalcSegmented<T>> {
+  final _scroll = ScrollController();
+  final _keys = <T, GlobalKey>{};
+
+  GlobalKey _keyFor(T o) => _keys.putIfAbsent(o, GlobalKey.new);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollSelectedToCenter());
+  }
+
+  @override
+  void didUpdateWidget(covariant CalcSegmented<T> old) {
+    super.didUpdateWidget(old);
+    if (old.selected != widget.selected) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scrollSelectedToCenter());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollSelectedToCenter() {
+    final key = _keys[widget.selected];
+    final ctx = key?.currentContext;
+    if (ctx == null || !_scroll.hasClients) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _onSelect(T o) {
+    widget.onChanged(o);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollSelectedToCenter());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
+        Text(widget.label,
             style: AppText.label
                 .copyWith(color: palette.textFaint, fontSize: 11.5)),
         const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: palette.surfaceVariant,
             borderRadius: BorderRadius.circular(AppRadius.chip),
             border: Border.all(color: palette.border),
           ),
-          child: Row(
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              for (final o in options)
-                Expanded(
-                  child: PressableScale(
-                    pressedScale: 0.97,
-                    child: GestureDetector(
-                      onTap: () => onChanged(o),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: o == selected
-                              ? InoStyle.gradient(
-                                  context, AppColors.brandGradient)
-                              : null,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.chip - 4),
-                        ),
-                        child: Text(
-                          labelOf(o),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.subtitle.copyWith(
-                            color: o == selected
-                                ? Colors.white
-                                : palette.textSecondary,
-                            fontWeight: FontWeight.w700,
+              SingleChildScrollView(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  children: [
+                    for (final o in widget.options)
+                      Padding(
+                        key: _keyFor(o),
+                        padding: const EdgeInsets.only(right: 2),
+                        child: PressableScale(
+                          pressedScale: 0.97,
+                          child: GestureDetector(
+                            onTap: () => _onSelect(o),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              height: 38,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                gradient: o == widget.selected
+                                    ? InoStyle.gradient(
+                                        context, AppColors.brandGradient)
+                                    : null,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.chip - 4),
+                              ),
+                              child: Text(
+                                widget.labelOf(o),
+                                maxLines: 1,
+                                softWrap: false,
+                                style: AppText.subtitle.copyWith(
+                                  color: o == widget.selected
+                                      ? Colors.white
+                                      : palette.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
+                      ),
+                  ],
+                ),
+              ),
+              // Soft edge fade — hints there is more to the right.
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 28,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.horizontal(
+                        right: Radius.circular(AppRadius.chip - 1),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          palette.surfaceVariant.withValues(alpha: 0),
+                          palette.surfaceVariant,
+                        ],
                       ),
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),

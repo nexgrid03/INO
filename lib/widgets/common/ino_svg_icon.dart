@@ -72,7 +72,7 @@ abstract final class InoHomeIcons {
         'sip' => sip,
         'stamp' || 'valuation' => stamp,
         'unit' => unit,
-        'tax' || 'fx' => tax,
+        'tax' || 'fx' || 'gold' => tax,
         _ => null,
       };
 }
@@ -121,7 +121,7 @@ abstract final class InoHomeIcons3d {
         'sip' => finSip,
         'stamp' || 'valuation' => finStamp,
         'unit' => finUnit,
-        'tax' || 'fx' => finTax,
+        'tax' || 'fx' || 'gold' => finTax,
         _ => null,
       };
 }

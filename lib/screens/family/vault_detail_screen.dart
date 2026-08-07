@@ -1070,7 +1070,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         title: l10n.t('familyVault'),
         onBack: () => Navigator.of(context).maybePop(),
         trailing: glassTrailing,
-        centerTitle: true,
+        centerTitle: false,
         includeStatusBar: true,
       );
     }

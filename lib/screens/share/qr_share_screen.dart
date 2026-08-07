@@ -243,7 +243,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
               DivineGlassAppBar(
                 title: title,
                 onBack: () => Navigator.of(context).pop(),
-                centerTitle: true,
+                centerTitle: false,
                 includeStatusBar: true,
               ),
               Expanded(

@@ -115,13 +115,16 @@ class InoOptionsSheetBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Flexible(
-          child: ListView(
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(),
-            children: [
-              ...children,
-              const SizedBox(height: AppSpacing.sm),
-            ],
+          child: ClipRect(
+            child: ListView(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              clipBehavior: Clip.hardEdge,
+              children: [
+                ...children,
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
           ),
         ),
       ],

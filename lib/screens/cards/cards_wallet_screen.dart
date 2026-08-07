@@ -131,9 +131,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
           top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
+            physics: const ClampingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: ModuleHeader(
@@ -142,18 +140,18 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                         ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
                         : 'Debit & credit cards',
                     icon: Icons.credit_card_rounded,
-                    accent: AppColors.vaultCards,
+                    accent: AppColors.primaryGreen,
                     actions: [
                       ModuleIconButton(
                         icon: Icons.folder_shared_rounded,
                         tooltip: 'Banking documents',
-                        color: AppColors.vaultCards,
+                        color: AppColors.primaryGreen,
                         onTap: _openDocuments,
                       ),
                       ModuleIconButton(
                         icon: Icons.add_rounded,
                         tooltip: 'Add card',
-                        color: AppColors.vaultCards,
+                        color: AppColors.primaryGreen,
                         onTap: _add,
                       ),
                     ],
@@ -317,7 +315,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                            Icon(Icons.verified_user_outlined,
-                              size: 16, color: AppColors.vaultCards),
+                              size: 16, color: AppColors.primaryGreen),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(

@@ -169,6 +169,60 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
     );
   }
 
+  void _openQrPreview() {
+    final provider = _qrProvider;
+    if (provider == null) return;
+    HapticFeedback.selectionClick();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.88),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image(
+                      image: provider,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      filterQuality: FilterQuality.high,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Icon(Icons.close_rounded, size: 22),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -200,7 +254,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
             blur: flat ? 16 : 20,
             frost: flat ? 1.35 : (palette.isDark ? 1.1 : 0.78),
             shadow: true,
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -402,26 +456,35 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
           // the card rather than just inflating in place.
           glowColor: AppColors.primaryGreen,
           borderRadius: 18,
-          child: Container(
-            width: size,
-            height: size,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              // A QR needs a light quiet zone to scan reliably off a screen -
-              // never paint it straight onto a dark surface.
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.tealPale),
+          child: PressableScale(
+            pressedScale: 0.98,
+            child: GestureDetector(
+              // Tap opens the code full-screen and pinch-zoomable. The card
+              // shows it at a browsing size; this is the size that matters when
+              // someone is actually scanning it off your phone.
+              onTap: _busy ? null : _openQrPreview,
+              child: Container(
+                width: size,
+                height: size,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  // A QR needs a light quiet zone to scan reliably off a screen
+                  // - never paint it straight onto a dark surface.
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.tealPale),
+                ),
+                child: _busy
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2.4))
+                    : Image(
+                        image: _qrProvider!,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.medium,
+                      ),
+              ),
             ),
-            child: _busy
-                ? const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2.4))
-                : Image(
-                    image: _qrProvider!,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
-                  ),
           ),
         ),
       ),
