@@ -42,8 +42,7 @@ create table if not exists public.view_once_shares (
 
   -- The ONE existing document this link grants a single view of. Storage is
   -- reused - nothing is duplicated.
-  document_id   uuid not null
-                references public.documents (id) on delete cascade,
+  document_id   uuid not null,
 
   owner_id      uuid not null default auth.uid()
                 references auth.users (id) on delete cascade,
