@@ -145,6 +145,7 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -154,6 +155,12 @@ class _Avatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: gradient,
+            border: Border.all(
+              color: Colors.white.withValues(
+                alpha: palette.isDark ? 0.22 : 0.92,
+              ),
+              width: 2.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(alpha: 0.26),
@@ -162,17 +169,17 @@ class _Avatar extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(3),
-          child: ClipOval(
-            child: (photoUrl != null && photoUrl!.isNotEmpty)
-                ? Image.network(
-                    photoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        _InitialsFill(initials: initials, gradient: gradient),
-                  )
-                : _InitialsFill(initials: initials, gradient: gradient),
-          ),
+          clipBehavior: Clip.antiAlias,
+          child: (photoUrl != null && photoUrl!.isNotEmpty)
+              ? Image.network(
+                  photoUrl!,
+                  fit: BoxFit.cover,
+                  width: 76,
+                  height: 76,
+                  errorBuilder: (_, _, _) =>
+                      _InitialsFill(initials: initials, gradient: gradient),
+                )
+              : _InitialsFill(initials: initials, gradient: gradient),
         ),
         Positioned(
           right: -2,

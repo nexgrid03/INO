@@ -96,6 +96,8 @@ class ThemeController {
         return ThemeStyle.aqua;
       case 'aquaLight':
         return ThemeStyle.aquaLight;
+      case 'aquaMist':
+        return ThemeStyle.aquaMist;
       case 'clay':
         return ThemeStyle.clay;
       default:

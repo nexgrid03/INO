@@ -64,7 +64,7 @@ class AppColors {
   static const Color skyBrandFoam = _skyFoam;
 
   /// When true, legacy brand getters resolve to the Aqua teal ladder
-  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaLight]).
+  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaLight] / [ThemeStyle.aquaMist]).
   static bool _aquaActive = false;
 
   /// Sync brand getters with the picked [ThemeStyle]. Called from
@@ -485,6 +485,24 @@ class AppPalette {
     shadowStrength: 0.85,
   );
 
+  /// Aqua Mist: full Aqua replica on a flat #DFF3F3 mist wash (no gradient).
+  static const AppPalette lightAquaMist = AppPalette(
+    brightness: Brightness.light,
+    bg: Color(0xFFDFF3F3), // aqua mist — replaces gradient sky
+    bgElevated: Color(0xFFFFFFFF),
+    surface: Color(0xFFFFFFFF),
+    cardTop: Color(0xFFFFFFFF),
+    cardBottom: Color(0xFFF0F9F9),
+    surfaceVariant: Color(0xFFCDEAEA),
+    textPrimary: Color(0xFF0F172A),
+    textSecondary: Color(0xFF2A3B4C), // deep slate — readable on mist
+    textFaint: Color(0xFF445A6C),
+    border: Color(0x26098F90),
+    shadow: Color(0xFF098F90),
+    ambient: Color(0xFF098F90),
+    shadowStrength: 1.0,
+  );
+
   static const AppPalette dark = AppPalette(
     brightness: Brightness.dark,
     bg: Color(0xFF0A1926),
@@ -547,6 +565,8 @@ class AppPalette {
         return lightAqua;
       case ThemeStyle.aquaLight:
         return lightAquaLight;
+      case ThemeStyle.aquaMist:
+        return lightAquaMist;
       case ThemeStyle.clay:
         // Clay shares Aqua's teal palette; only Home icons differ (3D).
         return lightAqua;
@@ -617,6 +637,9 @@ class AppTheme {
     final mist = isAqua ? AppColors.aquaMist : AppColors._skyMist;
     final foam = isAqua ? AppColors.aquaFoam : AppColors._skyFoam;
 
+    // fromSeed still invents grey surfaceContainer* tokens; pin every
+    // surface role to the palette so M3 chrome (and page transitions) never
+    // flash a default slate grey before cards paint.
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,
       primary: seed,
@@ -625,6 +648,17 @@ class AppTheme {
       error: AppColors.critical,
       surface: palette.surface,
       brightness: brightness,
+    ).copyWith(
+      surface: palette.surface,
+      surfaceDim: palette.bg,
+      surfaceBright: palette.surface,
+      surfaceContainerLowest: palette.bg,
+      surfaceContainerLow: palette.surfaceVariant,
+      surfaceContainer: palette.surface,
+      surfaceContainerHigh: palette.bgElevated,
+      surfaceContainerHighest: palette.surfaceVariant,
+      onSurface: palette.textPrimary,
+      onSurfaceVariant: palette.textSecondary,
     );
 
     // Strong hierarchy: large expressive headings, comfortable body text.
@@ -701,14 +735,16 @@ class AppTheme {
       scaffoldBackgroundColor: palette.bg,
       canvasColor: palette.bg,
       splashFactory: InkRipple.splashFactory,
-      // Premium, smooth route transitions everywhere (~350–450ms feel).
+      // Cupertino slide everywhere — FadeForwards paints a solid underlay
+      // while the new page is still at opacity 0, which read as a grey flash
+      // before cards settled on their real colours (especially on web).
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
         },
       ),
       appBarTheme: AppBarTheme(

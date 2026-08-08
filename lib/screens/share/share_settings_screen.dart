@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/share_settings.dart';
@@ -342,7 +343,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
                       ],
-                      _sectionLabel(l10n.t('formatQuality'), palette),
+                      _sectionLabel(l10n.t('copyStyle'), palette),
                       const SizedBox(height: AppSpacing.sm),
                       _FormatQualityRow(
                         selected: _color,
@@ -652,39 +653,27 @@ class _FormatQualityRow extends StatelessWidget {
   final bool enabled;
   final ValueChanged<ShareColorMode> onSelected;
 
-  bool get _compressed =>
-      selected == ShareColorMode.compressedPdf ||
-      selected == ShareColorMode.blackWhite ||
-      selected == ShareColorMode.grayscale;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // Classic 2×2 copy styles: Original · B&W · Grayscale · Compressed PDF.
     return Opacity(
       opacity: enabled ? 1 : 0.45,
-      child: Row(
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
+        childAspectRatio: context.shareTileAspectRatio,
         children: [
-          Expanded(
-            child: _FormatTile(
-              icon: Icons.high_quality_rounded,
-              label: l10n.t('formatOriginal'),
-              active: !_compressed,
-              onTap: enabled
-                  ? () => onSelected(ShareColorMode.original)
-                  : null,
+          for (final mode in ShareColorMode.values)
+            _FormatTile(
+              icon: mode.icon,
+              label: mode.label(l10n),
+              active: mode == selected,
+              onTap: enabled ? () => onSelected(mode) : null,
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _FormatTile(
-              icon: Icons.compress_rounded,
-              label: l10n.t('formatCompressed'),
-              active: _compressed,
-              onTap: enabled
-                  ? () => onSelected(ShareColorMode.compressedPdf)
-                  : null,
-            ),
-          ),
         ],
       ),
     );
@@ -717,8 +706,7 @@ class _FormatTile extends StatelessWidget {
               },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          height: 88,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             color: active ? AppColors.tealMist : palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.card),
@@ -735,15 +723,21 @@ class _FormatTile extends StatelessWidget {
                   color: active
                       ? AppColors.primaryGreen
                       : palette.textSecondary),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: AppText.subtitle.copyWith(
-                  color: active
-                      ? AppColors.primaryGreen
-                      : palette.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: active
+                        ? AppColors.primaryGreen
+                        : palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    height: 1.15,
+                  ),
                 ),
               ),
             ],

@@ -44,6 +44,29 @@ extension ResponsiveContextX on BuildContext {
 
   /// Gap between home icon tiles.
   double get iconGridGap => ScreenBreakpoints.getIconGridGap(screenWidth);
+
+  /// Notes grid columns.
+  int get notesGridColumns => ScreenBreakpoints.getNotesGridColumns(screenWidth);
+
+  /// Notes grid child aspect ratio.
+  double get notesGridAspectRatio =>
+      ScreenBreakpoints.getNotesGridAspectRatio(screenWidth);
+
+  /// Share format / duration tile aspect ratio.
+  double get shareTileAspectRatio =>
+      ScreenBreakpoints.getShareTileAspectRatio(screenWidth);
+
+  /// Wallet hub card minimum height.
+  double get walletHubCardMinHeight =>
+      ScreenBreakpoints.getWalletHubCardMinHeight(screenWidth);
+
+  /// Horizontal carousel height from a design [base], scaled for width + text.
+  double horizontalCardHeight(double base) =>
+      ScreenBreakpoints.getHorizontalCardHeight(
+        screenWidth,
+        base: base,
+        textScale: MediaQuery.textScalerOf(this).scale(1),
+      );
 }
 
 /// Extension on [num] wrapping flutter_screenutil for type safety and brevity.

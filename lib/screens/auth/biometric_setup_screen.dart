@@ -203,13 +203,17 @@ class _BiometricArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final artSize = width < 360 ? 140.0 : (width < 420 ? 160.0 : 176.0);
+    final iconSize = artSize * 0.48;
+
     return Container(
-      width: 176,
-      height: 176,
+      width: artSize,
+      height: artSize,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(44),
+        borderRadius: BorderRadius.circular(artSize * 0.25),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.8),
           width: 1.5,
@@ -220,22 +224,22 @@ class _BiometricArt extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           // Decorative pastel light blobs bleeding in from the corners.
-           Positioned(
-            top: -36,
-            right: -36,
-            child: _GlowDot(color: AppColors.skyBlue, size: 116),
+          Positioned(
+            top: -artSize * 0.2,
+            right: -artSize * 0.2,
+            child: _GlowDot(color: AppColors.skyBlue, size: artSize * 0.66),
           ),
-           Positioned(
-            bottom: -36,
-            left: -36,
-            child: _GlowDot(color: AppColors.tealPale, size: 116),
+          Positioned(
+            bottom: -artSize * 0.2,
+            left: -artSize * 0.2,
+            child: _GlowDot(color: AppColors.tealPale, size: artSize * 0.66),
           ),
           Icon(
             kind == BiometricKind.faceId
                 ? Icons.face_rounded
                 : Icons.fingerprint_rounded,
             color: AppColors.primaryGreen,
-            size: 84,
+            size: iconSize,
           ),
         ],
       ),
@@ -358,25 +362,28 @@ class _EncryptionBadge extends StatelessWidget {
           width: 1,
         ),
       ),
-      child:  Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.verified_user_rounded,
-            size: 14,
-            color: AppColors.primaryGreen,
-          ),
-          SizedBox(width: 8),
-          Text(
-            'MILITARY-GRADE AES ENCRYPTION',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.1,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.verified_user_rounded,
+              size: 14,
               color: AppColors.primaryGreen,
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              'MILITARY-GRADE AES ENCRYPTION',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

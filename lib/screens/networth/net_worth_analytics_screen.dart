@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_metric_text.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../services/net_worth_service.dart';
@@ -96,16 +97,11 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        formatInr(data.total),
-                        maxLines: 1,
-                        style: AppText.display.copyWith(
-                          color: palette.textPrimary,
-                          fontSize: 34,
-                        ),
+                    child: ResponsiveMetricText(
+                      formatInr(data.total),
+                      style: AppText.display.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 34,
                       ),
                     ),
                   ),

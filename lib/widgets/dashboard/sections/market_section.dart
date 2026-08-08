@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_h_list.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -30,16 +31,11 @@ class MarketSection extends StatelessWidget {
           actionLabel: l10n.t('markets'),
           icon: Icons.show_chart_rounded,
         ),
-        SizedBox(
-          height: 148,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            physics: const BouncingScrollPhysics(),
-            itemCount: quotes.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _MarketCard(quote: quotes[i]),
-          ),
+        ResponsiveHList(
+          baseHeight: 148,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: quotes.length,
+          itemBuilder: (context, i) => _MarketCard(quote: quotes[i]),
         ),
       ],
     );

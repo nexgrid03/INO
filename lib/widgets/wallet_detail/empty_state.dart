@@ -33,99 +33,102 @@ class WalletEmptyState extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final launcher = divineGlassEnabled(context);
     final tint = accent ?? AppColors.primaryGreen;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
-      child: Column(
-        children: [
-          if (launcher)
-            DivineGlassEmptyPanel(
-              title: title,
-              subtitle: subtitle,
-              accent: tint,
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-              decoration: BoxDecoration(
-                gradient: palette.cardGradient,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: palette.border),
-                boxShadow: palette.cardShadow,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (launcher)
+              DivineGlassEmptyPanel(
+                title: title,
+                subtitle: subtitle,
+                accent: tint,
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+                decoration: BoxDecoration(
+                  gradient: palette.cardGradient,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: palette.border),
+                  boxShadow: palette.cardShadow,
+                ),
+                child: Column(
+                  children: [
+                    ShinyIcon(
+                      icon: Icons.folder_open_rounded,
+                      color: tint,
+                      size: 110,
+                      iconSize: 52,
+                      radius: 32,
+                      style: ShinyIconStyle.filled,
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                children: [
-                   ShinyIcon(
-                    icon: Icons.folder_open_rounded,
-                    color: tint,
-                    size: 110,
-                    iconSize: 52,
-                    radius: 32,
-                    style: ShinyIconStyle.filled,
+            const SizedBox(height: 24),
+            PressableScale(
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onScan,
+                  icon: const Icon(Icons.document_scanner_rounded, size: 19),
+                  label: Text(l10n.t('scanDocument'),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
                   ),
-                  const SizedBox(height: 22),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: palette.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: palette.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          const SizedBox(height: 24),
-          PressableScale(
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onScan,
-                icon: const Icon(Icons.document_scanner_rounded, size: 19),
-                label: Text(l10n.t('scanDocument'),
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SecondaryButton(
+                    icon: Icons.upload_file_rounded,
+                    label: l10n.t('upload'),
+                    onTap: onUpload,
+                    accent: tint,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SecondaryButton(
+                    icon: Icons.add_circle_outline_rounded,
+                    label: l10n.t('create'),
+                    onTap: onCreate,
+                    accent: tint,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _SecondaryButton(
-                  icon: Icons.upload_file_rounded,
-                  label: l10n.t('upload'),
-                  onTap: onUpload,
-                  accent: tint,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SecondaryButton(
-                  icon: Icons.add_circle_outline_rounded,
-                  label: l10n.t('create'),
-                  onTap: onCreate,
-                  accent: tint,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -185,7 +188,7 @@ class _SecondaryButton extends StatelessWidget {
     return PressableScale(
       child: Material(
         color: palette.surface,
-        shape:  StadiumBorder(
+        shape: StadiumBorder(
           side: BorderSide(color: AppColors.tealPale, width: 1.2),
         ),
         clipBehavior: Clip.antiAlias,

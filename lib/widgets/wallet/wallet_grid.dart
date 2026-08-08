@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_models.dart';
 import '../../theme/app_theme.dart';
@@ -75,7 +76,6 @@ class WalletGrid extends StatefulWidget {
   final void Function(WalletCategory category)? onLongPress;
 
   static const double _gap = 12;
-  static const double _cardHeight = 122;
 
   /// Fallback accent for any wallet not in the curated map.
   static Color get uniformAccent => AppColors.primaryGreen;
@@ -130,6 +130,7 @@ class _WalletGridState extends State<WalletGrid>
         final cols = constraints.maxWidth >= 640 ? 3 : 2;
         final cardW =
             (constraints.maxWidth - WalletGrid._gap * (cols - 1)) / cols;
+        final cardH = context.walletHubCardMinHeight;
         return Wrap(
           spacing: WalletGrid._gap,
           runSpacing: WalletGrid._gap,
@@ -137,7 +138,7 @@ class _WalletGridState extends State<WalletGrid>
             for (var i = 0; i < widget.categories.length; i++)
               SizedBox(
                 width: cardW,
-                height: WalletGrid._cardHeight,
+                height: cardH,
                 child: FadeSlideIn(
                   delay: Duration(milliseconds: (i * 45).clamp(0, 360)),
                   offset: 14,
@@ -159,7 +160,7 @@ class _WalletGridState extends State<WalletGrid>
             if (widget.onAdd != null)
               SizedBox(
                 width: cardW,
-                height: WalletGrid._cardHeight,
+                height: cardH,
                 child: FadeSlideIn(
                   delay: Duration(
                     milliseconds: (widget.categories.length * 45).clamp(0, 360),

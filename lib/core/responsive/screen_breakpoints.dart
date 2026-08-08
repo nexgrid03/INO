@@ -103,4 +103,85 @@ class ScreenBreakpoints {
         return 1.75;
     }
   }
+
+  /// Notes grid column count (2 on phones, 3 on tablet).
+  static int getNotesGridColumns(double width) {
+    return width >= tabletMin ? 3 : 2;
+  }
+
+  /// Notes grid aspect (width/height). Taller cells on narrow phones so
+  /// title + body + chip + date fit without overflow.
+  static double getNotesGridAspectRatio(double width) {
+    final type = getDeviceType(width);
+    switch (type) {
+      case InoDeviceType.mobileSmall:
+        return 0.62;
+      case InoDeviceType.mobileNormal:
+        return 0.68;
+      case InoDeviceType.mobileLarge:
+        return 0.72;
+      case InoDeviceType.tablet:
+        return 0.85;
+    }
+  }
+
+  /// Share settings / config tile aspect (width/height).
+  static double getShareTileAspectRatio(double width) {
+    final type = getDeviceType(width);
+    switch (type) {
+      case InoDeviceType.mobileSmall:
+        return 1.25;
+      case InoDeviceType.mobileNormal:
+        return 1.4;
+      case InoDeviceType.mobileLarge:
+        return 1.55;
+      case InoDeviceType.tablet:
+        return 1.7;
+    }
+  }
+
+  /// Minimum height for Wallet Hub cards (icon + title + metric).
+  static double getWalletHubCardMinHeight(double width) {
+    final type = getDeviceType(width);
+    switch (type) {
+      case InoDeviceType.mobileSmall:
+        return 128.0;
+      case InoDeviceType.mobileNormal:
+        return 132.0;
+      case InoDeviceType.mobileLarge:
+        return 136.0;
+      case InoDeviceType.tablet:
+        return 144.0;
+    }
+  }
+
+  /// Horizontal carousel card height: [base] bumped for small widths and
+  /// accessibility text scale so Column children do not overflow.
+  static double getHorizontalCardHeight(
+    double width, {
+    required double base,
+    double textScale = 1.0,
+  }) {
+    final type = getDeviceType(width);
+    final widthBump = switch (type) {
+      InoDeviceType.mobileSmall => 12.0,
+      InoDeviceType.mobileNormal => 6.0,
+      InoDeviceType.mobileLarge => 0.0,
+      InoDeviceType.tablet => 8.0,
+    };
+    final scale = textScale.clamp(1.0, 1.6);
+    return base + widthBump + (base * (scale - 1.0) * 0.55);
+  }
+
+  /// Finance hub tool-card content minimum height (pad + badge + text budget).
+  static double getFinanceToolCardMinHeight({
+    required bool narrow,
+    required bool launcher,
+  }) {
+    final pad = narrow ? 6.0 : 8.0;
+    final badge = narrow ? 36.0 : (launcher ? 42.0 : 40.0);
+    final gap = narrow ? 3.0 : 4.0;
+    const textBudget = 28.0;
+    return (pad * 2) + badge + gap + textBudget;
+  }
 }

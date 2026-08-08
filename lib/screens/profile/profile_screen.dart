@@ -261,6 +261,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeAqua');
       case ThemeStyle.aquaLight:
         return l10n.t('themeAquaLight');
+      case ThemeStyle.aquaMist:
+        return l10n.t('themeAquaMist');
       case ThemeStyle.clay:
         return l10n.t('themeClay');
     }
@@ -280,6 +282,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return l10n.t('themeAquaDesc');
       case ThemeStyle.aquaLight:
         return l10n.t('themeAquaLightDesc');
+      case ThemeStyle.aquaMist:
+        return l10n.t('themeAquaMistDesc');
       case ThemeStyle.clay:
         return l10n.t('themeClayDesc');
     }
@@ -993,33 +997,33 @@ class _ProfileHero extends StatelessWidget {
                     Container(
                       width: 84,
                       height: 84,
-                      padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: accentGrad,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: plate,
-                        ),
-                        child: ClipOval(
-                          child: (photoUrl != null && photoUrl!.isNotEmpty)
-                              ? Image.network(
-                                  photoUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => _HeroInitials(
-                                    initials: _initials,
-                                    gradient: accentGrad,
-                                  ),
-                                )
-                              : _HeroInitials(
-                                  initials: _initials,
-                                  gradient: accentGrad,
-                                ),
+                        // White rim flush on the avatar — no padding gap.
+                        border: Border.all(
+                          color: Colors.white.withValues(
+                            alpha: palette.isDark ? 0.22 : 0.92,
+                          ),
+                          width: 2.5,
                         ),
                       ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (photoUrl != null && photoUrl!.isNotEmpty)
+                          ? Image.network(
+                              photoUrl!,
+                              fit: BoxFit.cover,
+                              width: 84,
+                              height: 84,
+                              errorBuilder: (_, _, _) => _HeroInitials(
+                                initials: _initials,
+                                gradient: accentGrad,
+                              ),
+                            )
+                          : _HeroInitials(
+                              initials: _initials,
+                              gradient: accentGrad,
+                            ),
                     ),
                     Positioned(
                       bottom: -2,
@@ -1293,6 +1297,14 @@ class _ThemeSwatch extends StatelessWidget {
         edge = AppColors.aquaPrimary;
         glyph = const Icon(
           Icons.water_drop_outlined,
+          color: AppColors.aquaPrimary,
+          size: 18,
+        );
+      case ThemeStyle.aquaMist:
+        fill = AppColors.aquaMist;
+        edge = AppColors.aquaPrimary;
+        glyph = const Icon(
+          Icons.blur_on_rounded,
           color: AppColors.aquaPrimary,
           size: 18,
         );

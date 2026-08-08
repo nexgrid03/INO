@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_metric_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -85,7 +86,7 @@ class _InvestmentSectionState extends State<InvestmentSection>
                             style: TextStyle(
                                 fontSize: 12, color: palette.textSecondary)),
                         const SizedBox(height: 2),
-                        Text(
+                        ResponsiveMetricText(
                           _fmt(s.currentValue),
                           style: TextStyle(
                             fontSize: 26,
@@ -105,12 +106,14 @@ class _InvestmentSectionState extends State<InvestmentSection>
                               color: gainColor,
                             ),
                             const SizedBox(width: 2),
-                            Text(
-                              '${_fmt(s.profit.abs())} (${s.returnPercent.abs().toStringAsFixed(1)}%)',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: gainColor,
+                            Flexible(
+                              child: ResponsiveMetricText(
+                                '${_fmt(s.profit.abs())} (${s.returnPercent.abs().toStringAsFixed(1)}%)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: gainColor,
+                                ),
                               ),
                             ),
                           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
@@ -154,7 +155,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                             ),
                           )
                         else if (_store.isEmpty)
-                          SliverToBoxAdapter(
+                          SliverFillRemaining(
+                            hasScrollBody: false,
                             child: RemindersEmptyState(onCreate: _add),
                           )
                         else
@@ -459,7 +461,7 @@ class _WeekStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = [for (var i = -2; i <= 6; i++) today.add(Duration(days: i))];
     return SizedBox(
-      height: 72,
+      height: context.horizontalCardHeight(72),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

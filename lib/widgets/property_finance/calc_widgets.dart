@@ -121,9 +121,12 @@ class _CalcHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: AppText.headline.copyWith(
                 color: palette.textPrimary,
                 fontSize: 21,
+                height: 1.15,
               ),
             ),
           ),
@@ -407,16 +410,28 @@ class ResultRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style:
-                    AppText.body.copyWith(color: palette.textSecondary)),
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.body.copyWith(color: palette.textSecondary),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Text(
-            value,
-            style: AppText.subtitle.copyWith(
-              color: valueColor ?? palette.textPrimary,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                maxLines: 1,
+                softWrap: false,
+                textAlign: TextAlign.end,
+                style: AppText.subtitle.copyWith(
+                  color: valueColor ?? palette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],

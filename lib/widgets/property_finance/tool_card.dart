@@ -13,6 +13,7 @@ import '../pressable_scale.dart';
 /// icon badge, title and short description, with a ripple + press animation.
 ///
 /// Prefer [imageAsset] / [svgAsset] (same Home finance glyphs) when set.
+/// Layout scales from the card's own width — text never overflows the card.
 class ToolGridCard extends StatelessWidget {
   const ToolGridCard({
     super.key,
@@ -35,158 +36,197 @@ class ToolGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final themeStyle = InoStyle.of(context);
-    final bold = themeStyle == ThemeStyle.bold;
-    final soft = themeStyle == ThemeStyle.soft;
-    final launcher = InoStyle.usesDivineGlassStyle(themeStyle);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final palette = AppPalette.of(context);
+        final themeStyle = InoStyle.of(context);
+        final bold = themeStyle == ThemeStyle.bold;
+        final soft = themeStyle == ThemeStyle.soft;
+        final launcher = InoStyle.usesDivineGlassStyle(themeStyle);
+        final cardW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final narrow = cardW < 120;
 
-    final gradient = bold
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [InoStyle.boldFill(color), InoStyle.deepen(color, 0.18)],
-          )
-        : palette.cardGradient;
-    final edge = bold ? InoStyle.boldBorder(color) : palette.border;
+        final gradient = bold
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  InoStyle.boldFill(color),
+                  InoStyle.deepen(color, 0.18),
+                ],
+              )
+            : palette.cardGradient;
+        final edge = bold ? InoStyle.boldBorder(color) : palette.border;
 
-    Widget glyph({required double size, required Color tint}) {
-      if (imageAsset != null) {
-        return Image.asset(
-          imageAsset!,
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
-          gaplessPlayback: true,
-        );
-      }
-      if (svgAsset != null) {
-        return InoSvgIcon(svgAsset!, size: size, color: tint);
-      }
-      return Icon(icon, color: tint, size: size);
-    }
+        // Icons stay readable; the hub screen caps the *box* size separately.
+        final badgeSize = narrow ? 36.0 : (launcher ? 42.0 : 40.0);
+        final glyphSize = narrow ? 20.0 : (launcher ? 24.0 : 22.0);
+        final pad = AppSpacing.xs;
 
-    final inner = Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          bold
-              ? SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: Center(
-                    child: glyph(size: 48, tint: Colors.white),
-                  ),
-                )
-              : launcher
-                  ? Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Center(
-                        child: glyph(size: 38, tint: color),
-                      ),
-                    )
-                  : imageAsset != null || svgAsset != null
-                      ? Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.chip),
-                          ),
-                          child: Center(
-                            child: glyph(size: 34, tint: color),
-                          ),
-                        )
-                      : ShinyIcon(
-                          icon: icon,
-                          color: color,
-                          size: 60,
-                          iconSize: 32,
-                          radius: AppRadius.chip,
-                          style: ShinyIconStyle.glass,
-                        ),
-          const SizedBox(height: AppSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.subtitle.copyWith(
-                  color: bold ? Colors.white : palette.textPrimary,
-                  fontSize: launcher ? 16 : 15,
-                  fontWeight: launcher ? FontWeight.w800 : null,
+        Widget glyph({required double size, required Color tint}) {
+          if (imageAsset != null) {
+            return Image.asset(
+              imageAsset!,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              gaplessPlayback: true,
+            );
+          }
+          if (svgAsset != null) {
+            return InoSvgIcon(svgAsset!, size: size, color: tint);
+          }
+          return Icon(icon, color: tint, size: size);
+        }
+
+        final badge = bold
+            ? SizedBox(
+                width: badgeSize,
+                height: badgeSize,
+                child: Center(
+                  child: glyph(size: glyphSize + 8, tint: Colors.white),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(
-                  color: bold
-                      ? InoStyle.boldTextSecondary
-                      : palette.textSecondary,
-                  height: 1.3,
+              )
+            : launcher
+                ? Container(
+                    width: badgeSize,
+                    height: badgeSize,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(narrow ? 10 : 12),
+                    ),
+                    child: Center(
+                      child: glyph(size: glyphSize, tint: color),
+                    ),
+                  )
+                : imageAsset != null || svgAsset != null
+                    ? Container(
+                        width: badgeSize,
+                        height: badgeSize,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: glyph(size: glyphSize, tint: color),
+                        ),
+                      )
+                    : ShinyIcon(
+                        icon: icon,
+                        color: color,
+                        size: badgeSize,
+                        iconSize: glyphSize,
+                        radius: AppRadius.chip,
+                        style: ShinyIconStyle.glass,
+                      );
+
+        final inner = Padding(
+          padding: EdgeInsets.all(pad),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(child: badge),
+              const SizedBox(height: 4),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      flex: 3,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          softWrap: false,
+                          textAlign: TextAlign.center,
+                          style: AppText.subtitle.copyWith(
+                            color: bold ? Colors.white : palette.textPrimary,
+                            fontSize: narrow ? 10.5 : 11.5,
+                            fontWeight: launcher
+                                ? FontWeight.w800
+                                : FontWeight.w700,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (subtitle.trim().isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Flexible(
+                        flex: 2,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            subtitle,
+                            maxLines: 1,
+                            softWrap: false,
+                            textAlign: TextAlign.center,
+                            style: AppText.caption.copyWith(
+                              color: bold
+                                  ? InoStyle.boldTextSecondary
+                                  : palette.textSecondary,
+                              fontSize: narrow ? 9 : 9.5,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
+        );
 
-    final surface = launcher
-        ? LiquidGlass(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            blur: 16,
-            frost: 0.95,
-            padding: EdgeInsets.zero,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                splashColor: color.withValues(alpha: 0.12),
-                child: inner,
-              ),
-            ),
-          )
-        : ShinyBorder(
-            radius: AppRadius.card,
-            width: 1,
-            enabled: soft,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: edge, width: bold ? 2.5 : 1),
-                boxShadow: palette.cardShadow,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  onTap: onTap,
-                  splashColor: color.withValues(alpha: 0.12),
-                  highlightColor: color.withValues(alpha: 0.05),
-                  child: inner,
+        // Tighter radius so compact tiles don't feel oversized.
+        final radius = BorderRadius.circular(16);
+        final surface = launcher
+            ? LiquidGlass(
+                borderRadius: radius,
+                blur: 16,
+                frost: 0.95,
+                padding: EdgeInsets.zero,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: onTap,
+                    borderRadius: radius,
+                    splashColor: color.withValues(alpha: 0.12),
+                    child: inner,
+                  ),
                 ),
-              ),
-            ),
-          );
+              )
+            : ShinyBorder(
+                radius: AppRadius.card,
+                width: 1,
+                enabled: soft,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: gradient,
+                    borderRadius: radius,
+                    border: Border.all(color: edge, width: bold ? 2.5 : 1),
+                    boxShadow: palette.cardShadow,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      onTap: onTap,
+                      splashColor: color.withValues(alpha: 0.12),
+                      highlightColor: color.withValues(alpha: 0.05),
+                      child: inner,
+                    ),
+                  ),
+                ),
+              );
 
-    return PressableScale(pressedScale: 0.97, child: surface);
+        return PressableScale(pressedScale: 0.97, child: surface);
+      },
+    );
   }
 }

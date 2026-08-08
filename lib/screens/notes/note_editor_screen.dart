@@ -5,9 +5,8 @@ import '../../models/note_models.dart';
 import '../../services/notes_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/ino_background.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/profile/settings_scaffold.dart';
 
 /// Create or edit a single note. Pass [existing] to edit; omit it to create.
 class NoteEditorScreen extends StatefulWidget {
@@ -99,8 +98,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         Navigator.of(context).maybePop();
       }
     } catch (e) {
-      // Insert/update failed (offline, session expired, …) - keep the editor
-      // open with the user's text intact so nothing is lost.
       if (mounted) {
         _toast('Couldn\'t save the note. Check your connection.', error: true);
       }
@@ -114,14 +111,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: palette.surface,
-        title: const Text('Delete note?'),
-        content: Text('“${widget.existing!.title}” will be permanently removed.',
+        backgroundColor: palette.isDark ? palette.surface : Colors.white,
+        title: Text('Delete note?',
+            style: TextStyle(color: palette.textPrimary)),
+        content: Text(
+            '“${widget.existing!.title}” will be permanently removed.',
             style: TextStyle(color: palette.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
+              child: Text('Cancel',
+                  style: TextStyle(color: palette.textSecondary))),
           TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete',
@@ -146,9 +146,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Future<void> _pickCategory() async {
     final palette = AppPalette.of(context);
+    final sheetBg = palette.isDark ? palette.surface : Colors.white;
     final picked = await showModalBottomSheet<NoteCategory>(
       context: context,
-      backgroundColor: palette.surface,
+      backgroundColor: sheetBg,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
@@ -180,16 +181,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         width: AppSizes.iconContainerSm,
                         height: AppSizes.iconContainerSm,
                         decoration: BoxDecoration(
-                          color: c.color.withValues(alpha: 0.12),
+                          color: palette.isDark
+                              ? palette.surfaceVariant
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.chip),
+                          border: Border.all(color: palette.border),
                         ),
-                        child: Icon(c.icon, color: c.color, size: 21),
+                        child: Icon(c.icon,
+                            color: AppColors.primaryGreen, size: 21),
                       ),
                       title: Text(c.label,
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary)),
                       trailing: c == _category
-                          ?  Icon(Icons.check_circle_rounded,
+                          ? Icon(Icons.check_circle_rounded,
                               color: AppColors.primaryGreen, size: 22)
                           : null,
                       onTap: () => Navigator.of(context).pop(c),
@@ -215,49 +220,112 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Scaffold(
-      backgroundColor: palette.bg,
-      body: InoBackground(
-        child: SafeArea(
-        child: Column(
-          children: [
-            _header(palette),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                    AppSpacing.screen, AppSpacing.xl),
-                children: [
-                  TextField(
-                    controller: _title,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: AppText.headline
-                        .copyWith(color: palette.textPrimary, fontSize: 22),
-                    decoration: InputDecoration(
-                      hintText: 'Title',
-                      hintStyle: AppText.headline
-                          .copyWith(color: palette.textFaint, fontSize: 22),
-                      border: InputBorder.none,
-                    ),
+    return SettingsScaffold(
+      title: _isEditing ? 'Edit Note' : 'New Note',
+      actions: [
+        IconButton(
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            setState(() => _isFavorite = !_isFavorite);
+          },
+          tooltip: 'Favorite',
+          icon: Icon(
+            _isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+            color: _isFavorite ? AppColors.warning : palette.textPrimary,
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            setState(() => _isPinned = !_isPinned);
+          },
+          tooltip: 'Pin',
+          icon: Icon(
+            _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+            color: _isPinned ? AppColors.primaryGreen : palette.textPrimary,
+          ),
+        ),
+        if (_isEditing)
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: palette.textPrimary),
+            color: palette.isDark ? palette.surface : Colors.white,
+            surfaceTintColor: Colors.transparent,
+            onSelected: (v) {
+              if (v == 'archive') {
+                setState(() => _isArchived = !_isArchived);
+              } else if (v == 'delete') {
+                _delete();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'archive',
+                child: Text(
+                  _isArchived ? 'Unarchive' : 'Archive',
+                  style: TextStyle(color: palette.textPrimary),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete',
+                    style: TextStyle(color: AppColors.critical)),
+              ),
+            ],
+          ),
+      ],
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
+                  AppSpacing.screen, AppSpacing.xl),
+              children: [
+                SettingsCard(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _title,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: AppText.headline
+                            .copyWith(color: palette.textPrimary, fontSize: 22),
+                        decoration: InputDecoration(
+                          hintText: 'Title',
+                          hintStyle: AppText.headline
+                              .copyWith(color: palette.textFaint, fontSize: 22),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _CategoryChip(category: _category, onTap: _pickCategory),
+                      const SizedBox(height: AppSpacing.md),
+                      TextField(
+                        controller: _description,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: null,
+                        minLines: 8,
+                        style: AppText.body
+                            .copyWith(color: palette.textPrimary, height: 1.5),
+                        decoration: InputDecoration(
+                          hintText: 'Write your note…',
+                          hintStyle:
+                              AppText.body.copyWith(color: palette.textFaint),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  _CategoryChip(category: _category, onTap: _pickCategory),
-                  const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: _description,
-                    textCapitalization: TextCapitalization.sentences,
-                    maxLines: null,
-                    minLines: 6,
-                    style: AppText.body
-                        .copyWith(color: palette.textPrimary, height: 1.5),
-                    decoration: InputDecoration(
-                      hintText: 'Write your note…',
-                      hintStyle: AppText.body.copyWith(color: palette.textFaint),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SettingsCard(
+                  child: Row(
                     children: [
                       Icon(Icons.label_outline_rounded,
                           size: 18, color: palette.textFaint),
@@ -265,80 +333,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       Expanded(
                         child: TextField(
                           controller: _tags,
+                          style:
+                              AppText.body.copyWith(color: palette.textPrimary),
                           decoration: InputDecoration(
                             hintText: 'Tags (comma separated)',
                             hintStyle: AppText.body
                                 .copyWith(color: palette.textFaint),
                             border: InputBorder.none,
                             isDense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            _saveBar(palette),
-          ],
-        ),
-        ),
-      ),
-    );
-  }
-
-  Widget _header(AppPalette palette) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
-          AppSpacing.sm, AppSpacing.sm),
-      child: Row(
-        children: [
-          const InoBackButton(),
-          const Spacer(),
-          IconButton(
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              setState(() => _isFavorite = !_isFavorite);
-            },
-            tooltip: 'Favorite',
-            icon: Icon(
-              _isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-              color: _isFavorite ? AppColors.warning : palette.textSecondary,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              setState(() => _isPinned = !_isPinned);
-            },
-            tooltip: 'Pin',
-            icon: Icon(
-              _isPinned
-                  ? Icons.push_pin_rounded
-                  : Icons.push_pin_outlined,
-              color: _isPinned ? AppColors.primaryGreen : palette.textSecondary,
-            ),
-          ),
-          if (_isEditing)
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert_rounded, color: palette.textSecondary),
-              onSelected: (v) {
-                if (v == 'archive') {
-                  setState(() => _isArchived = !_isArchived);
-                } else if (v == 'delete') {
-                  _delete();
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                    value: 'archive',
-                    child: Text(_isArchived ? 'Unarchive' : 'Archive')),
-                const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete',
-                        style: TextStyle(color: AppColors.critical))),
+                ),
               ],
             ),
+          ),
+          _saveBar(palette),
         ],
       ),
     );
@@ -347,7 +360,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Widget _saveBar(AppPalette palette) {
     return Container(
       decoration: BoxDecoration(
-        color: palette.bg,
+        color: palette.isDark ? palette.bg : Colors.white.withValues(alpha: 0.92),
         border: Border(top: BorderSide(color: palette.border)),
       ),
       child: SafeArea(
@@ -402,30 +415,34 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return PressableScale(
       pressedScale: 0.97,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: category.color.withValues(alpha: 0.12),
+            color: palette.isDark ? palette.surfaceVariant : Colors.white,
             borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: palette.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(category.icon, size: 16, color: category.color),
+              Icon(category.icon, size: 16, color: AppColors.primaryGreen),
               const SizedBox(width: 6),
-              Text(category.label,
-                  style: TextStyle(
-                      color: category.color,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.5)),
+              Text(
+                category.label,
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                ),
+              ),
               const SizedBox(width: 2),
               Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 16, color: category.color),
+                  size: 16, color: palette.textSecondary),
             ],
           ),
         ),

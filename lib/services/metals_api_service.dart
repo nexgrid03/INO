@@ -128,6 +128,14 @@ class MetalsApiService {
   }
 
   Future<double?> _spotUsdPerOunce(String symbol) async {
+    // Swissquote blocks browser CORS — fail fast with a typed error so callers
+    // can keep cached / fallback rates without retry spam.
+    if (kIsWeb) {
+      throw const MetalsException(
+        MetalsErrorType.invalidResponse,
+        'spot feed unavailable on web',
+      );
+    }
     final res = await _get(
       '$_spotBase/$symbol/USD',
       headers: const {'User-Agent': 'Mozilla/5.0'},

@@ -283,45 +283,25 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                       padding: const EdgeInsets.symmetric(
                         horizontal: OnboardingLayout.textHorizontal,
                       ),
-                      child: Column(
-                        children: [
-                          Opacity(
-                            opacity: _seg(0.60, 0.78),
-                            child: Transform.translate(
-                              offset: Offset(0, 16 * (1 - _seg(0.60, 0.78))),
-                              child: ShaderMask(
-                                shaderCallback: (b) =>
-                                    AppColors.brandGradient.createShader(b),
-                                blendMode: BlendMode.srcIn,
-                                child: Text(
-                                  'Your Documents Are Secured',
-                                  textAlign: TextAlign.center,
-                                  style: AppText.display.copyWith(
-                                    color: Colors.white,
-                                    fontSize: OnboardingLayout.titleSize,
-                                    height: OnboardingLayout.titleHeight,
-                                  ),
-                                ),
+                      child: Opacity(
+                        opacity: _seg(0.60, 0.78),
+                        child: Transform.translate(
+                          offset: Offset(0, 16 * (1 - _seg(0.60, 0.78))),
+                          child: ShaderMask(
+                            shaderCallback: (b) =>
+                                AppColors.brandGradient.createShader(b),
+                            blendMode: BlendMode.srcIn,
+                            child: Text(
+                              'Digital Wallet',
+                              textAlign: TextAlign.center,
+                              style: AppText.display.copyWith(
+                                color: Colors.white,
+                                fontSize: OnboardingLayout.titleSize,
+                                height: OnboardingLayout.titleHeight,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Opacity(
-                            opacity: _seg(0.70, 0.86),
-                            child: Transform.translate(
-                              offset: Offset(0, 14 * (1 - _seg(0.70, 0.86))),
-                              child: Text(
-                                'Everything you keep in INO stays encrypted '
-                                'and private - only you can unlock it.',
-                                textAlign: TextAlign.center,
-                                style: AppText.body.copyWith(
-                                  color: palette.textSecondary,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const Spacer(flex: OnboardingLayout.spacerBottom),

@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/theme_style.dart';
@@ -44,22 +47,49 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final use3d = InoStyle.usesHome3dIcons(context);
+    final launcher = InoStyle.usesDivineGlassStyle(InoStyle.of(context));
     return CalculatorScaffold(
       title: l10n.t('propertyFinanceTools'),
       subtitle: l10n.t('financeToolsSubtitle'),
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            const gap = AppSpacing.md;
-            final cardWidth = (constraints.maxWidth - gap) / 2;
+            final width = constraints.maxWidth;
+            // Keep tiles compact: pick as many columns as fit a small target
+            // width so boxes don't stretch with the screen.
+            const gap = AppSpacing.xs;
+            const targetTileW = 100.0;
+            const maxTileH = 96.0;
+            final cols = math
+                .max(3, ((width + gap) / (targetTileW + gap)).floor())
+                .clamp(3, 6);
+            final cardWidth = math.min(
+              targetTileW,
+              ResponsiveGridTile.tileWidth(
+                availableWidth: width,
+                columns: cols,
+                gap: gap,
+              ),
+            );
+            final narrow = cardWidth < 100;
+            final minH = ScreenBreakpoints.getFinanceToolCardMinHeight(
+              narrow: narrow,
+              launcher: launcher,
+            );
+            final cardHeight = math.min(
+              maxTileH,
+              math.max(minH, cardWidth / 1.05),
+            );
+
             return Wrap(
               spacing: gap,
               runSpacing: gap,
               children: [
                 for (var i = 0; i < financeTools.length; i++)
-                  SizedBox(
+                  ResponsiveGridTile(
                     width: cardWidth,
-                    height: 158,
+                    minHeight: minH,
+                    height: cardHeight,
                     child: FadeSlideIn(
                       delay: Duration(milliseconds: (i * 60).clamp(0, 300)),
                       child: ToolGridCard(

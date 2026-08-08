@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_h_list.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -29,16 +30,11 @@ class WalletSection extends StatelessWidget {
           actionLabel: l10n.t('openWallet'),
           icon: Icons.account_balance_wallet_rounded,
         ),
-        SizedBox(
-          height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            physics: const BouncingScrollPhysics(),
-            itemCount: wallets.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _WalletCard(wallet: wallets[i]),
-          ),
+        ResponsiveHList(
+          baseHeight: 132,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: wallets.length,
+          itemBuilder: (context, i) => _WalletCard(wallet: wallets[i]),
         ),
       ],
     );

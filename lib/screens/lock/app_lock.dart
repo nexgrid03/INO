@@ -123,11 +123,10 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   }
 }
 
-/// The full-screen lock overlay, styled after the vault security-lock design:
-/// a secure-link header, display headline, a tappable concentric biometric
-/// hero (glass ring + gradient disc) and an "Unlock" [PrimaryButton] that
-/// re-invokes the biometric prompt. The surface commits to the Divine Glass
-/// light sky wash in both themes so the lock reads as part of the brand.
+/// The full-screen lock overlay: brand header, "Digital Wallet" headline, a
+/// tappable concentric biometric hero and an Unlock CTA. The surface commits
+/// to the Divine Glass light sky wash in both themes so the lock reads as
+/// part of the brand.
 class _LockScreen extends StatelessWidget {
   const _LockScreen({required this.authenticating, required this.onUnlock});
 
@@ -136,6 +135,9 @@ class _LockScreen extends StatelessWidget {
 
   /// The lock surface always uses the light Divine Glass palette.
   static const AppPalette _palette = AppPalette.light;
+
+  /// Keeps the unlock column phone-width on tablets / desktop (e.g. Chrome).
+  static const double _contentMaxWidth = 400;
 
   @override
   Widget build(BuildContext context) {
@@ -151,74 +153,98 @@ class _LockScreen extends StatelessWidget {
         ),
         child: SafeArea(
           minimum: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final short = constraints.maxHeight < 640;
-                final heroSize = short ? 132.0 : 176.0;
-                return Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    const FadeSlideIn(child: _SecureHeader()),
-                    if (short)
-                      const SizedBox(height: 24)
-                    else
-                      const Spacer(),
-                    FadeSlideIn(
-                      delay: const Duration(milliseconds: 60),
-                      child: Column(
-                        children: [
-                          Text(
-                            'INO is locked',
-                            textAlign: TextAlign.center,
-                            style: AppText.display.copyWith(
-                              color: _palette.textPrimary,
-                              fontSize: short ? 26 : 32,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final padH = constraints.maxWidth < 360 ? 20.0 : 28.0;
+              final contentWidth =
+                  (constraints.maxWidth - padH * 2).clamp(0.0, _contentMaxWidth);
+              final short = constraints.maxHeight < 640;
+              final veryShort = constraints.maxHeight < 520;
+              // Scale hero from available column width + height so it never
+              // overflows short Chrome windows or tiny phones.
+              final heroSize = (contentWidth * 0.44)
+                  .clamp(112.0, veryShort ? 128.0 : (short ? 148.0 : 176.0))
+                  .toDouble();
+              final titleSize = veryShort ? 24.0 : (short ? 26.0 : 32.0);
+              final gapTitleHero = veryShort ? 16.0 : (short ? 24.0 : 36.0);
+
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: padH),
+                child: Center(
+                  child: SizedBox(
+                    width: contentWidth,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        const FadeSlideIn(child: _SecureHeader()),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, mid) {
+                              final body = Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FadeSlideIn(
+                                    delay: const Duration(milliseconds: 60),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'Digital Wallet',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        style: AppText.display.copyWith(
+                                          color: _palette.textPrimary,
+                                          fontSize: titleSize,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: gapTitleHero),
+                                  FadeSlideIn(
+                                    delay: const Duration(milliseconds: 140),
+                                    child: _BiometricHero(
+                                      busy: authenticating,
+                                      onTap: onUnlock,
+                                      size: heroSize,
+                                    ),
+                                  ),
+                                ],
+                              );
+                              // Scroll only when the mid section is too short
+                              // for the hero + title (avoids RenderFlex overflow).
+                              if (mid.maxHeight < heroSize + gapTitleHero + 48) {
+                                return SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: mid.maxHeight,
+                                    ),
+                                    child: Center(child: body),
+                                  ),
+                                );
+                              }
+                              return Center(child: body);
+                            },
+                          ),
+                        ),
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 300),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: PrimaryButton(
+                              label: 'Unlock',
+                              icon: Icons.lock_open_rounded,
+                              busy: authenticating,
+                              onPressed: onUnlock,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Unlock with your fingerprint or Face ID to\naccess your vault.',
-                            textAlign: TextAlign.center,
-                            style: AppText.body.copyWith(
-                              color: _palette.textSecondary,
-                              fontSize: 14.5,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(height: veryShort ? 12 : 20),
+                      ],
                     ),
-                    SizedBox(height: short ? 28 : 44),
-                    FadeSlideIn(
-                      delay: const Duration(milliseconds: 140),
-                      child: _BiometricHero(
-                        busy: authenticating,
-                        onTap: onUnlock,
-                        size: heroSize,
-                      ),
-                    ),
-                    SizedBox(height: short ? 24 : 36),
-                    const FadeSlideIn(
-                      delay: Duration(milliseconds: 220),
-                      child: _EncryptionDivider(),
-                    ),
-                    const Spacer(),
-                    FadeSlideIn(
-                      delay: const Duration(milliseconds: 300),
-                      child: PrimaryButton(
-                        label: 'Unlock',
-                        icon: Icons.lock_open_rounded,
-                        busy: authenticating,
-                        onPressed: onUnlock,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -226,8 +252,7 @@ class _LockScreen extends StatelessWidget {
   }
 }
 
-/// Top chrome: the brand mark with a verified shield, and a glassy
-/// "SECURE LINK" status pill with a glowing green dot (decorative).
+/// Top chrome: brand mark with a verified shield.
 class _SecureHeader extends StatelessWidget {
   const _SecureHeader();
 
@@ -245,44 +270,6 @@ class _SecureHeader extends StatelessWidget {
         const SizedBox(width: 8),
         const Icon(Icons.verified_user_rounded,
             color: AppColors.success, size: 18),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: _LockScreen._palette.border),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: AppColors.success,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.success.withValues(alpha: 0.8),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'SECURE LINK',
-                style: AppText.label.copyWith(
-                  color: _LockScreen._palette.textSecondary,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -339,37 +326,6 @@ class _BiometricHero extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The "- VERIFIED ENCRYPTION -" hairline divider row (decorative).
-class _EncryptionDivider extends StatelessWidget {
-  const _EncryptionDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    final line = Container(
-      width: 44,
-      height: 1,
-      color: AppColors.tealPale,
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        line,
-        const SizedBox(width: 16),
-        Text(
-          'VERIFIED ENCRYPTION',
-          style: AppText.label.copyWith(
-            color: AppColors.textMuted,
-            fontSize: 11,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(width: 16),
-        line,
-      ],
     );
   }
 }

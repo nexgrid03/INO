@@ -151,36 +151,31 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(2.5),
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: accentGrad,
+                    // Match LiquidGlass hairline — rim flush on the avatar.
                     border: Border.all(
-                      color: accent.withValues(
-                        alpha: AppPalette.of(context).isDark ? 0.28 : 0.35,
-                      ),
+                      color: AppPalette.of(context).isDark
+                          ? Colors.white.withValues(alpha: 0.22)
+                          : Colors.white.withValues(alpha: 0.92),
                       width: 2,
                     ),
                   ),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: accentGrad,
-                    ),
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.antiAlias,
-                    child:
-                        (widget.photoUrl != null && widget.photoUrl!.isNotEmpty)
-                        ? Image.network(
-                            widget.photoUrl!,
-                            fit: BoxFit.cover,
-                            width: 48,
-                            height: 48,
-                            errorBuilder: (_, _, _) => _initialsLabel(),
-                          )
-                        : _initialsLabel(),
-                  ),
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.antiAlias,
+                  child:
+                      (widget.photoUrl != null && widget.photoUrl!.isNotEmpty)
+                      ? Image.network(
+                          widget.photoUrl!,
+                          fit: BoxFit.cover,
+                          width: 48,
+                          height: 48,
+                          errorBuilder: (_, _, _) => _initialsLabel(),
+                        )
+                      : _initialsLabel(),
                 ),
               ),
             ),

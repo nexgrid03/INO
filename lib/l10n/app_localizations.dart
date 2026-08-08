@@ -158,6 +158,9 @@ const Map<String, Map<String, String>> _strings = {
     'themeAquaLight': 'Aqua Light',
     'themeAquaLightDesc':
         'Teal SVG icons on a flat background (no gradient wash)',
+    'themeAquaMist': 'Aqua Mist',
+    'themeAquaMistDesc':
+        'Full Aqua look on a flat #DFF3F3 mist wash (no gradient)',
     'themeClay': 'Clay',
     'themeClayDesc':
         'Aqua teal look with soft 3D Home icons',

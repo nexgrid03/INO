@@ -426,19 +426,27 @@ class BankCardFace extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Text(
-                            '${card.kind.label.toUpperCase()} · ${card.network.label.toUpperCase()}',
-                            style: AppText.label.copyWith(
-                              color: Colors.white,
-                              fontSize: 9.5,
-                              letterSpacing: 0.4,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.pill),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${card.kind.label.toUpperCase()} · ${card.network.label.toUpperCase()}',
+                                maxLines: 1,
+                                softWrap: false,
+                                style: AppText.label.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
                             ),
                           ),
                         ),

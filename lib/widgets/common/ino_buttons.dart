@@ -32,6 +32,7 @@ class PrimaryButton extends StatelessWidget {
     final enabled = onPressed != null && !busy;
     final child = Container(
       height: AppSizes.button,
+      width: expand ? double.infinity : null,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         gradient: InoStyle.gradient(context, AppColors.brandGradient),

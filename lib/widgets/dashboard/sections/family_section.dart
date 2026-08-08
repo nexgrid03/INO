@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_h_list.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -30,16 +31,11 @@ class FamilySection extends StatelessWidget {
           actionLabel: l10n.t('allEvents'),
           icon: Icons.celebration_rounded,
         ),
-        SizedBox(
-          height: 124,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            physics: const BouncingScrollPhysics(),
-            itemCount: events.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _EventCard(event: events[i]),
-          ),
+        ResponsiveHList(
+          baseHeight: 124,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: events.length,
+          itemBuilder: (context, i) => _EventCard(event: events[i]),
         ),
       ],
     );

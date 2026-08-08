@@ -3,6 +3,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart' hide DeviceType;
 
 import 'screen_breakpoints.dart';
 
+export 'responsive_extensions.dart';
+export 'responsive_grid_tile.dart';
+export 'responsive_h_list.dart';
+export 'responsive_metric_text.dart';
+export 'screen_breakpoints.dart';
+
 /// Application-wide Responsive System Initializer.
 ///
 /// Wraps [ScreenUtilInit] with standard reference canvas (393 x 852)

@@ -91,11 +91,19 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     // Hydrate the offline library (local read) so the action sheet can show
     // "Save to app" vs "Remove offline copy" correctly on first open.
     OfflineDocumentStore.instance.ensureLoaded();
-    _future = WalletDetailRepository.instance.load(widget.category).then((
-      data,
-    ) {
+    _future = _loadFuture();
+  }
+
+  Future<WalletDetailData> _loadFuture() {
+    return WalletDetailRepository.instance.load(widget.category).then((data) {
       _records = data.records;
       return data;
+    });
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _loadFuture();
     });
   }
 
@@ -116,14 +124,15 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
-  void _onFabAction(QuickAction action) {
+  Future<void> _onFabAction(QuickAction action) async {
     // Scan opens the dedicated Scan & OCR flow, pre-selecting this wallet.
     if (action.label == 'Scan Document') {
-      launchScanFlow(context, initialWallet: widget.category.name);
+      await launchScanFlow(context, initialWallet: widget.category.name);
+      if (mounted) _reload();
       return;
     }
     if (action.label == 'Create Category') {
-      _createCategory();
+      await _createCategory();
       return;
     }
     // Upload / health-record actions go straight to Add Document.
@@ -133,20 +142,22 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       'Add Health Record',
     };
     if (uploadActions.contains(action.label)) {
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
               AddDocumentScreen(initialWallet: widget.category.name),
         ),
       );
+      if (mounted) _reload();
       return;
     }
     // Every other action opens Add Document as a safe default.
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AddDocumentScreen(initialWallet: widget.category.name),
       ),
     );
+    if (mounted) _reload();
   }
 
   /// Opens the Create Category sheet; the new category becomes selectable when
@@ -750,6 +761,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         ),
                         if (data == null)
                           _loadingSliver()
+                        else if (_records.isEmpty)
+                          _emptyWalletSliver()
                         else
                           ..._loadedSlivers(data),
                       ],
@@ -807,6 +820,29 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
+  /// Brand-new / emptied wallet: skip search/summary/filters so the empty
+  /// template can fill the viewport (same pattern as Property / Cards).
+  Widget _emptyWalletSliver() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+        child: WalletEmptyState(
+          title: _isHealthWallet
+              ? 'No health records yet'
+              : AppLocalizations.of(context).t('noDocumentsYet'),
+          subtitle: _isHealthWallet
+              ? 'Add prescriptions, lab reports and medical records to your private vault.'
+              : 'Scan, upload or create a document to start filling this wallet.',
+          accent: _vaultAccent,
+          onScan: () => _onFabAction(_fabActionsForWallet.first),
+          onUpload: () => _onFabAction(_fabActionsForWallet[1]),
+          onCreate: _createCategory,
+        ),
+      ),
+    );
+  }
+
   List<Widget> _loadedSlivers(WalletDetailData data) {
     final palette = AppPalette.of(context);
     final attention = _attentionRecord;
@@ -818,14 +854,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               r.status == DocumentStatus.expired,
         )
         .length;
+    final animate = !divineGlassEnabled(context);
+
+    Widget maybeAnimate(Widget child) =>
+        animate ? FadeSlideIn(child: child) : child;
 
     return [
       // 2. Search (+ filter button under Launcher / Figma Identity).
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, AppSpacing.sm),
-          child: FadeSlideIn(
-            child: divineGlassEnabled(context)
+          child: maybeAnimate(
+            divineGlassEnabled(context)
                 ? Row(
                     children: [
                       Expanded(
@@ -853,8 +893,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: FadeSlideIn(
-            child: WalletSummaryCard(
+          child: maybeAnimate(
+            WalletSummaryCard(
               totalDocuments: _records.length,
               expiring: expiring,
               protected: data.security.vaultLocked,
@@ -868,8 +908,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: FadeSlideIn(
-              child: SmartBanner(
+            child: maybeAnimate(
+              SmartBanner(
                 message: _bannerMessage(attention),
                 icon: Icons.warning_amber_rounded,
                 accent: AppColors.warning,
@@ -936,7 +976,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         ),
       ),
       _documentsSliver(),
-      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+      // FAB clearance only when the list is showing — empty state centers
+      // in the remaining viewport without a plain bottom band.
+      if (_visible.isNotEmpty)
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
     ];
   }
 
@@ -945,7 +988,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
     if (visible.isEmpty) {
       final emptyAll = _records.isEmpty;
-      return SliverToBoxAdapter(
+      return SliverFillRemaining(
+        hasScrollBody: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: WalletEmptyState(

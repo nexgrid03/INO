@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_metric_text.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../services/app_settings.dart';
@@ -178,25 +179,28 @@ class _EstimatedWealthCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      totalLabel,
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      totalValue,
-                      textAlign: TextAlign.center,
-                      style: AppText.title.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        totalLabel,
+                        style: AppText.caption
+                            .copyWith(color: palette.textSecondary),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      ResponsiveMetricText(
+                        totalValue,
+                        textAlign: TextAlign.center,
+                        style: AppText.title.copyWith(
+                          color: palette.textPrimary,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

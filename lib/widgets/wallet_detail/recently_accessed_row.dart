@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_h_list.dart';
 import '../../models/wallet_models.dart' show RecentItem;
 import '../../theme/app_theme.dart';
 import '../common/shiny_icon.dart';
@@ -27,18 +28,13 @@ class RecentlyAccessedRow extends StatelessWidget {
           subtitle: 'Jump back in',
           icon: Icons.history_rounded,
         ),
-        SizedBox(
-          height: 116,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _RecentCard(
-              item: items[i],
-              onTap: () => onOpen?.call(items[i]),
-            ),
+        ResponsiveHList(
+          baseHeight: 116,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: items.length,
+          itemBuilder: (context, i) => _RecentCard(
+            item: items[i],
+            onTap: () => onOpen?.call(items[i]),
           ),
         ),
       ],

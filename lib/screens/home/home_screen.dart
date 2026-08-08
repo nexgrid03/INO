@@ -556,6 +556,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
+      // Notes + Offline — same chip row / breakpoints as Expenses · Net Worth.
+      LauncherNotesOfflineShortcuts(
+        onNotes: () => _push(const NotesScreen()),
+        onOffline: () => _push(const OfflineDocumentsScreen()),
+      ),
+
       // 3. My Vaults
       _Section(
         header: SectionHeader(

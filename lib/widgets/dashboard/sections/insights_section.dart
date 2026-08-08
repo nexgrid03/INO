@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_h_list.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -59,16 +60,11 @@ class InsightsSection extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 116,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            physics: const BouncingScrollPhysics(),
-            itemCount: insights.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _InsightCard(insight: insights[i]),
-          ),
+        ResponsiveHList(
+          baseHeight: 116,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: insights.length,
+          itemBuilder: (context, i) => _InsightCard(insight: insights[i]),
         ),
       ],
     );

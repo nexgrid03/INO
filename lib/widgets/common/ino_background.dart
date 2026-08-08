@@ -9,8 +9,8 @@ import '../../theme/theme_style.dart';
 ///
 /// Layers (bottom → top):
 ///   1. A vertical mist gradient (teal-white wash → white → faint foam) so no
-///      screen ever sits on plain flat white. **Aqua Light** skips this and
-///      paints a flat [AppPalette.bg] instead.
+///      screen ever sits on plain flat white. **Aqua Light / Aqua Mist** skip
+///      this and paint a flat [AppPalette.bg] instead.
 ///   2. Two or three large organic blobs in the light tint ladder
 ///      (#38BDF8 / #7DD3FC / #BAE6FD at very low alpha) that drift slowly.
 ///   3. An optional whisper-subtle dot grid near the top for texture.
@@ -44,7 +44,7 @@ class InoBackground extends StatefulWidget {
 
   /// Hero-sky variant (light mode): a saturated brand-blue band at the top
   /// that melts into white by mid-screen - the app-wide backdrop (pass false
-  /// for the softer legacy wash). Ignored in dark mode and Aqua Light.
+  /// for the softer legacy wash). Ignored in dark mode and flat Aqua themes.
   final bool sky;
 
   @override
@@ -96,7 +96,7 @@ class _InoBackgroundState extends State<InoBackground>
     final palette = AppPalette.of(context);
     final flat = InoStyle.usesFlatBackdrop(context);
 
-    // Aqua Light: solid colour only — no gradient wash / blobs.
+    // Flat Aqua themes: solid colour only — no gradient wash / blobs.
     if (flat) {
       return ColoredBox(
         color: palette.bg,
