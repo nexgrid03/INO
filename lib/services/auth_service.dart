@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import '../core/net/net_guard.dart';
 import 'account_switcher.dart';
 import 'biometric_service.dart';
 import 'push_service.dart';
@@ -49,26 +50,31 @@ class AuthService {
     required String password,
     String? fullName,
   }) {
-    return _client.auth.signUp(
-      email: email.trim(),
-      password: password,
-      data: fullName != null ? {'full_name': fullName} : null,
-    );
+    // Every auth round-trip is time-capped: an un-timed call on a dead link
+    // used to hang the login screen forever instead of surfacing an error.
+    return _client.auth
+        .signUp(
+          email: email.trim(),
+          password: password,
+          data: fullName != null ? {'full_name': fullName} : null,
+        )
+        .timeout(NetGuard.auth);
   }
 
   Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
   }) {
-    return _client.auth.signInWithPassword(
-      email: email.trim(),
-      password: password,
-    );
+    return _client.auth
+        .signInWithPassword(email: email.trim(), password: password)
+        .timeout(NetGuard.auth);
   }
 
   /// Sends a password-reset email.
   Future<void> sendPasswordReset(String email) {
-    return _client.auth.resetPasswordForEmail(email.trim());
+    return _client.auth
+        .resetPasswordForEmail(email.trim())
+        .timeout(NetGuard.auth);
   }
 
   // --- Email OTP (account verification) -------------------------------------
@@ -79,10 +85,9 @@ class AuthService {
 
   /// Re-sends the 6-digit sign-up confirmation code to [email].
   Future<void> resendSignupOtp(String email) {
-    return _client.auth.resend(
-      type: OtpType.signup,
-      email: email.trim(),
-    );
+    return _client.auth
+        .resend(type: OtpType.signup, email: email.trim())
+        .timeout(NetGuard.auth);
   }
 
   /// Verifies the 6-digit sign-up code. On success the returned
@@ -91,11 +96,13 @@ class AuthService {
     required String email,
     required String token,
   }) {
-    return _client.auth.verifyOTP(
-      type: OtpType.signup,
-      email: email.trim(),
-      token: token.trim(),
-    );
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.signup,
+          email: email.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
   }
 
   // --- Phone OTP (SMS) ------------------------------------------------------
@@ -109,7 +116,9 @@ class AuthService {
 
   /// Sends a 6-digit SMS code to [phone] (E.164 format, e.g. `+919876543210`).
   Future<void> sendPhoneOtp(String phone) {
-    return _client.auth.signInWithOtp(phone: phone.trim());
+    return _client.auth
+        .signInWithOtp(phone: phone.trim())
+        .timeout(NetGuard.auth);
   }
 
   /// Verifies the SMS [token] for [phone]. On success the returned
@@ -119,11 +128,13 @@ class AuthService {
     required String phone,
     required String token,
   }) {
-    return _client.auth.verifyOTP(
-      type: OtpType.sms,
-      phone: phone.trim(),
-      token: token.trim(),
-    );
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.sms,
+          phone: phone.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
   }
 
   // --- Apple (placeholder) --------------------------------------------------
@@ -216,11 +227,17 @@ class AuthService {
 
     developer.log('Exchanging Google ID token for a Supabase session',
         name: 'auth');
-    final res = await _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
-    );
+    // Time-capped: the token exchange is a plain server round-trip, and a hang
+    // here left the user staring at the picker's afterglow with no error.
+    // (The Google picker itself is user-driven UI and is deliberately NOT
+    // timed - people legitimately take minutes to choose an account.)
+    final res = await _client.auth
+        .signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        )
+        .timeout(NetGuard.auth);
     developer.log(
       'Supabase session received: user=${res.user?.id} '
       'session=${res.session != null}',

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/family_vault_models.dart';
 
 /// Source of Family Vault data — the `public.family_vaults` and
@@ -152,8 +153,18 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
 
     debugPrint('[FamilyVault] loading myVaults for uid=$uid');
     final results = await Future.wait([
-      _client.from(_members).select('vault_id, role').eq('auth_user_id', uid),
-      _client.from(_vaults).select().order('created_at', ascending: false),
+      _client
+          .from(_members)
+          .select('vault_id, role')
+          .eq('auth_user_id', uid)
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query),
+      _client
+          .from(_vaults)
+          .select()
+          .order('created_at', ascending: false)
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query),
     ]);
 
     final memberRows = results[0] as List<dynamic>;
@@ -207,7 +218,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       final res = await _client.rpc(
         'create_family_vault',
         params: {'p_name': name.trim()},
-      );
+      ).timeout(NetGuard.mutation);
       final row = (res is List)
           ? Map<String, dynamic>.from(res.first as Map)
           : Map<String, dynamic>.from(res as Map);
@@ -233,7 +244,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     final rows = await _client
         .from(_members)
         .select()
-        .eq('vault_id', vaultId);
+        .eq('vault_id', vaultId)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
     debugPrint('[FamilyVault] member rows: ${rows.length}');
     final list = [for (final r in rows) VaultMember.fromRow(r)];
     // Most-privileged first, then by name for a stable roster.
@@ -250,28 +263,34 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     // Through an RPC (not a direct UPDATE) so the rename is server-authorized
     // (owner only) and audited (see 20260732).
     await _client.rpc('rename_family_vault',
-        params: {'p_vault': id, 'p_name': name.trim()});
+        params: {'p_vault': id, 'p_name': name.trim()}).timeout(NetGuard.mutation);
   }
 
   @override
   Future<void> deleteVault(String id) async {
     // Through an RPC so the delete is server-authorized (owner only); cascades
     // remove members, invitations, audit rows and notification events.
-    await _client.rpc('delete_family_vault', params: {'p_vault': id});
+    await _client
+        .rpc('delete_family_vault', params: {'p_vault': id})
+        .timeout(NetGuard.mutation);
   }
 
   @override
   Future<void> updateMemberRole(String memberId, VaultRole role) async {
     // Server-enforced: admin/owner only, never assigns 'owner'.
-    await _client.rpc('set_vault_member_role',
-        params: {'p_member_id': memberId, 'p_role': role.name});
+    await _client.rpc('set_vault_member_role', params: {
+      'p_member_id': memberId,
+      'p_role': role.name,
+    }).timeout(NetGuard.mutation);
   }
 
   @override
   Future<void> removeMember(String memberId) async {
     // Server-enforced: admin removes a member, or a member leaves; owner can't
     // be removed.
-    await _client.rpc('remove_vault_member', params: {'p_member_id': memberId});
+    await _client
+        .rpc('remove_vault_member', params: {'p_member_id': memberId})
+        .timeout(NetGuard.mutation);
   }
 
   @override
@@ -280,7 +299,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     await _client.rpc('transfer_vault_ownership', params: {
       'p_vault': vaultId,
       'p_new_owner': newOwnerAuthUserId,
-    });
+    }).timeout(NetGuard.mutation);
   }
 
   // ---- Invitations ---------------------------------------------------------
@@ -299,7 +318,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       'p_role': role.name,
       'p_email': email?.trim(),
       'p_phone': phone?.trim(),
-    });
+    }).timeout(NetGuard.mutation);
     final row = (res is List)
         ? Map<String, dynamic>.from(res.first as Map)
         : Map<String, dynamic>.from(res as Map);
@@ -312,7 +331,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         .from('vault_invitations')
         .select()
         .eq('vault_id', vaultId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
     return [for (final r in rows) VaultInvitation.fromRow(r)];
   }
 
@@ -325,7 +346,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         .from('vault_invitations')
         .select()
         .eq('status', 'pending')
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
     final list = [for (final r in rows) VaultInvitation.fromRow(r)];
     debugPrint('[FamilyVault] my pending invitations: ${list.length}');
     return list;
@@ -334,19 +357,19 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
   @override
   Future<void> acceptInvitation(String invitationId) async {
     await _client.rpc('accept_vault_invitation',
-        params: {'p_invitation_id': invitationId});
+        params: {'p_invitation_id': invitationId}).timeout(NetGuard.mutation);
   }
 
   @override
   Future<void> declineInvitation(String invitationId) async {
     await _client.rpc('decline_vault_invitation',
-        params: {'p_invitation_id': invitationId});
+        params: {'p_invitation_id': invitationId}).timeout(NetGuard.mutation);
   }
 
   @override
   Future<void> cancelInvitation(String invitationId) async {
     await _client.rpc('cancel_vault_invitation',
-        params: {'p_invitation_id': invitationId});
+        params: {'p_invitation_id': invitationId}).timeout(NetGuard.mutation);
   }
 
   @override
@@ -354,7 +377,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     await _client.rpc('resend_vault_invitation', params: {
       'p_invitation_id': invitationId,
       'p_role': role?.name,
-    });
+    }).timeout(NetGuard.mutation);
   }
 
   // ---- Shared documents ----------------------------------------------------
@@ -372,7 +395,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         .from(_documents)
         .select()
         .eq('vault_id', vaultId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
     debugPrint('[FamilyVault] vault $vaultId documents: ${rows.length}');
     return [for (final r in rows) VaultDocument.fromRow(r)];
   }
@@ -402,7 +427,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       'p_source_table': sourceTable,
       'p_source_id': sourceId,
       'p_note': note,
-    });
+    }).timeout(NetGuard.mutation);
     return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
   }
 
@@ -410,7 +435,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
   Future<void> removeDocument(String documentId) async {
     await _client.rpc('remove_vault_document', params: {
       'p_document': documentId,
-    });
+    }).timeout(NetGuard.mutation);
   }
 
   @override
@@ -421,12 +446,15 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     // narrow window also limits how long a URL that leaves the app stays useful.
     return _client.storage
         .from(_bucket)
-        .createSignedUrl(doc.objectPath, expiresInSeconds);
+        .createSignedUrl(doc.objectPath, expiresInSeconds)
+        .timeout(NetGuard.query);
   }
 
   @override
-  Future<Uint8List> downloadDocument(VaultDocument doc) =>
-      _client.storage.from(_bucket).download(doc.objectPath);
+  Future<Uint8List> downloadDocument(VaultDocument doc) => _client.storage
+      .from(_bucket)
+      .download(doc.objectPath)
+      .timeout(NetGuard.storage);
 
   // ---- Audit + realtime ----------------------------------------------------
 
@@ -437,7 +465,8 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         .select()
         .eq('vault_id', vaultId)
         .order('created_at', ascending: false)
-        .limit(limit);
+        .limit(limit)
+        .timeout(NetGuard.query);
     return [for (final r in rows) VaultAuditEntry.fromRow(r)];
   }
 
@@ -447,11 +476,23 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     if (uid == null) return null;
     try {
       final channel = _client.channel('fv_all_$uid');
-      for (final table in const [
-        'vault_members',
-        'vault_invitations',
-        'family_vaults',
-      ]) {
+      // The vault-list + invite badge only change when MY membership rows
+      // change, so filter that stream server-side instead of waking this
+      // client for every member row in every vault (a membership-churn storm
+      // used to fan out to every connected device). Vault renames/deletes and
+      // invitations (matched by email/phone, not uid) stay unfiltered.
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'vault_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'auth_user_id',
+          value: uid,
+        ),
+        callback: (_) => onChange(),
+      );
+      for (final table in const ['vault_invitations', 'family_vaults']) {
         channel.onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',

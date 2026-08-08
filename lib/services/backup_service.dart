@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -69,12 +68,31 @@ class BackupService {
 
     await AppSettings.instance.markBackedUpNow();
     developer.log('backupNow: complete (${archive.sizeBytes}B)', name: 'backup');
+
+    // Retention: with auto-backup on, every burst of edits mints a new object,
+    // so an unpruned folder grows without bound. Keep the newest few; a failure
+    // here must never fail the backup that just succeeded.
+    try {
+      await _pruneOldBackups(keep: 10);
+    } catch (e) {
+      developer.log('backupNow: prune failed (non-fatal): $e', name: 'backup');
+    }
+
     return CloudBackup(
       name: name,
       path: path,
       sizeBytes: archive.sizeBytes,
       updatedAt: DateTime.now(),
     );
+  }
+
+  /// Deletes all but the [keep] newest backup objects.
+  Future<void> _pruneOldBackups({required int keep}) async {
+    final backups = await listBackups(); // already newest first
+    if (backups.length <= keep) return;
+    final stale = [for (final b in backups.skip(keep)) b.path];
+    await DocumentRepository.instance.removeObjects(stale);
+    developer.log('pruned ${stale.length} old backup(s)', name: 'backup');
   }
 
   /// Lists existing backups, newest first.
@@ -98,13 +116,12 @@ class BackupService {
   }
 
   /// Downloads a backup to a temp file so it can be shared / re-imported.
+  /// Streamed straight to disk - a large archive never sits whole in RAM.
   Future<File> download(CloudBackup backup) async {
     developer.log('download: ${backup.path}', name: 'backup');
-    final Uint8List bytes =
-        await DocumentRepository.instance.download(backup.path);
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/${backup.name}');
-    await file.writeAsBytes(bytes, flush: true);
+    await DocumentRepository.instance.downloadToFile(backup.path, file);
     return file;
   }
 }

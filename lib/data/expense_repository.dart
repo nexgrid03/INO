@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/expense_models.dart';
 
 /// Everything the Transaction Vault persists, loaded in one round trip pair.
@@ -55,16 +56,27 @@ class SupabaseExpenseRepository implements ExpenseRepository {
     if (uid == null) {
       return const ExpenseData(transactions: [], taxDocuments: []);
     }
-    final txnRows = await _client
-        .from(_txnTable)
-        .select()
-        .eq('auth_user_id', uid)
-        .order('expense_date', ascending: false);
-    final taxRows = await _client
-        .from(_taxTable)
-        .select()
-        .eq('auth_user_id', uid)
-        .order('added_at', ascending: false);
+    // Both lists in parallel (they are independent), capped and time-limited:
+    // half the wall-clock of the old sequential pair, and a vault with years
+    // of transactions can no longer produce an unbounded payload.
+    final results = await Future.wait([
+      _client
+          .from(_txnTable)
+          .select()
+          .eq('auth_user_id', uid)
+          .order('expense_date', ascending: false)
+          .limit(NetGuard.maxRowsLarge)
+          .timeout(NetGuard.query),
+      _client
+          .from(_taxTable)
+          .select()
+          .eq('auth_user_id', uid)
+          .order('added_at', ascending: false)
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query),
+    ]);
+    final txnRows = results[0];
+    final taxRows = results[1];
     final data = ExpenseData(
       transactions: [for (final r in txnRows) TransactionRecord.fromRow(r)],
       taxDocuments: [for (final r in taxRows) TaxDocument.fromRow(r)],
@@ -82,8 +94,12 @@ class SupabaseExpenseRepository implements ExpenseRepository {
     }
     // Stamp the owner explicitly - same belt-and-suspenders as reminders/notes.
     final payload = txn.toInsert()..['auth_user_id'] = uid;
-    final row =
-        await _client.from(_txnTable).insert(payload).select().single();
+    final row = await _client
+        .from(_txnTable)
+        .insert(payload)
+        .select()
+        .single()
+        .timeout(NetGuard.mutation);
     return TransactionRecord.fromRow(row);
   }
 
@@ -96,7 +112,8 @@ class SupabaseExpenseRepository implements ExpenseRepository {
         .from(_txnTable)
         .update(txn.toInsert())
         .eq('id', txn.id)
-        .eq('auth_user_id', uid);
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 
   @override
@@ -107,7 +124,8 @@ class SupabaseExpenseRepository implements ExpenseRepository {
         .from(_txnTable)
         .delete()
         .eq('id', id)
-        .eq('auth_user_id', uid);
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 
   @override
@@ -117,8 +135,12 @@ class SupabaseExpenseRepository implements ExpenseRepository {
       throw const AuthException('You must be signed in to save a document.');
     }
     final payload = doc.toInsert()..['auth_user_id'] = uid;
-    final row =
-        await _client.from(_taxTable).insert(payload).select().single();
+    final row = await _client
+        .from(_taxTable)
+        .insert(payload)
+        .select()
+        .single()
+        .timeout(NetGuard.mutation);
     return TaxDocument.fromRow(row);
   }
 
@@ -130,6 +152,7 @@ class SupabaseExpenseRepository implements ExpenseRepository {
         .from(_taxTable)
         .delete()
         .eq('id', id)
-        .eq('auth_user_id', uid);
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 }

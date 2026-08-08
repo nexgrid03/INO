@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
+
 /// Resolves a wallet label ("Property Wallet") to the Postgres table holding
 /// its records ("w_property_wallet").
 ///
@@ -43,7 +45,11 @@ class WalletTables {
     final cached = _slugs;
     if (cached != null) return cached;
     try {
-      final rows = await _client.from('wallets').select('slug');
+      final rows = await _client
+          .from('wallets')
+          .select('slug')
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query);
       final slugs = [for (final r in rows) r['slug'] as String];
       _slugs = slugs;
       return slugs;

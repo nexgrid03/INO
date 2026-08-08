@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/document.dart';
 import 'wallet_tables.dart';
 
@@ -80,8 +83,10 @@ class DocumentRepository {
     }
     final ext = localPath.contains('.') ? localPath.split('.').last : 'jpg';
     final objectPath = '$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final stored =
-        await _client.storage.from(_bucket).upload(objectPath, File(localPath));
+    final stored = await _client.storage
+        .from(_bucket)
+        .upload(objectPath, File(localPath))
+        .timeout(NetGuard.storage);
     // `upload` returns the full "<bucket>/<path>" key on success; the value we
     // persist and read back is the object path (without the bucket prefix).
     developer.log(
@@ -97,15 +102,61 @@ class DocumentRepository {
     developer.log('createSignedUrl bucket=$_bucket path=$objectPath', name: 'storage');
     final url = await _client.storage
         .from(_bucket)
-        .createSignedUrl(objectPath, expiresInSeconds);
+        .createSignedUrl(objectPath, expiresInSeconds)
+        .timeout(NetGuard.query);
     return url;
   }
 
   /// Downloads the raw bytes of a stored file (private bucket). Throws if the
   /// object no longer exists.
+  ///
+  /// Prefer [downloadToFile] when the destination is disk (backups, exports,
+  /// save-to-device): it streams in chunks instead of materialising the whole
+  /// file in RAM. This byte form remains for viewers, which need the bytes in
+  /// memory to render anyway.
   Future<Uint8List> download(String objectPath) {
     developer.log('download bucket=$_bucket path=$objectPath', name: 'storage');
-    return _client.storage.from(_bucket).download(objectPath);
+    return _client.storage
+        .from(_bucket)
+        .download(objectPath)
+        .timeout(NetGuard.storage);
+  }
+
+  /// Streams a stored file straight to [dest] without ever holding the full
+  /// contents in memory - chunked through a signed URL. Use for any path whose
+  /// end state is a file on disk; large PDFs no longer spike RAM this way.
+  Future<void> downloadToFile(String objectPath, File dest) async {
+    developer.log('downloadToFile bucket=$_bucket path=$objectPath',
+        name: 'storage');
+    final url = await signedUrl(objectPath, expiresInSeconds: 600);
+    final client = http.Client();
+    IOSink? sink;
+    try {
+      final res = await client
+          .send(http.Request('GET', Uri.parse(url)))
+          .timeout(NetGuard.query);
+      if (res.statusCode != 200) {
+        throw StorageException(
+            'Download failed (HTTP ${res.statusCode}) for $objectPath');
+      }
+      sink = dest.openWrite();
+      // The stream timeout fires on a stalled connection (no chunk arriving),
+      // not on total duration - a big file on a slow link still succeeds.
+      await sink.addStream(res.stream.timeout(NetGuard.query));
+      await sink.flush();
+    } catch (e) {
+      // Never leave a half-written file behind for callers to mistake for a
+      // complete download.
+      try {
+        await sink?.close();
+        sink = null;
+        if (await dest.exists()) await dest.delete();
+      } catch (_) {}
+      rethrow;
+    } finally {
+      await sink?.close();
+      client.close();
+    }
   }
 
   /// Renames a document (updates the `name` column).
@@ -137,7 +188,8 @@ class DocumentRepository {
         .select()
         .eq('id', id)
         .eq('auth_user_id', userId)
-        .single();
+        .single()
+        .timeout(NetGuard.query);
 
     await _client.from(_tableFor(toWallet)).insert({
       'id': row['id'],
@@ -154,13 +206,14 @@ class DocumentRepository {
       'created_at': row['created_at'],
       // A move is not a new save - carry the original row's consent forward.
       'consent': row['consent'] ?? false,
-    });
+    }).timeout(NetGuard.mutation);
 
     await _client
         .from(_tableFor(fromWallet))
         .delete()
         .eq('id', id)
-        .eq('auth_user_id', userId);
+        .eq('auth_user_id', userId)
+        .timeout(NetGuard.mutation);
     _bump();
   }
 
@@ -208,7 +261,8 @@ class DocumentRepository {
           'consent': true,
         })
         .select() // ask Supabase to return the inserted row
-        .single(); // expect exactly one row back
+        .single() // expect exactly one row back
+        .timeout(NetGuard.mutation);
     _bump();
     return Document.fromMap(row, wallet: wallet);
   }
@@ -233,11 +287,16 @@ class DocumentRepository {
 
     final future = () async {
       try {
+        // Capped: an unbounded select over a huge wallet is exactly what makes
+        // volume tests (and real power users) fall over. 500 newest is far
+        // beyond what the UI renders today.
         final rows = await _client
             .from(_tableFor(wallet))
             .select()
             .eq('auth_user_id', userId)
-            .order('created_at', ascending: false);
+            .order('created_at', ascending: false)
+            .limit(NetGuard.maxRows)
+            .timeout(NetGuard.query);
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
         _cachedWallet[wallet] = list;
         _cachedWalletTime[wallet] = DateTime.now();
@@ -273,12 +332,16 @@ class DocumentRepository {
 
     final future = () async {
       try {
+        // Same cap as listForWallet: the union view spans every wallet, so it
+        // is the single biggest payload in the app when a vault grows.
         final rows = await _client
             .from(WalletTables.documentsView)
             .select()
             .eq('auth_user_id', userId)
             .neq('wallet', shareCacheWallet)
-            .order('created_at', ascending: false);
+            .order('created_at', ascending: false)
+            .limit(NetGuard.maxRows)
+            .timeout(NetGuard.query);
         final list = [for (final r in rows) Document.fromMap(r)];
         _cachedAll = list;
         _cachedAllTime = DateTime.now();
@@ -331,7 +394,8 @@ class DocumentRepository {
         .from(_tableFor(wallet))
         .update(fields)
         .eq('id', id)
-        .eq('auth_user_id', userId);
+        .eq('auth_user_id', userId)
+        .timeout(NetGuard.mutation);
   }
 
   /// Deletes a document row by id (only if it belongs to the signed-in user).
@@ -344,7 +408,8 @@ class DocumentRepository {
         .from(_tableFor(wallet))
         .delete()
         .eq('id', id)
-        .eq('auth_user_id', userId);
+        .eq('auth_user_id', userId)
+        .timeout(NetGuard.mutation);
     _bump();
   }
 
@@ -357,7 +422,10 @@ class DocumentRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return const [];
     final path = subFolder == null ? userId : '$userId/$subFolder';
-    final objects = await _client.storage.from(_bucket).list(path: path);
+    final objects = await _client.storage
+        .from(_bucket)
+        .list(path: path)
+        .timeout(NetGuard.query);
     // Storage returns folder entries with a null id; keep only real files.
     return objects.where((o) => o.id != null).toList();
   }
@@ -365,7 +433,10 @@ class DocumentRepository {
   /// Removes Storage objects by their full object paths (`<uid>/<file>`).
   Future<void> removeObjects(List<String> objectPaths) async {
     if (objectPaths.isEmpty) return;
-    await _client.storage.from(_bucket).remove(objectPaths);
+    await _client.storage
+        .from(_bucket)
+        .remove(objectPaths)
+        .timeout(NetGuard.mutation);
     developer.log('removed ${objectPaths.length} object(s)', name: 'storage');
   }
 
@@ -382,7 +453,11 @@ class DocumentRepository {
     Object? firstError;
     for (final slug in slugs) {
       try {
-        await _client.from(slug).delete().eq('auth_user_id', userId);
+        await _client
+            .from(slug)
+            .delete()
+            .eq('auth_user_id', userId)
+            .timeout(NetGuard.mutation);
       } catch (e) {
         developer.log('deleteAllRowsForUser: $slug failed: $e', name: 'storage');
         firstError ??= e;
@@ -399,11 +474,14 @@ class DocumentRepository {
     Uint8List bytes, {
     String contentType = 'application/octet-stream',
   }) async {
-    await _client.storage.from(_bucket).uploadBinary(
+    await _client.storage
+        .from(_bucket)
+        .uploadBinary(
           objectPath,
           bytes,
           fileOptions: FileOptions(contentType: contentType, upsert: true),
-        );
+        )
+        .timeout(NetGuard.storage);
     developer.log('uploaded ${bytes.length}B to $objectPath', name: 'storage');
   }
 

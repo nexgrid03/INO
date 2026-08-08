@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/reminder_models.dart';
 
 /// Source of Reminders data - the `public.reminders` table in Supabase.
@@ -51,7 +52,9 @@ class SupabaseReminderRepository implements ReminderRepository {
           .from(_table)
           .select()
           .eq('auth_user_id', uid)
-          .order('due_date');
+          .order('due_date')
+          .limit(NetGuard.maxRowsLarge)
+          .timeout(NetGuard.query);
       all = [for (final r in rows) Reminder.fromMap(r)];
       debugPrint('Reminders loaded from Supabase: ${all.length}');
     } catch (e) {
@@ -92,7 +95,12 @@ class SupabaseReminderRepository implements ReminderRepository {
     // RLS enforces it, but setting it here guarantees ownership even if the
     // column default is ever missing - no reminder is created without an owner.
     final payload = reminder.toInsert()..['auth_user_id'] = uid;
-    final row = await _client.from(_table).insert(payload).select().single();
+    final row = await _client
+        .from(_table)
+        .insert(payload)
+        .select()
+        .single()
+        .timeout(NetGuard.mutation);
     return Reminder.fromMap(row);
   }
 
@@ -102,10 +110,15 @@ class SupabaseReminderRepository implements ReminderRepository {
     if (uid == null) return;
     // Ownership check in the filter (belt-and-suspenders with the UPDATE RLS
     // policy): a user can only flip the status of their OWN reminder.
-    await _client.from(_table).update({
-      'completed': completed,
-      'completed_at': completed ? DateTime.now().toIso8601String() : null,
-    }).eq('id', id).eq('auth_user_id', uid);
+    await _client
+        .from(_table)
+        .update({
+          'completed': completed,
+          'completed_at': completed ? DateTime.now().toIso8601String() : null,
+        })
+        .eq('id', id)
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 
   @override
@@ -113,7 +126,12 @@ class SupabaseReminderRepository implements ReminderRepository {
     final uid = _uid;
     if (uid == null) return;
     // Ownership check in the filter: a user can only delete their OWN reminder.
-    await _client.from(_table).delete().eq('id', id).eq('auth_user_id', uid);
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', id)
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 
   ReminderData _emptyData(DateTime today) => ReminderData(
