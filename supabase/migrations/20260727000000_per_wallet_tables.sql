@@ -116,24 +116,42 @@ security definer
 set search_path = public
 as $fn$
 begin
+  -- 1) Create table skeleton if it does not exist
   execute format($ddl$
     create table if not exists public.%1$I (
-      id            uuid primary key default gen_random_uuid(),
-      auth_user_id  uuid not null default auth.uid()
-                    references auth.users (id) on delete cascade,
-      name          text not null,
-      category      text,
-      record_number text,
-      status        text not null default 'active',
-      tags          text[] not null default '{}',
-      notes         text,
-      is_favorite   boolean not null default false,
-      expires_at    date,
-      file_path     text,
-      created_at    timestamptz not null default now(),
-      updated_at    timestamptz not null default now()
-    )$ddl$, p_table);
+      id uuid primary key default gen_random_uuid()
+    )
+  $ddl$, p_table);
 
+  -- 2) Guarantee all 13 core columns exist (self-healing for pre-existing or partially created tables)
+  execute format($ddl$
+    alter table public.%1$I
+      add column if not exists auth_user_id  uuid default auth.uid()
+                                            references auth.users (id) on delete cascade,
+      add column if not exists name          text,
+      add column if not exists category      text,
+      add column if not exists record_number text,
+      add column if not exists status        text default 'active',
+      add column if not exists tags          text[] default '{}',
+      add column if not exists notes         text,
+      add column if not exists is_favorite   boolean default false,
+      add column if not exists expires_at    date,
+      add column if not exists file_path     text,
+      add column if not exists created_at    timestamptz default now(),
+      add column if not exists updated_at    timestamptz default now();
+  $ddl$, p_table);
+
+  -- Ensure column defaults and types align cleanly
+  execute format($ddl$
+    alter table public.%1$I
+      alter column status set default 'active',
+      alter column tags set default '{}',
+      alter column is_favorite set default false,
+      alter column created_at set default now(),
+      alter column updated_at set default now();
+  $ddl$, p_table);
+
+  -- 3) Create indexes on guaranteed core columns
   execute format(
     'create index if not exists %1$I on public.%2$I (auth_user_id, created_at desc)',
     p_table || '_owner_created_idx', p_table);
@@ -141,6 +159,7 @@ begin
     'create index if not exists %1$I on public.%2$I (auth_user_id, expires_at) where expires_at is not null',
     p_table || '_owner_expiry_idx', p_table);
 
+  -- 4) Enable RLS & recreate owner policies idempotently
   execute format('alter table public.%1$I enable row level security', p_table);
 
   execute format('drop policy if exists %1$I on public.%2$I', p_table || ': owner reads own',   p_table);
@@ -161,12 +180,14 @@ begin
     'create policy %1$I on public.%2$I for delete using (auth_user_id = auth.uid())',
     p_table || ': owner deletes own', p_table);
 
+  -- 5) Trigger for set_updated_at
   execute format('drop trigger if exists set_updated_at on public.%1$I', p_table);
   execute format(
     'create trigger set_updated_at before update on public.%1$I
        for each row execute function public.tg_set_updated_at()',
     p_table);
 
+  -- 6) Permissions
   execute format(
     'grant select, insert, update, delete on public.%1$I to authenticated',
     p_table);
@@ -523,8 +544,14 @@ security definer
 set search_path = public
 as $fn$
 declare
+  v_rec record;
   v_sql text;
 begin
+  -- Ensure all registered tables have all 13 core columns present before building union view
+  for v_rec in select slug from public.wallets loop
+    perform public.ino_create_wallet_table(v_rec.slug);
+  end loop;
+
   select string_agg(
            format(
              'select id, auth_user_id, %1$L::text as wallet, name, category, '
