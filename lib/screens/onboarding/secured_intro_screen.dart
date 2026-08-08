@@ -291,13 +291,18 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                             shaderCallback: (b) =>
                                 AppColors.brandGradient.createShader(b),
                             blendMode: BlendMode.srcIn,
-                            child: Text(
-                              'Digital Wallet',
-                              textAlign: TextAlign.center,
-                              style: AppText.display.copyWith(
-                                color: Colors.white,
-                                fontSize: OnboardingLayout.titleSize,
-                                height: OnboardingLayout.titleHeight,
+                            child: Padding(
+                              // ShaderMask clips to text bounds — pad for
+                              // descenders ("g" in Digital).
+                              padding: const EdgeInsets.only(bottom: 6, top: 2),
+                              child: Text(
+                                'Digital Wallet',
+                                textAlign: TextAlign.center,
+                                style: AppText.display.copyWith(
+                                  color: Colors.white,
+                                  fontSize: OnboardingLayout.titleSize,
+                                  height: 1.3,
+                                ),
                               ),
                             ),
                           ),

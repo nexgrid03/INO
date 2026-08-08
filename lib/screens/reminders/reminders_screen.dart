@@ -129,6 +129,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                                 Expanded(
                                   child: RemindersHeader(
                                     fullName: widget.profile.fullName,
+                                    email: widget.profile.email,
                                     notificationCount: _store.isLoaded
                                         ? _store.summary.dueToday
                                         : 0,

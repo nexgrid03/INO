@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/avatar_color.dart';
 import '../../theme/theme_style.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
@@ -15,10 +16,12 @@ class RemindersHeader extends StatelessWidget {
     required this.fullName,
     required this.onSearch,
     required this.onNotifications,
+    this.email,
     this.notificationCount = 0,
   });
 
   final String fullName;
+  final String? email;
   final VoidCallback onSearch;
   final VoidCallback onNotifications;
   final int notificationCount;
@@ -30,10 +33,19 @@ class RemindersHeader extends StatelessWidget {
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
+  String get _colorSeed {
+    final mail = email?.trim() ?? '';
+    if (mail.isNotEmpty) return mail;
+    final name = fullName.trim();
+    return name.isEmpty ? 'ino' : name;
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final style = InoStyle.of(context);
+    final accentGrad = AvatarColor.gradientForStyle(style, _colorSeed);
     return Row(
       children: [
         Container(
@@ -41,7 +53,7 @@ class RemindersHeader extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: InoStyle.gradient(context, AppColors.brandGradient),
+            gradient: accentGrad,
             border: Border.all(
               color: Colors.white.withValues(
                 alpha: palette.isDark ? 0.22 : 0.92,
@@ -81,6 +93,7 @@ class RemindersHeader extends StatelessWidget {
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
+                    height: 1.2,
                     color: palette.textPrimary,
                   ),
                 ),

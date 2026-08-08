@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../core/responsive/responsive.dart';
@@ -12,8 +10,8 @@ import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/tool_card.dart';
 import 'finance_tools.dart';
 
-/// The Property & Finance Tools hub - a premium 2-column grid of every
-/// calculator/utility, driven entirely by the [financeTools] registry.
+/// The Property & Finance Tools hub - one full-width row per tool on phones,
+/// two columns on tablet+, driven entirely by the [financeTools] registry.
 class PropertyFinanceToolsScreen extends StatelessWidget {
   const PropertyFinanceToolsScreen({super.key});
 
@@ -47,7 +45,6 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final use3d = InoStyle.usesHome3dIcons(context);
-    final launcher = InoStyle.usesDivineGlassStyle(InoStyle.of(context));
     return CalculatorScaffold(
       title: l10n.t('propertyFinanceTools'),
       subtitle: l10n.t('financeToolsSubtitle'),
@@ -55,31 +52,14 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            // Keep tiles compact: pick as many columns as fit a small target
-            // width so boxes don't stretch with the screen.
-            const gap = AppSpacing.xs;
-            const targetTileW = 100.0;
-            const maxTileH = 96.0;
-            final cols = math
-                .max(3, ((width + gap) / (targetTileW + gap)).floor())
-                .clamp(3, 6);
-            final cardWidth = math.min(
-              targetTileW,
-              ResponsiveGridTile.tileWidth(
-                availableWidth: width,
-                columns: cols,
-                gap: gap,
-              ),
+            const gap = AppSpacing.sm;
+            final cols = ScreenBreakpoints.getFinanceHubColumns(width);
+            final cardWidth = ResponsiveGridTile.tileWidth(
+              availableWidth: width,
+              columns: cols,
+              gap: gap,
             );
-            final narrow = cardWidth < 100;
-            final minH = ScreenBreakpoints.getFinanceToolCardMinHeight(
-              narrow: narrow,
-              launcher: launcher,
-            );
-            final cardHeight = math.min(
-              maxTileH,
-              math.max(minH, cardWidth / 1.05),
-            );
+            final rowHeight = ScreenBreakpoints.getFinanceHubRowHeight(width);
 
             return Wrap(
               spacing: gap,
@@ -88,8 +68,8 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
                 for (var i = 0; i < financeTools.length; i++)
                   ResponsiveGridTile(
                     width: cardWidth,
-                    minHeight: minH,
-                    height: cardHeight,
+                    minHeight: rowHeight,
+                    height: rowHeight,
                     child: FadeSlideIn(
                       delay: Duration(milliseconds: (i * 60).clamp(0, 300)),
                       child: ToolGridCard(

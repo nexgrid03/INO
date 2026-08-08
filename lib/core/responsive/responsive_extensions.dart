@@ -35,6 +35,14 @@ extension ResponsiveContextX on BuildContext {
   /// Column count for Property & Finance Tools grid.
   int get toolsColumns => ScreenBreakpoints.getToolsColumns(screenWidth);
 
+  /// Column count for the full Property & Finance Tools hub screen.
+  int get financeHubColumns =>
+      ScreenBreakpoints.getFinanceHubColumns(screenWidth);
+
+  /// Row height for finance hub list tiles (1-per-row on phones).
+  double get financeHubRowHeight =>
+      ScreenBreakpoints.getFinanceHubRowHeight(screenWidth);
+
   /// Child aspect ratio for Property & Finance Tools grid.
   double get toolsAspectRatio => ScreenBreakpoints.getToolsAspectRatio(screenWidth);
 

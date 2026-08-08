@@ -9,11 +9,12 @@ import '../common/shiny_border.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
-/// A premium gradient grid card for the Property & Finance Tools hub - a large
-/// icon badge, title and short description, with a ripple + press animation.
+/// A premium tool card for the Property & Finance Tools hub.
+///
+/// Wide (list) cards use a horizontal row: icon + title/subtitle.
+/// Compact grid tiles keep the stacked icon-above-label layout.
 ///
 /// Prefer [imageAsset] / [svgAsset] (same Home finance glyphs) when set.
-/// Layout scales from the card's own width — text never overflows the card.
 class ToolGridCard extends StatelessWidget {
   const ToolGridCard({
     super.key,
@@ -46,7 +47,8 @@ class ToolGridCard extends StatelessWidget {
         final cardW = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
-        final narrow = cardW < 120;
+        // Full-width phone rows and tablet half-width tiles read as list rows.
+        final listLayout = cardW >= 160;
 
         final gradient = bold
             ? LinearGradient(
@@ -60,10 +62,13 @@ class ToolGridCard extends StatelessWidget {
             : palette.cardGradient;
         final edge = bold ? InoStyle.boldBorder(color) : palette.border;
 
-        // Icons stay readable; the hub screen caps the *box* size separately.
-        final badgeSize = narrow ? 36.0 : (launcher ? 42.0 : 40.0);
-        final glyphSize = narrow ? 20.0 : (launcher ? 24.0 : 22.0);
-        final pad = AppSpacing.xs;
+        final badgeSize = listLayout
+            ? (launcher ? 44.0 : 42.0)
+            : (cardW < 120 ? 36.0 : (launcher ? 42.0 : 40.0));
+        final glyphSize = listLayout
+            ? (launcher ? 24.0 : 22.0)
+            : (cardW < 120 ? 20.0 : (launcher ? 24.0 : 22.0));
+        final pad = listLayout ? AppSpacing.sm : AppSpacing.xs;
 
         Widget glyph({required double size, required Color tint}) {
           if (imageAsset != null) {
@@ -96,7 +101,7 @@ class ToolGridCard extends StatelessWidget {
                     height: badgeSize,
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(narrow ? 10 : 12),
+                      borderRadius: BorderRadius.circular(listLayout ? 14 : 12),
                     ),
                     child: Center(
                       child: glyph(size: glyphSize, tint: color),
@@ -123,68 +128,112 @@ class ToolGridCard extends StatelessWidget {
                         style: ShinyIconStyle.glass,
                       );
 
-        final inner = Padding(
-          padding: EdgeInsets.all(pad),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(child: badge),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      flex: 3,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          softWrap: false,
-                          textAlign: TextAlign.center,
-                          style: AppText.subtitle.copyWith(
-                            color: bold ? Colors.white : palette.textPrimary,
-                            fontSize: narrow ? 10.5 : 11.5,
-                            fontWeight: launcher
-                                ? FontWeight.w800
-                                : FontWeight.w700,
-                            height: 1.0,
-                          ),
-                        ),
+        final titleStyle = AppText.subtitle.copyWith(
+          color: bold ? Colors.white : palette.textPrimary,
+          fontSize: listLayout ? 15 : (cardW < 120 ? 10.5 : 11.5),
+          fontWeight: launcher ? FontWeight.w800 : FontWeight.w700,
+          height: 1.15,
+        );
+        final subtitleStyle = AppText.caption.copyWith(
+          color: bold ? InoStyle.boldTextSecondary : palette.textSecondary,
+          fontSize: listLayout ? 12.5 : (cardW < 120 ? 9 : 9.5),
+          height: 1.2,
+        );
+
+        final Widget inner;
+        if (listLayout) {
+          inner = Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: pad,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                badge,
+                SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
                       ),
-                    ),
-                    if (subtitle.trim().isNotEmpty) ...[
-                      const SizedBox(height: 1),
+                      if (subtitle.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: subtitleStyle,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: bold
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : palette.textSecondary.withValues(alpha: 0.7),
+                ),
+              ],
+            ),
+          );
+        } else {
+          inner = Padding(
+            padding: EdgeInsets.all(pad),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: badge),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       Flexible(
-                        flex: 2,
+                        flex: 3,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            subtitle,
+                            title,
                             maxLines: 1,
                             softWrap: false,
                             textAlign: TextAlign.center,
-                            style: AppText.caption.copyWith(
-                              color: bold
-                                  ? InoStyle.boldTextSecondary
-                                  : palette.textSecondary,
-                              fontSize: narrow ? 9 : 9.5,
-                              height: 1.0,
-                            ),
+                            style: titleStyle.copyWith(height: 1.0),
                           ),
                         ),
                       ),
+                      if (subtitle.trim().isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Flexible(
+                          flex: 2,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              softWrap: false,
+                              textAlign: TextAlign.center,
+                              style: subtitleStyle.copyWith(height: 1.0),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
+              ],
+            ),
+          );
+        }
 
-        // Tighter radius so compact tiles don't feel oversized.
-        final radius = BorderRadius.circular(16);
+        final radius = BorderRadius.circular(listLayout ? 18 : 16);
         final surface = launcher
             ? LiquidGlass(
                 borderRadius: radius,

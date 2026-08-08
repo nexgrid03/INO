@@ -53,18 +53,30 @@ class ScreenBreakpoints {
     }
   }
 
-  /// Calculates Property & Finance Tools grid column count.
-  /// Small: 2 per row, Normal/Large: 3 per row, Tablet: 6 per row.
+  /// Calculates Property & Finance Tools grid column count (Home preview).
+  /// Phones: 3 per row, Tablet: 6 per row.
   static int getToolsColumns(double width) {
+    return width >= tabletMin ? 6 : 3;
+  }
+
+  /// Full Property & Finance Tools hub: one list row on phones so tiles stay
+  /// tappable and readable; two columns on tablet+.
+  static int getFinanceHubColumns(double width) {
+    return width >= tabletMin ? 2 : 1;
+  }
+
+  /// List-row height for the finance tools hub (icon + title + subtitle).
+  static double getFinanceHubRowHeight(double width) {
     final type = getDeviceType(width);
     switch (type) {
       case InoDeviceType.mobileSmall:
-        return 2;
+        return 72.0;
       case InoDeviceType.mobileNormal:
+        return 76.0;
       case InoDeviceType.mobileLarge:
-        return 3;
+        return 80.0;
       case InoDeviceType.tablet:
-        return 6;
+        return 84.0;
     }
   }
 

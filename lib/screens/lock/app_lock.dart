@@ -187,13 +187,21 @@ class _LockScreen extends StatelessWidget {
                                     delay: const Duration(milliseconds: 60),
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        'Digital Wallet',
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        style: AppText.display.copyWith(
-                                          color: _palette.textPrimary,
-                                          fontSize: titleSize,
+                                      child: Padding(
+                                        // Leave room for descenders ("g" in Digital).
+                                        padding: const EdgeInsets.only(
+                                          bottom: 4,
+                                          top: 2,
+                                        ),
+                                        child: Text(
+                                          'Digital Wallet',
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          style: AppText.display.copyWith(
+                                            color: _palette.textPrimary,
+                                            fontSize: titleSize,
+                                            height: 1.25,
+                                          ),
                                         ),
                                       ),
                                     ),

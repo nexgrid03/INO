@@ -61,7 +61,8 @@ class LauncherFinanceTools extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final perRow = context.toolsColumns.clamp(2, 3);
+        // Always 3-across on phones (2×3 grid of 6 tools).
+        final perRow = context.isTablet ? context.toolsColumns.clamp(3, 6) : 3;
         final tileW = ((width - _gap * (perRow - 1)) / perRow)
             .clamp(0.0, width)
             .toDouble();
