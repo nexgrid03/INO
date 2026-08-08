@@ -68,18 +68,34 @@ select public.ino_rebuild_documents_view();
 -- ----------------------------------------------------------------------------
 do $$
 begin
+  -- Rename name -> nickname safely (only if name exists AND nickname does NOT exist)
   if exists (select 1 from information_schema.columns
               where table_schema = 'public'
                 and table_name   = 'w_password_vault'
                 and column_name  = 'name') then
-    alter table public.w_password_vault rename column name to nickname;
+    if not exists (select 1 from information_schema.columns
+                    where table_schema = 'public'
+                      and table_name   = 'w_password_vault'
+                      and column_name  = 'nickname') then
+      alter table public.w_password_vault rename column name to nickname;
+    else
+      alter table public.w_password_vault drop column if exists name;
+    end if;
   end if;
 
+  -- Rename secret -> password safely (only if secret exists AND password does NOT exist)
   if exists (select 1 from information_schema.columns
               where table_schema = 'public'
                 and table_name   = 'w_password_vault'
                 and column_name  = 'secret') then
-    alter table public.w_password_vault rename column secret to password;
+    if not exists (select 1 from information_schema.columns
+                    where table_schema = 'public'
+                      and table_name   = 'w_password_vault'
+                      and column_name  = 'password') then
+      alter table public.w_password_vault rename column secret to password;
+    else
+      alter table public.w_password_vault drop column if exists secret;
+    end if;
   end if;
 end $$;
 
