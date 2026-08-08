@@ -37,7 +37,7 @@ class WalletHubData {
 /// [SupabaseWalletRepository] fills the wallet counts and recents from the
 /// signed-in user's real documents.
 abstract class WalletRepository {
-  Future<WalletHubData> load();
+  Future<WalletHubData> load({List<Document>? documents});
 
   static WalletRepository instance = SupabaseWalletRepository();
 }
@@ -141,12 +141,16 @@ class SupabaseWalletRepository implements WalletRepository {
   }
 
   @override
-  Future<WalletHubData> load() async {
+  Future<WalletHubData> load({List<Document>? documents}) async {
     List<Document> docs;
-    try {
-      docs = await DocumentRepository.instance.listAll();
-    } catch (_) {
-      docs = const []; // offline / not signed in → everything reads as empty
+    if (documents != null) {
+      docs = documents;
+    } else {
+      try {
+        docs = await DocumentRepository.instance.listAll();
+      } catch (_) {
+        docs = const []; // offline / not signed in → everything reads as empty
+      }
     }
 
     // Count documents per wallet.

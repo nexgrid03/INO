@@ -45,7 +45,28 @@ class DocumentRepository {
   /// without polling.
   static final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
-  static void _bump() => revision.value++;
+  static void _bump() {
+    instance.clearCache();
+    revision.value++;
+  }
+
+  // --- In-memory cache & request deduplication ------------------------------
+  static const Duration _cacheTtl = Duration(seconds: 30);
+  List<Document>? _cachedAll;
+  DateTime? _cachedAllTime;
+  Future<List<Document>>? _inFlightAll;
+
+  final Map<String, List<Document>> _cachedWallet = {};
+  final Map<String, DateTime> _cachedWalletTime = {};
+  final Map<String, Future<List<Document>>> _inFlightWallet = {};
+
+  /// Clears the document cache (automatically called when documents are modified).
+  void clearCache() {
+    _cachedAll = null;
+    _cachedAllTime = null;
+    _cachedWallet.clear();
+    _cachedWalletTime.clear();
+  }
 
   /// Uploads a local image/PDF to the `documents` Storage bucket and returns
   /// its object path (which you save in the row's `file_path`).
@@ -194,31 +215,81 @@ class DocumentRepository {
 
   /// All documents in one wallet, newest first. Reads the wallet's own table
   /// rather than the union view, so it never scans the other wallets.
-  Future<List<Document>> listForWallet(String wallet) async {
+  Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) async {
     final userId = _uid;
     if (userId == null) return const [];
-    final rows = await _client
-        .from(_tableFor(wallet))
-        .select()
-        .eq('auth_user_id', userId) // defense-in-depth with RLS
-        .order('created_at', ascending: false);
-    return [for (final r in rows) Document.fromMap(r, wallet: wallet)];
+
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _cachedWallet.containsKey(wallet) &&
+        _cachedWalletTime.containsKey(wallet) &&
+        now.difference(_cachedWalletTime[wallet]!) < _cacheTtl) {
+      return _cachedWallet[wallet]!;
+    }
+
+    if (_inFlightWallet.containsKey(wallet)) {
+      return _inFlightWallet[wallet]!;
+    }
+
+    final future = () async {
+      try {
+        final rows = await _client
+            .from(_tableFor(wallet))
+            .select()
+            .eq('auth_user_id', userId)
+            .order('created_at', ascending: false);
+        final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
+        _cachedWallet[wallet] = list;
+        _cachedWalletTime[wallet] = DateTime.now();
+        return list;
+      } finally {
+        _inFlightWallet.remove(wallet);
+      }
+    }();
+
+    _inFlightWallet[wallet] = future;
+    return future;
   }
 
   /// Every document belonging to the signed-in user, newest first, across every
   /// wallet - so this reads the `documents` union view. Excludes the hidden
   /// [shareCacheWallet] copies so processed share images never surface in
   /// search / dashboards / exports.
-  Future<List<Document>> listAll() async {
+  Future<List<Document>> listAll({bool forceRefresh = false}) async {
     final userId = _uid;
     if (userId == null) return const [];
-    final rows = await _client
-        .from(WalletTables.documentsView)
-        .select()
-        .eq('auth_user_id', userId) // defense-in-depth with RLS
-        .neq('wallet', shareCacheWallet)
-        .order('created_at', ascending: false);
-    return [for (final r in rows) Document.fromMap(r)];
+
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _cachedAll != null &&
+        _cachedAllTime != null &&
+        now.difference(_cachedAllTime!) < _cacheTtl) {
+      return _cachedAll!;
+    }
+
+    if (_inFlightAll != null) {
+      return _inFlightAll!;
+    }
+
+    final future = () async {
+      try {
+        final rows = await _client
+            .from(WalletTables.documentsView)
+            .select()
+            .eq('auth_user_id', userId)
+            .neq('wallet', shareCacheWallet)
+            .order('created_at', ascending: false);
+        final list = [for (final r in rows) Document.fromMap(r)];
+        _cachedAll = list;
+        _cachedAllTime = DateTime.now();
+        return list;
+      } finally {
+        _inFlightAll = null;
+      }
+    }();
+
+    _inFlightAll = future;
+    return future;
   }
 
   /// The processed share copies (hidden [shareCacheWallet] rows), newest first.

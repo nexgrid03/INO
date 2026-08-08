@@ -268,7 +268,7 @@ class CalcField extends StatelessWidget {
 /// The headline result of a calculator - a gradient card with a big value and
 /// a copy action.
 class HeroResultCard extends StatelessWidget {
-   HeroResultCard({
+  const HeroResultCard({
     super.key,
     required this.label,
     required this.value,

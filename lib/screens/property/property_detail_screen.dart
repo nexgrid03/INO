@@ -101,6 +101,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       try {
         await launchUrl(uri, mode: LaunchMode.platformDefault);
       } catch (_) {
+        if (!mounted) return;
         showModuleToast(context, 'Could not open maps link.', error: true);
       }
     }

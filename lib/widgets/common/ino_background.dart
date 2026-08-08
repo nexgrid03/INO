@@ -265,7 +265,7 @@ class _AuroraPainter extends CustomPainter {
 /// A standalone soft gradient circle for ad-hoc decoration inside cards,
 /// headers and empty states. Position it with [Positioned] inside a [Stack].
 class DecorBlob extends StatelessWidget {
-   DecorBlob({
+  const DecorBlob({
     super.key,
     required this.size,
     this.color = AppColors.skyBrandSky,

@@ -150,27 +150,23 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     // Reading each table directly is robust to that. RLS already scopes both
     // reads to vaults the user belongs to; the explicit eq is defense-in-depth.
 
-    // 1) My memberships → vault_id + my role.
-    debugPrint('[FamilyVault] loading memberships for uid=$uid');
-    final memberRows = await _client
-        .from(_members)
-        .select('vault_id, role')
-        .eq('auth_user_id', uid);
-    debugPrint('[FamilyVault] membership rows: ${memberRows.length}');
-    if (memberRows.isEmpty) return const []; // EMPTY RESPONSE → empty state
+    debugPrint('[FamilyVault] loading myVaults for uid=$uid');
+    final results = await Future.wait([
+      _client.from(_members).select('vault_id, role').eq('auth_user_id', uid),
+      _client.from(_vaults).select().order('created_at', ascending: false),
+    ]);
+
+    final memberRows = results[0] as List<dynamic>;
+    final vaultRows = results[1] as List<dynamic>;
+
+    debugPrint('[FamilyVault] membership rows: ${memberRows.length}, vault rows: ${vaultRows.length}');
+    if (memberRows.isEmpty || vaultRows.isEmpty) return const [];
 
     final roleByVault = <String, VaultRole>{};
     for (final r in memberRows) {
       final vid = r['vault_id']?.toString();
       if (vid != null) roleByVault[vid] = VaultRoleX.fromName(r['role'] as String?);
     }
-
-    // 2) The vaults themselves (RLS returns only those I'm a member of).
-    final vaultRows = await _client
-        .from(_vaults)
-        .select()
-        .order('created_at', ascending: false);
-    debugPrint('[FamilyVault] vault rows: ${vaultRows.length}');
 
     final out = <VaultSummary>[];
     for (final row in vaultRows) {

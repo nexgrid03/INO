@@ -315,7 +315,7 @@ class StatTile extends StatelessWidget {
 /// The premium empty state every module shows before its first record: a
 /// gradient glyph, a headline, a line of guidance and a primary CTA.
 class ModuleEmptyState extends StatelessWidget {
-   ModuleEmptyState({
+  const ModuleEmptyState({
     super.key,
     required this.icon,
     required this.title,
