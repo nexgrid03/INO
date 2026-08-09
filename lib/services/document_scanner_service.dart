@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
 /// Wraps Google ML Kit's on-device document scanner - the engine that performs
@@ -15,7 +18,7 @@ class DocumentScannerService {
 
   /// True where the native document scanner is available (Android only).
   /// Never touches `dart:io` Platform on web.
-  bool get isSupported => false;
+  bool get isSupported => !kIsWeb && Platform.isAndroid;
 
   /// Launches the scanner for a MULTI-PAGE session (up to [pageLimit] pages -
   /// the user taps "add page" inside the scanner UI) and returns the scanned
