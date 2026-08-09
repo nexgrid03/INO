@@ -41,8 +41,6 @@ class ToolGridCard extends StatelessWidget {
       builder: (context, constraints) {
         final palette = AppPalette.of(context);
         final themeStyle = InoStyle.of(context);
-        final bold = themeStyle == ThemeStyle.bold;
-        final soft = themeStyle == ThemeStyle.soft;
         final launcher = InoStyle.usesDivineGlassStyle(themeStyle);
         final cardW = constraints.maxWidth.isFinite
             ? constraints.maxWidth
@@ -50,17 +48,8 @@ class ToolGridCard extends StatelessWidget {
         // Full-width phone rows and tablet half-width tiles read as list rows.
         final listLayout = cardW >= 160;
 
-        final gradient = bold
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  InoStyle.boldFill(color),
-                  InoStyle.deepen(color, 0.18),
-                ],
-              )
-            : palette.cardGradient;
-        final edge = bold ? InoStyle.boldBorder(color) : palette.border;
+        final gradient = palette.cardGradient;
+        final edge = palette.border;
 
         final badgeSize = listLayout
             ? (launcher ? 44.0 : 42.0)
@@ -87,55 +76,47 @@ class ToolGridCard extends StatelessWidget {
           return Icon(icon, color: tint, size: size);
         }
 
-        final badge = bold
-            ? SizedBox(
+        final badge = launcher
+            ? Container(
                 width: badgeSize,
                 height: badgeSize,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(listLayout ? 14 : 12),
+                ),
                 child: Center(
-                  child: glyph(size: glyphSize + 8, tint: Colors.white),
+                  child: glyph(size: glyphSize, tint: color),
                 ),
               )
-            : launcher
+            : imageAsset != null || svgAsset != null
                 ? Container(
                     width: badgeSize,
                     height: badgeSize,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(listLayout ? 14 : 12),
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: glyph(size: glyphSize, tint: color),
                     ),
                   )
-                : imageAsset != null || svgAsset != null
-                    ? Container(
-                        width: badgeSize,
-                        height: badgeSize,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: glyph(size: glyphSize, tint: color),
-                        ),
-                      )
-                    : ShinyIcon(
-                        icon: icon,
-                        color: color,
-                        size: badgeSize,
-                        iconSize: glyphSize,
-                        radius: AppRadius.chip,
-                        style: ShinyIconStyle.glass,
-                      );
+                : ShinyIcon(
+                    icon: icon,
+                    color: color,
+                    size: badgeSize,
+                    iconSize: glyphSize,
+                    radius: AppRadius.chip,
+                    style: ShinyIconStyle.glass,
+                  );
 
         final titleStyle = AppText.subtitle.copyWith(
-          color: bold ? Colors.white : palette.textPrimary,
+          color: palette.textPrimary,
           fontSize: listLayout ? 15 : (cardW < 120 ? 10.5 : 11.5),
           fontWeight: launcher ? FontWeight.w800 : FontWeight.w700,
           height: 1.15,
         );
         final subtitleStyle = AppText.caption.copyWith(
-          color: bold ? InoStyle.boldTextSecondary : palette.textSecondary,
+          color: palette.textSecondary,
           fontSize: listLayout ? 12.5 : (cardW < 120 ? 9 : 9.5),
           height: 1.2,
         );
@@ -177,9 +158,7 @@ class ToolGridCard extends StatelessWidget {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 22,
-                  color: bold
-                      ? Colors.white.withValues(alpha: 0.7)
-                      : palette.textSecondary.withValues(alpha: 0.7),
+                  color: palette.textSecondary.withValues(alpha: 0.7),
                 ),
               ],
             ),
@@ -253,12 +232,12 @@ class ToolGridCard extends StatelessWidget {
             : ShinyBorder(
                 radius: AppRadius.card,
                 width: 1,
-                enabled: soft,
+                enabled: false,
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: gradient,
                     borderRadius: radius,
-                    border: Border.all(color: edge, width: bold ? 2.5 : 1),
+                    border: Border.all(color: edge, width: 1),
                     boxShadow: palette.cardShadow,
                   ),
                   clipBehavior: Clip.antiAlias,

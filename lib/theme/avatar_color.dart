@@ -53,8 +53,6 @@ class AvatarColor {
       case ThemeStyle.clay:
         return aquaProfile;
       case ThemeStyle.classic:
-      case ThemeStyle.bold:
-      case ThemeStyle.soft:
         return forKey(seed);
     }
   }

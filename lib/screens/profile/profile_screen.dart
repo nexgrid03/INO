@@ -251,10 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     switch (style) {
       case ThemeStyle.classic:
         return l10n.t('themeClassic');
-      case ThemeStyle.bold:
-        return l10n.t('themeBold');
-      case ThemeStyle.soft:
-        return l10n.t('themeSoft');
+
       case ThemeStyle.launcher:
         return l10n.t('themeLauncher');
       case ThemeStyle.aqua:
@@ -272,10 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     switch (style) {
       case ThemeStyle.classic:
         return l10n.t('themeClassicDesc');
-      case ThemeStyle.bold:
-        return l10n.t('themeBoldDesc');
-      case ThemeStyle.soft:
-        return l10n.t('themeSoftDesc');
+
       case ThemeStyle.launcher:
         return l10n.t('themeLauncherDesc');
       case ThemeStyle.aqua:
@@ -1272,14 +1266,7 @@ class _ThemeSwatch extends StatelessWidget {
           ),
           child: const Icon(Icons.star_rounded, color: Colors.white, size: 12),
         );
-      case ThemeStyle.bold:
-        fill = InoStyle.deepen(accent, 0.10);
-        edge = InoStyle.deepen(accent, 0.24);
-        glyph = const Icon(Icons.star_rounded, color: Colors.white, size: 16);
-      case ThemeStyle.soft:
-        fill = AppColors.tealFoam;
-        edge = accent; // classic edge; soft only adds the glass sheen
-        glyph = Icon(Icons.star_rounded, color: accent, size: 16);
+
       case ThemeStyle.launcher:
         fill = Colors.white;
         edge = accent;

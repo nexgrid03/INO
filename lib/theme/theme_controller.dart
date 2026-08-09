@@ -84,10 +84,6 @@ class ThemeController {
 
   static ThemeStyle _decodeStyle(String? name) {
     switch (name) {
-      case 'bold':
-        return ThemeStyle.bold;
-      case 'soft':
-        return ThemeStyle.soft;
       case 'launcher':
         return ThemeStyle.launcher;
       case 'classic':

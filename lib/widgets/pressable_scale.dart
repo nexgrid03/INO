@@ -30,7 +30,9 @@ class _PressableScaleState extends State<PressableScale> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
+    if (_pressed != value && mounted) {
+      setState(() => _pressed = value);
+    }
   }
 
   @override

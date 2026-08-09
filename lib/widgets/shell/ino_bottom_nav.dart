@@ -583,7 +583,7 @@ class _ScanButtonState extends State<_ScanButton> {
   bool _pressed = false;
 
   void _setPressed(bool v) {
-    if (_pressed != v) setState(() => _pressed = v);
+    if (_pressed != v && mounted) setState(() => _pressed = v);
   }
 
   @override
@@ -825,7 +825,7 @@ class _MenuButtonState extends State<_MenuButton> {
   bool _pressed = false;
 
   void _set(bool v) {
-    if (_pressed != v) setState(() => _pressed = v);
+    if (_pressed != v && mounted) setState(() => _pressed = v);
   }
 
   @override

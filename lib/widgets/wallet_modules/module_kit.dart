@@ -239,10 +239,8 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final bold = InoStyle.of(context) == ThemeStyle.bold;
-    final textPrimary = bold ? Colors.white : palette.textPrimary;
-    final textSecondary =
-        bold ? InoStyle.boldTextSecondary : palette.textSecondary;
+    final textPrimary = palette.textPrimary;
+    final textSecondary = palette.textSecondary;
 
     final inner = Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -250,7 +248,7 @@ class StatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 17, color: bold ? Colors.white : accent),
+          Icon(icon, size: 17, color: accent),
           const SizedBox(height: 8),
           Text(
             value,
@@ -270,36 +268,24 @@ class StatTile extends StatelessWidget {
       ),
     );
 
-    final tile = bold
-        ? Container(
-            decoration: BoxDecoration(
-              color: InoStyle.boldFill(accent),
-              borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-              border: Border.all(
-                color: InoStyle.boldBorder(accent),
-                width: 1.4,
-              ),
-            ),
-            child: inner,
-          )
-        : LiquidGlass(
-            borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-            blur: 14,
-            frost: palette.isDark ? 1.05 : 0.72,
-            shadow: false,
-            tint: accent.withValues(alpha: 0.08),
-            padding: EdgeInsets.zero,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-                border: Border.all(
-                  color: accent.withValues(alpha: 0.28),
-                  width: 1.2,
-                ),
-              ),
-              child: inner,
-            ),
-          );
+    final tile = LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+      blur: 14,
+      frost: palette.isDark ? 1.05 : 0.72,
+      shadow: false,
+      tint: accent.withValues(alpha: 0.08),
+      padding: EdgeInsets.zero,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+          border: Border.all(
+            color: accent.withValues(alpha: 0.28),
+            width: 1.2,
+          ),
+        ),
+        child: inner,
+      ),
+    );
 
     if (onTap == null) return tile;
     return PressableScale(
