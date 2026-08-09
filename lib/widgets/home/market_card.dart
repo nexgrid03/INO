@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../services/fuel_rates_store.dart';
 import '../../theme/app_dimens.dart';
@@ -160,8 +161,58 @@ class _MarketCardState extends State<MarketCard> {
       ],
     );
 
+    final l10n = AppLocalizations.of(context);
     final fuel = Column(
       children: [
+        Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 2),
+          child: Row(
+            children: [
+              Icon(Icons.place_rounded, size: 14, color: palette.textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                l10n.t('cityRates'),
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const Spacer(),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  canvasColor: palette.isDark ? palette.surface : Colors.white,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _fuel.selectedCity,
+                    isDense: true,
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: palette.textSecondary),
+                    items: FuelRatesStore.cities.map((String city) {
+                      final label = city == 'Custom' ? l10n.t('custom') : city;
+                      return DropdownMenuItem<String>(
+                        value: city,
+                        child: Text(label),
+                      );
+                    }).toList(),
+                    onChanged: (String? newCity) {
+                      if (newCity != null) {
+                        _fuel.setSelectedCity(newCity);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
         _FuelRow(
           name: 'Petrol',

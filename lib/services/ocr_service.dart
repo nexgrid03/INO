@@ -254,7 +254,9 @@ class OcrService {
       stage(OcrStage.identifyingType);
       final probePass = _score(probe);
       stage(OcrStage.readingFields);
-      if (probePass.structure >= 6 && probePass.text.trim().isNotEmpty) {
+      final isUnknown = probePass.detection.type == IdDocumentType.unknown;
+      if ((probePass.structure >= 6 || (isUnknown && probePass.text.trim().length >= _kTextMinChars)) &&
+          probePass.text.trim().isNotEmpty) {
         _logPasses([probePass], probePass);
         _logTimings(timings, sw.elapsedMilliseconds);
         _step('END extract OK (fast path) type=${probePass.detection.type.label}',
@@ -309,7 +311,7 @@ class OcrService {
       // 3. Only if we still lack a confident, well-structured read do we pay for
       //    a binarized (adaptive-threshold) pass.
       var best = _best(passes);
-      if (best.structure < 5) {
+      if (best.detection.type != IdDocumentType.unknown && best.structure < 5) {
         _step('START buildCandidate binarized', sw: sw);
         final binImg = await _buildCandidateSafe(
           base.path,

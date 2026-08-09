@@ -14,7 +14,7 @@ import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
-import '../../services/document_scanner_service.dart';
+
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
@@ -27,6 +27,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/documents/create_category_sheet.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
+import '../scan/scanner_screen.dart';
 import 'document_upload_success_screen.dart';
 
 /// The source a user picks to add a document.
@@ -246,15 +247,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     setState(() => _capturing = true);
     try {
       String? path;
-      if (source == _DocSource.scan &&
-          DocumentScannerService.instance.isSupported) {
-        // Ask for camera access first (shows the "Allow" prompt), then scan.
+      if (source == _DocSource.scan) {
+        // Ask for camera access first (shows the "Allow" prompt), then open the custom in-app ScannerScreen.
         final access = await CameraPermissionService.instance.requestCamera();
         if (access != CameraAccess.granted) {
           _handleDenied(access, 'camera');
           return;
         }
-        path = await DocumentScannerService.instance.scan();
+        if (!mounted) return;
+        final capturedPath = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (context) => ScannerScreen(
+              onClose: () => Navigator.of(context).pop(),
+              onCaptured: (p) => Navigator.of(context).pop(p),
+            ),
+          ),
+        );
+        if (capturedPath == null || !mounted) return;
+        path = capturedPath;
       } else {
         // Ask for photo access first (shows the "Allow" prompt), then open the
         // gallery.
@@ -568,6 +578,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           onRemoveFile: _removeFile,
                           onPickWallet: _chooseWallet,
                           onPickCategory: _chooseCategory,
+                          onCategoryChanged: (v) => setState(() => _category = v),
                           onPickExpiry: _pickExpiry,
                         ),
                       ),
@@ -1073,6 +1084,7 @@ class _DetailsForm extends StatelessWidget {
     required this.onRemoveFile,
     required this.onPickWallet,
     required this.onPickCategory,
+    required this.onCategoryChanged,
     required this.onPickExpiry,
   });
 
@@ -1088,6 +1100,7 @@ class _DetailsForm extends StatelessWidget {
   final VoidCallback onRemoveFile;
   final VoidCallback onPickWallet;
   final VoidCallback onPickCategory;
+  final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onPickExpiry;
 
   static const _months = [
@@ -1116,15 +1129,15 @@ class _DetailsForm extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Field(
-                  label: l10n.t('documentName'),
+                  label: wallet == 'Health Wallet' ? 'Hospital Name' : l10n.t('documentName'),
                   child: TextFormField(
                     controller: nameController,
                     textInputAction: TextInputAction.next,
                     textCapitalization: TextCapitalization.words,
                     validator: (v) => (v == null || v.trim().isEmpty)
-                        ? l10n.t('enterDocumentName')
+                        ? (wallet == 'Health Wallet' ? 'Please enter hospital name' : l10n.t('enterDocumentName'))
                         : null,
-                    decoration: _decoration(context, l10n.t('hintAddDocName')),
+                    decoration: _decoration(context, wallet == 'Health Wallet' ? 'e.g. Apollo Hospital, Max Healthcare' : l10n.t('hintAddDocName')),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.internal),
@@ -1141,13 +1154,33 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: l10n.t('category'),
-                  child: _Selector(
-                    value: category,
-                    placeholder: l10n.t('chooseCategory'),
-                    leading: Icons.label_rounded,
-                    onTap: onPickCategory,
-                  ),
+                  label: wallet == 'Health Wallet' ? 'Document Type' : l10n.t('category'),
+                  child: wallet == 'Health Wallet'
+                      ? DropdownButtonFormField<String>(
+                          initialValue: (category == null || category!.isEmpty) ? null : category,
+                          decoration: _decoration(context, 'Choose document type').copyWith(
+                            prefixIcon: Icon(Icons.medical_services_rounded, color: AppColors.primaryGreen, size: 19),
+                          ),
+                          dropdownColor: AppPalette.of(context).isDark ? AppPalette.of(context).surface : Colors.white,
+                          style: AppText.body.copyWith(color: AppPalette.of(context).textPrimary),
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.of(context).textFaint),
+                          items: const [
+                            DropdownMenuItem(value: 'X-Ray', child: Text('X-Ray')),
+                            DropdownMenuItem(value: 'Prescription', child: Text('Prescription')),
+                            DropdownMenuItem(value: 'Lab Report', child: Text('Lab Report')),
+                            DropdownMenuItem(value: 'Discharge Summary', child: Text('Discharge Summary')),
+                            DropdownMenuItem(value: 'Vaccine Record', child: Text('Vaccine Record')),
+                            DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          ],
+                          validator: (v) => (v == null || v.isEmpty) ? 'Please choose document type' : null,
+                          onChanged: onCategoryChanged,
+                        )
+                      : _Selector(
+                          value: category,
+                          placeholder: l10n.t('chooseCategory'),
+                          leading: Icons.label_rounded,
+                          onTap: onPickCategory,
+                        ),
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
@@ -1161,11 +1194,11 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: l10n.t('expiryDate'),
+                  label: wallet == 'Health Wallet' ? 'Next Appointment Date' : l10n.t('expiryDate'),
                   optional: true,
                   child: _Selector(
                     value: expiry == null ? null : _fmt(expiry!),
-                    placeholder: l10n.t('noExpiry'),
+                    placeholder: wallet == 'Health Wallet' ? 'Select appointment date' : l10n.t('noExpiry'),
                     leading: Icons.event_rounded,
                     trailing: Icons.calendar_today_rounded,
                     onTap: onPickExpiry,

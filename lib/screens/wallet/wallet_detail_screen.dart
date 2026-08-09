@@ -420,12 +420,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     }
     // If the document carries OCR-extracted data, peek at it in a Quick View
     // first - the user shouldn't need to open the full file every time (#6).
-    if (r.extraction.hasData && mounted) {
+    final isHealth = _isHealthWallet;
+    if ((r.extraction.hasData || isHealth) && mounted) {
       await showDocumentQuickView(
         context,
         record: r,
         accent: widget.category.gradient,
         onOpenFull: () => _openViewer(r, isProtected),
+        isHealth: isHealth,
       );
       return;
     }
@@ -1021,6 +1023,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           return DocumentCard(
             record: record,
             walletAccent: _vaultAccent,
+            isHealth: _isHealthWallet,
             protected: DocumentProtectionStore.instance.isProtected(record.id),
             selectionMode: _selecting,
             selected: _selectedIds.contains(record.id),

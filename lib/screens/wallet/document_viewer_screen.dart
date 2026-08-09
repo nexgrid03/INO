@@ -873,10 +873,20 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// Styled as the Stitch insights panel: tinted wash card, accent hairline,
   /// label-over-value rows with the copy affordance.
   List<Widget> _extractedInfoRows(AppPalette palette) {
+    final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
     final fields = extraction.displayFields();
     final List<Widget> rows;
-    if (fields.isEmpty) {
+    if (isHealth) {
+      rows = [
+        _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
+        _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        if (_record.expiresAt != null)
+          _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
+        if (extraction.userNotes.trim().isNotEmpty)
+          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+      ];
+    } else if (fields.isEmpty) {
       // No structured data, but a bare record number may still exist.
       final number = _record.recordNumber;
       if (number == null || number.trim().isEmpty) return const [];
@@ -904,7 +914,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _ExtractedHeader(),
+            _ExtractedHeader(isHealth: isHealth),
             const SizedBox(height: 6),
             ...rows,
           ],
@@ -917,10 +927,35 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// document bodies so the OCR data is visible immediately on reopen. Returns
   /// null when there's nothing extracted.
   Widget? _extractedCard(AppPalette palette) {
+    final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
     final fields = extraction.displayFields();
     final number = _record.recordNumber;
-    if (fields.isEmpty && (number == null || number.trim().isEmpty)) return null;
+    if (!isHealth && fields.isEmpty && (number == null || number.trim().isEmpty)) return null;
+
+    final List<Widget> rows;
+    if (isHealth) {
+      rows = [
+        _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
+        _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        if (_record.expiresAt != null)
+          _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
+        if (extraction.userNotes.trim().isNotEmpty)
+          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+      ];
+    } else if (fields.isEmpty) {
+      rows = [
+        _InfoRow(label: 'Document Number', value: number!, copyable: true),
+      ];
+    } else {
+      rows = [
+        for (final f in fields)
+          _InfoRow(label: f.label, value: f.value, copyable: true),
+        if (extraction.userNotes.trim().isNotEmpty)
+          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+      ];
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -933,16 +968,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _ExtractedHeader(),
+          _ExtractedHeader(isHealth: isHealth),
           const SizedBox(height: 4),
-          if (fields.isEmpty)
-            _InfoRow(label: 'Document Number', value: number!, copyable: true)
-          else ...[
-            for (final f in fields)
-              _InfoRow(label: f.label, value: f.value, copyable: true),
-            if (extraction.userNotes.trim().isNotEmpty)
-              _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
-          ],
+          ...rows,
         ],
       ),
     );
@@ -1330,7 +1358,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
             ],
           ),
           if (_record.extraction.hasData ||
-              (_record.recordNumber?.isNotEmpty ?? false)) ...[
+              (_record.recordNumber?.isNotEmpty ?? false) ||
+              widget.walletName == 'Health Wallet') ...[
             const SizedBox(height: 12),
             _DetailsPill(onTap: _showInfo),
           ],
@@ -1589,17 +1618,19 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _ExtractedHeader extends StatelessWidget {
-  const _ExtractedHeader();
+  const _ExtractedHeader({this.isHealth = false});
+
+  final bool isHealth;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Row(
       children: [
-         Icon(Icons.auto_awesome_rounded,
+        Icon(isHealth ? Icons.medical_services_rounded : Icons.psychology_rounded,
             size: 15, color: AppColors.primaryGreen),
         const SizedBox(width: 6),
-        Text('Extracted Information',
+        Text(isHealth ? 'Health Details' : 'Extracted Information',
             style: AppText.label
                 .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
       ],
