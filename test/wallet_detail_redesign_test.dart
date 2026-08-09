@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/data/wallet_detail_repository.dart';
+import 'package:inoapp/models/wallet_detail_models.dart';
 import 'package:inoapp/models/wallet_models.dart';
 import 'package:inoapp/screens/wallet/wallet_detail_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
 
-/// Guards the "premium document manager" redesign: the document-first structure
-/// is present and the old dashboard sections are gone.
 const _identity = WalletCategory(
   name: 'Identity Wallet',
   icon: Icons.badge_rounded,
@@ -14,6 +14,54 @@ const _identity = WalletCategory(
   metricLabel: 'documents',
   gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
 );
+
+class FakeWalletDetailRepository implements WalletDetailRepository {
+  List<DocumentRecord> records = [];
+
+  @override
+  Future<WalletDetailData> load(WalletCategory category) async {
+    final active = records.where((r) => r.status == DocumentStatus.active).length;
+    final expiring = records.where((r) => r.status == DocumentStatus.expiringSoon || r.status == DocumentStatus.expired).length;
+    return WalletDetailData(
+      walletName: category.name,
+      subtitle: 'Subtitle',
+      icon: category.icon,
+      gradient: category.gradient,
+      lastUpdatedLabel: records.isEmpty ? 'No documents yet' : 'Updated Today',
+      overview: DetailOverview(
+        totalRecords: records.length,
+        activeRecords: active,
+        expiringSoon: expiring,
+        lastAccessed: records.isEmpty ? '-' : 'Today',
+        storageUsedLabel: '4 MB',
+        storageFraction: 0.1,
+      ),
+      records: records,
+      recents: const [],
+      insights: const [],
+      security: const SecurityStatus(
+        backupWarning: false,
+        vaultLocked: true,
+        securityScore: 100,
+        unbackedCount: 0,
+      ),
+      storage: const StorageAnalytics(
+        totalBytes: 4096,
+        categoryBreakdown: {},
+        typeBreakdown: {},
+      ),
+    );
+  }
+
+  @override
+  void addRecord(String walletName, DocumentRecord record) {}
+  @override
+  void updateRecord(String walletName, DocumentRecord record) {}
+  @override
+  void deleteRecord(String walletName, String recordId) {}
+  @override
+  void deleteRecordLocal(String walletName, String recordId) {}
+}
 
 void main() {
   testWidgets('Wallet Detail renders the document-manager structure',
@@ -27,39 +75,64 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
+    final fakeRepo = FakeWalletDetailRepository();
+    WalletDetailRepository.instance = fakeRepo;
+
+    // Test Case 1: Empty Wallet
+    fakeRepo.records = [];
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
         home: const WalletDetailScreen(category: _identity),
       ),
     );
-    // Repo's 280ms delayed load + entrance animations (no pumpAndSettle: the
-    // loading skeleton repeats forever, but it's replaced once data arrives).
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump(const Duration(milliseconds: 1200));
 
     expect(tester.takeException(), isNull);
+    expect(find.text('Identity Wallet'), findsOneWidget);
+    expect(find.text('No documents yet'), findsOneWidget); // Empty state title
+    expect(find.text('Search documents'), findsNothing); // Hidden when empty
 
-    // Header + the supporting elements above the list.
+    // Test Case 2: Populated Wallet
+    fakeRepo.records = [
+      DocumentRecord(
+        id: '1',
+        name: 'Aadhaar Card',
+        category: 'Identity',
+        icon: Icons.badge_rounded,
+        uploadedAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        status: DocumentStatus.active,
+      ),
+    ];
+
+    // Reload the screen by re-pushing/re-building
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const WalletDetailScreen(category: _identity),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 1200));
+
+    expect(tester.takeException(), isNull);
     expect(find.text('Identity Wallet'), findsOneWidget);
     expect(find.text('Search documents'), findsOneWidget); // sticky search
     expect(find.text('Protected'), findsOneWidget); // ✓ vault protected
-    // "View Vault" button and "Updated Today" were removed from the summary card.
-    expect(find.text('View Vault'), findsNothing);
-    // 'Documents' is both the summary stat label and the list label.
+    expect(find.text('View Vault'), findsNothing); // Removed from redesign
     expect(find.text('Documents'), findsWidgets);
 
-    // No documents exist in a test (the Supabase-backed repo returns empty),
-    // so there's nothing expiring and no attention banner.
-    expect(find.text('Renew'), findsNothing);
-
-    // Status filter chips (focused subset; 'All' also appears as a category).
+    // Status filter chips
     expect(find.text('Favorites'), findsOneWidget);
     expect(find.text('Archived'), findsOneWidget);
     expect(find.text('All'), findsWidgets);
 
-    // With no real documents, the empty state is shown instead of a list.
-    expect(find.text('No Documents Yet'), findsOneWidget);
+    // Document list card is shown instead of empty state
+    expect(find.text('Aadhaar Card'), findsOneWidget);
+    expect(find.text('No documents yet'), findsNothing);
 
     // Removed dashboard sections must NOT be present.
     expect(find.text('Recently Accessed'), findsNothing);

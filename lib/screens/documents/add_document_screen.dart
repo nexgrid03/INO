@@ -135,6 +135,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   final _nameController = TextEditingController();
   final _tagsController = TextEditingController();
   final _notesController = TextEditingController();
+  final _doctorController = TextEditingController();
 
   _DocSource? _source;
   String? _wallet;
@@ -228,6 +229,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     _nameController.dispose();
     _tagsController.dispose();
     _notesController.dispose();
+    _doctorController.dispose();
     super.dispose();
   }
 
@@ -422,6 +424,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         notes: storedNotes,
         expiresAt: _expiry,
         filePath: filePath,
+        doctorName: _wallet == 'Health Wallet' ? _doctorController.text.trim() : null,
       );
 
       // 2b) If the user asked to protect it, store the secure biometric flag
@@ -454,6 +457,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           isFavorite: doc.isFavorite,
           filePath: doc.filePath,
           notes: doc.notes,
+          doctorName: doc.doctorName,
         ),
       );
 
@@ -570,6 +574,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           source: _source!,
                           fileName: _tempFileName ?? 'Document',
                           nameController: _nameController,
+                          doctorController: _doctorController,
                           tagsController: _tagsController,
                           notesController: _notesController,
                           wallet: _wallet,
@@ -1076,6 +1081,7 @@ class _DetailsForm extends StatelessWidget {
     required this.source,
     required this.fileName,
     required this.nameController,
+    required this.doctorController,
     required this.tagsController,
     required this.notesController,
     required this.wallet,
@@ -1092,6 +1098,7 @@ class _DetailsForm extends StatelessWidget {
   final _DocSource source;
   final String fileName;
   final TextEditingController nameController;
+  final TextEditingController doctorController;
   final TextEditingController tagsController;
   final TextEditingController notesController;
   final String? wallet;
@@ -1140,6 +1147,19 @@ class _DetailsForm extends StatelessWidget {
                     decoration: _decoration(context, wallet == 'Health Wallet' ? 'e.g. Apollo Hospital, Max Healthcare' : l10n.t('hintAddDocName')),
                   ),
                 ),
+                if (wallet == 'Health Wallet') ...[
+                  const SizedBox(height: AppSpacing.internal),
+                  _Field(
+                    label: 'Doctor Name',
+                    optional: true,
+                    child: TextFormField(
+                      controller: doctorController,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _decoration(context, 'e.g. Dr. Ashish Gupta'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
                   label: l10n.t('wallet'),

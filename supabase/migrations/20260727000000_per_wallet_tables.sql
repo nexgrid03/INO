@@ -317,6 +317,8 @@ comment on table public.w_insurance_wallet is
 
 -- 4.5 Health Wallet
 select public.ino_register_wallet('Health Wallet', 'builtin', 'health', 4293673545);
+alter table public.w_health_wallet
+  add column if not exists doctor_name      text;
 -- Uses core columns only (name = Hospital Name, category = Document Type, expires_at = Next Appointment Date).
 comment on table public.w_health_wallet is
   'Health Wallet - medical records, prescriptions and reports.';

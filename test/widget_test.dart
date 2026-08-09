@@ -26,10 +26,11 @@ void main() {
     expect(find.text('N'), findsOneWidget);
     expect(find.text('O'), findsOneWidget);
 
-    // Complete the 5.2s splash animation, 0.8s hold, and 0.6s transition.
+    // Complete the 5.2s splash animation, 1.2s hold, 0.45s exit, and 0.9s transition.
     await tester.pump(const Duration(milliseconds: 4000));
-    await tester.pump(const Duration(milliseconds: 1000));
     await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 1000));
 
     // Onboarding is now visible: Skip + floating arrow button.
     expect(find.text('Skip', skipOffstage: false), findsOneWidget);

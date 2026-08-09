@@ -60,6 +60,8 @@ class _QuickViewSheet extends StatelessWidget {
       fields = [
         (label: 'Hospital Name', value: record.name),
         (label: 'Document Type', value: record.category),
+        if (record.doctorName != null && record.doctorName!.trim().isNotEmpty)
+          (label: 'Doctor Name', value: record.doctorName!),
         if (record.expiresAt != null)
           (label: 'Next Appointment Date', value: inoFormatDate(record.expiresAt!)),
       ];

@@ -172,6 +172,7 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
       isFavorite: d.isFavorite,
       filePath: d.filePath,
       notes: d.notes,
+      doctorName: d.doctorName,
     );
   }
 

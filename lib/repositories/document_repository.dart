@@ -235,31 +235,31 @@ class DocumentRepository {
     bool isFavorite = false,
     DateTime? expiresAt,
     String? filePath,
+    String? doctorName,
   }) async {
     final userId = _uid;
     if (userId == null) {
       throw const AuthException('You must be signed in to add a document.');
     }
+    final insertData = <String, dynamic>{
+      'auth_user_id': userId,
+      'name': name,
+      'category': category,
+      'record_number': recordNumber,
+      'status': status,
+      'tags': tags,
+      'notes': notes,
+      'is_favorite': isFavorite,
+      'expires_at': expiresAt == null ? null : _dateOnly(expiresAt),
+      'file_path': filePath,
+      'consent': true,
+    };
+    if (WalletTables.slugFor(wallet) == 'w_health_wallet') {
+      insertData['doctor_name'] = doctorName;
+    }
     final row = await _client
         .from(_tableFor(wallet))
-        .insert({
-          // Stamp the owner explicitly (the column also defaults to auth.uid()
-          // and RLS enforces it) so no document is ever created without an owner.
-          'auth_user_id': userId,
-          'name': name,
-          'category': category,
-          'record_number': recordNumber,
-          'status': status,
-          'tags': tags,
-          'notes': notes,
-          'is_favorite': isFavorite,
-          // `expires_at` is a DATE column - send YYYY-MM-DD, not a timestamp.
-          'expires_at': expiresAt == null ? null : _dateOnly(expiresAt),
-          'file_path': filePath,
-          // Every save path passes the consent sheet before reaching here, so
-          // a created row always records the user's approval.
-          'consent': true,
-        })
+        .insert(insertData)
         .select() // ask Supabase to return the inserted row
         .single() // expect exactly one row back
         .timeout(NetGuard.mutation);

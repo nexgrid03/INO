@@ -881,6 +881,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       rows = [
         _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
         _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        if (_record.doctorName != null && _record.doctorName!.trim().isNotEmpty)
+          _InfoRow(label: 'Doctor Name', value: _record.doctorName!, copyable: true),
         if (_record.expiresAt != null)
           _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
@@ -938,6 +940,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       rows = [
         _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
         _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        if (_record.doctorName != null && _record.doctorName!.trim().isNotEmpty)
+          _InfoRow(label: 'Doctor Name', value: _record.doctorName!, copyable: true),
         if (_record.expiresAt != null)
           _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
