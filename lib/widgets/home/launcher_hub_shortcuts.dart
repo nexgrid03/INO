@@ -7,79 +7,33 @@ import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
 
-/// Compact Offline entry — sits just under Quick Actions so it's visible on open
-/// without changing the 4-disc Quick Actions row.
-class LauncherOfflineShortcut extends StatelessWidget {
-  const LauncherOfflineShortcut({super.key, required this.onOffline});
+/// Notes · Offline — same chip layout / breakpoints as Expenses · Net Worth.
+/// Sits under Quick Actions without changing the 4-disc row.
+class LauncherNotesOfflineShortcuts extends StatelessWidget {
+  const LauncherNotesOfflineShortcuts({
+    super.key,
+    required this.onNotes,
+    required this.onOffline,
+  });
 
+  final VoidCallback onNotes;
   final VoidCallback onOffline;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final palette = AppPalette.of(context);
-    final flat = InoStyle.usesFlatBackdrop(context);
-    return PressableScale(
-      pressedScale: 0.97,
-      child: GestureDetector(
+    return _LauncherHubChipRow(
+      first: (
+        svg: InoHomeIcons.notes,
+        label: l10n.t('notes'),
+        accent: AppColors.primaryGreen,
+        onTap: onNotes,
+      ),
+      second: (
+        svg: InoHomeIcons.offline,
+        label: l10n.t('offline'),
+        accent: AppColors.accentCyan,
         onTap: onOffline,
-        behavior: HitTestBehavior.opaque,
-        child: LiquidGlass(
-          borderRadius: BorderRadius.circular(16),
-          enableBlur: flat,
-          blur: flat ? 16 : 20,
-          frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
-          shadow: flat,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.accentCyan.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: InoSvgIcon(
-                  InoHomeIcons.offline,
-                  size: 20,
-                  color: AppColors.accentCyan,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.t('offline'),
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'View docs saved on this device',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: palette.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: palette.textFaint,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -99,97 +53,103 @@ class LauncherHubShortcuts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    return _LauncherHubChipRow(
+      first: (
+        svg: InoHomeIcons.expenses,
+        label: l10n.t('expenses'),
+        accent: AppColors.accentCoral,
+        onTap: onExpenses,
+      ),
+      second: (
+        svg: InoHomeIcons.netWorth,
+        label: l10n.t('netWorth'),
+        accent: AppColors.primaryGreen,
+        onTap: onNetWorth,
+      ),
+    );
+  }
+}
+
+typedef _HubChipSpec = ({
+  String svg,
+  String label,
+  Color accent,
+  VoidCallback onTap,
+});
+
+/// Shared glass chip pair — always one row (labels scale down, never wrap).
+class _LauncherHubChipRow extends StatelessWidget {
+  const _LauncherHubChipRow({required this.first, required this.second});
+
+  final _HubChipSpec first;
+  final _HubChipSpec second;
+
+  @override
+  Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final narrow = MediaQuery.sizeOf(context).width < 360;
     final flat = InoStyle.usesFlatBackdrop(context);
 
-    Widget chip({
-      required String svg,
-      required String label,
-      required Color accent,
-      required VoidCallback onTap,
-      bool expand = true,
-    }) {
-      final body = PressableScale(
-        pressedScale: 0.97,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: LiquidGlass(
-            borderRadius: BorderRadius.circular(16),
-            enableBlur: flat,
-            blur: flat ? 16 : 20,
-            frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
-            shadow: flat,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
+    Widget chip(_HubChipSpec spec) {
+      return Expanded(
+        child: PressableScale(
+          pressedScale: 0.97,
+          child: GestureDetector(
+            onTap: spec.onTap,
+            behavior: HitTestBehavior.opaque,
+            child: LiquidGlass(
+              borderRadius: BorderRadius.circular(16),
+              enableBlur: flat,
+              blur: flat ? 16 : 20,
+              frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
+              shadow: flat,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: spec.accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: InoSvgIcon(spec.svg, size: 20, color: spec.accent),
                   ),
-                  alignment: Alignment.center,
-                  child: InoSvgIcon(svg, size: 20, color: accent),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        spec.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: palette.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: palette.textFaint,
-                ),
-              ],
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: palette.textFaint,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      );
-      return expand ? Expanded(child: body) : body;
-    }
-
-    final expenses = chip(
-      svg: InoHomeIcons.expenses,
-      label: l10n.t('expenses'),
-      accent: AppColors.accentCoral,
-      onTap: onExpenses,
-      expand: !narrow,
-    );
-    final netWorth = chip(
-      svg: InoHomeIcons.netWorth,
-      label: l10n.t('netWorth'),
-      accent: AppColors.primaryGreen,
-      onTap: onNetWorth,
-      expand: !narrow,
-    );
-
-    if (narrow) {
-      return Column(
-        children: [
-          expenses,
-          const SizedBox(height: 10),
-          netWorth,
-        ],
       );
     }
 
     return Row(
       children: [
-        expenses,
+        chip(first),
         const SizedBox(width: 10),
-        netWorth,
+        chip(second),
       ],
     );
   }

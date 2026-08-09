@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/payment_qr.dart';
 
 /// The user's saved "My QR", as stored in `public.user_qr_codes`.
@@ -150,7 +151,8 @@ class QrCodeRepository {
           .from(_table)
           .select()
           .eq('auth_user_id', uid)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(NetGuard.query);
       final qr = row == null ? null : UserQr.fromRow(row);
       // Memoise the "no QR" answer too - otherwise a user without one re-queries
       // on every scroll back into view.
@@ -197,7 +199,8 @@ class QrCodeRepository {
           .from(_table)
           .upsert(values, onConflict: 'auth_user_id')
           .select()
-          .single();
+          .single()
+          .timeout(NetGuard.mutation);
       developer.log('saved (${bytes.length} bytes, payload=${payload != null})',
           name: 'my-qr');
       final qr = UserQr.fromRow(row);
@@ -215,7 +218,11 @@ class QrCodeRepository {
     final uid = _uid;
     if (client == null || uid == null) return false;
     try {
-      await client.from(_table).delete().eq('auth_user_id', uid);
+      await client
+          .from(_table)
+          .delete()
+          .eq('auth_user_id', uid)
+          .timeout(NetGuard.mutation);
       _remember(null);
       return true;
     } catch (e) {

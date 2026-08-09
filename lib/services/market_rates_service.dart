@@ -73,7 +73,14 @@ class MarketRatesService {
 
   /// Live spot MID price in USD per troy ounce for `XAU` (gold) / `XAG` (silver)
   /// from Swissquote's public quotes feed (keyless), or null on any failure.
+  ///
+  /// On web the Swissquote host blocks CORS, so we skip the request and keep
+  /// fallback prices instead of spamming console errors.
   Future<double?> _spotUsdPerOunce(String symbol) async {
+    if (kIsWeb) {
+      _err += '$symbol=web-cors; ';
+      return null;
+    }
     try {
       final res = await http.get(
         Uri.parse('https://forex-data-feed.swissquote.com/public-quotes/'
@@ -104,7 +111,7 @@ class MarketRatesService {
       }
       return (bid + ask) / 2; // mid price
     } catch (e) {
-      _err += '$symbol=$e; ';
+      _err += '$symbol=unavailable; ';
       debugPrint('Spot $symbol failed: $e');
       return null;
     }

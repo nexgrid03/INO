@@ -6,6 +6,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
+
 /// End-to-end encryption for the Password Vault.
 ///
 /// **The threat this defends against.** Every other wallet table is protected by
@@ -77,7 +79,8 @@ class VaultCrypto extends ChangeNotifier {
           .from(_table)
           .select('salt')
           .eq('auth_user_id', uid)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(NetGuard.query);
       return row != null;
     } catch (e) {
       developer.log('hasPassphrase failed: $e', name: 'vault');
@@ -127,7 +130,8 @@ class VaultCrypto extends ChangeNotifier {
           .from(_table)
           .select('salt, verifier, iterations')
           .eq('auth_user_id', uid)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(NetGuard.query);
       if (row == null) return false;
 
       final salt = base64Decode(row['salt'] as String);

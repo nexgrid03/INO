@@ -143,34 +143,26 @@ class _WalletScreenState extends State<WalletScreen> {
   /// inside it, so nothing that worked before has moved out of reach.
   Widget _screenFor(WalletCategory category) => walletScreenFor(category);
 
-  /// Opens a wallet with a premium slide + fade, then refreshes the hub - a
-  /// property or card added inside a module changes that wallet's count.
+  /// Opens a wallet, then refreshes the hub — a property or card added inside
+  /// a module changes that wallet's count. Uses the theme's Cupertino slide
+  /// (no opacity fade) so the page never flashes grey under translucent cards.
   Future<void> _openWallet(WalletCategory category) async {
     await Navigator.of(context).push(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 360),
-        reverseTransitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, _, _) => _screenFor(category),
-        transitionsBuilder: (_, animation, _, child) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.04),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
+      MaterialPageRoute(builder: (_) => _screenFor(category)),
     );
     if (!mounted) return;
     _reload();
+  }
+
+  /// Staggered entrance only on classic themes — Divine Glass + Flutter web
+  /// have left FadeSlideIn children stuck at opacity 0 after hot reload.
+  Widget _animateIn(
+    BuildContext context, {
+    required Widget child,
+    Duration delay = Duration.zero,
+  }) {
+    if (InoStyle.usesDivineGlass(context)) return child;
+    return FadeSlideIn(delay: delay, offset: 14, child: child);
   }
 
   @override
@@ -196,10 +188,12 @@ class _WalletScreenState extends State<WalletScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Header - avatar · "My Wallets" · notification bell.
+                    // No FadeSlideIn on Divine Glass / web — staggered tickers
+                    // have left hub content stuck at opacity 0 after hot reload.
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: FadeSlideIn(
-                        offset: 14,
+                      child: _animateIn(
+                        context,
                         child: _HubHeader(
                           fullName: widget.profile.fullName,
                           notificationCount: data?.insights.length ?? 0,
@@ -214,9 +208,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     // Compact hero search - the hub's primary affordance.
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                      child: FadeSlideIn(
+                      child: _animateIn(
+                        context,
                         delay: const Duration(milliseconds: 60),
-                        offset: 14,
                         child: FloatingSearchBar(
                           hint: l10n.t('searchWallets'),
                           height: 46,

@@ -1,8 +1,33 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/net/net_guard.dart';
+
+/// Parses a list of JSON strings into maps, skipping corrupt entries. Top-level
+/// so [compute] can run it in a background isolate for big collections - the
+/// main isolate no longer pays the parse cost (which caused frame drops and,
+/// under stress tests, ANRs as collections grew).
+List<Map<String, dynamic>> decodeJsonMapList(List<String> raw) {
+  final out = <Map<String, dynamic>>[];
+  for (final s in raw) {
+    try {
+      final m = jsonDecode(s);
+      if (m is Map<String, dynamic>) out.add(m);
+    } catch (_) {
+      // Skip a corrupt entry rather than losing the whole collection.
+    }
+  }
+  return out;
+}
+
+/// Serialises maps back to one JSON string per record (same shape
+/// `shared_preferences` stored before). Top-level for [compute].
+List<String> encodeJsonMapList(List<Map<String, dynamic>> maps) =>
+    [for (final m in maps) jsonEncode(m)];
 
 /// Shared machinery for the wallet modules that keep a list of records:
 /// properties, investments, saved cards and vault credentials.
@@ -115,15 +140,27 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     await _load(_currentUid());
   }
 
+  /// Below this many records the isolate-spawn overhead of [compute] costs
+  /// more than the JSON work it saves; above it, parsing off the main isolate
+  /// keeps the UI thread free.
+  static const int _computeThreshold = 50;
+
   Future<void> _load(String? uid) async {
     _loading = true;
     notifyListeners();
     final loaded = <T>[];
     try {
       final p = await SharedPreferences.getInstance();
-      for (final raw in p.getStringList(_keyFor(uid)) ?? const <String>[]) {
+      final raw = p.getStringList(_keyFor(uid)) ?? const <String>[];
+      // Big collections parse in a background isolate so hydration never
+      // janks the first frame; tiny ones parse inline (cheaper than an
+      // isolate round-trip).
+      final maps = raw.length > _computeThreshold
+          ? await compute(decodeJsonMapList, raw)
+          : decodeJsonMapList(raw);
+      for (final m in maps) {
         try {
-          loaded.add(decode(jsonDecode(raw) as Map<String, dynamic>));
+          loaded.add(decode(m));
         } catch (_) {
           // Skip a corrupt entry rather than losing the whole collection.
         }
@@ -159,7 +196,9 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
       final rows = await Supabase.instance.client
           .from(table)
           .select()
-          .eq('auth_user_id', uid);
+          .eq('auth_user_id', uid)
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query);
 
       final remote = <T>[];
       for (final row in rows) {
@@ -180,7 +219,8 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
               .from(table)
               .insert({...await toRow(item), 'auth_user_id': uid})
               .select()
-              .single();
+              .single()
+              .timeout(NetGuard.mutation);
           remote.add(await fromRow(inserted));
         } catch (_) {
           // Upload failed - KEEP the local copy so the record is not lost, and
@@ -202,10 +242,14 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
   Future<void> persist() async {
     try {
       final p = await SharedPreferences.getInstance();
-      await p.setStringList(
-        _keyFor(_loadedUid),
-        [for (final i in items) jsonEncode(encode(i))],
-      );
+      // Domain encode (cheap map building) stays here; the JSON string
+      // serialisation - the expensive part for big collections - runs in a
+      // background isolate past the same threshold as loading.
+      final maps = [for (final i in items) encode(i)];
+      final encoded = maps.length > _computeThreshold
+          ? await compute(encodeJsonMapList, maps)
+          : encodeJsonMapList(maps);
+      await p.setStringList(_keyFor(_loadedUid), encoded);
     } catch (_) {
       // Best-effort; the in-memory list stays correct for this session.
     }
@@ -238,7 +282,8 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
           .from(table)
           .insert({...await toRow(item), 'auth_user_id': uid})
           .select()
-          .single();
+          .single()
+          .timeout(NetGuard.mutation);
       final i = items.indexWhere((e) => idOf(e) == idOf(item));
       if (i != -1) {
         items[i] = await fromRow(row);
@@ -269,7 +314,8 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
           .from(table)
           .update(await toRow(item))
           .eq('id', id)
-          .eq('auth_user_id', uid);
+          .eq('auth_user_id', uid)
+          .timeout(NetGuard.mutation);
     } catch (_) {
       // Local copy is already correct; the edit re-uploads on the next sync.
     }
@@ -290,7 +336,8 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
           .from(table)
           .delete()
           .eq('id', id)
-          .eq('auth_user_id', uid);
+          .eq('auth_user_id', uid)
+          .timeout(NetGuard.mutation);
     } catch (_) {
       // The row survives on the server and would return on the next sync.
       // Accepted: a failed delete that reappears is safer than a local

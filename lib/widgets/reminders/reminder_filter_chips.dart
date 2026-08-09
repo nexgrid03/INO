@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../theme/app_dimens.dart';
@@ -23,7 +24,7 @@ class ReminderFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SizedBox(
-      height: 44,
+      height: context.horizontalCardHeight(44),
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

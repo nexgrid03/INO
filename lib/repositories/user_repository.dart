@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/user_profile.dart';
 
 /// The ONLY place in the app that reads/writes the `public.users` table.
@@ -42,7 +43,8 @@ class UserRepository {
           if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         })
         .select() // ask Supabase to return the inserted row
-        .single(); // expect exactly one row back
+        .single() // expect exactly one row back
+        .timeout(NetGuard.mutation);
     final profile = UserProfile.fromMap(row);
     await _cacheProfile(profile);
     return profile;
@@ -75,7 +77,8 @@ class UserRepository {
         .update(updates)
         .eq('auth_user_id', authUserId)
         .select()
-        .single();
+        .single()
+        .timeout(NetGuard.mutation);
     final profile = UserProfile.fromMap(row);
     await _cacheProfile(profile);
     return profile;
@@ -87,7 +90,8 @@ class UserRepository {
         .from(_table)
         .select()
         .eq('auth_user_id', authUserId)
-        .maybeSingle(); // returns null instead of throwing when no row
+        .maybeSingle() // returns null instead of throwing when no row
+        .timeout(NetGuard.query);
     if (row == null) return null;
     final profile = UserProfile.fromMap(row);
     await _cacheProfile(profile);

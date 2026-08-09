@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/share_config.dart';
+import '../core/net/net_guard.dart';
 import '../models/document_share.dart' show ShareDuration, ShareDurationX;
 import '../models/view_once_share.dart';
 import 'share_repository.dart' show ShareException, ShareBackendNotConfiguredException;
@@ -74,7 +75,9 @@ class ViewOnceRepository {
     );
 
     try {
-      final row = await _client.rpc('create_view_once_share', params: payload);
+      final row = await _client
+          .rpc('create_view_once_share', params: payload)
+          .timeout(NetGuard.mutation);
       final map = (row is List ? (row.isEmpty ? null : row.first) : row)
           as Map<String, dynamic>?;
       if (map == null) {
@@ -119,7 +122,10 @@ class ViewOnceRepository {
           .select()
           .eq('owner_id', uid); // defense-in-depth with the owner RLS policy
       if (documentId != null) query = query.eq('document_id', documentId);
-      final rows = await query.order('created_at', ascending: false);
+      final rows = await query
+          .order('created_at', ascending: false)
+          .limit(NetGuard.maxRows)
+          .timeout(NetGuard.query);
       return [for (final r in rows) ViewOnceShare.fromMap(r)];
     } on PostgrestException catch (e) {
       if (_isMissingBackend(e)) return const [];
@@ -136,7 +142,8 @@ class ViewOnceRepository {
         .select()
         .eq('token', token)
         .eq('owner_id', uid)
-        .maybeSingle();
+        .maybeSingle()
+        .timeout(NetGuard.query);
     return row == null ? null : ViewOnceShare.fromMap(row);
   }
 
@@ -153,7 +160,8 @@ class ViewOnceRepository {
           .from(_table)
           .update({'revoked': true})
           .eq('token', token)
-          .eq('owner_id', uid);
+          .eq('owner_id', uid)
+          .timeout(NetGuard.mutation);
       developer.log('revoke OK → token=${_short(token)}', name: 'view-once');
       _bump();
     } on PostgrestException catch (e) {

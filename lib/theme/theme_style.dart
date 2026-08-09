@@ -19,9 +19,20 @@ import 'package:flutter/material.dart';
 ///    branded with teal #098F90 (gradient sky wash). Home icons are tinted SVGs.
 ///  • [aquaLight] - Same teal brand + Divine Glass as [aqua], but a **flat**
 ///    solid backdrop (no aurora / sky gradient). Home icons are tinted SVGs.
+///  • [aquaMist] - Full Aqua replica (teal brand + Divine Glass + SVG icons)
+///    on a flat #DFF3F3 mist wash — gradient replaced by solid mist.
 ///  • [clay]     - Same compact Home + Divine Glass chrome as [aqua]
 ///    (teal #098F90), with soft-3D / clay PNG Home icons.
-enum ThemeStyle { classic, bold, soft, launcher, aqua, aquaLight, clay }
+enum ThemeStyle {
+  classic,
+  bold,
+  soft,
+  launcher,
+  aqua,
+  aquaLight,
+  aquaMist,
+  clay,
+}
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
 /// widget that consults the active style - directly via [InoStyle.of] or
@@ -49,7 +60,7 @@ class InoStyle {
   /// Sky brand (#0EA5E9) — classic / bold / soft / launcher.
   static const Color _skyBrand = Color(0xFF0EA5E9);
 
-  /// Aqua brand (#098F90) — aqua / aquaLight / clay.
+  /// Aqua brand (#098F90) — aqua / aquaLight / aquaMist / clay.
   static const Color _aquaBrand = Color(0xFF098F90);
 
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
@@ -59,17 +70,20 @@ class InoStyle {
   static bool isLauncher(BuildContext context) =>
       of(context) == ThemeStyle.launcher;
 
-  /// Teal #098F90 brand family ([aqua], [aquaLight], or [clay]).
+  /// Teal #098F90 brand family ([aqua], [aquaLight], [aquaMist], or [clay]).
   static bool isAqua(BuildContext context) => usesAquaBrand(of(context));
 
   static bool usesAquaBrand(ThemeStyle style) =>
       style == ThemeStyle.aqua ||
       style == ThemeStyle.aquaLight ||
+      style == ThemeStyle.aquaMist ||
       style == ThemeStyle.clay;
 
-  /// Flat solid scaffold wash — no aurora / sky gradient ([aquaLight]).
-  static bool usesFlatBackdrop(BuildContext context) =>
-      of(context) == ThemeStyle.aquaLight;
+  /// Flat solid scaffold wash — no aurora / sky gradient ([aquaLight], [aquaMist]).
+  static bool usesFlatBackdrop(BuildContext context) {
+    final style = of(context);
+    return style == ThemeStyle.aquaLight || style == ThemeStyle.aquaMist;
+  }
 
   /// Compact Home + Divine Glass chrome — launcher + aqua family + clay.
   static bool usesDivineGlass(BuildContext context) =>
@@ -79,10 +93,11 @@ class InoStyle {
       style == ThemeStyle.launcher ||
       style == ThemeStyle.clay ||
       style == ThemeStyle.aqua ||
-      style == ThemeStyle.aquaLight;
+      style == ThemeStyle.aquaLight ||
+      style == ThemeStyle.aquaMist;
 
   /// Soft-3D / clay PNG Home icons (Quick Actions, vaults, tools, attention).
-  /// Only [ThemeStyle.clay]; aqua / launcher / aquaLight keep tinted SVGs.
+  /// Only [ThemeStyle.clay]; aqua family / launcher keep tinted SVGs.
   static bool usesHome3dIcons(BuildContext context) =>
       usesHome3dIconsStyle(of(context));
 
@@ -124,6 +139,7 @@ class InoStyle {
       case ThemeStyle.launcher:
       case ThemeStyle.aqua:
       case ThemeStyle.aquaLight:
+      case ThemeStyle.aquaMist:
       case ThemeStyle.clay:
         return c;
     }

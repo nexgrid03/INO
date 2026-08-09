@@ -35,6 +35,14 @@ extension ResponsiveContextX on BuildContext {
   /// Column count for Property & Finance Tools grid.
   int get toolsColumns => ScreenBreakpoints.getToolsColumns(screenWidth);
 
+  /// Column count for the full Property & Finance Tools hub screen.
+  int get financeHubColumns =>
+      ScreenBreakpoints.getFinanceHubColumns(screenWidth);
+
+  /// Row height for finance hub list tiles (1-per-row on phones).
+  double get financeHubRowHeight =>
+      ScreenBreakpoints.getFinanceHubRowHeight(screenWidth);
+
   /// Child aspect ratio for Property & Finance Tools grid.
   double get toolsAspectRatio => ScreenBreakpoints.getToolsAspectRatio(screenWidth);
 
@@ -44,6 +52,29 @@ extension ResponsiveContextX on BuildContext {
 
   /// Gap between home icon tiles.
   double get iconGridGap => ScreenBreakpoints.getIconGridGap(screenWidth);
+
+  /// Notes grid columns.
+  int get notesGridColumns => ScreenBreakpoints.getNotesGridColumns(screenWidth);
+
+  /// Notes grid child aspect ratio.
+  double get notesGridAspectRatio =>
+      ScreenBreakpoints.getNotesGridAspectRatio(screenWidth);
+
+  /// Share format / duration tile aspect ratio.
+  double get shareTileAspectRatio =>
+      ScreenBreakpoints.getShareTileAspectRatio(screenWidth);
+
+  /// Wallet hub card minimum height.
+  double get walletHubCardMinHeight =>
+      ScreenBreakpoints.getWalletHubCardMinHeight(screenWidth);
+
+  /// Horizontal carousel height from a design [base], scaled for width + text.
+  double horizontalCardHeight(double base) =>
+      ScreenBreakpoints.getHorizontalCardHeight(
+        screenWidth,
+        base: base,
+        textScale: MediaQuery.textScalerOf(this).scale(1),
+      );
 }
 
 /// Extension on [num] wrapping flutter_screenutil for type safety and brevity.

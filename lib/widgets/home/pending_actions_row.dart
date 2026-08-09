@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../theme/app_theme.dart';
 import '../common/liquid_glass.dart';
 import '../pressable_scale.dart';
@@ -71,7 +72,7 @@ class _PendingActionsRowState extends State<PendingActionsRow> {
     final frost = dark ? _glass.frostDark : _glass.frostLight;
 
     return SizedBox(
-      height: PendingActionsRow.stripHeight,
+      height: context.horizontalCardHeight(PendingActionsRow.stripHeight),
       width: double.infinity,
       child: LiquidGlass(
         borderRadius: BorderRadius.circular(18),

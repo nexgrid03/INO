@@ -6,8 +6,10 @@ import '../../data/reminder_store.dart';
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
+import '../../models/document.dart';
 import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
+import '../../models/wallet_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/market_rates_service.dart';
@@ -133,24 +135,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<_HomeData> _load() async {
-    final dashboard = await DashboardRepository.instance.load();
+    // 1) Fetch user documents ONCE upfront (cached defensively in DocumentRepository)
+    final docs = await DocumentRepository.instance.listAll().catchError((_) => <Document>[]);
+
+    // 2) Run independent background initializations concurrently in parallel
+    final results = await Future.wait([
+      DashboardRepository.instance.load(),
+      ReminderStore.instance.ensureLoaded().then((_) => true).catchError((_) => false),
+      WalletRepository.instance.load(documents: docs).catchError((_) => WalletHubData(
+        overview: const WalletOverview(totalWallets: 0, totalRecords: 0, protectedItems: 0, lastBackup: '', storageUsedLabel: '', storageFraction: 0),
+        categories: const [], quickActions: const [], recents: const [], security: const SecurityStatus(score: 0, vaultLocked: true, biometricEnabled: false, lastBackup: '', cloudSynced: false), insights: const [],
+      )),
+      NetWorthService.instance.ensureReady().then((_) => true).catchError((_) => false),
+    ]);
+
+    final dashboard = results[0] as DashboardData;
+    final hub = results[2] as WalletHubData;
+
     final market = await MarketRatesService.instance.fetchLive(
       dashboard.market,
     );
 
-    var documentCount = 0;
-    var expiringDocuments = 0;
-    try {
-      final docs = await DocumentRepository.instance.listAll();
-      documentCount = docs.length;
-      final now = DateTime.now();
-      expiringDocuments = docs.where((d) {
-        final e = d.expiresAt;
-        if (e == null) return false;
-        final days = e.difference(now).inDays;
-        return days >= 0 && days <= 30;
-      }).length;
-    } catch (_) {}
+    final documentCount = docs.length;
+    final now = DateTime.now();
+    final expiringDocuments = docs.where((d) {
+      final e = d.expiresAt;
+      if (e == null) return false;
+      final days = e.difference(now).inDays;
+      return days >= 0 && days <= 30;
+    }).length;
 
     var pending = expiringDocuments;
     var remindersToday = 0;
@@ -159,8 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
     var remindersCompleted = 0;
     var insuranceRenewals = 0;
     final pendingItems = <LauncherPendingItem>[];
+
     try {
-      await ReminderStore.instance.ensureLoaded();
       final today = ReminderStore.instance.today;
       final active = ReminderStore.instance.active;
       pending += active.where((r) => r.daysFrom(today) <= 7).length;
@@ -220,26 +233,22 @@ class _HomeScreenState extends State<HomeScreen> {
     var propertyCount = 0;
     var investmentCount = 0;
     var cardsCount = 0;
-    try {
-      final hub = await WalletRepository.instance.load();
-      for (final c in hub.categories) {
-        final n = int.tryParse(c.metric) ?? 0;
-        switch (c.name) {
-          case 'Identity Wallet':
-            identityCount = n;
-          case 'Property Wallet':
-            propertyCount = n;
-          case 'Investment Wallet':
-            investmentCount = n;
-          case 'Banking Wallet':
-            cardsCount = n;
-        }
+    for (final c in hub.categories) {
+      final n = int.tryParse(c.metric) ?? 0;
+      switch (c.name) {
+        case 'Identity Wallet':
+          identityCount = n;
+        case 'Property Wallet':
+          propertyCount = n;
+        case 'Investment Wallet':
+          investmentCount = n;
+        case 'Banking Wallet':
+          cardsCount = n;
       }
-    } catch (_) {}
+    }
 
     HomeHero hero;
     try {
-      await NetWorthService.instance.ensureReady();
       hero = NetWorthService.instance.heroFrom(
         assets: documentCount,
         documents: documentCount,
@@ -545,6 +554,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           onVoice: () => showVoiceCommandSheet(context),
         ),
+      ),
+
+      // Notes + Offline — same chip row / breakpoints as Expenses · Net Worth.
+      LauncherNotesOfflineShortcuts(
+        onNotes: () => _push(const NotesScreen()),
+        onOffline: () => _push(const OfflineDocumentsScreen()),
       ),
 
       // 3. My Vaults

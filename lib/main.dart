@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
+import 'core/net/net_guard.dart';
 import 'core/responsive/responsive.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
@@ -37,9 +39,13 @@ Future<void> main() async {
 
   // Create the Supabase client once, at startup. After this, the rest of the
   // app reaches Supabase via `Supabase.instance.client` (see AuthService).
+  // The custom transport caps how long ANY Supabase request (including
+  // SDK-internal ones like token refresh) can hang on a dead/throttled link;
+  // per-call `.timeout()`s in the repositories are the tighter first line.
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
+    httpClient: TimeoutHttpClient(http.Client()),
   );
 
   // Multi-account registry: remembers every account that signs in on this

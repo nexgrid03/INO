@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
@@ -257,13 +258,16 @@ class _DurationGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Duration chips are wider-than-tall; use share aspect * 1.7 as a soft
+    // ratio so icon+label fit under text scale without overflow.
+    final aspect = context.shareTileAspectRatio * 1.7;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: AppSpacing.sm,
       crossAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 2.6,
+      childAspectRatio: aspect,
       children: [
         for (final d in ShareDuration.values)
           _DurationChip(
@@ -300,11 +304,15 @@ class _DurationChip extends StatelessWidget {
           color: active ? AppColors.primaryGreen : palette.textSecondary,
         ),
         const SizedBox(width: 8),
-        Text(
-          duration.label(AppLocalizations.of(context)),
-          style: AppText.subtitle.copyWith(
-            color: active ? AppColors.primaryGreen : palette.textPrimary,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            duration.label(AppLocalizations.of(context)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.subtitle.copyWith(
+              color: active ? AppColors.primaryGreen : palette.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

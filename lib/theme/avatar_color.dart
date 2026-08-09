@@ -12,7 +12,7 @@ class AvatarColor {
   /// Launcher profile avatar — shared for every user.
   static const Color launcherProfile = Color(0xFF0A75A6);
 
-  /// Aqua / Aqua Light / Clay profile avatar — shared for every user.
+  /// Aqua / Aqua Light / Aqua Mist / Clay profile avatar — shared for every user.
   static const Color aquaProfile = Color(0xFF055E5E);
 
   static const List<Color> _swatches = [
@@ -49,6 +49,7 @@ class AvatarColor {
         return launcherProfile;
       case ThemeStyle.aqua:
       case ThemeStyle.aquaLight:
+      case ThemeStyle.aquaMist:
       case ThemeStyle.clay:
         return aquaProfile;
       case ThemeStyle.classic:

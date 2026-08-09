@@ -10,8 +10,8 @@ import '../pressable_scale.dart';
 /// same neutral glass box → centred 3D/SVG/icon → count badge on the corner.
 ///
 /// Top inset leaves room for the badge so it is never clipped by the section
-/// above. **Aqua Light** uses a milkier frosted plate + rim so tiles stay
-/// readable on the flat solid backdrop.
+/// above. **Aqua Light / Aqua Mist** use a milkier frosted plate + rim so tiles
+/// stay readable on the flat solid backdrop.
 ///
 /// Labels always stay on **one line** via [FittedBox] (scale down, never wrap).
 class LauncherGlassIconTile extends StatelessWidget {

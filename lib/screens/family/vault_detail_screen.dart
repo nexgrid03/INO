@@ -87,9 +87,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   void _startRealtime() {
     _channel = _repo.watchVault(_vaultId, () {
-      // Debounce a burst of row changes into a single refresh.
+      // Debounce a burst of row changes into a single refresh. Matches the
+      // store's window: under membership churn this screen refreshes at most
+      // ~once a second instead of once per row event.
       _debounce?.cancel();
-      _debounce = Timer(const Duration(milliseconds: 350), () {
+      _debounce = Timer(const Duration(milliseconds: 1200), () {
         if (mounted) _refresh();
       });
     });

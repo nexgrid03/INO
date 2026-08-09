@@ -213,6 +213,12 @@ class _AvatarEditor extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: accentGrad,
+                  border: Border.all(
+                    color: Colors.white.withValues(
+                      alpha: palette.isDark ? 0.22 : 0.92,
+                    ),
+                    width: 2.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: accent.withValues(alpha: 0.28),
@@ -221,22 +227,22 @@ class _AvatarEditor extends StatelessWidget {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(3),
-                child: ClipOval(
-                  child: (photoUrl != null && photoUrl!.isNotEmpty)
-                      ? Image.network(
-                          photoUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _InitialsFill(
-                            initials: initials,
-                            gradient: accentGrad,
-                          ),
-                        )
-                      : _InitialsFill(
+                clipBehavior: Clip.antiAlias,
+                child: (photoUrl != null && photoUrl!.isNotEmpty)
+                    ? Image.network(
+                        photoUrl!,
+                        fit: BoxFit.cover,
+                        width: 92,
+                        height: 92,
+                        errorBuilder: (_, _, _) => _InitialsFill(
                           initials: initials,
                           gradient: accentGrad,
                         ),
-                ),
+                      )
+                    : _InitialsFill(
+                        initials: initials,
+                        gradient: accentGrad,
+                      ),
               ),
               Positioned(
                 right: 0,
@@ -279,12 +285,15 @@ class _InitialsFill extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(gradient: gradient),
       child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 30,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            initials,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 30,
+            ),
           ),
         ),
       ),

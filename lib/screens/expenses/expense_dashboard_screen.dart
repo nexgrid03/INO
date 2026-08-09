@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive_metric_text.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/expense_store.dart';
@@ -556,13 +557,11 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              rupees(amount.round()),
-              style: AppText.bigNumber
-                  .copyWith(color: palette.textPrimary, fontSize: 32),
-            ),
+          ResponsiveMetricText(
+            rupees(amount.round()),
+            textAlign: TextAlign.center,
+            style: AppText.bigNumber
+                .copyWith(color: palette.textPrimary, fontSize: 32),
           ),
           const SizedBox(height: AppSpacing.xs),
           Container(

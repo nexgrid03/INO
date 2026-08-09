@@ -213,9 +213,18 @@ class FamilyVaultStore extends ChangeNotifier {
 
   /// Debounced so a burst of row changes (e.g. a transfer touches several rows)
   /// collapses into one refresh of the list + pending invitations.
+  ///
+  /// If a reload is already running when the timer fires, the refresh is
+  /// re-armed rather than dropped or stacked: heavy membership churn therefore
+  /// costs at most one reload at a time, with one trailing reload for the
+  /// final state - never a reload-per-event storm.
   void _onRealtimeChange() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
+    _debounce = Timer(const Duration(milliseconds: 1200), () async {
+      if (_loading) {
+        _onRealtimeChange();
+        return;
+      }
       await reload();
       await refreshPendingInvitations();
     });

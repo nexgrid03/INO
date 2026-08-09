@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/responsive/responsive_extensions.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
@@ -36,7 +37,7 @@ class QuickActionsSection extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final w = constraints.maxWidth;
-              final cols = w >= 560 ? 6 : (w >= 420 ? 5 : 4);
+              final cols = context.quickActionsColumns;
               const gap = 4.0;
               final tileW = (w - gap * 2 * cols) / cols;
               return Wrap(

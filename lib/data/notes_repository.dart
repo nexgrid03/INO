@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../models/note_models.dart';
 
 /// Source of Notes Vault data - the `public.notes` table in Supabase.
@@ -44,7 +45,9 @@ class SupabaseNotesRepository implements NotesRepository {
         .from(_table)
         .select()
         .eq('auth_user_id', uid)
-        .order('updated_at', ascending: false);
+        .order('updated_at', ascending: false)
+        .limit(NetGuard.maxRowsLarge)
+        .timeout(NetGuard.query);
     final notes = [for (final r in rows) Note.fromRow(r)];
     debugPrint('Notes loaded from Supabase: ${notes.length}');
     return notes;
@@ -60,7 +63,12 @@ class SupabaseNotesRepository implements NotesRepository {
     // and RLS enforces it, but setting it here guarantees ownership even if
     // the column default is ever missing.
     final payload = note.toInsert()..['auth_user_id'] = uid;
-    final row = await _client.from(_table).insert(payload).select().single();
+    final row = await _client
+        .from(_table)
+        .insert(payload)
+        .select()
+        .single()
+        .timeout(NetGuard.mutation);
     return Note.fromRow(row);
   }
 
@@ -76,7 +84,8 @@ class SupabaseNotesRepository implements NotesRepository {
         .from(_table)
         .update(note.toInsert())
         .eq('id', note.id)
-        .eq('auth_user_id', uid);
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 
   @override
@@ -86,6 +95,11 @@ class SupabaseNotesRepository implements NotesRepository {
       throw const AuthException('You must be signed in to delete a note.');
     }
     // Ownership check in the filter: a user can only delete their OWN note.
-    await _client.from(_table).delete().eq('id', id).eq('auth_user_id', uid);
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', id)
+        .eq('auth_user_id', uid)
+        .timeout(NetGuard.mutation);
   }
 }

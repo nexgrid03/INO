@@ -44,6 +44,7 @@ class WalletOverviewCard extends StatelessWidget {
         );
       case ThemeStyle.aqua:
       case ThemeStyle.aquaLight:
+      case ThemeStyle.aquaMist:
       case ThemeStyle.clay:
         heroGradient = const LinearGradient(
           begin: Alignment.topLeft,

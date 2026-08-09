@@ -104,21 +104,26 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             color: AppColors.primaryGreen,
             onRefresh: _load,
             child: filtered.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics()),
-                    children: [
-                      const SizedBox(height: 60),
-                      EmptyState(
-                        icon: Icons.history_rounded,
-                        title: l10n.t('noActivityYet'),
-                        message: _filter == _Filter.all
-                            ? l10n.t('activityEmptySubtitle')
-                            : l10n.t('nothingUnderYet').replaceFirst(
-                                '{f}', _filter.label(l10n).toLowerCase()),
-                        compact: true,
-                      ),
-                    ],
+                ? LayoutBuilder(
+                    builder: (context, constraints) => ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics()),
+                      children: [
+                        SizedBox(
+                          height: constraints.maxHeight,
+                          child: EmptyState(
+                            icon: Icons.history_rounded,
+                            title: l10n.t('noActivityYet'),
+                            message: _filter == _Filter.all
+                                ? l10n.t('activityEmptySubtitle')
+                                : l10n.t('nothingUnderYet').replaceFirst(
+                                    '{f}',
+                                    _filter.label(l10n).toLowerCase()),
+                            compact: true,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 : ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(

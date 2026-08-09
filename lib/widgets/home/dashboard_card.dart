@@ -122,10 +122,11 @@ class _DashboardCardState extends State<DashboardCard>
     );
   }
 
-  /// Vault hero. Clay uses the 3D vault mock (copy left, art right on glass).
-  /// Other themes keep the shared digital-ID mascot layout.
+  /// Vault hero. Launcher + Aqua family + Clay share the 3D vault mock
+  /// (copy left, art right on glass). Classic / bold / soft keep the
+  /// digital-ID mascot layout.
   Widget _buildHero(AppPalette palette) {
-    if (InoStyle.of(context) == ThemeStyle.clay) {
+    if (InoStyle.usesDivineGlass(context)) {
       return _ClayVaultHero(onCta: widget.onCta);
     }
 
@@ -269,14 +270,14 @@ class _DashboardCardState extends State<DashboardCard>
   }
 }
 
-/// Clay vault hero — light glass card matching the Home mock: copy left,
-/// 3D vault art right. Readable in light and dark Clay.
+/// Vault hero for Launcher / Aqua / Clay — light glass card matching the Home
+/// mock: copy left, 3D vault art right. Readable in light and dark.
 class _ClayVaultHero extends StatelessWidget {
   const _ClayVaultHero({this.onCta});
 
   final VoidCallback? onCta;
 
-  static const _asset = 'assets/home/hero_vault_3d.png';
+  static const _asset = 'assets/home/hero_vault_clay.png';
 
   @override
   Widget build(BuildContext context) {
@@ -342,11 +343,11 @@ class _ClayVaultHero extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 18, 10, 18),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 340;
-                final titleSize = constraints.maxWidth < 300 ? 18.0 : 21.0;
-                final artW = narrow
-                    ? constraints.maxWidth * 0.72
-                    : (constraints.maxWidth * 0.44).clamp(128.0, 188.0);
+                // Keep copy + art on one row (same as other themes) —
+                // shrink art / title instead of stacking on narrow widths.
+                final titleSize = constraints.maxWidth < 300 ? 17.0 : 21.0;
+                final artW =
+                    (constraints.maxWidth * 0.42).clamp(108.0, 188.0);
                 final copy = _copy(
                   palette: palette,
                   titleSize: titleSize,
@@ -355,7 +356,7 @@ class _ClayVaultHero extends StatelessWidget {
                 final art = SizedBox(
                   width: artW,
                   child: AspectRatio(
-                    aspectRatio: 597 / 553,
+                    aspectRatio: 595 / 570,
                     child: Image.asset(
                       _asset,
                       fit: BoxFit.contain,
@@ -368,17 +369,6 @@ class _ClayVaultHero extends StatelessWidget {
                     ),
                   ),
                 );
-
-                if (narrow) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(child: art),
-                      const SizedBox(height: 12),
-                      copy,
-                    ],
-                  );
-                }
 
                 return IntrinsicHeight(
                   child: Row(

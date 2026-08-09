@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -315,7 +316,7 @@ class StatTile extends StatelessWidget {
 /// The premium empty state every module shows before its first record: a
 /// gradient glyph, a headline, a line of guidance and a primary CTA.
 class ModuleEmptyState extends StatelessWidget {
-   ModuleEmptyState({
+  const ModuleEmptyState({
     super.key,
     required this.icon,
     required this.title,
@@ -336,61 +337,66 @@ class ModuleEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final brand = accent ?? AppColors.primaryGreen;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
-      child: Column(
-        children: [
-          // Divine Glass: a white glass chip with a soft brand halo behind it.
-          Container(
-            width: 116,
-            height: 116,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  brand.withValues(alpha: 0.16),
-                  brand.withValues(alpha: 0),
-                ],
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Container(
-              width: 88,
-              height: 88,
+    // Plain Center — never nest a scroll view inside SliverFillRemaining
+    // (hasScrollBody: false); that collapsed empty pages to a blank gradient.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Divine Glass: a white glass chip with a soft brand halo behind it.
+            Container(
+              width: 116,
+              height: 116,
               decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(AppRadius.large),
-                border: Border.all(
-                    color: AppColors.tealPale.withValues(alpha: 0.6)),
-                boxShadow: AppShadows.floating,
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    brand.withValues(alpha: 0.16),
+                    brand.withValues(alpha: 0),
+                  ],
+                ),
               ),
-              child: Icon(icon, color: brand, size: 38),
+              alignment: Alignment.center,
+              child: Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                  border: Border.all(
+                      color: AppColors.tealPale.withValues(alpha: 0.6)),
+                  boxShadow: AppShadows.floating,
+                ),
+                child: Icon(icon, color: brand, size: 38),
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppText.headline
-                .copyWith(color: palette.textPrimary, fontSize: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(
-              color: palette.textSecondary,
-              height: 1.45,
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppText.headline
+                  .copyWith(color: palette.textPrimary, fontSize: 20),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          GradientButton(
-            label: actionLabel,
-            icon: Icons.add_rounded,
-            onTap: onAction,
-            expand: false,
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GradientButton(
+              label: actionLabel,
+              icon: Icons.add_rounded,
+              onTap: onAction,
+              expand: false,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -759,7 +765,7 @@ class ModuleChipRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: rowHeight,
+      height: context.horizontalCardHeight(rowHeight),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,

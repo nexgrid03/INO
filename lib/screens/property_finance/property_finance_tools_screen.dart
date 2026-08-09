@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/responsive.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/theme_style.dart';
@@ -9,8 +10,8 @@ import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/tool_card.dart';
 import 'finance_tools.dart';
 
-/// The Property & Finance Tools hub - a premium 2-column grid of every
-/// calculator/utility, driven entirely by the [financeTools] registry.
+/// The Property & Finance Tools hub - one full-width row per tool on phones,
+/// two columns on tablet+, driven entirely by the [financeTools] registry.
 class PropertyFinanceToolsScreen extends StatelessWidget {
   const PropertyFinanceToolsScreen({super.key});
 
@@ -50,16 +51,25 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            const gap = AppSpacing.md;
-            final cardWidth = (constraints.maxWidth - gap) / 2;
+            final width = constraints.maxWidth;
+            const gap = AppSpacing.sm;
+            final cols = ScreenBreakpoints.getFinanceHubColumns(width);
+            final cardWidth = ResponsiveGridTile.tileWidth(
+              availableWidth: width,
+              columns: cols,
+              gap: gap,
+            );
+            final rowHeight = ScreenBreakpoints.getFinanceHubRowHeight(width);
+
             return Wrap(
               spacing: gap,
               runSpacing: gap,
               children: [
                 for (var i = 0; i < financeTools.length; i++)
-                  SizedBox(
+                  ResponsiveGridTile(
                     width: cardWidth,
-                    height: 158,
+                    minHeight: rowHeight,
+                    height: rowHeight,
                     child: FadeSlideIn(
                       delay: Duration(milliseconds: (i * 60).clamp(0, 300)),
                       child: ToolGridCard(

@@ -109,6 +109,12 @@ class _AuthScaffoldState extends State<AuthScaffold>
       );
     }
 
+    // Keep auth cards phone-width on wide viewports (Chrome / tablet).
+    content = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: content,
+    );
+
     Widget body;
     if (widget.scrollable) {
       // Center the (white) card when it fits; scroll when it overflows

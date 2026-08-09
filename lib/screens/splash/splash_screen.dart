@@ -4,15 +4,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/app_settings.dart';
+import '../../services/guest_mode.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
-import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../shell/main_shell.dart';
 
-/// Splash — theme sky, clay soft-3D brand shield, then I → N → O on the face.
+/// Splash — oversized clay shield settles, shine sweeps, then I → N → O.
 ///
 /// After the reveal:
 ///   • first launch → [OnboardingScreen]
@@ -29,14 +32,19 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _c;
   late final AnimationController _float;
+  late final AnimationController _exit;
 
   late final Animation<double> _shieldFade;
   late final Animation<double> _shieldScale;
+  late final Animation<double> _shine;
+  late final Animation<double> _exitFade;
+  late final Animation<double> _exitScale;
 
   late final List<Animation<double>> _letterFade;
   late final List<Animation<double>> _letterScale;
 
   bool _navigated = false;
+  bool _exiting = false;
 
   /// Flat silhouette used as the clay-3D mask (same shape as before).
   static const _shieldMask = 'assets/splash/splash_shield_blank.png';
@@ -55,18 +63,32 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(seconds: 5),
     )..repeat(reverse: true);
 
-    // 1) Shield alone — fully settled before any letters.
+    _exit = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _exit, curve: Curves.easeInCubic),
+    );
+    _exitScale = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _exit, curve: Curves.easeInCubic),
+    );
+
+    // 1) Oversized shield fades in while scaling down to rest size.
     _shieldFade = _phase(0.00, 0.32, Curves.easeOut);
-    _shieldScale = Tween<double>(begin: 0.86, end: 1.0).animate(
+    _shieldScale = Tween<double>(begin: 1.55, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.00, 0.38, curve: Curves.easeOutCubic),
+        curve: const Interval(0.00, 0.42, curve: Curves.easeOutCubic),
       ),
     );
 
-    // 2) Then I → N → O, after a clear beat on the settled shield.
-    const starts = [0.48, 0.58, 0.68];
-    const ends = [0.60, 0.70, 0.80];
+    // 2) Diagonal glass shine once the shield is nearly settled.
+    _shine = _phase(0.32, 0.55, Curves.easeInOut);
+
+    // 3) I → N → O after the shine finishes.
+    const starts = [0.58, 0.66, 0.74];
+    const ends = [0.70, 0.78, 0.86];
     _letterFade = [
       for (var i = 0; i < 3; i++) _phase(starts[i], ends[i], Curves.easeOut),
     ];
@@ -94,8 +116,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _onStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      Future<void>.delayed(const Duration(milliseconds: 1200), _continue);
+      Future<void>.delayed(const Duration(milliseconds: 1200), _beginExit);
     }
+  }
+
+  Future<void> _beginExit() async {
+    if (_exiting || _navigated || !mounted) return;
+    _exiting = true;
+    await _exit.forward();
+    if (!mounted) return;
+    await _continue();
   }
 
   Future<void> _continue() async {
@@ -117,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
           session.user.id,
         );
         if (profile != null && mounted) {
-          goToShell(context, profile);
+          _goToShellFade(profile);
           return;
         }
       }
@@ -129,15 +159,38 @@ class _SplashScreenState extends State<SplashScreen>
     _replace(const LoginScreen());
   }
 
+  Route<void> _fadeRoute(Widget page) {
+    return PageRouteBuilder<void>(
+      transitionDuration: const Duration(milliseconds: 900),
+      pageBuilder: (_, _, _) => page,
+      transitionsBuilder: (_, animation, _, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   void _replace(Widget page) {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+    Navigator.of(context).pushReplacement(_fadeRoute(page));
+  }
+
+  /// Soft fade into shell (avoids [goToShell]'s abrupt MaterialPageRoute slide).
+  void _goToShellFade(UserProfile profile) {
+    GuestMode.active = false;
+    Navigator.of(context).pushAndRemoveUntil(
+      _fadeRoute(
+        MainShell(
+          profile: profile,
+          themeMode: ThemeController.mode.value,
+          onToggleTheme: () => ThemeController.toggle(context),
+        ),
       ),
+      (route) => false,
     );
   }
 
@@ -145,6 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _c.dispose();
     _float.dispose();
+    _exit.dispose();
     super.dispose();
   }
 
@@ -188,96 +242,109 @@ class _SplashScreenState extends State<SplashScreen>
         ),
         child: SafeArea(
           child: AnimatedBuilder(
-            animation: Listenable.merge([_c, _float]),
+            animation: Listenable.merge([_c, _float, _exit]),
             builder: (context, _) {
               final bob = math.sin(_float.value * math.pi) * 3;
               return Center(
-                child: Transform.translate(
-                  offset: Offset(0, bob),
-                  child: FadeTransition(
-                    opacity: _shieldFade,
-                    child: ScaleTransition(
-                      scale: _shieldScale,
-                      child: SizedBox(
-                        width: shieldSize,
-                        height: shieldSize,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Soft floor shadow (clay icon style).
-                            Transform.translate(
-                              offset: Offset(0, shieldSize * 0.08),
-                              child: Container(
-                                width: shieldSize * 0.52,
-                                height: shieldSize * 0.12,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.elliptical(
-                                      shieldSize * 0.52,
-                                      shieldSize * 0.12,
-                                    ),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black
-                                          .withValues(alpha: 0.22),
-                                      blurRadius: 26,
-                                      spreadRadius: 1,
-                                    ),
-                                    BoxShadow(
-                                      color: brand.withValues(alpha: 0.20),
-                                      blurRadius: 32,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // Clay soft-3D shield (same silhouette as before).
-                            _ClayShield3d(
-                              maskAsset: _shieldMask,
-                              size: shieldSize,
-                              accent: brand,
-                            ),
-
-                            // INO reveal on the shield face.
-                            Transform.translate(
-                              offset: Offset(0, -shieldSize * 0.02),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  for (var i = 0; i < 3; i++) ...[
-                                    if (i > 0)
-                                      SizedBox(width: shieldSize * 0.014),
-                                    FadeTransition(
-                                      opacity: _letterFade[i],
-                                      child: ScaleTransition(
-                                        scale: _letterScale[i],
-                                        child: Text(
-                                          const ['I', 'N', 'O'][i],
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: shieldSize * 0.23,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1.0,
-                                            shadows: [
-                                              Shadow(
-                                                color: Colors.black
-                                                    .withValues(alpha: 0.28),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
+                child: FadeTransition(
+                  opacity: _exitFade,
+                  child: ScaleTransition(
+                    scale: _exitScale,
+                    child: Transform.translate(
+                      offset: Offset(0, bob),
+                      child: FadeTransition(
+                        opacity: _shieldFade,
+                        child: ScaleTransition(
+                          scale: _shieldScale,
+                          child: SizedBox(
+                            width: shieldSize,
+                            height: shieldSize,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Soft floor shadow (clay icon style).
+                                Transform.translate(
+                                  offset: Offset(0, shieldSize * 0.08),
+                                  child: Container(
+                                    width: shieldSize * 0.52,
+                                    height: shieldSize * 0.12,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.elliptical(
+                                          shieldSize * 0.52,
+                                          shieldSize * 0.12,
                                         ),
                                       ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.22),
+                                          blurRadius: 26,
+                                          spreadRadius: 1,
+                                        ),
+                                        BoxShadow(
+                                          color: brand.withValues(alpha: 0.20),
+                                          blurRadius: 32,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ],
-                              ),
+                                  ),
+                                ),
+
+                                // Clay soft-3D shield (same silhouette as before).
+                                _ClayShield3d(
+                                  maskAsset: _shieldMask,
+                                  size: shieldSize,
+                                  accent: brand,
+                                ),
+
+                                // One-shot diagonal shine clipped to the shield.
+                                _ShieldShineSweep(
+                                  maskAsset: _shieldMask,
+                                  size: shieldSize,
+                                  progress: _shine.value,
+                                ),
+
+                                // INO reveal on the shield face.
+                                Transform.translate(
+                                  offset: Offset(0, -shieldSize * 0.02),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      for (var i = 0; i < 3; i++) ...[
+                                        if (i > 0)
+                                          SizedBox(width: shieldSize * 0.014),
+                                        FadeTransition(
+                                          opacity: _letterFade[i],
+                                          child: ScaleTransition(
+                                            scale: _letterScale[i],
+                                            child: Text(
+                                              const ['I', 'N', 'O'][i],
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: shieldSize * 0.23,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.0,
+                                                shadows: [
+                                                  Shadow(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.28),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -289,6 +356,86 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       ),
     );
+  }
+}
+
+/// One-shot diagonal glass shine, masked to the shield silhouette.
+class _ShieldShineSweep extends StatelessWidget {
+  const _ShieldShineSweep({
+    required this.maskAsset,
+    required this.size,
+    required this.progress,
+  });
+
+  final String maskAsset;
+  final double size;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    if (progress <= 0 || progress >= 1) {
+      return const SizedBox.shrink();
+    }
+
+    // Soft envelope so the streak fades in/out at the ends of the sweep.
+    final envelope = math.sin(progress * math.pi).clamp(0.0, 1.0);
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: envelope,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) {
+              // Progress 0→1 slides the band from above-left to below-right.
+              final slide = progress * 2.4 - 0.7;
+              return LinearGradient(
+                begin: const Alignment(-1.0, -1.0),
+                end: const Alignment(1.0, 1.0),
+                colors: [
+                  Colors.white.withValues(alpha: 0.0),
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.85),
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.0),
+                ],
+                stops: const [0.0, 0.42, 0.5, 0.58, 1.0],
+                transform: _DiagonalSlide(slide),
+              ).createShader(bounds);
+            },
+            child: Image.asset(
+              maskAsset,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              color: Colors.white,
+              colorBlendMode: BlendMode.srcIn,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.shield_rounded,
+                size: size * 0.88,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Slides a diagonal gradient along the TL→BR axis.
+class _DiagonalSlide extends GradientTransform {
+  const _DiagonalSlide(this.slide);
+  final double slide;
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
+    final dx = bounds.width * slide;
+    final dy = bounds.height * slide;
+    return Matrix4.translationValues(dx, dy, 0);
   }
 }
 

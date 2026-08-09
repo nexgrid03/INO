@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -315,7 +316,7 @@ class _InoBottomNavState extends State<InoBottomNav>
             tint: dark ? palette.surface : Colors.white,
             shadow: true,
             child: SizedBox(
-              height: 64,
+              height: context.horizontalCardHeight(64),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Stack(

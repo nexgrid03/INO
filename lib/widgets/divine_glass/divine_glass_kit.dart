@@ -88,12 +88,17 @@ class DivineGlassAppBar extends StatelessWidget {
       prominent: true,
     );
 
-    final titleBlock = Text(
-      title,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      textAlign: centerTitle ? TextAlign.center : TextAlign.start,
-      style: titleStyle,
+    final titleBlock = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: centerTitle ? Alignment.center : Alignment.centerLeft,
+      child: Text(
+        title,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        textAlign: centerTitle ? TextAlign.center : TextAlign.start,
+        style: titleStyle,
+      ),
     );
 
     return Material(

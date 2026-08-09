@@ -97,12 +97,14 @@ void main() {
     expect(find.text('Pending Actions'), findsNothing);
     expect(find.text('Reminders'), findsNothing);
 
-    // Previous Launcher quick actions (4) — short labels, no offline.
+    // Previous Launcher quick actions (4) — short labels; Notes + Offline
+    // share a chip row under Quick Actions (same layout as Expenses / Net Worth).
     expect(find.text('Scan'), findsOneWidget);
     expect(find.text('Documents'), findsOneWidget);
     expect(find.text('Reminder'), findsOneWidget);
     expect(find.text('Voice'), findsOneWidget);
-    expect(find.text('Offline'), findsNothing);
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Offline'), findsOneWidget);
     expect(find.text('Scan Document'), findsNothing);
     expect(find.text('Voice Assistant'), findsNothing);
 
@@ -112,12 +114,17 @@ void main() {
     expect(find.text('Pending'), findsOneWidget);
     expect(find.text('Insurance'), findsOneWidget);
 
-    // Order: Quick Actions → My Vaults → Needs attention → tools / market.
+    // Order: Quick Actions → Notes/Offline row → My Vaults → Needs attention.
     final quickY = tester.getTopLeft(find.text('Quick Actions')).dy;
+    final notesY = tester.getTopLeft(find.text('Notes')).dy;
+    final offlineY = tester.getTopLeft(find.text('Offline')).dy;
     final vaultsY = tester.getTopLeft(find.text('My Vaults')).dy;
     final needsY = tester.getTopLeft(find.text('Needs attention')).dy;
     final expiringY = tester.getTopLeft(find.text('Expiring')).dy;
-    expect(quickY, lessThan(vaultsY));
+    expect(quickY, lessThan(notesY));
+    expect(quickY, lessThan(offlineY));
+    expect(notesY, lessThan(vaultsY));
+    expect(offlineY, lessThan(vaultsY));
     expect(vaultsY, lessThan(needsY));
     expect(needsY, lessThan(expiringY));
 

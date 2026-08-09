@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:typed_data';
 
 import '../config/share_config.dart';
+import '../core/net/net_guard.dart';
 import '../models/document_share.dart';
 import '../models/public_share.dart';
 import 'document_repository.dart';
@@ -108,8 +109,9 @@ class ShareRepository {
 
     final sw = Stopwatch()..start();
     try {
-      final row =
-          await _client.rpc('create_document_share', params: payload);
+      final row = await _client
+          .rpc('create_document_share', params: payload)
+          .timeout(NetGuard.mutation);
       developer.log(
           'RPC create_document_share → RESPONSE (${sw.elapsedMilliseconds}ms): '
           '$row',
@@ -184,20 +186,21 @@ class ShareRepository {
     }
 
     // 1) Upload each processed copy to a share-scoped path (RLS: under <uid>/).
+    //    A few uploads run concurrently (previously strictly sequential, which
+    //    made a multi-page share as slow as the sum of its files); order of the
+    //    registered paths/names is preserved regardless of completion order.
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    final paths = <String>[];
-    final names = <String>[];
-    final mimes = <String>[];
+    final paths = List<String>.filled(items.length, '');
+    final names = [for (final it in items) it.name];
+    final mimes = [for (final it in items) it.mime];
     try {
-      for (var i = 0; i < items.length; i++) {
+      await _forEachBounded(items.length, (i) async {
         final it = items[i];
         final objectPath = '$uid/shares/$stamp/$i.${it.ext}';
         await DocumentRepository.instance
             .uploadBytes(objectPath, it.bytes, contentType: it.mime);
-        paths.add(objectPath);
-        names.add(it.name);
-        mimes.add(it.mime);
-      }
+        paths[i] = objectPath;
+      });
     } catch (e) {
       throw ShareException('Could not upload the share copy.', cause: e);
     }
@@ -212,7 +215,9 @@ class ShareRepository {
       'p_password': (password != null && password.isNotEmpty) ? password : null,
     };
     try {
-      final row = await _client.rpc('create_processed_share', params: payload);
+      final row = await _client
+          .rpc('create_processed_share', params: payload)
+          .timeout(NetGuard.mutation);
       final map = (row is List ? (row.isEmpty ? null : row.first) : row)
           as Map<String, dynamic>?;
       if (map == null) {
@@ -265,10 +270,12 @@ class ShareRepository {
     unawaited(DocumentRepository.instance.pruneShareCopies());
 
     // 1) Upload each processed copy + register it as a hidden document row.
+    //    Upload+register pairs run a few at a time (was strictly sequential);
+    //    ids keep the item order so the share lists pages in the right order.
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    final ids = <String>[];
+    final ids = List<String>.filled(items.length, '');
     try {
-      for (var i = 0; i < items.length; i++) {
+      await _forEachBounded(items.length, (i) async {
         final it = items[i];
         final objectPath = '$uid/shares/$stamp/$i.${it.ext}';
         await DocumentRepository.instance
@@ -280,8 +287,8 @@ class ShareRepository {
           status: 'shared',
           filePath: objectPath,
         );
-        ids.add(doc.id);
-      }
+        ids[i] = doc.id;
+      });
     } catch (e) {
       throw ShareException('Could not upload the share copy.', cause: e);
     }
@@ -289,6 +296,39 @@ class ShareRepository {
     // 2) Mint the share through the EXISTING deployed RPC (serves originals and
     //    these processed copies identically - by document id).
     return createShare(documentIds: ids, duration: duration);
+  }
+
+  /// Runs [task] for indices `0..count-1` with at most [concurrency] in flight
+  /// at once. On the first failure no NEW tasks start; in-flight ones are
+  /// awaited (never left running unobserved) and the first error is rethrown.
+  Future<void> _forEachBounded(
+    int count,
+    Future<void> Function(int index) task, {
+    int concurrency = 3,
+  }) async {
+    var next = 0;
+    Object? firstError;
+    StackTrace? firstStack;
+    Future<void> worker() async {
+      while (firstError == null) {
+        final i = next++;
+        if (i >= count) return;
+        try {
+          await task(i);
+        } catch (e, st) {
+          firstError ??= e;
+          firstStack ??= st;
+          return;
+        }
+      }
+    }
+
+    await Future.wait(
+      [for (var w = 0; w < concurrency && w < count; w++) worker()],
+    );
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError!, firstStack!);
+    }
   }
 
   bool _isMissingProcessedFn(PostgrestException e) {
@@ -317,7 +357,9 @@ class ShareRepository {
         .from(_table)
         .select()
         .eq('owner_id', uid) // defense-in-depth with the owner RLS policy
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
     return [for (final r in rows) DocumentShare.fromMap(r)];
   }
 
@@ -330,7 +372,8 @@ class ShareRepository {
         .select()
         .eq('share_id', shareId)
         .eq('owner_id', uid) // only the owner can read their own share
-        .maybeSingle();
+        .maybeSingle()
+        .timeout(NetGuard.query);
     return row == null ? null : DocumentShare.fromMap(row);
   }
 
@@ -347,7 +390,8 @@ class ShareRepository {
           .from(_table)
           .update({'status': 'revoked'})
           .eq('share_id', shareId)
-          .eq('owner_id', uid); // only the owner can revoke their own share
+          .eq('owner_id', uid) // only the owner can revoke their own share
+          .timeout(NetGuard.mutation);
       developer.log('revoke OK → $shareId', name: 'share');
       _bump();
     } on PostgrestException catch (e, st) {
@@ -371,7 +415,8 @@ class ShareRepository {
         .from(_table)
         .delete()
         .eq('share_id', shareId)
-        .eq('owner_id', uid); // only the owner can delete their own share
+        .eq('owner_id', uid) // only the owner can delete their own share
+        .timeout(NetGuard.mutation);
     _bump();
   }
 
@@ -389,7 +434,9 @@ class ShareRepository {
     try {
       // Ask for JSON explicitly - the Edge Function content-negotiates and
       // returns the branded HTML page to browsers, JSON to the app.
-      final res = await http.get(uri, headers: const {'accept': 'application/json'});
+      final res = await http
+          .get(uri, headers: const {'accept': 'application/json'})
+          .timeout(NetGuard.query);
       developer.log(
         'fetchPublicShare ← ${res.statusCode} '
         '${res.body.length > 500 ? '${res.body.substring(0, 500)}…' : res.body}',
@@ -419,7 +466,13 @@ class ShareRepository {
       '?mode=${download ? 'download' : 'view'}',
     );
     developer.log('fetchSharedFile → GET $uri', name: 'share');
-    final res = await http.get(uri);
+    final http.Response res;
+    try {
+      res = await http.get(uri).timeout(NetGuard.storage);
+    } on TimeoutException {
+      throw const ShareException(
+          'The download timed out. Check your connection and try again.');
+    }
     developer.log(
       'fetchSharedFile ← ${res.statusCode} '
       'type=${res.headers['content-type']} bytes=${res.bodyBytes.length}',
