@@ -4,7 +4,6 @@ import '../../../core/responsive/responsive_extensions.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../theme/app_theme.dart';
-import '../../../theme/theme_style.dart';
 import '../../common/shiny_border.dart';
 import '../ino_card.dart';
 import '../section_header.dart';
@@ -73,25 +72,14 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final themeStyle = InoStyle.of(context);
-    final bold = themeStyle == ThemeStyle.bold;
-    final soft = themeStyle == ThemeStyle.soft;
 
     // These are the "small badge" tiles: they keep their shape in every theme.
-    // Bold runs a deep accent flood with a white glyph; classic and soft are
-    // pastel chips - a light accent wash carrying the glyph in its own colour.
-    final Color body = bold
-        ? InoStyle.deepen(action.color, 0.14)
-        : soft
-        ? Color.alphaBlend(
-            action.color.withValues(alpha: 0.16),
-            palette.surface,
-          )
-        : Color.alphaBlend(
-            action.color.withValues(alpha: 0.14),
-            palette.surface,
-          );
-    final Color glyph = bold ? Colors.white : action.color;
+    // Classic and soft are pastel chips - a light accent wash carrying the glyph in its own colour.
+    final Color body = Color.alphaBlend(
+      action.color.withValues(alpha: 0.14),
+      palette.surface,
+    );
+    final Color glyph = action.color;
 
     return PressableScale(
       pressedScale: 0.92,
@@ -103,31 +91,23 @@ class _ActionTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: action.color.withValues(
-                    alpha: bold ? 0.30 : (soft ? 0.18 : 0.12),
-                  ),
+                  color: action.color.withValues(alpha: 0.12),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            // Soft: a full accent edge (as the coloured tiles carry in
-            // classic) with the glass sheen riding on it.
             child: ShinyBorder(
               radius: 18,
               width: 1.6,
-              enabled: soft,
+              enabled: false,
               child: Material(
                 color: body,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
-                  side: soft
-                      ? BorderSide(color: action.color, width: 1.6)
-                      : bold
-                      ? BorderSide.none
-                      : BorderSide(
-                          color: action.color.withValues(alpha: 0.35),
-                        ),
+                  side: BorderSide(
+                    color: action.color.withValues(alpha: 0.35),
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(

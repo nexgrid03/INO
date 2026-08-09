@@ -18,6 +18,7 @@ Future<void> showDocumentQuickView(
   required DocumentRecord record,
   required List<Color> accent,
   required VoidCallback onOpenFull,
+  bool isHealth = false,
 }) {
   final palette = AppPalette.of(context);
   return showModalBottomSheet<void>(
@@ -31,6 +32,7 @@ Future<void> showDocumentQuickView(
       record: record,
       accent: accent,
       onOpenFull: onOpenFull,
+      isHealth: isHealth,
     ),
   );
 }
@@ -40,18 +42,34 @@ class _QuickViewSheet extends StatelessWidget {
     required this.record,
     required this.accent,
     required this.onOpenFull,
+    this.isHealth = false,
   });
 
   final DocumentRecord record;
   final List<Color> accent;
   final VoidCallback onOpenFull;
+  final bool isHealth;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final extraction = record.extraction;
-    final fields = extraction.displayFields();
-    final typeLabel = extraction.typeLabel ?? record.category;
+    final List<({String label, String value})> fields;
+    final String typeLabel;
+    if (isHealth) {
+      fields = [
+        (label: 'Hospital Name', value: record.name),
+        (label: 'Document Type', value: record.category),
+        if (record.doctorName != null && record.doctorName!.trim().isNotEmpty)
+          (label: 'Doctor Name', value: record.doctorName!),
+        if (record.expiresAt != null)
+          (label: 'Next Appointment Date', value: inoFormatDate(record.expiresAt!)),
+      ];
+      typeLabel = record.category;
+    } else {
+      fields = extraction.displayFields();
+      typeLabel = extraction.typeLabel ?? record.category;
+    }
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -105,8 +123,8 @@ class _QuickViewSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              if (fields.isNotEmpty) ...[
-                Text('EXTRACTED INFORMATION',
+              if (fields.isNotEmpty || isHealth) ...[
+                Text(isHealth ? 'HEALTH DETAILS' : 'EXTRACTED INFORMATION',
                     style: AppText.label
                         .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
                 const SizedBox(height: AppSpacing.xs),

@@ -25,6 +25,7 @@ class DocumentCard extends StatelessWidget {
     this.selectionMode = false,
     this.selected = false,
     this.onLongPress,
+    this.isHealth = false,
   });
 
   /// Home My Vaults accent for this wallet — default chrome when no doc-type tint.
@@ -50,6 +51,8 @@ class DocumentCard extends StatelessWidget {
 
   /// Long-press handler - used by the parent to enter multi-select mode.
   final VoidCallback? onLongPress;
+
+  final bool isHealth;
 
   @override
   Widget build(BuildContext context) {
@@ -187,8 +190,8 @@ class DocumentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                _MetaLine(record: record),
-                _ExtractedSummary(record: record, accent: _iconColor),
+                _MetaLine(record: record, isHealth: isHealth),
+                if (!isHealth) _ExtractedSummary(record: record, accent: _iconColor),
                 const SizedBox(height: 7),
                 _StatusBadge(status: record.status),
               ],
@@ -270,6 +273,25 @@ class DocumentCard extends StatelessWidget {
 
   (DivineGlassMetaCell, Widget) _launcherMeta(BuildContext context) {
     final palette = AppPalette.of(context);
+    
+    if (isHealth) {
+      final left = DivineGlassMetaCell(
+        label: record.expiresAt != null ? 'Next Appointment' : 'Appointment',
+        value: record.expiresAt != null
+            ? inoFormatDate(record.expiresAt!)
+            : '—',
+      );
+      return (
+        left,
+        DivineGlassMetaCell(
+          label: 'Uploaded',
+          value: inoFormatDate(record.uploadedAt),
+          alignEnd: true,
+          valueColor: palette.textPrimary,
+        ),
+      );
+    }
+
     final data = record.extraction.data;
     final number = data['number'] ?? record.recordNumber;
     final masked = number == null || number.isEmpty
@@ -411,13 +433,22 @@ class _SelectionCheck extends StatelessWidget {
 }
 
 class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.record});
+  const _MetaLine({required this.record, this.isHealth = false});
 
   final DocumentRecord record;
+  final bool isHealth;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    if (isHealth && record.expiresAt != null) {
+      return Text(
+        '${record.category}  ·  Appt: ${inoFormatDate(record.expiresAt!)}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: palette.textSecondary),
+      );
+    }
     return Text(
       '${record.category}  ·  ${inoFormatDate(record.uploadedAt)}',
       maxLines: 1,

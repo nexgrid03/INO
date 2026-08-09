@@ -25,8 +25,6 @@ import 'package:flutter/material.dart';
 ///    (teal #098F90), with soft-3D / clay PNG Home icons.
 enum ThemeStyle {
   classic,
-  bold,
-  soft,
   launcher,
   aqua,
   aquaLight,
@@ -65,8 +63,8 @@ class InoStyle {
 
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
 
-  static bool isBold(BuildContext context) => of(context) == ThemeStyle.bold;
-  static bool isSoft(BuildContext context) => of(context) == ThemeStyle.soft;
+  static bool isBold(BuildContext context) => false;
+  static bool isSoft(BuildContext context) => false;
   static bool isLauncher(BuildContext context) =>
       of(context) == ThemeStyle.launcher;
 
@@ -127,14 +125,8 @@ class InoStyle {
         .toColor();
   }
 
-  /// An accent resolved for the active style: deeper in bold, a touch lighter
-  /// in soft, untouched in classic / launcher / aqua family / clay.
   static Color accent(BuildContext context, Color c) {
     switch (of(context)) {
-      case ThemeStyle.bold:
-        return deepen(c, 0.14);
-      case ThemeStyle.soft:
-        return soften(c, 0.06);
       case ThemeStyle.classic:
       case ThemeStyle.launcher:
       case ThemeStyle.aqua:
@@ -156,26 +148,8 @@ class InoStyle {
   /// Secondary (label) text on a bold accent fill.
   static Color get boldTextSecondary => Colors.white.withValues(alpha: 0.85);
 
-  /// A branded gradient resolved for the active style: every stop runs deeper
-  /// in bold and a touch lighter in soft. Non-linear gradients pass through
-  /// untouched. Classic, launcher, clay and aqua family leave the gradient as authored.
+  /// A branded gradient resolved for the active style. Classic, launcher, clay and aqua family leave the gradient as authored.
   static Gradient gradient(BuildContext context, Gradient g) {
-    final style = of(context);
-    if (style == ThemeStyle.classic ||
-        style == ThemeStyle.launcher ||
-        style == ThemeStyle.clay ||
-        usesAquaBrand(style) ||
-        g is! LinearGradient) {
-      return g;
-    }
-    final shift = style == ThemeStyle.bold
-        ? (Color c) => deepen(c, 0.10)
-        : (Color c) => soften(c, 0.05);
-    return LinearGradient(
-      begin: g.begin,
-      end: g.end,
-      stops: g.stops,
-      colors: [for (final c in g.colors) shift(c)],
-    );
+    return g;
   }
 }

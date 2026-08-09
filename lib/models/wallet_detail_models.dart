@@ -159,6 +159,7 @@ class DocumentRecord {
     this.isFavorite = false,
     this.filePath,
     this.notes,
+    this.doctorName,
   });
 
   final String id;
@@ -181,6 +182,7 @@ class DocumentRecord {
   /// [DocumentExtraction] JSON envelope carrying the OCR-extracted fields.
   /// Decode with `DocumentExtraction.decode(notes)` to read the structured data.
   final String? notes;
+  final String? doctorName;
 
   /// The structured OCR data extracted from this document (empty when none).
   DocumentExtraction get extraction => DocumentExtraction.decode(notes);
@@ -190,6 +192,7 @@ class DocumentRecord {
     String? category,
     DocumentStatus? status,
     bool? isFavorite,
+    String? doctorName,
   }) {
     return DocumentRecord(
       id: id,
@@ -205,6 +208,7 @@ class DocumentRecord {
       isFavorite: isFavorite ?? this.isFavorite,
       filePath: filePath,
       notes: notes,
+      doctorName: doctorName ?? this.doctorName,
     );
   }
 

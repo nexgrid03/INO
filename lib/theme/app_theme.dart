@@ -406,45 +406,7 @@ class AppPalette {
     shadowStrength: 1.0,
   );
 
-  /// Bold-style light: the same layout of tokens with every neutral run a
-  /// shade deeper - a stronger teal wash, firmer borders and heavier shadows -
-  /// so the accent-flooded cards sit in a correspondingly deeper scene.
-  static const AppPalette lightBold = AppPalette(
-    brightness: Brightness.light,
-    bg: Color(0xFFDCEEFA), // deeper teal wash
-    bgElevated: Color(0xFFF9FDFD),
-    surface: Color(0xFFFCFEFE),
-    cardTop: Color(0xFFFCFEFE),
-    cardBottom: Color(0xFFE8F3FC),
-    surfaceVariant: Color(0xFFD8EBF8),
-    textPrimary: Color(0xFF0B1220),
-    textSecondary: Color(0xFF56636F),
-    textFaint: Color(0xFF8593A2),
-    border: Color(0x400EA5E9), // rgba(48,172,179,0.25) - firmer hairline
-    shadow: Color(0xFF0EA5E9),
-    ambient: Color(0xFF0EA5E9),
-    shadowStrength: 1.2,
-  );
 
-  /// Soft-style light: a touch airier than classic - a near-white wash, lighter
-  /// hairlines and whisper shadows - the backdrop for glass badges with
-  /// colourful glyphs.
-  static const AppPalette lightSoft = AppPalette(
-    brightness: Brightness.light,
-    bg: Color(0xFFF5FAFE), // lighter, near-white wash
-    bgElevated: Color(0xFFFFFFFF),
-    surface: Color(0xFFFFFFFF),
-    cardTop: Color(0xFFFFFFFF),
-    cardBottom: Color(0xFFFCFEFE),
-    surfaceVariant: Color(0xFFEAF4FC),
-    textPrimary: Color(0xFF1E293B),
-    textSecondary: Color(0xFF6E7F94),
-    textFaint: Color(0xFFA0ACBC),
-    border: Color(0x1F0EA5E9), // rgba(48,172,179,0.12) - lighter hairline
-    shadow: Color(0xFF0EA5E9),
-    ambient: Color(0xFF0EA5E9),
-    shadowStrength: 0.8,
-  );
 
   /// Aqua-style light: same layout tokens as classic, washed in teal #098F90.
   /// Secondary/faint ink is intentionally deep — light slate greys vanish on
@@ -557,10 +519,7 @@ class AppPalette {
       return InoStyle.usesAquaBrand(style) ? darkAqua : dark;
     }
     switch (style) {
-      case ThemeStyle.bold:
-        return lightBold;
-      case ThemeStyle.soft:
-        return lightSoft;
+
       case ThemeStyle.aqua:
         return lightAqua;
       case ThemeStyle.aquaLight:

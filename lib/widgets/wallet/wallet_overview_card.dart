@@ -24,24 +24,7 @@ class WalletOverviewCard extends StatelessWidget {
         : AppColors.secondaryGreen;
     final Gradient heroGradient;
     switch (themeStyle) {
-      case ThemeStyle.bold:
-        heroGradient = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            InoStyle.deepen(brand, 0.10),
-            InoStyle.deepen(brandSecondary, 0.12),
-          ],
-        );
-      case ThemeStyle.soft:
-        heroGradient = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            InoStyle.soften(brand, 0.06),
-            InoStyle.soften(brandSecondary, 0.06),
-          ],
-        );
+
       case ThemeStyle.aqua:
       case ThemeStyle.aquaLight:
       case ThemeStyle.aquaMist:

@@ -147,10 +147,15 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.review:
         _recapture();
       case _Stage.processing:
-      case _Stage.result:
         _go(_Stage.review);
       case _Stage.wallet:
-        _go(_Stage.result);
+        _go(_Stage.review);
+      case _Stage.result:
+        if (widget.initialWallet != null) {
+          _go(_Stage.review);
+        } else {
+          _go(_Stage.wallet);
+        }
     }
   }
 
@@ -164,25 +169,24 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
     confidence: DetectionConfidence.low,
   );
 
-  /// Details confirmed. When the launcher didn't already name a wallet, ask
-  /// which one before saving; otherwise go straight to the finish.
+  /// Details confirmed. In the new flow, wallet has already been chosen (or
+  /// pre-selected), so go straight to the finish.
   void _detailsConfirmed(OcrResult confirmed) {
     _ocr = confirmed;
-    if (widget.initialWallet != null) {
-      unawaited(_finish(confirmed));
-      return;
-    }
-    _go(_Stage.wallet);
+    unawaited(_finish(confirmed, wallet: confirmed.suggestedWallet));
   }
 
   /// The user picked a wallet: it becomes the document's destination, overriding
-  /// whatever OCR suggested.
-  Future<void> _walletChosen(String wallet) async {
+  /// whatever OCR suggested. Then we go to the result details screen to fill
+  /// the details.
+  void _walletChosen(String wallet) {
     final confirmed = (_ocr ?? _manualFallback).copyWith(
       suggestedWallet: wallet,
     );
-    _ocr = confirmed;
-    await _finish(confirmed, wallet: wallet);
+    setState(() {
+      _ocr = confirmed;
+    });
+    _go(_Stage.result);
   }
 
   /// Final continue: multi-page scans are assembled into ONE PDF (falling back
@@ -269,27 +273,35 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           assumeClean: _usedMlKit,
           onResult: (result) {
             _ocr = result;
-            _go(_Stage.result);
+            if (widget.initialWallet != null) {
+              _go(_Stage.result);
+            } else {
+              _go(_Stage.wallet);
+            }
           },
           // OCR couldn't read it → fall back to manual entry (never a dead end).
           onFailed: () {
             _ocr = _manualFallback;
-            _go(_Stage.result);
+            if (widget.initialWallet != null) {
+              _go(_Stage.result);
+            } else {
+              _go(_Stage.wallet);
+            }
           },
         );
       case _Stage.result:
         return OcrResultScreen(
           result: _ocr ?? _manualFallback,
-          destinationWallet: widget.initialWallet,
-          onClose: () => _go(_Stage.review),
+          destinationWallet: widget.initialWallet ?? (_ocr ?? _manualFallback).suggestedWallet,
+          onClose: () => widget.initialWallet != null ? _go(_Stage.review) : _go(_Stage.wallet),
           onRetake: _recapture,
           onContinue: _detailsConfirmed,
         );
       case _Stage.wallet:
         return ScanWalletScreen(
           suggestedWallet: (_ocr ?? _manualFallback).suggestedWallet,
-          onBack: () => _go(_Stage.result),
-          onSelected: (wallet) => unawaited(_walletChosen(wallet)),
+          onBack: () => _go(_Stage.review),
+          onSelected: _walletChosen,
         );
     }
   }

@@ -226,6 +226,23 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
         final empty = all.isEmpty;
         final loading = _store.isLoading && !_store.isLoaded;
         final failed = _store.loadError != null && _store.isEmpty;
+
+        final monthlyData = List.generate(12, (index) {
+          final month = (index + 3) % 12 + 1; // index 0 -> 4 (Apr), index 11 -> 3 (Mar)
+          final year = month >= 4 ? fy.startYear : fy.startYear + 1;
+          final txns = all.where((t) => t.dateTime.month == month && t.dateTime.year == year);
+          final credited = txns.where((t) => t.isCredited).fold(0.0, (sum, t) => sum + t.amount);
+          final debited = txns.where((t) => !t.isCredited).fold(0.0, (sum, t) => sum + t.amount);
+          return (
+            month: month,
+            year: year,
+            credited: credited,
+            debited: debited,
+            total: debited - credited,
+            count: txns.length,
+          );
+        });
+
         return Scaffold(
           backgroundColor: palette.bg,
           floatingActionButton: empty
@@ -250,6 +267,10 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                       yearLabel: fy.label,
                     ),
                   ),
+                  if (!loading && !failed && !empty) ...[
+                    _MonthlyBreakdown(monthlyData: monthlyData),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                         AppSpacing.screen, AppSpacing.sm),
@@ -792,6 +813,118 @@ class _AddButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MonthlyBreakdown extends StatelessWidget {
+  const _MonthlyBreakdown({required this.monthlyData});
+
+  final List<({
+    int month,
+    int year,
+    double credited,
+    double debited,
+    double total,
+    int count,
+  })> monthlyData;
+
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.xs),
+          child: Text(
+            l10n.t('monthlyTracking'),
+            style: AppText.title.copyWith(color: palette.textPrimary, fontSize: 16),
+          ),
+        ),
+        SizedBox(
+          height: 108,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen - 4),
+            itemCount: monthlyData.length,
+            itemBuilder: (context, index) {
+              final data = monthlyData[index];
+              final hasTxns = data.count > 0;
+              final monthLabel = _monthNames[data.month - 1];
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: AdaptiveGlassCard(
+                  padding: const EdgeInsets.all(12),
+                  radius: AppRadius.card,
+                  child: SizedBox(
+                    width: 104,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              monthLabel,
+                              style: AppText.label.copyWith(
+                                color: palette.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (hasTxns)
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryGreen,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          hasTxns ? rupees(data.debited.round()) : '—',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.subtitle.copyWith(
+                            color: hasTxns ? AppColors.negative : palette.textFaint,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasTxns ? '+${rupees(data.credited.round())}' : 'No activity',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption.copyWith(
+                            color: hasTxns ? AppColors.positive : palette.textFaint,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

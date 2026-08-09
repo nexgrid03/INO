@@ -901,16 +901,13 @@ class _ToolTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final themeStyle = InoStyle.of(context);
-    final bold = themeStyle == ThemeStyle.bold;
-    final soft = themeStyle == ThemeStyle.soft;
 
     final iconBox = 40.0;
-    final iconSize = bold ? 30.0 : 24.0;
+    final iconSize = 24.0;
 
     final Widget glyph = Icon(
       icon,
-      color: bold ? Colors.white : color,
+      color: color,
       size: iconSize,
     );
 
@@ -919,29 +916,23 @@ class _ToolTile extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          bold
-              ? SizedBox(
-                  width: iconBox,
-                  height: iconBox,
-                  child: Center(child: glyph),
-                )
-              : Container(
-                  width: iconBox,
-                  height: iconBox,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: glyph,
-                ),
+          Container(
+            width: iconBox,
+            height: iconBox,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: glyph,
+          ),
           const SizedBox(height: 3),
           Text(
             title,
             maxLines: 1,
             style: TextStyle(
-              color: bold ? Colors.white : palette.textPrimary,
-              fontSize: bold ? 14 : 12,
+              color: palette.textPrimary,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -949,27 +940,17 @@ class _ToolTile extends StatelessWidget {
       ),
     );
 
-    final tile = bold
-        ? Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: InoStyle.boldFill(color),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: InoStyle.boldBorder(color), width: 2),
-            ),
-            child: content,
-          )
-        : LiquidGlass(
-            borderRadius: BorderRadius.circular(16),
-            blur: 16,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: content,
-          );
+    final tile = LiquidGlass(
+      borderRadius: BorderRadius.circular(16),
+      blur: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: content,
+    );
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: ShinyBorder(radius: 16, width: 1, enabled: soft, child: tile),
+      child: ShinyBorder(radius: 16, width: 1, enabled: false, child: tile),
     );
   }
 }

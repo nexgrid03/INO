@@ -16,6 +16,7 @@ class Document {
     this.isFavorite = false,
     this.expiresAt,
     this.filePath,
+    this.doctorName,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,6 +32,7 @@ class Document {
   final bool isFavorite;
   final DateTime? expiresAt;
   final String? filePath; // location of the image in Storage (null for now)
+  final String? doctorName;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -55,6 +57,7 @@ class Document {
           ? null
           : DateTime.parse(map['expires_at'] as String),
       filePath: map['file_path'] as String?,
+      doctorName: map['doctor_name'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );

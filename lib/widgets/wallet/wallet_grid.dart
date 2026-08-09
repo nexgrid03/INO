@@ -9,7 +9,6 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
-import '../common/shiny_border.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
 
@@ -197,26 +196,9 @@ class _WalletCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final themeStyle = InoStyle.of(context);
-    final bold = themeStyle == ThemeStyle.bold;
-    final soft = themeStyle == ThemeStyle.soft;
 
-    // Frosted glass cards: accent lives on the icon chip and whisper blobs.
-    // Bold keeps its flooded-card look.
-    final fill = bold
-        ? InoStyle.boldFill(accent)
-        : (palette.isDark
-              ? Color.alphaBlend(
-                  accent.withValues(alpha: 0.10),
-                  palette.surface,
-                )
-              : palette.surface);
-    // Hairline glass edge in classic/soft; bold keeps its heavier accent edge.
-    final edge = bold ? InoStyle.boldBorder(accent) : accent;
-    final titleColor = bold ? Colors.white : palette.textPrimary;
-    final metricColor = bold
-        ? InoStyle.boldTextSecondary
-        : palette.textSecondary;
+    final titleColor = palette.textPrimary;
+    final metricColor = palette.textSecondary;
 
     final content = Stack(
       children: [
@@ -233,18 +215,18 @@ class _WalletCard extends StatelessWidget {
                         top: -24 + t * 5,
                         right: -20,
                         child: _Blob(
-                          color: bold ? Colors.white : accent,
+                          color: accent,
                           size: 92,
-                          opacity: bold ? 0.20 : 0.10,
+                          opacity: 0.10,
                         ),
                       ),
                       Positioned(
                         bottom: -28 - t * 4,
                         left: -22,
                         child: _Blob(
-                          color: bold ? Colors.white : accent,
+                          color: accent,
                           size: 64,
-                          opacity: bold ? 0.12 : 0.06,
+                          opacity: 0.06,
                         ),
                       ),
                     ],
@@ -264,42 +246,29 @@ class _WalletCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    bold
-                        ? SizedBox(
-                            width: 38,
-                            height: 38,
-                            child: _VaultGlyph(
-                              category: category,
-                              accent: Colors.white,
-                              size: 30,
-                              use3d: false,
-                            ),
-                          )
-                        : Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: accent.withValues(
-                                alpha: palette.isDark ? 0.22 : 0.14,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: accent.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: _VaultGlyph(
-                              category: category,
-                              accent: accent,
-                              size: 22,
-                              use3d: InoStyle.usesHome3dIcons(context),
-                            ),
-                          ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(
+                          alpha: palette.isDark ? 0.22 : 0.14,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: _VaultGlyph(
+                        category: category,
+                        accent: accent,
+                        size: 22,
+                        use3d: InoStyle.usesHome3dIcons(context),
+                      ),
+                    ),
                     const Spacer(),
                     Icon(
                       Icons.arrow_outward_rounded,
-                      color: bold
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : accent.withValues(alpha: 0.6),
+                      color: accent.withValues(alpha: 0.6),
                       size: 18,
                     ),
                   ],
@@ -339,38 +308,13 @@ class _WalletCard extends StatelessWidget {
       ],
     );
 
-    final surface = bold
-        ? ShinyBorder(
-            radius: 20,
-            width: 2.5,
-            enabled: soft,
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: fill,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: edge,
-                  width: 2.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.24),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: content,
-            ),
-          )
-        : LiquidGlass(
-            borderRadius: BorderRadius.circular(20),
-            blur: 16,
-            frost: palette.isDark ? 1.1 : 0.72,
-            padding: EdgeInsets.zero,
-            child: SizedBox.expand(child: content),
-          );
+    final surface = LiquidGlass(
+      borderRadius: BorderRadius.circular(20),
+      blur: 16,
+      frost: palette.isDark ? 1.1 : 0.72,
+      padding: EdgeInsets.zero,
+      child: SizedBox.expand(child: content),
+    );
 
     return PressableScale(
       pressedScale: 0.97,
@@ -396,9 +340,8 @@ class _AddWalletCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final bold = InoStyle.of(context) == ThemeStyle.bold;
     final accent = AppColors.primaryGreen;
-    final edge = bold ? InoStyle.boldBorder(accent) : accent;
+    final edge = accent;
     return PressableScale(
       pressedScale: 0.97,
       child: GestureDetector(

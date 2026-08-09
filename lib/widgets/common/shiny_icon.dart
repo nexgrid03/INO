@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
-import '../../theme/theme_style.dart';
 
 /// How the badge body is filled.
 enum ShinyIconStyle {
@@ -76,13 +75,8 @@ class ShinyIcon extends StatelessWidget {
     //  • classic / soft - Divine Glass pastel chip (glass body, coloured glyph),
     //    remapping any legacy `filled` call sites automatically,
     //  • bold - saturated accent body with a white glyph.
-    final themeStyle = InoStyle.of(context);
-    final effectiveStyle = themeStyle == ThemeStyle.bold
-        ? ShinyIconStyle.filled
-        : (style == ShinyIconStyle.filled ? ShinyIconStyle.glass : style);
-    final effectiveColor = themeStyle == ThemeStyle.bold
-        ? InoStyle.deepen(color, 0.12)
-        : color;
+    final effectiveStyle = style == ShinyIconStyle.filled ? ShinyIconStyle.glass : style;
+    final effectiveColor = color;
     final filled = effectiveStyle == ShinyIconStyle.filled;
 
     final glyph =
@@ -110,7 +104,7 @@ class ShinyIcon extends StatelessWidget {
           surface: palette.surface,
           // The soft theme's signature: a pronounced glass shine riding on
           // every badge ring, matching the containers' ShinyBorder sheen.
-          shine: themeStyle == ThemeStyle.soft,
+          shine: false,
         ),
         // `painter` draws behind `child`, so the glyph rides on top of the
         // glass - including on top of the gloss, which keeps it legible.

@@ -70,7 +70,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
       d.filePath != null && !d.filePath!.toLowerCase().endsWith('.pdf'));
 
   ShareSettings _settings() => ShareSettings(
-        colorMode: _allImages ? _color : ShareColorMode.original,
+        colorMode: _color,
         duration: _duration,
       );
 
@@ -347,7 +347,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                       const SizedBox(height: AppSpacing.sm),
                       _FormatQualityRow(
                         selected: _color,
-                        enabled: _allImages,
+                        enabled: true,
                         onSelected: (c) => setState(() => _color = c),
                       ),
                       const SizedBox(height: AppSpacing.lg),

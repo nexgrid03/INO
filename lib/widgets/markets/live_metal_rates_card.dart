@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/fuel_rates_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -85,6 +86,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     // No full-bleed glass panel — sky shows through; each rate is its own card.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,6 +119,58 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
             icon: Icons.circle,
             color: AppColors.silver,
             priceText: _inr(_silverPerGram),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.place_rounded, size: 14, color: palette.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.t('cityRates'),
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  canvasColor: palette.isDark ? palette.surface : Colors.white,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _fuel.selectedCity,
+                    isDense: true,
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: palette.textSecondary),
+                    items: FuelRatesStore.cities.map((String city) {
+                      final label = city == 'Custom' ? l10n.t('custom') : city;
+                      return DropdownMenuItem<String>(
+                        value: city,
+                        child: Text(label),
+                      );
+                    }).toList(),
+                    onChanged: (String? newCity) {
+                      if (newCity != null) {
+                        _fuel.setSelectedCity(newCity);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

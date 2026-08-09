@@ -70,12 +70,14 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
   }
 
   void _create() {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) return;
+    var title = _titleController.text.trim();
+    if (title.isEmpty) {
+      title = _category.localizedLabel(AppLocalizations.of(context));
+    }
     final reminder = Reminder(
       id: 'u${DateTime.now().microsecondsSinceEpoch}',
       title: title,
-      subtitle: _category.label,
+      subtitle: _category.localizedLabel(AppLocalizations.of(context)),
       category: _category,
       priority: _priority,
       date: _date,
@@ -112,7 +114,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                       AppText.headline.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.md),
 
-              _FieldLabel(l10n.t('reminderTitle')),
+              _FieldLabel('${l10n.t('reminderTitle')} (${l10n.t('optional')})'),
               const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: _titleController,
@@ -121,7 +123,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                 onSubmitted: (_) => _create(),
                 style: AppText.body.copyWith(color: palette.textPrimary),
                 decoration:
-                    _inputDecoration(palette, l10n.t('reminderTitleHint')),
+                    _inputDecoration(palette, '${l10n.t('reminderTitleHint')} (${l10n.t('optional')})'),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -210,7 +212,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              _CreateButton(enabled: !_titleEmpty, onTap: _create),
+              _CreateButton(enabled: true, onTap: _create),
             ],
           ),
         ),
