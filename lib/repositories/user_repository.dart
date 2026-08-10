@@ -107,6 +107,11 @@ class UserRepository {
   static const String _cachePrefix = 'ino_profile_cache';
   UserProfile? _inMemoryProfile;
 
+  /// Clears the in-memory profile cache on sign-out / account switch.
+  void clearCache() {
+    _inMemoryProfile = null;
+  }
+
   Future<void> _cacheProfile(UserProfile profile) async {
     _inMemoryProfile = profile;
     try {

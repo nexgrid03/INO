@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
 import '../repositories/qr_code_repository.dart';
+import '../repositories/user_repository.dart';
 import 'app_settings.dart';
 import 'card_store.dart';
 import 'category_store.dart';
@@ -105,6 +106,11 @@ class SessionReset {
     // Account-scoped preferences (2FA flag, last-backup, toggles). Language is a
     // device preference and is intentionally preserved.
     await _guard('settings', () => AppSettings.instance.resetAccountScoped());
+
+    // Clear DocumentRepository & UserRepository in-memory caches so Account B
+    // never inherits Account A's cached documents or profile snapshot.
+    await _guard('documentRepository', () async => DocumentRepository.instance.clearCache());
+    await _guard('userRepository', () async => UserRepository.instance.clearCache());
 
     // Nudge document listeners (storage meter, wallet counts) to re-fetch - the
     // next fetch is RLS-scoped to whoever signs in next.
