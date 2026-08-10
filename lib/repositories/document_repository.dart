@@ -4,10 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
+import '../core/net/stream_download.dart';
 import '../models/document.dart';
 import 'wallet_tables.dart';
 
@@ -129,34 +130,12 @@ class DocumentRepository {
     developer.log('downloadToFile bucket=$_bucket path=$objectPath',
         name: 'storage');
     final url = await signedUrl(objectPath, expiresInSeconds: 600);
-    final client = http.Client();
-    IOSink? sink;
-    try {
-      final res = await client
-          .send(http.Request('GET', Uri.parse(url)))
-          .timeout(NetGuard.query);
-      if (res.statusCode != 200) {
-        throw StorageException(
-            'Download failed (HTTP ${res.statusCode}) for $objectPath');
-      }
-      sink = dest.openWrite();
-      // The stream timeout fires on a stalled connection (no chunk arriving),
-      // not on total duration - a big file on a slow link still succeeds.
-      await sink.addStream(res.stream.timeout(NetGuard.query));
-      await sink.flush();
-    } catch (e) {
-      // Never leave a half-written file behind for callers to mistake for a
-      // complete download.
-      try {
-        await sink?.close();
-        sink = null;
-        if (await dest.exists()) await dest.delete();
-      } catch (_) {}
-      rethrow;
-    } finally {
-      await sink?.close();
-      client.close();
-    }
+    await streamUrlToFile(
+      url,
+      dest,
+      onError: (code) =>
+          StorageException('Download failed (HTTP $code) for $objectPath'),
+    );
   }
 
   /// Renames a document (updates the `name` column).
@@ -287,16 +266,23 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Capped: an unbounded select over a huge wallet is exactly what makes
-        // volume tests (and real power users) fall over. 500 newest is far
-        // beyond what the UI renders today.
-        final rows = await _client
-            .from(_tableFor(wallet))
-            .select()
-            .eq('auth_user_id', userId)
-            .order('created_at', ascending: false)
-            .limit(NetGuard.maxRows)
-            .timeout(NetGuard.query);
+        // Paged, not capped: one `.limit()` bounds the payload but silently
+        // drops everything past it, so a wallet with 600 documents would show
+        // 500 and hide the rest. Each request stays small; the whole wallet
+        // still arrives. `id` breaks ties on `created_at` so the page windows
+        // are deterministic - without it, rows sharing a timestamp can repeat
+        // on one page and vanish from the next.
+        final rows = await fetchAllPaged(
+          (from, to) => _client
+              .from(_tableFor(wallet))
+              .select()
+              .eq('auth_user_id', userId)
+              .order('created_at', ascending: false)
+              .order('id', ascending: false)
+              .range(from, to)
+              .timeout(NetGuard.query),
+          label: 'listForWallet($wallet)',
+        );
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
         _cachedWallet[wallet] = list;
         _cachedWalletTime[wallet] = DateTime.now();
@@ -332,16 +318,21 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Same cap as listForWallet: the union view spans every wallet, so it
-        // is the single biggest payload in the app when a vault grows.
-        final rows = await _client
-            .from(WalletTables.documentsView)
-            .select()
-            .eq('auth_user_id', userId)
-            .neq('wallet', shareCacheWallet)
-            .order('created_at', ascending: false)
-            .limit(NetGuard.maxRows)
-            .timeout(NetGuard.query);
+        // Paged for the same reason as listForWallet, and it matters more here:
+        // the union view spans every wallet, so it is the first query to pass
+        // any single-wallet cap and the biggest payload in the app.
+        final rows = await fetchAllPaged(
+          (from, to) => _client
+              .from(WalletTables.documentsView)
+              .select()
+              .eq('auth_user_id', userId)
+              .neq('wallet', shareCacheWallet)
+              .order('created_at', ascending: false)
+              .order('id', ascending: false)
+              .range(from, to)
+              .timeout(NetGuard.query),
+          label: 'listAll',
+        );
         final list = [for (final r in rows) Document.fromMap(r)];
         _cachedAll = list;
         _cachedAllTime = DateTime.now();

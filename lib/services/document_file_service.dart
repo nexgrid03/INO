@@ -39,8 +39,12 @@ class DocumentFileService {
     final dir = await _cacheDir();
     final file = File('${dir.path}/${_cacheKey(objectPath)}');
     if (await file.exists() && await file.length() > 0) return file;
-    final bytes = await DocumentRepository.instance.download(objectPath);
-    await file.writeAsBytes(bytes, flush: true);
+    // Streamed straight to disk in chunks. The destination is a file, so there
+    // is no reason to materialise a 50 MB PDF as a Uint8List first - that peak
+    // is what turns "open a few big documents" into an OOM under stress.
+    // downloadToFile also deletes a half-written file when a transfer fails, so
+    // the `length > 0` check above can never hand back a truncated cache entry.
+    await DocumentRepository.instance.downloadToFile(objectPath, file);
     return file;
   }
 

@@ -267,13 +267,19 @@ class _SecuredFooterChip extends StatelessWidget {
         children: [
           Icon(Icons.lock_rounded, size: 15, color: AppColors.textMuted),
           SizedBox(width: 8),
-          Text(
-            'SECURED BY INO VAULT ENCRYPTION',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.1,
-              color: AppColors.textMuted,
+          // Flexible, so the letter-spaced label wraps instead of running past
+          // the pill's right edge. At 1.1 letter-spacing this string is just
+          // wider than a narrow screen allows once the chip's own 18px padding
+          // is taken off - the source of the 1.9px overflow.
+          Flexible(
+            child: Text(
+              'SECURED BY INO VAULT ENCRYPTION',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -170,6 +171,14 @@ class _FakeVaultRepo implements FamilyVaultRepository {
   Future<Uint8List> downloadDocument(VaultDocument doc) async {
     if (revokedVaults.contains(doc.vaultId)) throw Exception('403');
     return Uint8List.fromList(const [1, 2, 3]);
+  }
+
+  @override
+  Future<void> downloadDocumentToFile(VaultDocument doc, File dest) async {
+    // Same access check as the byte form: this is the method the vault screen
+    // actually calls, so revocation has to be enforced here too.
+    if (revokedVaults.contains(doc.vaultId)) throw Exception('403');
+    await dest.writeAsBytes(const [1, 2, 3]);
   }
 
   // Realtime is a no-op in tests (no live backend).
@@ -576,6 +585,12 @@ void main() {
       expect(await repo.documents('v1'), isEmpty);
       expect(() => repo.downloadDocument(doc), throwsA(isA<Exception>()));
       expect(() => repo.documentUrl(doc), throwsA(isA<Exception>()));
+      // The streaming path is what the vault screen opens documents with, so
+      // it has to be revoked too - a leak here would bypass the check above.
+      expect(
+        () => repo.downloadDocumentToFile(doc, File('unused')),
+        throwsA(isA<Exception>()),
+      );
     });
 
     test('an editor may withdraw only their own contribution', () {
