@@ -33,7 +33,7 @@ class MarketRatesService {
   static const Duration _cacheTtl = Duration(minutes: 15);
 
   /// Returns [fallback] with the Gold & Silver entries replaced by live rates.
-  Future<List<MarketQuote>> fetchLive(List<MarketQuote> fallback, {bool force = false}) async {
+  Future<List<MarketQuote>> fetchLive([List<MarketQuote> fallback = const [], bool force = false]) async {
     final now = DateTime.now();
     if (!force && _cachedQuotes != null && _lastFetchTime != null) {
       if (now.difference(_lastFetchTime!) < _cacheTtl) {
