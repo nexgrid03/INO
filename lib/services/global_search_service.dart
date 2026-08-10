@@ -46,6 +46,7 @@ class GlobalSearchService {
   static const _maxRecent = 8;
 
   List<Document>? _docCache;
+  final Map<String, String> _haystackCache = {};
 
   /// Frequently useful starting points shown before the user types.
   static const List<String> suggestions = [
@@ -72,15 +73,16 @@ class GlobalSearchService {
       final docs = _docCache ??= await DocumentRepository.instance.listAll();
       for (final d in docs) {
         final category = d.category ?? 'Other';
-        final haystack = [
-          d.name,
-          category,
-          d.wallet,
-          d.recordNumber ?? '',
-          ...d.tags,
-          // OCR-extracted fields (Aadhaar / PAN / passport number, name, …).
-          DocumentExtraction.decode(d.notes).searchableText,
-        ].join(' ').toLowerCase();
+        final haystack = _haystackCache.putIfAbsent(d.id, () {
+          return [
+            d.name,
+            category,
+            d.wallet,
+            d.recordNumber ?? '',
+            ...d.tags,
+            DocumentExtraction.decode(d.notes).searchableText,
+          ].join(' ').toLowerCase();
+        });
 
         if (haystack.contains(q)) {
           hits.add(SearchHit(
@@ -126,15 +128,15 @@ class GlobalSearchService {
     try {
       await ReminderStore.instance.ensureLoaded();
       for (final r in ReminderStore.instance.active) {
-        final haystack =
-            '${r.title} ${r.subtitle} ${r.category.name}'.toLowerCase();
-        if (haystack.contains(q)) {
+        final text = '${r.title} ${r.subtitle} ${r.category.name}'
+            .toLowerCase();
+        if (text.contains(q)) {
           hits.add(SearchHit(
             type: SearchHitType.reminder,
             title: r.title,
             subtitle: r.subtitle.isEmpty ? 'Reminder' : r.subtitle,
-            icon: Icons.alarm_rounded,
-            color: AppColors.warning,
+            icon: Icons.notifications_rounded,
+            color: AppColors.skyBrandSecondary,
           ));
         }
       }
@@ -146,7 +148,10 @@ class GlobalSearchService {
   }
 
   /// Clears the cached document snapshot so the next search re-fetches.
-  void invalidate() => _docCache = null;
+  void invalidate() {
+    _docCache = null;
+    _haystackCache.clear();
+  }
 
   // ---- Recent searches -----------------------------------------------------
 
