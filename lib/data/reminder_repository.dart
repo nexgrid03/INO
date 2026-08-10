@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
 import '../models/reminder_models.dart';
 
 /// Source of Reminders data - the `public.reminders` table in Supabase.
@@ -48,13 +49,20 @@ class SupabaseReminderRepository implements ReminderRepository {
       // Defense-in-depth: RLS already scopes rows to the owner, but we ALSO
       // filter by auth_user_id explicitly so a missing/misconfigured RLS policy
       // can never leak another user's reminders into this client.
-      final rows = await _client
-          .from(_table)
-          .select()
-          .eq('auth_user_id', uid)
-          .order('due_date')
-          .limit(NetGuard.maxRowsLarge)
-          .timeout(NetGuard.query);
+      // Paged rather than capped: reminders accumulate over years, and a
+      // silently truncated list here means a missed due date, not just a short
+      // screen. `id` keeps page windows stable when due dates tie.
+      final rows = await fetchAllPaged(
+        (from, to) => _client
+            .from(_table)
+            .select()
+            .eq('auth_user_id', uid)
+            .order('due_date')
+            .order('id')
+            .range(from, to)
+            .timeout(NetGuard.query),
+        label: 'reminders',
+      );
       all = [for (final r in rows) Reminder.fromMap(r)];
       debugPrint('Reminders loaded from Supabase: ${all.length}');
     } catch (e) {

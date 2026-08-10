@@ -58,8 +58,6 @@ abstract class DashboardRepository {
 class SampleDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardData> load() async {
-    // Simulate a tiny network latency so skeleton/entrance states feel real.
-    await Future<void>.delayed(const Duration(milliseconds: 350));
     return _data;
   }
 

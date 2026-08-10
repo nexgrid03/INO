@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
 import '../models/expense_models.dart';
 
 /// Everything the Transaction Vault persists, loaded in one round trip pair.
@@ -56,24 +57,34 @@ class SupabaseExpenseRepository implements ExpenseRepository {
     if (uid == null) {
       return const ExpenseData(transactions: [], taxDocuments: []);
     }
-    // Both lists in parallel (they are independent), capped and time-limited:
-    // half the wall-clock of the old sequential pair, and a vault with years
-    // of transactions can no longer produce an unbounded payload.
+    // Both lists in parallel (they are independent), each paged and
+    // time-limited: half the wall-clock of the old sequential pair, no single
+    // unbounded payload, and - unlike a bare `.limit()` - years of transactions
+    // all arrive instead of being silently cut at the cap. `id` breaks ties on
+    // the sort key so page windows stay deterministic.
     final results = await Future.wait([
-      _client
-          .from(_txnTable)
-          .select()
-          .eq('auth_user_id', uid)
-          .order('expense_date', ascending: false)
-          .limit(NetGuard.maxRowsLarge)
-          .timeout(NetGuard.query),
-      _client
-          .from(_taxTable)
-          .select()
-          .eq('auth_user_id', uid)
-          .order('added_at', ascending: false)
-          .limit(NetGuard.maxRows)
-          .timeout(NetGuard.query),
+      fetchAllPaged(
+        (from, to) => _client
+            .from(_txnTable)
+            .select()
+            .eq('auth_user_id', uid)
+            .order('expense_date', ascending: false)
+            .order('id', ascending: false)
+            .range(from, to)
+            .timeout(NetGuard.query),
+        label: 'transactions',
+      ),
+      fetchAllPaged(
+        (from, to) => _client
+            .from(_taxTable)
+            .select()
+            .eq('auth_user_id', uid)
+            .order('added_at', ascending: false)
+            .order('id', ascending: false)
+            .range(from, to)
+            .timeout(NetGuard.query),
+        label: 'taxDocuments',
+      ),
     ]);
     final txnRows = results[0];
     final taxRows = results[1];

@@ -105,8 +105,10 @@ class UserRepository {
   // reach features that are deliberately offline, like Offline documents).
 
   static const String _cachePrefix = 'ino_profile_cache';
+  UserProfile? _inMemoryProfile;
 
   Future<void> _cacheProfile(UserProfile profile) async {
+    _inMemoryProfile = profile;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -121,11 +123,16 @@ class UserRepository {
   /// The last profile this device fetched for [authUserId], or null when this
   /// account has never loaded here. Purely local - never touches the network.
   Future<UserProfile?> getCachedProfile(String authUserId) async {
+    if (_inMemoryProfile != null && _inMemoryProfile!.authUserId == authUserId) {
+      return _inMemoryProfile;
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('${_cachePrefix}_$authUserId');
       if (raw == null) return null;
-      return UserProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+      final profile = UserProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+      _inMemoryProfile = profile;
+      return profile;
     } catch (_) {
       return null;
     }

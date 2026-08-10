@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
 import '../models/note_models.dart';
 
 /// Source of Notes Vault data - the `public.notes` table in Supabase.
@@ -41,13 +42,20 @@ class SupabaseNotesRepository implements NotesRepository {
     // (e.g. in tests) - here we throw so the store can show an error state.
     final uid = _uid;
     if (uid == null) return const [];
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('auth_user_id', uid)
-        .order('updated_at', ascending: false)
-        .limit(NetGuard.maxRowsLarge)
-        .timeout(NetGuard.query);
+    // Paged rather than capped: a heavy note-taker past the old ceiling would
+    // have lost the oldest notes silently. `id` keeps page windows stable when
+    // two notes share an updated_at.
+    final rows = await fetchAllPaged(
+      (from, to) => _client
+          .from(_table)
+          .select()
+          .eq('auth_user_id', uid)
+          .order('updated_at', ascending: false)
+          .order('id', ascending: false)
+          .range(from, to)
+          .timeout(NetGuard.query),
+      label: 'notes',
+    );
     final notes = [for (final r in rows) Note.fromRow(r)];
     debugPrint('Notes loaded from Supabase: ${notes.length}');
     return notes;

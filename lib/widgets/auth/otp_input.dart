@@ -103,20 +103,39 @@ class _OtpInputState extends State<OtpInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(widget.length, (index) {
-        return Padding(
-          padding: EdgeInsets.only(right: index == widget.length - 1 ? 0 : 10),
-          child: _OtpBox(
-            controller: _controllers[index],
-            node: _nodes[index],
-            enabled: widget.enabled,
-            onChanged: (v) => _onChanged(index, v),
-            onKey: (event) => _onKey(index, event),
-          ),
+    // Six fixed 48px boxes plus five 10px gaps need 338px, which is more than a
+    // narrow phone leaves after page padding - that is the RenderFlex overflow
+    // on the right. Size the boxes from the width actually available instead:
+    // capped at 48 so wide screens look unchanged, shrinking below that rather
+    // than overflowing. The 28px floor keeps a digit legible; six of those plus
+    // the gaps fit in 218px, narrower than any real device.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final available = constraints.maxWidth;
+        final box = available.isFinite
+            ? (((available - gap * (widget.length - 1)) / widget.length)
+                .clamp(28.0, 48.0))
+            : 48.0;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var index = 0; index < widget.length; index++) ...[
+              if (index > 0) const SizedBox(width: gap),
+              SizedBox(
+                width: box,
+                child: _OtpBox(
+                  controller: _controllers[index],
+                  node: _nodes[index],
+                  enabled: widget.enabled,
+                  onChanged: (v) => _onChanged(index, v),
+                  onKey: (event) => _onKey(index, event),
+                ),
+              ),
+            ],
+          ],
         );
-      }),
+      },
     );
   }
 }
@@ -158,7 +177,8 @@ class _OtpBoxState extends State<_OtpBox> {
     final filled = widget.controller.text.isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      width: 48,
+      // Width comes from the SizedBox the parent sizes to fit the screen; only
+      // the height is fixed here.
       height: 58,
       decoration: BoxDecoration(
         // Translucent glass box over the sky wash, pale-sky hairline at rest.

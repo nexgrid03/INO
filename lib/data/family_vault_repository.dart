@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/stream_download.dart';
 import '../models/family_vault_models.dart';
 
 /// Source of Family Vault data — the `public.family_vaults` and
@@ -103,6 +106,12 @@ abstract class FamilyVaultRepository {
 
   /// The raw bytes of a shared document, for in-app preview.
   Future<Uint8List> downloadDocument(VaultDocument doc);
+
+  /// Streams a shared document straight to [dest] on disk, without holding the
+  /// whole file in memory. Use this whenever the end state is a file (opening
+  /// in an external app, saving); [downloadDocument] is only for previews that
+  /// genuinely need the bytes.
+  Future<void> downloadDocumentToFile(VaultDocument doc, File dest);
 
   // ---- Audit + realtime ----------------------------------------------------
 
@@ -455,6 +464,19 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       .from(_bucket)
       .download(doc.objectPath)
       .timeout(NetGuard.storage);
+
+  @override
+  Future<void> downloadDocumentToFile(VaultDocument doc, File dest) async {
+    // Same short-lived signed URL as documentUrl - the storage policy re-checks
+    // membership on every read, so a removed member is cut off here too.
+    final url = await documentUrl(doc, expiresInSeconds: 600);
+    await streamUrlToFile(
+      url,
+      dest,
+      onError: (code) => StorageException(
+          'Download failed (HTTP $code) for ${doc.objectPath}'),
+    );
+  }
 
   // ---- Audit + realtime ----------------------------------------------------
 

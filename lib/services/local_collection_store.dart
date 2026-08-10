@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
+import '../core/perf/perf_tracer.dart';
 
 /// Parses a list of JSON strings into maps, skipping corrupt entries. Top-level
 /// so [compute] can run it in a background isolate for big collections - the
@@ -128,12 +130,13 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
 
   /// Hydrates for the current user; reloads when the account changed. Safe to
   /// call from every screen's `initState`.
-  Future<void> ensureLoaded() async {
-    final uid = _currentUid();
-    if (_loading) return;
-    if (_loaded && uid == _loadedUid) return;
-    await _load(uid);
-  }
+  Future<void> ensureLoaded() =>
+      PerfTracer.traceQuery('LocalCollectionStore($storageKey).ensureLoaded', () async {
+        final uid = _currentUid();
+        if (_loading) return;
+        if (_loaded && uid == _loadedUid) return;
+        await _load(uid);
+      });
 
   Future<void> reload() async {
     if (_loading) return;
@@ -193,12 +196,19 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
   Future<void> _syncFromServer(String uid) async {
     final table = syncTable!;
     try {
-      final rows = await Supabase.instance.client
-          .from(table)
-          .select()
-          .eq('auth_user_id', uid)
-          .limit(NetGuard.maxRows)
-          .timeout(NetGuard.query);
+      // Paged rather than capped, and explicitly ordered by id: `.range()` over
+      // an unordered query returns arbitrary windows, so the sort is what makes
+      // paging correct here, not just tidy.
+      final rows = await fetchAllPaged(
+        (from, to) => Supabase.instance.client
+            .from(table)
+            .select()
+            .eq('auth_user_id', uid)
+            .order('id')
+            .range(from, to)
+            .timeout(NetGuard.query),
+        label: 'sync($table)',
+      );
 
       final remote = <T>[];
       for (final row in rows) {

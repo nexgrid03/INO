@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
+import '../core/perf/perf_tracer.dart';
 import '../data/scan_repository.dart' show OcrException;
 import '../models/ocr_result_model.dart';
 import '../models/ocr_stage.dart';
@@ -41,8 +42,15 @@ class OcrService {
   OcrService._();
   static final OcrService instance = OcrService._();
 
-  final TextRecognizer _recognizer =
-      TextRecognizer(script: TextRecognitionScript.latin);
+  TextRecognizer? _recognizerInstance;
+  TextRecognizer get _recognizer =>
+      _recognizerInstance ??= TextRecognizer(script: TextRecognitionScript.latin);
+
+  /// Close and dispose the underlying native TextRecognizer instance when done.
+  Future<void> close() async {
+    await _recognizerInstance?.close();
+    _recognizerInstance = null;
+  }
 
   /// Completed extractions, keyed by the source file's identity
   /// (`path|size|mtime`). Re-running OCR on the SAME unchanged file - going
@@ -106,7 +114,8 @@ class OcrService {
   Future<OcrExtraction> extract(String imagePath,
       {bool assumeClean = false,
       bool textOnly = false,
-      OnOcrStage? onStage}) async {
+      OnOcrStage? onStage}) =>
+      PerfTracer.traceQuery('OcrService.extract', () async {
     // Reporting must never be able to break extraction: a listener that throws
     // (a disposed screen, a bad setState) would otherwise take down the whole
     // pipeline and send the user to manual entry for a UI bug.
@@ -386,7 +395,7 @@ class OcrService {
       }
       _step('cleanup: deleted $deleted temp file(s)', sw: sw);
     }
-  }
+  });
 
   /// Builds a candidate, logging + swallowing (with a full stack trace) only its
   /// own failure so a bad candidate skips itself instead of aborting the whole

@@ -467,8 +467,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 360),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // Wrap, not Row: "Already a vault member?" plus the Sign In button
+            // is wider than a narrow phone, and a Row just clips the button off
+            // the right edge. Wrap drops it to a second centred line instead.
+            // This also absorbs the longer Hindi/Telugu strings, which overflow
+            // further than English does.
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   l10n.t('alreadyVaultMember'),

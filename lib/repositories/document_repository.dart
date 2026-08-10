@@ -4,10 +4,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/net/paged_query.dart';
+import '../core/perf/perf_tracer.dart';
+import '../core/net/stream_download.dart';
 import '../models/document.dart';
 import 'wallet_tables.dart';
 
@@ -54,7 +56,7 @@ class DocumentRepository {
   }
 
   // --- In-memory cache & request deduplication ------------------------------
-  static const Duration _cacheTtl = Duration(seconds: 30);
+  static const Duration _cacheTtl = Duration(minutes: 2);
   List<Document>? _cachedAll;
   DateTime? _cachedAllTime;
   Future<List<Document>>? _inFlightAll;
@@ -129,34 +131,12 @@ class DocumentRepository {
     developer.log('downloadToFile bucket=$_bucket path=$objectPath',
         name: 'storage');
     final url = await signedUrl(objectPath, expiresInSeconds: 600);
-    final client = http.Client();
-    IOSink? sink;
-    try {
-      final res = await client
-          .send(http.Request('GET', Uri.parse(url)))
-          .timeout(NetGuard.query);
-      if (res.statusCode != 200) {
-        throw StorageException(
-            'Download failed (HTTP ${res.statusCode}) for $objectPath');
-      }
-      sink = dest.openWrite();
-      // The stream timeout fires on a stalled connection (no chunk arriving),
-      // not on total duration - a big file on a slow link still succeeds.
-      await sink.addStream(res.stream.timeout(NetGuard.query));
-      await sink.flush();
-    } catch (e) {
-      // Never leave a half-written file behind for callers to mistake for a
-      // complete download.
-      try {
-        await sink?.close();
-        sink = null;
-        if (await dest.exists()) await dest.delete();
-      } catch (_) {}
-      rethrow;
-    } finally {
-      await sink?.close();
-      client.close();
-    }
+    await streamUrlToFile(
+      url,
+      dest,
+      onError: (code) =>
+          StorageException('Download failed (HTTP $code) for $objectPath'),
+    );
   }
 
   /// Renames a document (updates the `name` column).
@@ -269,7 +249,8 @@ class DocumentRepository {
 
   /// All documents in one wallet, newest first. Reads the wallet's own table
   /// rather than the union view, so it never scans the other wallets.
-  Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) async {
+  Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) =>
+      PerfTracer.traceQuery('DocumentRepository.listForWallet($wallet)', () async {
     final userId = _uid;
     if (userId == null) return const [];
 
@@ -287,16 +268,17 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Capped: an unbounded select over a huge wallet is exactly what makes
-        // volume tests (and real power users) fall over. 500 newest is far
-        // beyond what the UI renders today.
-        final rows = await _client
-            .from(_tableFor(wallet))
-            .select()
-            .eq('auth_user_id', userId)
-            .order('created_at', ascending: false)
-            .limit(NetGuard.maxRows)
-            .timeout(NetGuard.query);
+        final rows = await fetchAllPaged(
+          (from, to) => _client
+              .from(_tableFor(wallet))
+              .select()
+              .eq('auth_user_id', userId)
+              .order('created_at', ascending: false)
+              .order('id', ascending: false)
+              .range(from, to)
+              .timeout(NetGuard.query),
+          label: 'listForWallet($wallet)',
+        );
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
         _cachedWallet[wallet] = list;
         _cachedWalletTime[wallet] = DateTime.now();
@@ -308,13 +290,14 @@ class DocumentRepository {
 
     _inFlightWallet[wallet] = future;
     return future;
-  }
+  });
 
   /// Every document belonging to the signed-in user, newest first, across every
   /// wallet - so this reads the `documents` union view. Excludes the hidden
   /// [shareCacheWallet] copies so processed share images never surface in
   /// search / dashboards / exports.
-  Future<List<Document>> listAll({bool forceRefresh = false}) async {
+  Future<List<Document>> listAll({bool forceRefresh = false}) =>
+      PerfTracer.traceQuery('DocumentRepository.listAll', () async {
     final userId = _uid;
     if (userId == null) return const [];
 
@@ -332,16 +315,18 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Same cap as listForWallet: the union view spans every wallet, so it
-        // is the single biggest payload in the app when a vault grows.
-        final rows = await _client
-            .from(WalletTables.documentsView)
-            .select()
-            .eq('auth_user_id', userId)
-            .neq('wallet', shareCacheWallet)
-            .order('created_at', ascending: false)
-            .limit(NetGuard.maxRows)
-            .timeout(NetGuard.query);
+        final rows = await fetchAllPaged(
+          (from, to) => _client
+              .from(WalletTables.documentsView)
+              .select()
+              .eq('auth_user_id', userId)
+              .neq('wallet', shareCacheWallet)
+              .order('created_at', ascending: false)
+              .order('id', ascending: false)
+              .range(from, to)
+              .timeout(NetGuard.query),
+          label: 'listAll',
+        );
         final list = [for (final r in rows) Document.fromMap(r)];
         _cachedAll = list;
         _cachedAllTime = DateTime.now();
@@ -353,7 +338,7 @@ class DocumentRepository {
 
     _inFlightAll = future;
     return future;
-  }
+  });
 
   /// The processed share copies (hidden [shareCacheWallet] rows), newest first.
   Future<List<Document>> listShareCopies() => listForWallet(shareCacheWallet);

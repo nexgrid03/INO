@@ -152,7 +152,6 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Future<void> _openDocument(VaultDocument doc) async {
     _toast('Opening ${doc.name}…');
     try {
-      final bytes = await _repo.downloadDocument(doc);
       final dir = await getTemporaryDirectory();
       var safe = doc.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
       // The extension is load-bearing: OpenFilex resolves the handler app from
@@ -163,7 +162,9 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         safe = '$safe.$ext';
       }
       final file = File('${dir.path}/vault_${doc.id}_$safe');
-      await file.writeAsBytes(bytes);
+      // Streamed to disk rather than buffered: OpenFilex needs a file, so the
+      // bytes never have to exist in RAM all at once.
+      await _repo.downloadDocumentToFile(doc, file);
       final result = await OpenFilex.open(file.path);
       if (!mounted) return;
       if (result.type != ResultType.done) {

@@ -25,13 +25,25 @@ class NetGuard {
   /// PDF on a slow link is legitimate, only a genuine hang should trip this.
   static const Duration storage = Duration(minutes: 3);
 
-  /// Default cap for list queries. Nothing in the UI pages yet, so this is a
-  /// safety ceiling, not pagination: generous enough that a normal account
-  /// never notices, small enough that a runaway table can't OOM the client.
+  /// Cap for list queries whose row count is bounded by construction (the
+  /// wallet registry, one vault's members, a share's recipients). These cannot
+  /// grow with a user's own data, so a ceiling is honest here.
+  ///
+  /// Lists that DO grow with user data page through [fetchAllPaged] instead -
+  /// a bare `.limit()` on those silently hides rows past the cap.
   static const int maxRows = 500;
 
-  /// Cap for high-volume tables (transactions) where 500 is plausibly reached.
+  /// Cap for bounded high-volume tables where 500 is plausibly reached.
   static const int maxRowsLarge = 1000;
+
+  /// Rows per request when paging. Small enough that any single response stays
+  /// modest on a slow link, large enough that a normal account finishes in one
+  /// or two round trips.
+  static const int pageSize = 200;
+
+  /// Runaway backstop for a paged fetch. Not a product limit - reaching it is
+  /// logged, because it means an account is far outside expected size.
+  static const int hardMaxRows = 10000;
 }
 
 /// An [http.Client] that bounds how long any single request may take to start

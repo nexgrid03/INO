@@ -286,7 +286,12 @@ supabase functions deploy send-reminder-push
 1. Link Vercel to the `share-frontend` folder.
 2. Set the Environment Variable:
    *   `SUPABASE_FUNCTIONS_URL` = `https://<your-supabase-project-ref>.functions.supabase.co`
-3. Link the custom domain `share.inoapp.in` to Vercel (or configure your own domain in [share_config.dart](file:///c:/Users/Lenovo/Downloads/BraveProjects/INO/lib/config/share_config.dart) by overriding `customBaseUrlOverride`).
+3. **Optional** — link a custom domain in Vercel. There is no custom domain today:
+   `share.inoapp.in` appears in older notes but does **not** resolve (NXDOMAIN),
+   so do not use it in tests or docs until it is actually configured. The live
+   base is the Vercel URL, and [share_config.dart](lib/config/share_config.dart)
+   already points `publicBase` at it — change that one constant and every new
+   QR/link follows.
 
 ---
 
@@ -302,12 +307,14 @@ flutter test
 
 ### 2. Verify View-Once Web Endpoints
 ```bash
+# Use the live Vercel base - share.inoapp.in does not resolve.
+
 # 1. Check share status (Non-destructive Peek)
-curl -s "https://share.inoapp.in/s/<token>?format=json"
+curl -s "https://ino-share-web.vercel.app/s/<token>?format=json"
 
 # 3. Claim token (Burns link, returns accessKey)
-curl -s -X POST "https://share.inoapp.in/api/v/<token>/claim"
+curl -s -X POST "https://ino-share-web.vercel.app/api/v/<token>/claim"
 
 # 4. Requesting claim again must fail (HTTP 410 Gone / 401 Unauthorized)
-curl -s -i -X POST "https://share.inoapp.in/api/v/<token>/claim"
+curl -s -i -X POST "https://ino-share-web.vercel.app/api/v/<token>/claim"
 ```
