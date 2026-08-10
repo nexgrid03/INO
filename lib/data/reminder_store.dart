@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/perf/perf_tracer.dart';
 import '../l10n/app_localizations.dart';
 import '../models/reminder_models.dart';
 import 'reminder_repository.dart';
@@ -37,7 +38,7 @@ class ReminderStore extends ChangeNotifier {
   bool get isEmpty => _active.isEmpty && _completed.isEmpty;
 
   /// Loads the data once. Safe to call from every screen's `initState`.
-  Future<void> ensureLoaded() async {
+  Future<void> ensureLoaded() => PerfTracer.traceQuery('ReminderStore.ensureLoaded', () async {
     if (_loaded || _loading) return;
     _loading = true;
     final data = await ReminderRepository.instance.load();
@@ -52,7 +53,7 @@ class ReminderStore extends ChangeNotifier {
     _loaded = true;
     _loading = false;
     notifyListeners();
-  }
+  });
 
   /// Pull-to-refresh: re-hydrate from the repository.
   Future<void> reload() async {

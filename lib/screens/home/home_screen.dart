@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/perf/perf_tracer.dart';
 import '../../core/responsive/responsive_extensions.dart';
 import '../../data/dashboard_repository.dart';
 import '../../data/reminder_store.dart';
@@ -133,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _future = _load();
   }
 
-  Future<_HomeData> _load() async {
+  Future<_HomeData> _load() => PerfTracer.traceQuery('HomeScreen._load', () async {
     // 1) Fetch user documents ONCE upfront (cached defensively in DocumentRepository)
     final docs = await DocumentRepository.instance.listAll().catchError((_) => <Document>[]);
 
@@ -283,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
       cardsCount: cardsCount,
       pendingItems: pendingItems,
     );
-  }
+  });
 
   Future<void> _refresh() async {
     final data = _load();
@@ -460,12 +461,14 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.only(
             bottom: i == sections.length - 1 ? 0 : sectionGap,
           ),
-          child: animate
-              ? FadeSlideIn(
-                  delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
-                  child: sections[i],
-                )
-              : sections[i],
+          child: RepaintBoundary(
+            child: animate
+                ? FadeSlideIn(
+                    delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
+                    child: sections[i],
+                  )
+                : sections[i],
+          ),
         ),
     ];
   }

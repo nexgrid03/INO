@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/perf/perf_tracer.dart';
 import '../models/dashboard_models.dart' show QuickAction, SmartInsight;
 import '../models/document.dart';
 import '../models/wallet_models.dart';
@@ -141,8 +142,9 @@ class SupabaseWalletRepository implements WalletRepository {
   }
 
   @override
-  Future<WalletHubData> load({List<Document>? documents}) async {
-    List<Document> docs;
+  Future<WalletHubData> load({List<Document>? documents}) =>
+      PerfTracer.traceQuery('WalletRepository.load', () async {
+        List<Document> docs;
     if (documents != null) {
       docs = documents;
     } else {
@@ -248,7 +250,7 @@ class SupabaseWalletRepository implements WalletRepository {
       ),
       insights: const [],
     );
-  }
+  });
 
   /// The (count, label) a data wallet reports on its hub card, or null for the
   /// document wallets - which keep counting documents.

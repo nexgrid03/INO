@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
 import '../core/net/paged_query.dart';
+import '../core/perf/perf_tracer.dart';
 import '../core/net/stream_download.dart';
 import '../models/document.dart';
 import 'wallet_tables.dart';
@@ -248,7 +249,8 @@ class DocumentRepository {
 
   /// All documents in one wallet, newest first. Reads the wallet's own table
   /// rather than the union view, so it never scans the other wallets.
-  Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) async {
+  Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) =>
+      PerfTracer.traceQuery('DocumentRepository.listForWallet($wallet)', () async {
     final userId = _uid;
     if (userId == null) return const [];
 
@@ -266,12 +268,6 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Paged, not capped: one `.limit()` bounds the payload but silently
-        // drops everything past it, so a wallet with 600 documents would show
-        // 500 and hide the rest. Each request stays small; the whole wallet
-        // still arrives. `id` breaks ties on `created_at` so the page windows
-        // are deterministic - without it, rows sharing a timestamp can repeat
-        // on one page and vanish from the next.
         final rows = await fetchAllPaged(
           (from, to) => _client
               .from(_tableFor(wallet))
@@ -294,13 +290,14 @@ class DocumentRepository {
 
     _inFlightWallet[wallet] = future;
     return future;
-  }
+  });
 
   /// Every document belonging to the signed-in user, newest first, across every
   /// wallet - so this reads the `documents` union view. Excludes the hidden
   /// [shareCacheWallet] copies so processed share images never surface in
   /// search / dashboards / exports.
-  Future<List<Document>> listAll({bool forceRefresh = false}) async {
+  Future<List<Document>> listAll({bool forceRefresh = false}) =>
+      PerfTracer.traceQuery('DocumentRepository.listAll', () async {
     final userId = _uid;
     if (userId == null) return const [];
 
@@ -318,9 +315,6 @@ class DocumentRepository {
 
     final future = () async {
       try {
-        // Paged for the same reason as listForWallet, and it matters more here:
-        // the union view spans every wallet, so it is the first query to pass
-        // any single-wallet cap and the biggest payload in the app.
         final rows = await fetchAllPaged(
           (from, to) => _client
               .from(WalletTables.documentsView)
@@ -344,7 +338,7 @@ class DocumentRepository {
 
     _inFlightAll = future;
     return future;
-  }
+  });
 
   /// The processed share copies (hidden [shareCacheWallet] rows), newest first.
   Future<List<Document>> listShareCopies() => listForWallet(shareCacheWallet);

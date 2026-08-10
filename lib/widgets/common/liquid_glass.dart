@@ -162,9 +162,11 @@ class LiquidGlass extends StatelessWidget {
     );
 
     Widget surface = useBlur
-        ? BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-            child: body,
+        ? RepaintBoundary(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: body,
+            ),
           )
         : body;
 
@@ -176,7 +178,7 @@ class LiquidGlass extends StatelessWidget {
             child: surface,
           );
 
-    if (!shadow) return surface;
+    if (!shadow) return RepaintBoundary(child: surface);
 
     return DecoratedBox(
       decoration: BoxDecoration(
