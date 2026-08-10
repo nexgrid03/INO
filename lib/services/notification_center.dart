@@ -69,8 +69,11 @@ class NotificationCenter extends ChangeNotifier {
   int get unreadCount => notifications.where((n) => !n.read).length;
   bool get isLoaded => _loaded;
 
+  Future<void>? _inFlightRefresh;
+
   /// Loads persisted read/dismissed state, then generates from current state.
   Future<void> load() async {
+    if (_loaded && _inFlightRefresh == null) return;
     try {
       final p = await SharedPreferences.getInstance();
       _read
@@ -87,6 +90,18 @@ class NotificationCenter extends ChangeNotifier {
 
   /// Rebuilds the notification list from live app state.
   Future<void> refresh() async {
+    if (_inFlightRefresh != null) return _inFlightRefresh!;
+
+    final future = _executeRefresh();
+    _inFlightRefresh = future;
+    try {
+      await future;
+    } finally {
+      _inFlightRefresh = null;
+    }
+  }
+
+  Future<void> _executeRefresh() async {
     final items = <AppNotification>[];
     final now = DateTime.now();
 

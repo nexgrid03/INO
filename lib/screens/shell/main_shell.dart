@@ -111,6 +111,8 @@ class _MainShellState extends State<MainShell>
     super.dispose();
   }
 
+  final Set<int> _visitedTabs = {ShellController.tab.value};
+
   // Driven by the shared controller so pushed routes can switch tabs too.
   void _onTabChanged() {
     final next = ShellController.tab.value;
@@ -124,6 +126,7 @@ class _MainShellState extends State<MainShell>
     }
     if (mounted && _index != next) {
       setState(() {
+        _visitedTabs.add(next);
         _tabHistory.add(_index); // remember where we came from
         _index = next;
       });
@@ -229,7 +232,7 @@ class _MainShellState extends State<MainShell>
     // prompt), so don't mount the real data screens unauthenticated - an
     // IndexedStack builds ALL its children, visible or not.
     final guest = GuestMode.active;
-    final pages = [
+    final rawPages = [
       HomeScreen(
         profile: _profile,
         themeMode: widget.themeMode,
@@ -270,6 +273,11 @@ class _MainShellState extends State<MainShell>
           onToggleTheme: widget.onToggleTheme,
           onProfileUpdated: (updated) => setState(() => _profile = updated),
         ),
+    ];
+
+    final pages = [
+      for (var i = 0; i < rawPages.length; i++)
+        _visitedTabs.contains(i) ? rawPages[i] : const SizedBox.shrink(),
     ];
 
     final shell = Scaffold(

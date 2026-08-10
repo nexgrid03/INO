@@ -41,8 +41,15 @@ class OcrService {
   OcrService._();
   static final OcrService instance = OcrService._();
 
-  final TextRecognizer _recognizer =
-      TextRecognizer(script: TextRecognitionScript.latin);
+  TextRecognizer? _recognizerInstance;
+  TextRecognizer get _recognizer =>
+      _recognizerInstance ??= TextRecognizer(script: TextRecognitionScript.latin);
+
+  /// Close and dispose the underlying native TextRecognizer instance when done.
+  Future<void> close() async {
+    await _recognizerInstance?.close();
+    _recognizerInstance = null;
+  }
 
   /// Completed extractions, keyed by the source file's identity
   /// (`path|size|mtime`). Re-running OCR on the SAME unchanged file - going

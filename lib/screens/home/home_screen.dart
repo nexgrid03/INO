@@ -131,7 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _future = _load();
-    NotificationCenter.instance.load();
   }
 
   Future<_HomeData> _load() async {

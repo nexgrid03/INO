@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -140,12 +141,18 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
-        var profile = await UserRepository.instance.getProfileByAuthId(
+        var profile = await UserRepository.instance.getCachedProfile(
           session.user.id,
         );
-        profile ??= await UserRepository.instance.getCachedProfile(
-          session.user.id,
-        );
+        if (profile == null) {
+          profile = await UserRepository.instance.getProfileByAuthId(
+            session.user.id,
+          );
+        } else {
+          unawaited(
+            UserRepository.instance.getProfileByAuthId(session.user.id),
+          );
+        }
         if (profile != null && mounted) {
           _goToShellFade(profile);
           return;

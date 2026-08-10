@@ -15,14 +15,10 @@ import 'services/account_switcher.dart';
 import 'services/app_settings.dart';
 import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
-import 'services/card_store.dart';
 import 'services/category_store.dart';
 import 'services/deep_link_service.dart';
-import 'services/investment_store.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
-import 'services/password_store.dart';
-import 'services/property_store.dart';
 import 'services/push_service.dart';
 import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
@@ -57,49 +53,6 @@ Future<void> main() async {
   await ThemeController.load();
   await BiometricService.instance.loadLockState();
   await AppSettings.instance.load();
-
-  // Biometric security services: the per-document protection flags and the
-  // session guard that gates protected documents / sensitive actions.
-  await DocumentProtectionStore.instance.load();
-  VaultGuard.instance.init();
-
-  // Custom document categories (name / icon / colour), so they're available to
-  // pickers and filters on first paint.
-  await CategoryStore.instance.load();
-
-  // Wallets the user created themselves, so the hub grid and every wallet
-  // picker list them on first paint.
-  await CustomWalletStore.instance.load();
-
-  // The four data wallets' device-local records, so the hub shows real counts
-  // ("3 properties") on the very first frame instead of zeros that then jump.
-  await Future.wait([
-    PropertyStore.instance.ensureLoaded(),
-    InvestmentStore.instance.ensureLoaded(),
-    CardStore.instance.ensureLoaded(),
-    PasswordStore.instance.ensureLoaded(),
-  ]);
-
-  // Record this device in the local trusted-devices registry (non-blocking).
-  unawaited(TrustedDeviceService.instance.registerCurrent());
-
-  // Auto-backup: when enabled, back up shortly after documents change.
-  AutoBackupCoordinator.instance.start();
-
-  // Warm the notification feed so the bell badge is accurate on first paint.
-  unawaited(NotificationCenter.instance.load());
-
-  // Reminder push notifications (FCM). Deliberately NOT awaited: it makes
-  // network calls (Firebase handshake, token fetch, token upsert) that must
-  // never sit between the user and the first frame. A tap that cold-launched
-  // the app is still routed correctly - PushService waits for the navigator to
-  // attach before navigating.
-  unawaited(PushService.instance.init(InoApp.navigatorKey));
-
-  // Warm the centralized voice manager so the native TextToSpeech service is
-  // already bound (and past its cold-start races) before the voice greeting
-  // fires - part of the duplicate-speech fix (see services/voice_manager.dart).
-  VoiceManager.instance.warmUp();
 
   // Capture a share deep link the app may have been cold-launched from, BEFORE
   // the first frame - so the app root can show the shared documents directly
@@ -144,10 +97,23 @@ class _InoAppState extends State<InoApp> {
   void initState() {
     super.initState();
     // Warm links (background → foreground / already running) are pushed onto
-    // the live navigator once it's attached.
+    // the live navigator once it's attached, and non-critical services are deferred post-frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService.instance.startListening(InoApp.navigatorKey);
+      _initDeferredServices();
     });
+  }
+
+  void _initDeferredServices() {
+    unawaited(DocumentProtectionStore.instance.load());
+    VaultGuard.instance.init();
+    unawaited(CategoryStore.instance.load());
+    unawaited(CustomWalletStore.instance.load());
+    unawaited(TrustedDeviceService.instance.registerCurrent());
+    AutoBackupCoordinator.instance.start();
+    unawaited(NotificationCenter.instance.load());
+    unawaited(PushService.instance.init(InoApp.navigatorKey));
+    VoiceManager.instance.warmUp();
   }
 
   @override

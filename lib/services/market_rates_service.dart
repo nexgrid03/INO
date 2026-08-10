@@ -27,8 +27,35 @@ class MarketRatesService {
   static String lastStatus = 'not fetched yet';
   String _err = '';
 
+  List<MarketQuote>? _cachedQuotes;
+  DateTime? _lastFetchTime;
+  Future<List<MarketQuote>>? _inFlightFetch;
+  static const Duration _cacheTtl = Duration(minutes: 15);
+
   /// Returns [fallback] with the Gold & Silver entries replaced by live rates.
-  Future<List<MarketQuote>> fetchLive(List<MarketQuote> fallback) async {
+  Future<List<MarketQuote>> fetchLive(List<MarketQuote> fallback, {bool force = false}) async {
+    final now = DateTime.now();
+    if (!force && _cachedQuotes != null && _lastFetchTime != null) {
+      if (now.difference(_lastFetchTime!) < _cacheTtl) {
+        return _cachedQuotes!;
+      }
+    }
+    if (_inFlightFetch != null) {
+      return _inFlightFetch!;
+    }
+
+    _inFlightFetch = _executeFetch(fallback);
+    try {
+      final res = await _inFlightFetch!;
+      _cachedQuotes = res;
+      _lastFetchTime = DateTime.now();
+      return res;
+    } finally {
+      _inFlightFetch = null;
+    }
+  }
+
+  Future<List<MarketQuote>> _executeFetch(List<MarketQuote> fallback) async {
     _err = '';
     try {
       // Metal spot prices + FX rate in parallel so it's a single quick round.

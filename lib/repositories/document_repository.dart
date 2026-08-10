@@ -55,7 +55,7 @@ class DocumentRepository {
   }
 
   // --- In-memory cache & request deduplication ------------------------------
-  static const Duration _cacheTtl = Duration(seconds: 30);
+  static const Duration _cacheTtl = Duration(minutes: 2);
   List<Document>? _cachedAll;
   DateTime? _cachedAllTime;
   Future<List<Document>>? _inFlightAll;
