@@ -40,15 +40,19 @@ class FakeWalletDetailRepository implements WalletDetailRepository {
       recents: const [],
       insights: const [],
       security: const SecurityStatus(
-        backupWarning: false,
+        score: 100,
         vaultLocked: true,
-        securityScore: 100,
-        unbackedCount: 0,
+        biometricEnabled: true,
+        lastBackup: 'Synced',
+        cloudSynced: true,
       ),
-      storage: const StorageAnalytics(
-        totalBytes: 4096,
-        categoryBreakdown: {},
-        typeBreakdown: {},
+      storage: StorageAnalytics(
+        totalFiles: records.length,
+        usedLabel: '4 MB',
+        availableLabel: '5 GB',
+        usedFraction: 0.1,
+        monthlyUploads: records.length,
+        monthly: const [0, 0, 0, 0, 0, 0],
       ),
     );
   }
@@ -84,7 +88,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const WalletDetailScreen(category: _identity),
+        home: const WalletDetailScreen(
+          key: ValueKey('empty'),
+          category: _identity,
+        ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 400));
@@ -92,7 +99,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Identity Wallet'), findsOneWidget);
-    expect(find.text('No documents yet'), findsOneWidget); // Empty state title
+    expect(find.text('No Documents Yet'), findsOneWidget); // Empty state title
     expect(find.text('Search documents'), findsNothing); // Hidden when empty
 
     // Test Case 2: Populated Wallet
@@ -108,11 +115,16 @@ void main() {
       ),
     ];
 
-    // Reload the screen by re-pushing/re-building
+    // Rebuild with a DIFFERENT key: the screen loads its records once, in
+    // initState. Re-pumping an identical widget would reuse the same State and
+    // silently keep the empty-wallet data from Test Case 1.
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const WalletDetailScreen(category: _identity),
+        home: const WalletDetailScreen(
+          key: ValueKey('populated'),
+          category: _identity,
+        ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 400));
@@ -132,7 +144,7 @@ void main() {
 
     // Document list card is shown instead of empty state
     expect(find.text('Aadhaar Card'), findsOneWidget);
-    expect(find.text('No documents yet'), findsNothing);
+    expect(find.text('No Documents Yet'), findsNothing);
 
     // Removed dashboard sections must NOT be present.
     expect(find.text('Recently Accessed'), findsNothing);
