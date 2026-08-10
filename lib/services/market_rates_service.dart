@@ -19,7 +19,7 @@ class MarketRatesService {
   MarketRatesService._();
   static final MarketRatesService instance = MarketRatesService._();
 
-  static const _timeout = Duration(seconds: 8);
+  static const _timeout = Duration(seconds: 3);
   static const double _gramsPerTroyOunce = 31.1034768;
 
   /// Diagnostic: the outcome of the last [fetchLive] call, surfaced on the

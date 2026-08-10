@@ -925,10 +925,13 @@ class _QuickWheel extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.18 * v),
+                  child: Opacity(
+                    opacity: v,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 7.0, sigmaY: 7.0),
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.18),
+                      ),
                     ),
                   ),
                 ),
