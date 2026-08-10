@@ -99,7 +99,6 @@ class _MainShellState extends State<MainShell>
       // the list + badge stay live. Fire-and-forget; never blocks.
       if (!GuestMode.active) {
         FamilyVaultStore.instance.refreshPendingInvitations();
-        FamilyVaultStore.instance.startRealtime();
       }
     });
   }
