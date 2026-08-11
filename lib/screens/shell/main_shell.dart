@@ -99,7 +99,6 @@ class _MainShellState extends State<MainShell>
       // the list + badge stay live. Fire-and-forget; never blocks.
       if (!GuestMode.active) {
         FamilyVaultStore.instance.refreshPendingInvitations();
-        FamilyVaultStore.instance.startRealtime();
       }
     });
   }
@@ -293,22 +292,7 @@ class _MainShellState extends State<MainShell>
       // No transient overlays here: the spoken greeting is muted from
       // Settings › Preferences › "Startup greeting" (a persistent switch), not
       // from a pill that appears and disappears while it plays.
-      body: AnimatedBuilder(
-        animation: _pageAnim,
-        builder: (context, child) {
-          final v = Curves.easeOutCubic.transform(_pageAnim.value);
-          return Opacity(
-            // Ramp from a soft 0.35 (never a harsh blank) up to fully opaque.
-            opacity: 0.35 + 0.65 * v,
-            child: FractionalTranslation(
-              translation: Offset(
-                0.06 * (1 - v),
-                0,
-              ), // enters from the right
-              child: child,
-            ),
-          );
-        },
+      body: RepaintBoundary(
         child: IndexedStack(index: _index, children: pages),
       ),
       bottomNavigationBar: InoBottomNav(

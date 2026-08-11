@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -24,6 +26,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
   final _service = GlobalSearchService.instance;
+  Timer? _debounce;
 
   List<SearchHit> _results = const [];
   List<String> _recent = const [];
@@ -41,6 +44,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -51,16 +55,25 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     if (mounted) setState(() => _recent = recent);
   }
 
-  Future<void> _runSearch(String raw) async {
+  void _onQueryChanged(String raw) {
+    _debounce?.cancel();
     final query = raw.trim();
-    setState(() {
-      _query = query;
-      _searching = query.isNotEmpty;
-    });
     if (query.isEmpty) {
-      setState(() => _results = const []);
+      setState(() {
+        _query = '';
+        _searching = false;
+        _results = const [];
+      });
       return;
     }
+    setState(() {
+      _query = query;
+      _searching = true;
+    });
+    _debounce = Timer(const Duration(milliseconds: 200), () => _runSearch(query));
+  }
+
+  Future<void> _runSearch(String query) async {
     final id = ++_requestId;
     final hits = await _service.search(query);
     if (!mounted || id != _requestId) return; // a newer query superseded this
@@ -116,11 +129,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         title: _SearchField(
           controller: _controller,
           focusNode: _focus,
-          onChanged: _runSearch,
+          onChanged: _onQueryChanged,
           onSubmitted: (v) => _submit(v),
           onClear: () {
             _controller.clear();
-            _runSearch('');
+            _onQueryChanged('');
           },
         ),
       ),

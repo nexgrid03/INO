@@ -147,14 +147,12 @@ class _HomeScreenState extends State<HomeScreen> {
         categories: const [], quickActions: const [], recents: const [], security: const SecurityStatus(score: 0, vaultLocked: true, biometricEnabled: false, lastBackup: '', cloudSynced: false), insights: const [],
       )),
       NetWorthService.instance.ensureReady().then((_) => true).catchError((_) => false),
+      MarketRatesService.instance.fetchLive().catchError((_) => <MarketQuote>[]),
     ]);
 
     final dashboard = results[0] as DashboardData;
     final hub = results[2] as WalletHubData;
-
-    final market = await MarketRatesService.instance.fetchLive(
-      dashboard.market,
-    );
+    final market = results[4] as List<MarketQuote>;
 
     final documentCount = docs.length;
     final now = DateTime.now();

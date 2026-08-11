@@ -33,6 +33,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     _store.ensureLoaded();
     // Surface any pending invitations addressed to this user (badge + cards).
     _store.refreshPendingInvitations();
+    _store.startRealtime();
   }
 
   Future<void> _accept(VaultInvitation inv) async {

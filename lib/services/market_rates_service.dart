@@ -19,7 +19,7 @@ class MarketRatesService {
   MarketRatesService._();
   static final MarketRatesService instance = MarketRatesService._();
 
-  static const _timeout = Duration(seconds: 8);
+  static const _timeout = Duration(seconds: 3);
   static const double _gramsPerTroyOunce = 31.1034768;
 
   /// Diagnostic: the outcome of the last [fetchLive] call, surfaced on the
@@ -33,7 +33,7 @@ class MarketRatesService {
   static const Duration _cacheTtl = Duration(minutes: 15);
 
   /// Returns [fallback] with the Gold & Silver entries replaced by live rates.
-  Future<List<MarketQuote>> fetchLive(List<MarketQuote> fallback, {bool force = false}) async {
+  Future<List<MarketQuote>> fetchLive([List<MarketQuote> fallback = const [], bool force = false]) async {
     final now = DateTime.now();
     if (!force && _cachedQuotes != null && _lastFetchTime != null) {
       if (now.difference(_lastFetchTime!) < _cacheTtl) {
