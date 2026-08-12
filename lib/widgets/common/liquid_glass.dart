@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/theme_style.dart';
 
 /// The app's iOS 26 "Liquid Glass" material.
 ///
@@ -76,6 +77,13 @@ class LiquidGlass extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
+
+    // Aqua Mist only: translucent frost + white rim vanish into #DFF3F3.
+    // Circles become a porcelain disc with a teal jewelry rim and soft lift.
+    if (!dark && circle && InoStyle.isAquaMist(context)) {
+      return _mistCircleChrome(context);
+    }
+
     // Dark: never sample the backdrop — translucent glass + sky wash made
     // icon tiles shift colour while scrolling. Light keeps real blur on
     // native; web always uses frosted fill only.
@@ -206,6 +214,69 @@ class LiquidGlass extends StatelessWidget {
               ],
       ),
       child: surface,
+    );
+  }
+
+  /// Mist-only circular chrome: opaque porcelain + teal jewelry rim + soft
+  /// brand bloom. Reads as a real control against the flat mist wash.
+  Widget _mistCircleChrome(BuildContext context) {
+    final brand = AppColors.aquaPrimary;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFFFFF),
+            Color(0xFFF4FAF9),
+          ],
+        ),
+        border: Border.all(
+          color: brand.withValues(alpha: 0.34),
+          width: 1.35,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: brand.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        clipBehavior: clipBehavior,
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            // Quiet top sheen — keeps the disc feeling glass, not plastic.
+            IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.55),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                    stops: const [0, 0.55],
+                  ),
+                ),
+              ),
+            ),
+            if (padding != null)
+              Padding(padding: padding!, child: child)
+            else
+              child,
+          ],
+        ),
+      ),
     );
   }
 }

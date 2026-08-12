@@ -181,69 +181,75 @@ class _WalletScreenState extends State<WalletScreen> {
             future: _future,
             builder: (context, snapshot) {
               final data = snapshot.data;
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header - avatar · "My Wallets" · notification bell.
-                    // No FadeSlideIn on Divine Glass / web — staggered tickers
-                    // have left hub content stuck at opacity 0 after hot reload.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: _animateIn(
-                        context,
-                        child: _HubHeader(
-                          fullName: widget.profile.fullName,
-                          notificationCount: data?.insights.length ?? 0,
-                          onNotifications: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationsScreen(),
-                            ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header - avatar · "My Wallets" · notification bell.
+                  // Fixed — only the search + grid below scroll.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _animateIn(
+                      context,
+                      child: _HubHeader(
+                        fullName: widget.profile.fullName,
+                        notificationCount: data?.insights.length ?? 0,
+                        onNotifications: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
                           ),
                         ),
                       ),
                     ),
-                    // Compact hero search - the hub's primary affordance.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                      child: _animateIn(
-                        context,
-                        delay: const Duration(milliseconds: 60),
-                        child: FloatingSearchBar(
-                          hint: l10n.t('searchWallets'),
-                          height: 46,
-                          onTap: _searchDocuments,
-                          // Its own tap target: taps on the filter icon open the
-                          // filter panel, not the search (the inner
-                          // GestureDetector wins the tap over the bar's outer one).
-                          trailing: _FilterButton(
-                            onTap: data == null
-                                ? null
-                                : () => _openFilters(data.categories),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Compact hero search - the hub's primary affordance.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                            child: _animateIn(
+                              context,
+                              delay: const Duration(milliseconds: 60),
+                              child: FloatingSearchBar(
+                                hint: l10n.t('searchWallets'),
+                                height: 46,
+                                onTap: _searchDocuments,
+                                // Its own tap target: taps on the filter icon open the
+                                // filter panel, not the search (the inner
+                                // GestureDetector wins the tap over the bar's outer one).
+                                trailing: _FilterButton(
+                                  onTap: data == null
+                                      ? null
+                                      : () => _openFilters(data.categories),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          // Launcher grid - fixed-height cards, every wallet plus the
+                          // trailing "New Wallet" slot.
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: data == null
+                                ? const _LoadingState()
+                                : WalletGrid(
+                                    categories: data.categories,
+                                    onOpen: _openWallet,
+                                    onAdd: _addWallet,
+                                    onLongPress: _onLongPress,
+                                  ),
+                          ),
+                          // Clear the floating bottom nav (matches Home).
+                          SizedBox(
+                            height: MediaQuery.paddingOf(context).bottom + 110,
+                          ),
+                        ],
                       ),
                     ),
-                    // Launcher grid - fixed-height cards, every wallet plus the
-                    // trailing "New Wallet" slot.
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: data == null
-                          ? const _LoadingState()
-                          : WalletGrid(
-                              categories: data.categories,
-                              onOpen: _openWallet,
-                              onAdd: _addWallet,
-                              onLongPress: _onLongPress,
-                            ),
-                    ),
-                    // Clear the floating bottom nav (matches Home).
-                    SizedBox(
-                      height: MediaQuery.paddingOf(context).bottom + 110,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           ),

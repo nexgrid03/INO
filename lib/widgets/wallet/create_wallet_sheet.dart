@@ -6,7 +6,6 @@ import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
-import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 
 /// Opens the Create Wallet sheet and returns the created [CustomWallet], or
@@ -152,14 +151,21 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
   }
 
   Widget _previewRow(AppLocalizations l10n, Color color, AppPalette palette) {
+    // Same borderless chip as [WalletGrid] tiles — no accent ring.
     return Row(
       children: [
-        ShinyIcon(
-          icon: walletIconFor(_iconKey),
-          color: color,
-          size: AppSizes.iconContainer,
-          iconSize: 26,
-          radius: AppRadius.chip,
+        Container(
+          width: AppSizes.iconContainer,
+          height: AppSizes.iconContainer,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: palette.isDark ? 0.22 : 0.16),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            walletIconFor(_iconKey),
+            color: color,
+            size: 26,
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
@@ -421,15 +427,11 @@ class _IconSwatch extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: selected
-                ? color.withValues(alpha: 0.16)
+                ? color.withValues(alpha: 0.22)
                 : (palette.isDark
                     ? palette.surfaceVariant
                     : AppColors.tealFoam),
             borderRadius: BorderRadius.circular(AppRadius.chip),
-            border: Border.all(
-              color: selected ? color : palette.border,
-              width: selected ? 1.8 : 1,
-            ),
           ),
           child: Icon(
             icon,

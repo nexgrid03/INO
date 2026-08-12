@@ -73,13 +73,13 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
-        AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.screen,
         AppSpacing.xl,
       ),
       children: [
         AdaptiveGlassCard(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
           radius: AppRadius.large,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,27 +92,25 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
                   letterSpacing: 0.8,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Flexible(
                     child: ResponsiveMetricText(
                       formatInr(data.total),
                       style: AppText.display.copyWith(
                         color: palette.textPrimary,
-                        fontSize: 34,
+                        fontSize: 32,
+                        height: 1.1,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _GrowthPill(percent: data.growthPercent),
-                  ),
+                  _GrowthPill(percent: data.growthPercent),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
                 style: AppText.caption.copyWith(
@@ -124,7 +122,9 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        SettingsCard(
+        AdaptiveGlassCard(
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+          radius: AppRadius.card,
           child: NetWorthChart(
             height: 200,
             pointsFor: (range) => service.seriesFor(range),
@@ -132,6 +132,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _TrendCard(
@@ -151,36 +152,42 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.section),
-        Text(
-          l10n.t('assetDistribution'),
-          style: AppText.title.copyWith(color: palette.textPrimary),
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 2),
+          child: Text(
+            l10n.t('assetDistribution'),
+            style: AppText.title.copyWith(
+              color: palette.textPrimary,
+              fontSize: 17,
+            ),
+          ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         if (data.allocations.isEmpty)
-          SettingsCard(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'Add properties or investments to build your net worth. '
-                'Totals come from your Property and Investment wallets.',
-                style: AppText.caption.copyWith(
-                  color: palette.textSecondary,
-                  height: 1.4,
-                ),
+          AdaptiveGlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Text(
+              'Add properties or investments to build your net worth. '
+              'Totals come from your Property and Investment wallets.',
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                height: 1.45,
               ),
             ),
           )
         else
-          SettingsCard(
+          AdaptiveGlassCard(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 120,
-                  height: 120,
+                  width: 118,
+                  height: 118,
                   child: CustomPaint(
                     painter: _DonutPainter(
                       allocations: data.allocations,
-                      track: palette.surfaceVariant,
+                      track: palette.surfaceVariant.withValues(alpha: 0.55),
                     ),
                     child: Center(
                       child: Column(
@@ -284,28 +291,36 @@ class _TrendCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final up = percent >= 0;
     final color = up ? AppColors.positive : AppColors.negative;
-    return SettingsCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
+    return AdaptiveGlassCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      radius: AppRadius.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(12),
             ),
+            alignment: Alignment.center,
             child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             '${up ? '+' : ''}${percent.toStringAsFixed(1)}%',
-            style: AppText.headline.copyWith(color: color, fontSize: 20),
+            style: AppText.headline.copyWith(
+              color: color,
+              fontSize: 20,
+              height: 1.1,
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppText.caption.copyWith(color: palette.textSecondary),
           ),
         ],

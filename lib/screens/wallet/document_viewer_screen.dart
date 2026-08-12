@@ -24,8 +24,11 @@ import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_buttons.dart';
+import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
+import '../../widgets/wallet_detail/document_card.dart' show documentCardAccent;
 import '../../widgets/wallet_detail/share_to_vault_sheet.dart';
 
 /// What changed while viewing a document, returned to the wallet list on pop.
@@ -771,21 +774,32 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Hero icon container + sheet title (Stitch identity header).
+                // Hero icon matches wallet DocumentCard chrome (round soft
+                // disc under Divine Glass; glossy chip in classic) — no
+                // extra accent border that fought the list card look.
                 Row(
                   children: [
-                    Container(
-                      width: AppSizes.iconContainer,
-                      height: AppSizes.iconContainer,
-                      decoration: BoxDecoration(
-                        color: widget.accent.first.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color:
-                                widget.accent.first.withValues(alpha: 0.25)),
-                      ),
-                      child: Icon(_record.icon,
-                          color: widget.accent.first, size: 26),
+                    Builder(
+                      builder: (context) {
+                        final iconAccent = documentCardAccent(
+                          _record,
+                          walletAccent: widget.accent.first,
+                        );
+                        return divineGlassEnabled(context)
+                            ? DivineGlassRoundIcon(
+                                icon: _record.icon,
+                                accent: iconAccent,
+                                size: AppSizes.iconContainer,
+                                iconSize: 26,
+                              )
+                            : ShinyIcon(
+                                icon: _record.icon,
+                                color: iconAccent,
+                                size: AppSizes.iconContainer,
+                                iconSize: 26,
+                                radius: 13,
+                              );
+                      },
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(

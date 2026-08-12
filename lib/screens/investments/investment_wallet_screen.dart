@@ -734,15 +734,13 @@ class _LegendRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: slice.type.color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(10),
+            AdaptiveListIcon(
+                icon: slice.type.icon,
+                accent: slice.type.color,
+                size: 30,
+                iconSize: 15,
+                radius: 10,
               ),
-              child: Icon(slice.type.icon, size: 15, color: slice.type.color),
-            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -794,15 +792,12 @@ class _TopHoldingRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: investment.type.color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(investment.type.icon,
-                size: 16, color: investment.type.color),
+          AdaptiveListIcon(
+            icon: investment.type.icon,
+            accent: investment.type.color,
+            size: 32,
+            iconSize: 16,
+            radius: 10,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -988,14 +983,12 @@ class InvestmentCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(investment.type.icon, size: 20, color: accent),
+                  AdaptiveListIcon(
+                    icon: investment.type.icon,
+                    accent: accent,
+                    size: 40,
+                    iconSize: 20,
+                    radius: 12,
                   ),
                   const SizedBox(width: 11),
                   Expanded(

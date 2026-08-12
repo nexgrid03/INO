@@ -57,8 +57,13 @@ class MarketsScreen extends StatelessWidget {
     );
 
     if (glass) {
+      final topInset = MediaQuery.viewPaddingOf(context).top;
+      final barTop = topInset > 0 ? topInset + 6 : 18.0;
+      final barH = DivineGlassAppBar.barHeight + barTop;
       return Scaffold(
         backgroundColor: palette.bg,
+        // Let the sky wash sit under the frosted bar (same as classic path).
+        extendBodyBehindAppBar: true,
         appBar: DivineGlassAppBar.asPreferredSize(
           context,
           title: l10n.t('markets'),
@@ -66,7 +71,31 @@ class MarketsScreen extends StatelessWidget {
         ),
         body: InoBackground(
           sky: true,
-          child: scrollBody,
+          child: ListView(
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              barH + AppSpacing.md,
+              AppSpacing.screen,
+              AppSpacing.xl,
+            ),
+            children: [
+              const LiveMetalRatesCard(),
+              if (extra.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                for (final q in extra) ...[
+                  _MarketRow(quote: q),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+              ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                l10n.t('marketsInfoLine'),
+                style: AppText.caption
+                    .copyWith(color: palette.textFaint, height: 1.4),
+              ),
+            ],
+          ),
         ),
       );
     }

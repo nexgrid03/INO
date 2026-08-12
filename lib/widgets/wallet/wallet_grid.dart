@@ -254,9 +254,6 @@ class _WalletCard extends StatelessWidget {
                           alpha: palette.isDark ? 0.22 : 0.16,
                         ),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.28),
-                        ),
                       ),
                       child: _VaultGlyph(
                         category: category,

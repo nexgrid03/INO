@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/liquid_glass.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import 'contact_support_screen.dart';
 
@@ -77,54 +79,35 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final results = _results(l10n);
+    final glass = divineGlassEnabled(context);
+
     return SettingsScaffold(
       title: l10n.t('helpCenter'),
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.sm),
-            child: TextField(
+              AppSpacing.screen,
+              AppSpacing.xs,
+              AppSpacing.screen,
+              AppSpacing.sm,
+            ),
+            child: _HelpSearchField(
               controller: _query,
-              textInputAction: TextInputAction.search,
-              style: TextStyle(color: palette.textPrimary),
-              decoration: InputDecoration(
-                hintText: l10n.t('searchHelp'),
-                hintStyle: TextStyle(color: palette.textFaint),
-                prefixIcon:
-                    Icon(Icons.search_rounded, color: palette.textSecondary),
-                suffixIcon: _term.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: Icon(Icons.close_rounded,
-                            color: palette.textSecondary),
-                        onPressed: _query.clear,
-                      ),
-                filled: true,
-                fillColor: palette.surface,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                // Pill-shaped glass search bar (Divine Glass).
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: BorderSide(color: palette.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: BorderSide(color: palette.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide:  BorderSide(
-                      color: AppColors.primaryGreen, width: 1.4),
-                ),
-              ),
+              term: _term,
+              glass: glass,
+              hint: l10n.t('searchHelp'),
             ),
           ),
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.xs,
-                  AppSpacing.screen, AppSpacing.xl),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screen,
+                AppSpacing.xs,
+                AppSpacing.screen,
+                AppSpacing.xl,
+              ),
               children: [
                 if (results.isEmpty)
                   Padding(
@@ -135,16 +118,17 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                             color: palette.textFaint, size: 40),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                            l10n
-                                .t('helpNoResults')
-                                .replaceFirst('{q}', _query.text.trim()),
-                            style: AppText.body
-                                .copyWith(color: palette.textSecondary)),
+                          l10n
+                              .t('helpNoResults')
+                              .replaceFirst('{q}', _query.text.trim()),
+                          style: AppText.body
+                              .copyWith(color: palette.textSecondary),
+                        ),
                       ],
                     ),
                   )
                 else
-                  for (final f in results) _FaqTile(faq: f),
+                  for (final f in results) _FaqTile(faq: f, glass: glass),
                 const SizedBox(height: AppSpacing.lg),
                 SettingsCard(
                   child: Row(
@@ -153,31 +137,39 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          // Pastel icon chip (mist fill, coloured glyph).
                           color:
                               AppColors.primaryGreen.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child:  Icon(Icons.support_agent_rounded,
-                            color: AppColors.primaryGreen, size: 22),
+                        child: Icon(
+                          Icons.support_agent_rounded,
+                          color: AppColors.primaryGreen,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(l10n.t('stillNeedHelp'),
-                            style: AppText.subtitle
-                                .copyWith(color: palette.textPrimary)),
+                        child: Text(
+                          l10n.t('stillNeedHelp'),
+                          style: AppText.subtitle
+                              .copyWith(color: palette.textPrimary),
+                        ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ContactSupportScreen(
-                                supportEmail: widget.supportEmail),
+                              supportEmail: widget.supportEmail,
+                            ),
                           ),
                         ),
-                        child: Text(l10n.t('contactUs'),
-                            style:  TextStyle(
-                                color: AppColors.primaryGreen,
-                                fontWeight: FontWeight.w700)),
+                        child: Text(
+                          l10n.t('contactUs'),
+                          style: TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -191,50 +183,135 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   }
 }
 
+class _HelpSearchField extends StatelessWidget {
+  const _HelpSearchField({
+    required this.controller,
+    required this.term,
+    required this.glass,
+    required this.hint,
+  });
+
+  final TextEditingController controller;
+  final String term;
+  final bool glass;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final field = TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      style: TextStyle(color: palette.textPrimary),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: palette.textFaint),
+        prefixIcon: Icon(Icons.search_rounded, color: palette.textSecondary),
+        suffixIcon: term.isEmpty
+            ? null
+            : IconButton(
+                icon: Icon(Icons.close_rounded, color: palette.textSecondary),
+                onPressed: controller.clear,
+              ),
+        filled: !glass,
+        fillColor: glass ? Colors.transparent : palette.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          borderSide: glass
+              ? BorderSide.none
+              : BorderSide(color: palette.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          borderSide: glass
+              ? BorderSide.none
+              : BorderSide(color: palette.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          borderSide: glass
+              ? BorderSide(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.45),
+                  width: 1.2,
+                )
+              : BorderSide(color: AppColors.primaryGreen, width: 1.4),
+        ),
+      ),
+    );
+
+    if (!glass) return field;
+
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      blur: 18,
+      frost: 0.55,
+      padding: EdgeInsets.zero,
+      child: field,
+    );
+  }
+}
+
 class _FaqTile extends StatelessWidget {
-  const _FaqTile({required this.faq});
+  const _FaqTile({required this.faq, required this.glass});
 
   final _Faq faq;
+  final bool glass;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Container(
-        decoration: BoxDecoration(
-          // Glass-card curvature (20+) rather than button-level rounding.
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: palette.border),
+
+    final tile = Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        iconColor: AppColors.primaryGreen,
+        collapsedIconColor: palette.textSecondary,
+        title: Text(
+          l10n.t(faq.questionKey),
+          style: AppText.subtitle.copyWith(color: palette.textPrimary),
         ),
-        // A Material provides the surface colour + ink target for the
-        // ExpansionTile's internal ListTile (no colored box in between).
-        child: Material(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(20),
-          clipBehavior: Clip.antiAlias,
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              iconColor: AppColors.primaryGreen,
-              collapsedIconColor: palette.textSecondary,
-              title: Text(l10n.t(faq.questionKey),
-                  style: AppText.subtitle.copyWith(color: palette.textPrimary)),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(l10n.t(faq.answerKey),
-                      style: AppText.body.copyWith(
-                          color: palette.textSecondary, height: 1.5)),
-                ),
-              ],
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              l10n.t(faq.answerKey),
+              style: AppText.body.copyWith(
+                color: palette.textSecondary,
+                height: 1.5,
+              ),
             ),
           ),
-        ),
+        ],
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: glass
+          ? AdaptiveGlassCard(
+              padding: EdgeInsets.zero,
+              radius: 20,
+              child: Material(
+                type: MaterialType.transparency,
+                child: tile,
+              ),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: palette.border),
+              ),
+              child: Material(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(20),
+                clipBehavior: Clip.antiAlias,
+                child: tile,
+              ),
+            ),
     );
   }
 }

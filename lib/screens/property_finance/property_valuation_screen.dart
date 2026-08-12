@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property/area_unit_picker.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/currency_selector.dart';
 
@@ -194,6 +195,89 @@ class _ProfitLossCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final accent = isProfit ? AppColors.positive : AppColors.negative;
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              child: Icon(
+                isProfit
+                    ? Icons.trending_up_rounded
+                    : Icons.trending_down_rounded,
+                color: accent,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                title,
+                style:
+                    AppText.subtitle.copyWith(color: palette.textSecondary),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: accent.withValues(alpha: 0.30)),
+              ),
+              child: Text(
+                percentLabel,
+                style: AppText.label.copyWith(color: accent),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            PressableScale(
+              pressedScale: 0.9,
+              child: Material(
+                color: accent.withValues(alpha: 0.10),
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => copyToClipboard(
+                    context,
+                    copyText,
+                    message: '$title copied',
+                  ),
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(Icons.copy_rounded, color: accent, size: 15),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: AppText.bigNumber.copyWith(color: palette.textPrimary),
+          ),
+        ),
+      ],
+    );
+
+    if (divineGlassEnabled(context)) {
+      return AdaptiveGlassCard(
+        padding: const EdgeInsets.all(AppSpacing.internal),
+        radius: AppRadius.card,
+        child: SizedBox(width: double.infinity, child: body),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.internal),
@@ -203,78 +287,7 @@ class _ProfitLossCard extends StatelessWidget {
         border: Border.all(color: palette.border),
         boxShadow: palette.cardShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Icon(
-                  isProfit
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  color: accent,
-                  size: 19,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppText.subtitle
-                      .copyWith(color: palette.textSecondary),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: accent.withValues(alpha: 0.30)),
-                ),
-                child: Text(
-                  percentLabel,
-                  style: AppText.label.copyWith(color: accent),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              PressableScale(
-                pressedScale: 0.9,
-                child: Material(
-                  color: accent.withValues(alpha: 0.10),
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => copyToClipboard(context, copyText,
-                        message: '$title copied'),
-                    child: SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: Icon(Icons.copy_rounded, color: accent, size: 15),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: AppText.bigNumber.copyWith(color: palette.textPrimary),
-            ),
-          ),
-        ],
-      ),
+      child: body,
     );
   }
 }

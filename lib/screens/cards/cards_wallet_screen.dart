@@ -7,9 +7,10 @@ import '../../navigation/wallet_module_router.dart';
 import '../../services/card_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/ino_back_button.dart';
-import '../../widgets/common/shiny_icon.dart';
+import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
+import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
@@ -123,30 +124,50 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
     final hasAny = _store.items.isNotEmpty;
     final visible = _visible;
     final attention = _store.needingAttention.length;
-    // Match Documents: solid page chrome — no sky wash / glass backdrop.
-    final pageBg = palette.isDark ? palette.bg : Colors.white;
 
     return Scaffold(
-      backgroundColor: pageBg,
+      backgroundColor: palette.bg,
       extendBody: true,
-      body: ColoredBox(
-        color: pageBg,
+      body: InoBackground(
+        showDots: false,
+        sky: divineGlassEnabled(context),
         child: SafeArea(
+          top: !divineGlassEnabled(context),
           bottom: false,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: ClampingScrollPhysics(),
-            ),
-            slivers: [
-              SliverToBoxAdapter(
-                child: _CardsDocHeader(
-                  subtitle: hasAny
-                      ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
-                      : 'Debit & credit cards',
-                  onDocuments: _openDocuments,
-                  onAdd: _add,
-                ),
+          child: Column(
+            children: [
+              ModuleHeader(
+                title: 'My Cards',
+                subtitle: hasAny
+                    ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
+                    : 'Debit & credit cards',
+                icon: Icons.credit_card_rounded,
+                accent: AppColors.primaryGreen,
+                actions: [
+                  ModuleIconButton(
+                    icon: Icons.folder_shared_rounded,
+                    tooltip: 'Banking documents',
+                    color: AppColors.primaryGreen,
+                    size: 46,
+                    iconSize: 26,
+                    onTap: _openDocuments,
+                  ),
+                  ModuleIconButton(
+                    icon: Icons.add_rounded,
+                    tooltip: 'Add card',
+                    color: AppColors.primaryGreen,
+                    size: 46,
+                    iconSize: 28,
+                    onTap: _add,
+                  ),
+                ],
               ),
+              Expanded(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
+                  slivers: [
               if (!_store.isLoaded)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
@@ -353,6 +374,9 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -379,78 +403,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
   }
 }
 
-/// Documents-style solid header (no frosted glass app bar).
-class _CardsDocHeader extends StatelessWidget {
-  const _CardsDocHeader({
-    required this.subtitle,
-    required this.onDocuments,
-    required this.onAdd,
-  });
-
-  final String subtitle;
-  final VoidCallback onDocuments;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          InoBackButton(size: 40),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'My Cards',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: palette.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.35,
-                    height: 1.15,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      AppText.caption.copyWith(color: palette.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          ModuleIconButton(
-            icon: Icons.folder_shared_rounded,
-            tooltip: 'Banking documents',
-            color: AppColors.primaryGreen,
-            size: 46,
-            iconSize: 26,
-            onTap: onDocuments,
-          ),
-          const SizedBox(width: 8),
-          ModuleIconButton(
-            icon: Icons.add_rounded,
-            tooltip: 'Add card',
-            color: AppColors.primaryGreen,
-            size: 46,
-            iconSize: 28,
-            onTap: onAdd,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Solid white search field matching Documents [DetailSearchBar] classic mode.
+/// Search field — glass plate under Divine Glass, solid white in classic.
 class _CardsSearchBar extends StatelessWidget {
   const _CardsSearchBar({
     required this.controller,
@@ -465,6 +418,53 @@ class _CardsSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final glass = divineGlassEnabled(context);
+    final field = Row(
+      children: [
+        const SizedBox(width: 14),
+        Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            style: AppText.body.copyWith(color: palette.textPrimary),
+            cursorColor: AppColors.primaryGreen,
+            decoration: InputDecoration(
+              hintText: 'Search cards',
+              hintStyle: AppText.body.copyWith(color: palette.textFaint),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              filled: false,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+        ModuleIconButton(
+          icon: Icons.swap_vert_rounded,
+          tooltip: 'Sort',
+          size: 34,
+          onTap: onSort,
+        ),
+        const SizedBox(width: 6),
+      ],
+    );
+
+    if (glass) {
+      return SizedBox(
+        height: 48,
+        child: LiquidGlass(
+          borderRadius: BorderRadius.circular(AppRadius.search),
+          blur: 16,
+          frost: palette.isDark ? 1.05 : 0.85,
+          padding: EdgeInsets.zero,
+          child: field,
+        ),
+      );
+    }
+
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -481,38 +481,7 @@ class _CardsSearchBar extends StatelessWidget {
                 ),
               ],
       ),
-      child: Row(
-        children: [
-          const SizedBox(width: 14),
-          Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              style: AppText.body.copyWith(color: palette.textPrimary),
-              cursorColor: AppColors.primaryGreen,
-              decoration: InputDecoration(
-                hintText: 'Search cards',
-                hintStyle: AppText.body.copyWith(color: palette.textFaint),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                isDense: true,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-          ModuleIconButton(
-            icon: Icons.swap_vert_rounded,
-            tooltip: 'Sort',
-            size: 34,
-            onTap: onSort,
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
+      child: field,
     );
   }
 }
@@ -579,7 +548,8 @@ class _DocFilterChip extends StatelessWidget {
   }
 }
 
-/// Documents-style list row for a saved card (solid white, not glass).
+/// Card list row — AdaptiveGlassCard under Divine Glass (same as Document /
+/// Property cards); solid plate in classic.
 class _CardDocTile extends StatelessWidget {
   const _CardDocTile({
     required this.card,
@@ -604,6 +574,115 @@ class _CardDocTile extends StatelessWidget {
     final statusColor = card.isExpired
         ? AppColors.critical
         : (card.isExpiringSoon ? AppColors.warning : AppColors.primaryGreen);
+
+    final body = Row(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AdaptiveListIcon(
+              icon: Icons.credit_card_rounded,
+              accent: accent,
+              size: 46,
+              iconSize: 23,
+              radius: 13,
+            ),
+            if (card.isFavorite)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.star_rounded,
+                    size: 13,
+                    color: AppColors.warning,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '•••• ${card.last4} · ${card.network.label}'
+                '${card.holderName.isEmpty ? '' : ' · ${card.holderName}'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(
+                  color: palette.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: AppText.label.copyWith(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: onFavorite,
+          visualDensity: VisualDensity.compact,
+          icon: Icon(
+            card.isFavorite
+                ? Icons.star_rounded
+                : Icons.star_outline_rounded,
+            size: 20,
+            color: card.isFavorite ? AppColors.warning : palette.textFaint,
+          ),
+        ),
+        Icon(
+          Icons.chevron_right_rounded,
+          color: palette.textFaint,
+        ),
+      ],
+    );
+
+    if (divineGlassEnabled(context)) {
+      return PressableScale(
+        pressedScale: 0.98,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AdaptiveGlassCard(
+            padding: const EdgeInsets.all(14),
+            radius: AppRadius.card,
+            child: body,
+          ),
+        ),
+      );
+    }
 
     return PressableScale(
       child: Material(
@@ -631,101 +710,7 @@ class _CardDocTile extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ShinyIcon(
-                        icon: Icons.credit_card_rounded,
-                        color: accent,
-                        size: 46,
-                        iconSize: 23,
-                        radius: 13,
-                      ),
-                      if (card.isFavorite)
-                        Positioned(
-                          top: -4,
-                          right: -4,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.star_rounded,
-                              size: 13,
-                              color: AppColors.warning,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: palette.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '•••• ${card.last4} · ${card.network.label}'
-                          '${card.holderName.isEmpty ? '' : ' · ${card.holderName}'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption.copyWith(
-                            color: palette.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: AppText.label.copyWith(
-                              color: statusColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: onFavorite,
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      card.isFavorite
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 20,
-                      color: card.isFavorite
-                          ? AppColors.warning
-                          : palette.textFaint,
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: palette.textFaint,
-                  ),
-                ],
-              ),
+              child: body,
             ),
           ),
         ),

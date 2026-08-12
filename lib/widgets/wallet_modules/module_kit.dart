@@ -8,7 +8,6 @@ import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_options_sheet.dart';
 import '../common/liquid_glass.dart';
-import '../common/shiny_icon.dart';
 import '../common/success_tick_mark.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
@@ -64,9 +63,9 @@ class ModuleSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              ShinyIcon(
+              AdaptiveListIcon(
                 icon: icon,
-                color: color,
+                accent: color,
                 size: 38,
                 iconSize: 19,
                 radius: 12,
@@ -1020,7 +1019,9 @@ class ModuleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final launcher = divineGlassEnabled(context);
+    final mist = InoStyle.isAquaMist(context) && !palette.isDark;
     final glyph = iconSize ?? (launcher ? 18.0 : 20.0);
+    final brand = AppColors.aquaPrimary;
     final iconWidget = Stack(
       alignment: Alignment.center,
       children: [
@@ -1045,25 +1046,53 @@ class ModuleIconButton extends StatelessWidget {
           ),
       ],
     );
+    final plate = Material(
+      color: palette.isDark ? palette.bgElevated : Colors.white,
+      shape: CircleBorder(
+        side: BorderSide(
+          color: mist
+              ? brand.withValues(alpha: 0.34)
+              : palette.border,
+          width: mist ? 1.35 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: mist || palette.isDark ? 0 : 1,
+      shadowColor: Colors.black26,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: iconWidget,
+        ),
+      ),
+    );
     final button = PressableScale(
       pressedScale: 0.9,
       // Always solid white/surface — frosted LiquidGlass washed out on sky
-      // backdrops (Passwords / Investments headers).
-      child: Material(
-        color: palette.isDark ? palette.bgElevated : Colors.white,
-        shape: CircleBorder(side: BorderSide(color: palette.border)),
-        clipBehavior: Clip.antiAlias,
-        elevation: palette.isDark ? 0 : 1,
-        shadowColor: Colors.black26,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: iconWidget,
-          ),
-        ),
-      ),
+      // backdrops (Passwords / Investments headers). Mist gets a teal jewelry
+      // rim + soft brand bloom so the disc doesn't dissolve into #DFF3F3.
+      child: mist
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: brand.withValues(alpha: 0.18),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: plate,
+            )
+          : plate,
     );
     return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
   }

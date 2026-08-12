@@ -23,7 +23,7 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
-# Flutter/Dart/Pub related
+# Flutter/Dart
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -34,19 +34,20 @@ migrate_working_dir/
 /build/
 /build_old/
 /coverage/
+supabase/.temp/
 
-# Symbolication related
+# Symbolication
 app.*.symbols
 
-# Obfuscation related
+# Obfuscation
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# Release signing secrets - NEVER commit these (keystore + credentials).
+# Release signing — never commit
 *.jks
 *.keystore
 key.properties

@@ -6,7 +6,7 @@ import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../common/shiny_border.dart';
-import '../common/shiny_icon.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// A premium tool card for the Property & Finance Tools hub.
@@ -94,19 +94,23 @@ class ToolGridCard extends StatelessWidget {
                     height: badgeSize,
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      shape: divineGlassEnabled(context)
+                          ? BoxShape.circle
+                          : BoxShape.rectangle,
+                      borderRadius: divineGlassEnabled(context)
+                          ? null
+                          : BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: glyph(size: glyphSize, tint: color),
                     ),
                   )
-                : ShinyIcon(
+                : AdaptiveListIcon(
                     icon: icon,
-                    color: color,
+                    accent: color,
                     size: badgeSize,
                     iconSize: glyphSize,
                     radius: AppRadius.chip,
-                    style: ShinyIconStyle.glass,
                   );
 
         final titleStyle = AppText.subtitle.copyWith(
@@ -216,8 +220,8 @@ class ToolGridCard extends StatelessWidget {
         final surface = launcher
             ? LiquidGlass(
                 borderRadius: radius,
-                blur: 16,
-                frost: 0.95,
+                blur: 18,
+                frost: 0.55,
                 padding: EdgeInsets.zero,
                 child: Material(
                   type: MaterialType.transparency,

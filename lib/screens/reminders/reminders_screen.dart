@@ -96,75 +96,78 @@ class _RemindersScreenState extends State<RemindersScreen> {
       body: InoBackground(
         child: SafeArea(
           bottom: false,
-          child: Stack(
+          child: Column(
             children: [
-              RefreshIndicator(
-                color: AppColors.primaryGreen,
-                onRefresh: _refresh,
-                child: ListenableBuilder(
-                  listenable: _store,
-                  builder: (context, _) {
-                    return CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  AppSpacing.sm,
+                  AppSpacing.screen,
+                  AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    // The gap only exists when the button can
+                    // render (pushed route), so the tab-root
+                    // header keeps its original alignment.
+                    if (Navigator.of(context).canPop()) ...[
+                      const InoBackButton(size: 42),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: ListenableBuilder(
+                        listenable: _store,
+                        builder: (context, _) => RemindersHeader(
+                          fullName: widget.profile.fullName,
+                          email: widget.profile.email,
+                          notificationCount: _store.isLoaded
+                              ? _store.summary.dueToday
+                              : 0,
+                          onSearch: _search,
+                          onNotifications: () =>
+                              _openScope(RemindersScope.today),
+                        ),
                       ),
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.screen,
-                              AppSpacing.sm,
-                              AppSpacing.screen,
-                              AppSpacing.md,
-                            ),
-                            child: Row(
-                              children: [
-                                // The gap only exists when the button can
-                                // render (pushed route), so the tab-root
-                                // header keeps its original alignment.
-                                if (Navigator.of(context).canPop()) ...[
-                                  const InoBackButton(size: 42),
-                                  const SizedBox(width: 12),
-                                ],
-                                Expanded(
-                                  child: RemindersHeader(
-                                    fullName: widget.profile.fullName,
-                                    email: widget.profile.email,
-                                    notificationCount: _store.isLoaded
-                                        ? _store.summary.dueToday
-                                        : 0,
-                                    onSearch: _search,
-                                    onNotifications: () =>
-                                        _openScope(RemindersScope.today),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.primaryGreen,
+                  onRefresh: _refresh,
+                  child: ListenableBuilder(
+                    listenable: _store,
+                    builder: (context, _) {
+                      return CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        slivers: [
+                          if (!_store.isLoaded)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 60),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.6,
+                                    color: AppColors.primaryGreen,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (!_store.isLoaded)
-                           SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.only(top: 60),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.6,
-                                  color: AppColors.primaryGreen,
-                                ),
                               ),
-                            ),
-                          )
-                        else if (_store.isEmpty)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: RemindersEmptyState(onCreate: _add),
-                          )
-                        else
-                          SliverToBoxAdapter(child: _content()),
-                      ],
-                    );
-                  },
+                            )
+                          else if (_store.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: RemindersEmptyState(onCreate: _add),
+                            )
+                          else
+                            SliverToBoxAdapter(child: _content()),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

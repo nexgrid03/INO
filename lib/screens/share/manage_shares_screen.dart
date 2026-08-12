@@ -59,6 +59,8 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
     return Scaffold(
       backgroundColor: palette.bg,
       body: InoBackground(
+        showDots: false,
+        sky: glass,
         child: SafeArea(
           top: !glass,
           child: Column(
@@ -207,12 +209,12 @@ class _SharesList extends StatelessWidget {
         downloads: totalDownloads,
       ),
       if (active.isNotEmpty) ...[
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.lg + 4),
         _SectionLabel(
             label: l10n.t('activeLinksSection'), count: active.length),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.md),
         for (var i = 0; i < active.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          if (i > 0) const SizedBox(height: 12),
           _ShareCard(
             share: active[i],
             onOpen: () => onOpen(active[i]),
@@ -221,14 +223,14 @@ class _SharesList extends StatelessWidget {
         ],
       ],
       if (history.isNotEmpty) ...[
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.lg + 4),
         _SectionLabel(
             label: l10n.t('historySection'),
             count: history.length,
             muted: true),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.md),
         for (var i = 0; i < history.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          if (i > 0) const SizedBox(height: 12),
           _ShareCard(
             share: history[i],
             onOpen: () => onOpen(history[i]),
@@ -236,18 +238,19 @@ class _SharesList extends StatelessWidget {
           ),
         ],
       ],
-      const SizedBox(height: 40),
+      const SizedBox(height: 24),
     ];
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
+      // Clear gap under the frosted app bar so stats never kiss the header.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
-        0,
+        AppSpacing.md + 4,
         AppSpacing.screen,
-        0,
+        AppSpacing.xl,
       ),
       children: [
         for (var i = 0; i < sections.length; i++)
@@ -335,7 +338,7 @@ class _StatsRow extends StatelessWidget {
             label: l10n.t('active'),
           ),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
             icon: Icons.visibility_rounded,
@@ -344,7 +347,7 @@ class _StatsRow extends StatelessWidget {
             label: l10n.t('views'),
           ),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
             icon: Icons.download_rounded,
@@ -377,23 +380,34 @@ class _StatCard extends StatelessWidget {
     final child = Column(
       children: [
         Container(
-          width: 36,
-          height: 36,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadius.chip - 2),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withValues(alpha: 0.22),
+                color.withValues(alpha: 0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
           ),
-          child: Icon(icon, color: color, size: 19),
+          child: Icon(icon, color: color, size: 20),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           '$value',
           style: AppText.headline.copyWith(
             color: palette.textPrimary,
-            fontSize: 20,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            height: 1,
           ),
         ),
-        const SizedBox(height: 1),
+        const SizedBox(height: 4),
         Text(
           label,
           maxLines: 1,
@@ -401,25 +415,21 @@ class _StatCard extends StatelessWidget {
           style: AppText.caption.copyWith(
             color: palette.textSecondary,
             fontSize: 11.5,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
     if (divineGlassEnabled(context)) {
       return AdaptiveGlassCard(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.md,
-        ),
-        radius: AppRadius.card,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        radius: 20,
         child: child,
       );
     }
     return InoCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.md,
-      ),
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       child: child,
     );
   }
@@ -451,115 +461,142 @@ class _ShareCard extends StatelessWidget {
       ShareStatus.revoked => (AppColors.critical, l10n.t('revoked')),
     };
 
-    return InoCard(
-      onTap: onOpen,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Identity row: QR chip · title + timing · status pill.
-          Row(
-            children: [
-              Container(
-                width: AppSizes.iconContainerSm,
-                height: AppSizes.iconContainerSm,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.tealMist : palette.surfaceVariant,
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  border: Border.all(
-                    color: isActive ? AppColors.tealPale : palette.border,
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: isActive
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primaryGreen.withValues(alpha: 0.22),
+                          AppColors.primaryGreen.withValues(alpha: 0.08),
+                        ],
+                      )
+                    : null,
+                color: isActive ? null : palette.surfaceVariant,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isActive
+                      ? AppColors.primaryGreen.withValues(alpha: 0.30)
+                      : palette.border,
+                ),
+              ),
+              child: Icon(
+                Icons.qr_code_2_rounded,
+                color: isActive ? AppColors.primaryGreen : palette.textFaint,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n
+                        .t(share.documentCount == 1
+                            ? 'docCountOne'
+                            : 'docCountMany')
+                        .replaceFirst('{n}', '${share.documentCount}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  Icons.qr_code_2_rounded,
-                  color:
-                      isActive ? AppColors.primaryGreen : palette.textFaint,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n
-                          .t(share.documentCount == 1
-                              ? 'docCountOne'
-                              : 'docCountMany')
-                          .replaceFirst('{n}', '${share.documentCount}'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timingLine(l10n, status),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                      fontSize: 12,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _timingLine(l10n, status),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(
-                        color: palette.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.xs),
-              _StatusPill(color: statusColor, label: statusLabel),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(height: 1, color: palette.border),
-          const SizedBox(height: AppSpacing.sm),
-          // Analytics footer: views · downloads · action.
-          Row(
-            children: [
-              _MetaStat(
-                icon: Icons.visibility_outlined,
-                label: l10n
-                    .t(share.viewsCount == 1
-                        ? 'viewCountOne'
-                        : 'viewCountMany')
-                    .replaceFirst('{n}', '${share.viewsCount}'),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              _MetaStat(
-                icon: Icons.download_outlined,
-                label: l10n
-                    .t(share.downloadsCount == 1
-                        ? 'downloadCountOne'
-                        : 'downloadCountMany')
-                    .replaceFirst('{n}', '${share.downloadsCount}'),
-              ),
-              const Spacer(),
-              if (isActive)
-                _RevokeButton(onTap: onRevoke)
-              else
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      l10n.t('details'),
-                      style: AppText.label.copyWith(
-                        color: palette.textFaint,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            _StatusPill(color: statusColor, label: statusLabel),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Container(
+          height: 1,
+          color: palette.border.withValues(alpha: 0.7),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            _MetaStat(
+              icon: Icons.visibility_outlined,
+              label: l10n
+                  .t(share.viewsCount == 1 ? 'viewCountOne' : 'viewCountMany')
+                  .replaceFirst('{n}', '${share.viewsCount}'),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            _MetaStat(
+              icon: Icons.download_outlined,
+              label: l10n
+                  .t(share.downloadsCount == 1
+                      ? 'downloadCountOne'
+                      : 'downloadCountMany')
+                  .replaceFirst('{n}', '${share.downloadsCount}'),
+            ),
+            const Spacer(),
+            if (isActive)
+              _RevokeButton(onTap: onRevoke)
+            else
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.t('details'),
+                    style: AppText.label.copyWith(
                       color: palette.textFaint,
+                      fontSize: 12,
                     ),
-                  ],
-                ),
-            ],
-          ),
-        ],
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: palette.textFaint,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+
+    // Same frosted glass language as wallet / home cards.
+    return PressableScale(
+      pressedScale: 0.985,
+      child: GestureDetector(
+        onTap: onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: divineGlassEnabled(context)
+            ? AdaptiveGlassCard(
+                padding: const EdgeInsets.all(16),
+                radius: 22,
+                child: body,
+              )
+            : InoCard(
+                padding: const EdgeInsets.all(16),
+                radius: 22,
+                child: body,
+              ),
       ),
     );
   }

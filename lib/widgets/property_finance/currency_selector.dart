@@ -6,6 +6,8 @@ import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
+import '../common/liquid_glass.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// The compact currency pill shown in every calculator header: flag + ISO code
@@ -23,44 +25,65 @@ class CurrencySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final current = Currencies.byCode(AppSettings.instance.currency.value);
-    return PressableScale(
-      pressedScale: 0.95,
-      child: Material(
-        color: palette.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          side: BorderSide(color: palette.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () async {
-            final picked = await showCurrencyPicker(context, selected: current);
-            if (picked == null) return;
-            await AppSettings.instance.setCurrency(picked.code);
-            onChanged(picked);
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(current.flag, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 5),
-                Text(
-                  current.code,
-                  style: AppText.subtitle.copyWith(
-                    color: palette.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 17, color: palette.textFaint),
-              ],
+    final glass = divineGlassEnabled(context);
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(current.flag, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 5),
+          Text(
+            current.code,
+            style: AppText.subtitle.copyWith(
+              color: palette.textPrimary,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
-        ),
+          Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 17,
+            color: palette.textFaint,
+          ),
+        ],
       ),
+    );
+
+    Future<void> pick() async {
+      final picked = await showCurrencyPicker(context, selected: current);
+      if (picked == null) return;
+      await AppSettings.instance.setCurrency(picked.code);
+      onChanged(picked);
+    }
+
+    return PressableScale(
+      pressedScale: 0.95,
+      child: glass
+          ? LiquidGlass(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              blur: 16,
+              frost: 0.55,
+              padding: EdgeInsets.zero,
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: pick,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: row,
+                ),
+              ),
+            )
+          : Material(
+              color: palette.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                side: BorderSide(color: palette.border),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(onTap: pick, child: row),
+            ),
     );
   }
 }

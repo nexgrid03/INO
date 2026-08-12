@@ -164,33 +164,34 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
         child: SafeArea(
           top: !divineGlassEnabled(context),
           bottom: false,
-          child: CustomScrollView(
-            physics: const ClampingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: ModuleHeader(
-                    title: 'Property Wallet',
-                    subtitle: hasAny
-                        ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
-                        : 'Your property register',
-                    icon: Icons.home_work_rounded,
-                    accent: AppColors.primaryGreen,
-                    actions: [
-                      ModuleIconButton(
-                        icon: Icons.folder_shared_rounded,
-                        tooltip: 'Property documents',
-                        color: AppColors.primaryGreen,
-                        onTap: _openDocuments,
-                      ),
-                      ModuleIconButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Add property',
-                        color: AppColors.primaryGreen,
-                        onTap: _addProperty,
-                      ),
-                    ],
+          child: Column(
+            children: [
+              ModuleHeader(
+                title: 'Property Wallet',
+                subtitle: hasAny
+                    ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
+                    : 'Your property register',
+                icon: Icons.home_work_rounded,
+                accent: AppColors.primaryGreen,
+                actions: [
+                  ModuleIconButton(
+                    icon: Icons.folder_shared_rounded,
+                    tooltip: 'Property documents',
+                    color: AppColors.primaryGreen,
+                    onTap: _openDocuments,
                   ),
+                  ModuleIconButton(
+                    icon: Icons.add_rounded,
+                    tooltip: 'Add property',
+                    color: AppColors.primaryGreen,
+                    onTap: _addProperty,
+                  ),
+                ],
               ),
+              Expanded(
+                child: CustomScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  slivers: [
               if (!_store.isLoaded)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
@@ -302,6 +303,9 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -558,7 +562,9 @@ class PropertyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final accent = property.status.color;
+    // List icon uses brand teal (same as Document Wallet cards) — not status
+    // blue — so Property reads as one system with Identity / Investments.
+    final iconAccent = AppColors.primaryGreen;
     final appreciation = property.appreciation;
     final hasValue = property.portfolioValue > 0;
     final typeLine = property.locationLine.isEmpty
@@ -584,13 +590,11 @@ class PropertyCard extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: accent.withValues(alpha: 0.22)),
+                      color: iconAccent.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: _Thumbnail(property: property, accent: accent),
+                    child: _Thumbnail(property: property, accent: iconAccent),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

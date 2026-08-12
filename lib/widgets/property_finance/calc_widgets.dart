@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
+import '../common/liquid_glass.dart';
 import '../dashboard/ino_card.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
@@ -64,9 +65,12 @@ class CalculatorScaffold extends StatelessWidget {
     );
 
     if (launcher) {
-      // Scaffold.appBar owns status-bar + bar height — body never overlaps.
+      final topInset = MediaQuery.viewPaddingOf(context).top;
+      final barTop = topInset > 0 ? topInset + 6 : 18.0;
+      final barH = DivineGlassAppBar.barHeight + barTop;
       return Scaffold(
         backgroundColor: palette.bg,
+        extendBodyBehindAppBar: true,
         appBar: DivineGlassAppBar.asPreferredSize(
           context,
           title: title,
@@ -76,7 +80,19 @@ class CalculatorScaffold extends StatelessWidget {
         ),
         body: InoBackground(
           sky: true,
-          child: scrollBody,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              barH + AppSpacing.md,
+              AppSpacing.screen,
+              AppSpacing.xl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
         ),
       );
     }
@@ -142,8 +158,8 @@ class _CalcHeader extends StatelessWidget {
 
 /// A card grouping a set of inputs under an optional [title].
 ///
-/// Solid surface (not frosted glass) so nested [CalcField]s don't read as a
-/// second card stacked inside the first.
+/// Under Divine Glass this is frosted [AdaptiveGlassCard]; Classic keeps a
+/// solid surface so nested [CalcField]s stay readable.
 class CalcInputCard extends StatelessWidget {
   const CalcInputCard({super.key, this.title, required this.children});
 
@@ -153,6 +169,28 @@ class CalcInputCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null) ...[
+          Text(
+            title!,
+            style: AppText.title.copyWith(color: palette.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        ...children,
+      ],
+    );
+
+    if (divineGlassEnabled(context)) {
+      return AdaptiveGlassCard(
+        padding: const EdgeInsets.all(AppSpacing.internal),
+        radius: AppRadius.card,
+        child: SizedBox(width: double.infinity, child: body),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.internal),
@@ -161,17 +199,7 @@ class CalcInputCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: palette.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title != null) ...[
-            Text(title!,
-                style: AppText.title.copyWith(color: palette.textPrimary)),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          ...children,
-        ],
-      ),
+      child: body,
     );
   }
 }
@@ -288,52 +316,85 @@ class HeroResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.internal),
-      decoration: BoxDecoration(
-        // Deeper in the bold theme, lighter in soft.
-        gradient: InoStyle.gradient(
-          context,
-          gradient ?? AppColors.brandGradient,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(label,
-                    style: AppText.subtitle
-                        .copyWith(color: Colors.white.withValues(alpha: 0.9))),
+    final glass = divineGlassEnabled(context);
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppText.subtitle
+                    .copyWith(color: Colors.white.withValues(alpha: 0.9)),
               ),
-              if (copyText != null)
-                _MiniIconButton(
-                  icon: Icons.copy_rounded,
-                  onTap: () => copyToClipboard(context, copyText!,
-                      message: '$label copied'),
+            ),
+            if (copyText != null)
+              _MiniIconButton(
+                icon: Icons.copy_rounded,
+                onTap: () => copyToClipboard(
+                  context,
+                  copyText!,
+                  message: '$label copied',
                 ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: AppText.bigNumber.copyWith(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+
+    if (!glass) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.internal),
+        decoration: BoxDecoration(
+          gradient: InoStyle.gradient(
+            context,
+            gradient ?? AppColors.brandGradient,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryGreen.withValues(alpha: 0.28),
+              blurRadius: 22,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: content,
+      );
+    }
+
+    return LiquidGlass(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      blur: 22,
+      frost: 0.32,
+      tint: AppColors.primaryGreen,
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.internal),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primaryGreen.withValues(alpha: 0.88),
+              AppColors.secondaryGreen.withValues(alpha: 0.82),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: AppText.bigNumber.copyWith(color: Colors.white),
-            ),
-          ),
-        ],
+        ),
+        child: content,
       ),
     );
   }

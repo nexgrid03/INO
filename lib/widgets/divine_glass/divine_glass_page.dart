@@ -25,9 +25,13 @@ class DivineGlassPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final barTop = topInset > 0 ? topInset + 6 : 18.0;
+    final barH = DivineGlassAppBar.barHeight + barTop;
 
     return Scaffold(
       backgroundColor: palette.bg,
+      extendBodyBehindAppBar: true,
       floatingActionButton: floatingActionButton,
       appBar: DivineGlassAppBar.asPreferredSize(
         context,
@@ -38,9 +42,8 @@ class DivineGlassPage extends StatelessWidget {
       ),
       body: InoBackground(
         sky: true,
-        child: SafeArea(
-          top: false,
-          bottom: false,
+        child: Padding(
+          padding: EdgeInsets.only(top: barH),
           child: body,
         ),
       ),

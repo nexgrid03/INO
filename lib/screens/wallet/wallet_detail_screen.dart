@@ -838,60 +838,60 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           bottom: false,
           child: Stack(
               children: [
-                FutureBuilder<WalletDetailData>(
-                  future: _future,
-                  builder: (context, snapshot) {
-                    final data = snapshot.data;
-                      return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: ClampingScrollPhysics(),
-                        ),
-                        slivers: [
-                        // 1. Compact header — Launcher uses full-bleed frosted bar.
-                        SliverToBoxAdapter(
-                          child: divineGlassEnabled(context)
-                              ? WalletHeader(
-                                  title: localizedWalletName(
-                                    AppLocalizations.of(context),
-                                    widget.category.name,
-                                  ),
-                                  icon: widget.category.icon,
-                                  accent: _vaultAccent,
-                                  onBack: () =>
-                                      Navigator.of(context).maybePop(),
-                                  onManageShares: _openManageShares,
-                                  onAreaConverter: _isPropertyWallet
-                                      ? _openAreaConverter
-                                      : null,
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      16, 12, 16, 12),
-                                  child: WalletHeader(
-                                    title: localizedWalletName(
-                                      AppLocalizations.of(context),
-                                      widget.category.name,
-                                    ),
-                                    icon: widget.category.icon,
-                                    accent: _vaultAccent,
-                                    onBack: () =>
-                                        Navigator.of(context).maybePop(),
-                                    onManageShares: _openManageShares,
-                                    onAreaConverter: _isPropertyWallet
-                                        ? _openAreaConverter
-                                        : null,
-                                  ),
-                                ),
-                        ),
-                        if (data == null)
-                          _loadingSliver()
-                        else if (_records.isEmpty)
-                          _emptyWalletSliver()
-                        else
-                          ..._loadedSlivers(data),
-                      ],
-                    );
-                  },
+                Column(
+                  children: [
+                    divineGlassEnabled(context)
+                        ? WalletHeader(
+                            title: localizedWalletName(
+                              AppLocalizations.of(context),
+                              widget.category.name,
+                            ),
+                            icon: widget.category.icon,
+                            accent: _vaultAccent,
+                            onBack: () => Navigator.of(context).maybePop(),
+                            onManageShares: _openManageShares,
+                            onAreaConverter: _isPropertyWallet
+                                ? _openAreaConverter
+                                : null,
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: WalletHeader(
+                              title: localizedWalletName(
+                                AppLocalizations.of(context),
+                                widget.category.name,
+                              ),
+                              icon: widget.category.icon,
+                              accent: _vaultAccent,
+                              onBack: () => Navigator.of(context).maybePop(),
+                              onManageShares: _openManageShares,
+                              onAreaConverter: _isPropertyWallet
+                                  ? _openAreaConverter
+                                  : null,
+                            ),
+                          ),
+                    Expanded(
+                      child: FutureBuilder<WalletDetailData>(
+                        future: _future,
+                        builder: (context, snapshot) {
+                          final data = snapshot.data;
+                          return CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: ClampingScrollPhysics(),
+                            ),
+                            slivers: [
+                              if (data == null)
+                                _loadingSliver()
+                              else if (_records.isEmpty)
+                                _emptyWalletSliver()
+                              else
+                                ..._loadedSlivers(data),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 // The selection action bar takes over from the FAB while the user
                 // is multi-selecting documents to share.

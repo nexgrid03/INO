@@ -7,6 +7,12 @@ import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 import '../divine_glass/divine_glass.dart';
 
+/// Accent used on [DocumentCard] / quick-view icons — always the wallet brand
+/// colour so every list row matches (no one-off PAN gold / passport purple).
+Color documentCardAccent(DocumentRecord _, {Color? walletAccent}) {
+  return walletAccent ?? AppColors.primaryGreen;
+}
+
 /// Section 5 - a single document record card.
 ///
 /// Tap opens the viewer; the ⋮ button (and a swipe-left) opens the quick-action
@@ -244,32 +250,8 @@ class DocumentCard extends StatelessWidget {
     );
   }
 
-  Color _accentFor(DocumentRecord record) {
-    final type = record.extraction.documentType?.toLowerCase() ?? '';
-    if (type.contains('pan')) return const Color(0xFFCC9200);
-    if (type.contains('passport')) return const Color(0xFF6B7FD7);
-    if (type.contains('driving') || type.contains('license')) {
-      return _iconColor;
-    }
-    if (type.contains('aadhaar') || type.contains('aadhar')) {
-      return _iconColor;
-    }
-    final name = record.name.toLowerCase();
-    if (name.contains('pan')) return const Color(0xFFCC9200);
-    if (name.contains('passport')) return const Color(0xFF6B7FD7);
-    if (name.contains('license') || name.contains('driving')) {
-      return const Color(0xFF89F3F9);
-    }
-    // Health / medical docs get the mint accent used on the Health Wallet tile.
-    final category = record.category.toLowerCase();
-    if (category.contains('medical') ||
-        category.contains('health') ||
-        category.contains('prescription') ||
-        category.contains('report')) {
-      return const Color(0xFF22C55E);
-    }
-    return _iconColor;
-  }
+  Color _accentFor(DocumentRecord record) =>
+      documentCardAccent(record, walletAccent: walletAccent);
 
   (DivineGlassMetaCell, Widget) _launcherMeta(BuildContext context) {
     final palette = AppPalette.of(context);

@@ -43,17 +43,17 @@ class LauncherGlassIconTile extends StatelessWidget {
     final dark = palette.isDark;
     final flat = InoStyle.usesFlatBackdrop(context);
 
-    // Flat Aqua Light: opaque glass + rim + lift so tiles stay readable.
-    final frost = flat ? 1.35 : (dark ? 1.2 : 0.72);
+    // Clear frosted glass — avoid milky “solid white” plates on Aqua Light.
+    final frost = flat ? 0.62 : (dark ? 1.05 : 0.58);
     // Tight inset so glyphs fill the plate without looking sparse.
     const iconPad = 4.0;
     const glyphSize = 62.0;
     final plate = LiquidGlass(
       borderRadius: BorderRadius.circular(20),
-      enableBlur: flat,
+      enableBlur: true,
       blur: flat ? 18 : 20,
       frost: frost,
-      shadow: flat,
+      shadow: true,
       padding: const EdgeInsets.all(iconPad),
       child: imageAsset != null
           ? Image.asset(
@@ -74,30 +74,23 @@ class LauncherGlassIconTile extends StatelessWidget {
             ),
     );
 
-    final tile = flat
-        ? DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.85),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.10),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: plate,
-          )
-        : plate;
+    final tile = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: flat ? 0.55 : 0.45),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: plate,
+    );
 
     return PressableScale(
       pressedScale: 0.96,

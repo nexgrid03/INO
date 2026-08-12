@@ -139,19 +139,20 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
         child: SafeArea(
           top: !divineGlassEnabled(context),
           bottom: false,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            slivers: [
-              SliverToBoxAdapter(
-                child: ModuleHeader(
-                    title: 'Offline documents',
-                    subtitle: docs.isEmpty
-                        ? 'Saved to this device, viewable anytime'
-                        : '${docs.length} saved · no internet needed',
-                  ),
+          child: Column(
+            children: [
+              ModuleHeader(
+                title: 'Offline documents',
+                subtitle: docs.isEmpty
+                    ? 'Saved to this device, viewable anytime'
+                    : '${docs.length} saved · no internet needed',
               ),
+              Expanded(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  slivers: [
               if (!_store.isLoaded)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(
@@ -210,6 +211,9 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                   ),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

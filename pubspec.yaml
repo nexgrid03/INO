@@ -1,44 +1,18 @@
 name: inoapp
-description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+description: "INO — personal wealth & secure document vault"
+publish_to: "none"
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
 version: 1.0.1+2
 
 environment:
   sdk: ^3.10.4
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
-  # App-wide localization (English / Hindi / Telugu). Provides the
-  # Material/Cupertino/Widgets localization delegates used alongside our own
-  # AppLocalizations.
   flutter_localizations:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   flutter_screenutil: ^5.9.3
   supabase_flutter: ^2.15.0
   google_sign_in: ^7.2.0
@@ -47,152 +21,56 @@ dependencies:
   image_picker: ^1.2.3
   image: ^4.8.0
   google_mlkit_document_scanner: ^0.4.1
-  # Biometric / Face ID app-lock.
   local_auth: ^2.3.0
-  # Platform interfaces - used directly for the native BiometricPrompt
-  # title/subtitle messages (AndroidAuthMessages / IOSAuthMessages).
   local_auth_android: ^1.0.56
   local_auth_darwin: ^1.6.1
-  # Local persistence for the biometric-lock preference (instant on cold start).
   shared_preferences: ^2.3.2
-  # Document viewer: temp file caching, opening non-image files with the system
-  # app (PDF/office), and sharing the real stored file.
   path_provider: ^2.1.4
   open_filex: ^4.5.0
   share_plus: ^10.1.2
-  # About screen (real app version / build number) and opening external links
-  # (support email, legal pages) from Profile settings.
   package_info_plus: ^8.3.1
   url_launcher: ^6.3.2
   google_mlkit_text_recognition: ^0.15.1
-  # QR scanning. Same ML Kit family (and the same `google_mlkit_commons`
-  # transitive) as the document scanner + text recognition already above, so it
-  # reuses the native toolchain already in the build graph rather than pulling a
-  # second camera/vision stack - which matters given the AGP 9 pins below.
-  #
-  # Pinned to the 0.14.x line on purpose: 0.15.0 requires
-  # google_mlkit_commons ^0.12.0, which google_mlkit_text_recognition 0.15.1
-  # (the OCR pipeline) cannot take. 0.14.2 shares commons ^0.11.0 with it, so
-  # barcode scanning is added without disturbing OCR. Lift both together.
+  # Pinned with text_recognition on commons ^0.11.0 (see 0.15.x note in history).
   google_mlkit_barcode_scanning: ^0.14.2
-  # PDF upload: pick a PDF from device storage via the system file picker (SAF
-  # on Android), validated before it enters the vault.
   file_picker: ^8.1.6
-  # Secure document sharing: render the share link into a scannable QR code and
-  # export it as a PNG (via QrPainter.toImageData).
   qr_flutter: ^4.1.0
-  # Fetches the public share metadata + document bytes from the `share` Edge
-  # Function (anonymous, no Supabase session) for the recipient viewer.
   http: ^1.2.2
-  # Android App Links / deep linking: opens scanned share URLs directly in the
-  # app and routes them to SharedDocumentsScreen (cold start + warm resume).
   app_links: ^6.3.0
-  # Pure-Dart PDF generation for the ITR Tax Summary export (saved + shared).
   pdf: ^3.11.1
-  # Voice navigation: on-device speech recognition (English / Telugu / Hinglish)
-  # for the Home "voice command" mic, plus text-to-speech for the spoken
-  # "Opening …" confirmation. Recognition runs on-device where the language
-  # pack is installed; the keyword→route matching is always fully offline.
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
-  # Reminder push notifications. Firebase is used ONLY as the push transport
-  # (FCM) - the data and the "who is due today" logic stay in Supabase. See
-  # PUSH_NOTIFICATIONS.md.
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
-  # Required, not optional: Android silently swallows an FCM `notification`
-  # payload while the app is FOREGROUNDED, so PushService re-displays it here.
   flutter_local_notifications: ^22.2.0
-  # Password Vault end-to-end encryption: PBKDF2-HMAC-SHA256 key derivation from
-  # the user's vault passphrase, and AES-GCM for the stored secret. The key is
-  # derived on-device and never transmitted, so `w_password_vault.secret` holds
-  # ciphertext the server cannot read. See lib/services/vault_crypto.dart.
   cryptography: ^2.9.0
-  # Divine Glass design system typeface (Manrope), fetched/bundled per platform.
   google_fonts: ^6.2.1
   flutter_svg: ^2.3.0
 
-# ---------------------------------------------------------------------------
-# Dependency overrides
-# ---------------------------------------------------------------------------
 dependency_overrides:
-  # path_provider_android 2.3.x switched its Android implementation to
-  # package:jni. jni 1.0.1's android/build.gradle only applies the Kotlin
-  # Gradle plugin when AGP major < 9, but still uses the `kotlin { }` DSL
-  # unconditionally — so under this project's AGP 9 toolchain it fails with
-  # "Could not find method kotlin() on project ':jni'". Pinning to the pre-jni
-  # 2.2.x line drops jni / jni_flutter / jni_util from the graph entirely and
-  # restores the plain-Kotlin implementation (no CMake/NDK). Remove this
-  # override once path_provider_android ships a jni build that supports AGP 9.
-  path_provider_android: '>=2.2.0 <2.3.0'
+  # AGP 9 + path_provider_android 2.3.x/jni break; pin pre-jni until fixed.
+  path_provider_android: ">=2.2.0 <2.3.0"
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
-# App launcher icon generation. Run: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true
-  # App Store rejects icons with an alpha channel - flatten it for iOS.
   remove_alpha_ios: true
   image_path: "assets/icon/ino_icon.png"
   min_sdk_android: 21
-  # Android 8+ adaptive icon (gradient background + shield foreground).
   adaptive_icon_background: "assets/icon/ino_icon_bg.png"
   adaptive_icon_foreground: "assets/icon/ino_icon_fg.png"
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
-
-  # Bundled images. The splash mark is a transparent, tightly-cropped variant
-  # of the launcher icon - regenerate with: dart run tool/make_splash_icon.dart
   assets:
     - assets/icon/ino_icon_splash.png
     - assets/icons/home/
     - assets/icons/home/3d/
     - assets/splash/
-    - assets/onboarding/
     - assets/home/
-
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
