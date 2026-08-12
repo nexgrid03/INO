@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../../data/wallet_detail_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/document.dart';
 import '../../models/dashboard_models.dart' show QuickAction;
 import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
@@ -373,26 +375,102 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _shareSingle(DocumentRecord r) => _startShare([r]);
 
-  /// Opens the Share Configuration flow for [docs]. Only documents with an
-  /// uploaded file can be shared; any without one are skipped (never fabricated).
-  void _startShare(List<DocumentRecord> docs) {
-    final shareable = docs.where((r) => r.filePath != null).toList();
-    final skipped = docs.length - shareable.length;
-    if (shareable.isEmpty) {
-      _toast('These documents have no uploaded file to share yet');
-      return;
-    }
-    if (skipped > 0) {
-      _toast(
-        '$skipped document${skipped == 1 ? '' : 's'} without a file skipped',
-      );
-    }
-    _exitSelection();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ShareSettingsScreen(documents: shareable),
+  /// Opens the Secure Share portal for [docs].
+  ///
+  /// Always navigates to [ShareSettingsScreen] (the portal). File paths are
+  /// refreshed first so Generate Secure Link can succeed when Storage has the
+  /// file even if the in-memory list was stale.
+  Future<void> _startShare(List<DocumentRecord> docs) async {
+    if (docs.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
       ),
     );
+
+    List<DocumentRecord> hydrated;
+    try {
+      hydrated = await _hydrateShareDocs(docs);
+    } catch (_) {
+      hydrated = docs;
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+    if (!mounted) return;
+
+    if (hydrated.any((d) => d.hasUploadedFile)) {
+      setState(() {
+        _records = [
+          for (final r in _records)
+            hydrated.firstWhere((h) => h.id == r.id, orElse: () => r),
+        ];
+      });
+    }
+
+    _exitSelection();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareSettingsScreen(documents: hydrated),
+      ),
+    );
+  }
+
+  /// Prefer live DB `file_path`, then offline object path, then the list value.
+  Future<List<DocumentRecord>> _hydrateShareDocs(
+    List<DocumentRecord> docs,
+  ) async {
+    final wallet = widget.category.name;
+    final offline = OfflineDocumentStore.instance;
+    final byId = <String, Document>{};
+
+    try {
+      final freshList = await DocumentRepository.instance
+          .listForWallet(wallet, forceRefresh: true);
+      for (final d in freshList) {
+        byId[d.id] = d;
+      }
+    } catch (_) {}
+
+    final out = <DocumentRecord>[];
+    for (final doc in docs) {
+      String? path = doc.hasUploadedFile ? doc.filePath!.trim() : null;
+
+      final listed = byId[doc.id];
+      if ((path == null || path.isEmpty) &&
+          listed != null &&
+          listed.hasUploadedFile) {
+        path = listed.filePath!.trim();
+      }
+
+      if (path == null || path.isEmpty) {
+        final fresh = await DocumentRepository.instance
+            .getById(doc.id, wallet: wallet);
+        if (fresh != null && fresh.hasUploadedFile) {
+          path = fresh.filePath!.trim();
+        }
+      }
+
+      if (path == null || path.isEmpty) {
+        final offlineDoc = offline.byId(doc.id);
+        final offlinePath = offlineDoc?.objectPath.trim();
+        if (offlinePath != null && offlinePath.isNotEmpty) {
+          path = offlinePath;
+          // Persist recovered path so future share / open use the DB.
+          DocumentRepository.instance
+              .update(doc.id, {'file_path': path}, wallet: wallet)
+              .catchError((_) {});
+        }
+      }
+
+      out.add(
+        (path == null || path.isEmpty) ? doc : doc.copyWith(filePath: path),
+      );
+    }
+    return out;
   }
 
   void _openManageShares() {

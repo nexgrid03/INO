@@ -379,6 +379,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _toast(AppLocalizations.of(context).t('pleaseChooseWallet'), error: true);
       return;
     }
+    if (_localFilePath == null) {
+      _toast('Attach a photo or PDF before saving — needed for Secure Share.',
+          error: true);
+      return;
+    }
 
     final name = _nameController.text.trim();
     final tags = _tagsController.text.trim().isEmpty

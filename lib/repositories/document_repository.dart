@@ -366,6 +366,41 @@ class DocumentRepository {
     }
   }
 
+  /// Fresh row for [id] in [wallet], bypassing the list cache.
+  ///
+  /// Used by Share via QR to re-hydrate `file_path` when the in-memory wallet
+  /// list is stale (e.g. offline cache, older add flow, repaired path).
+  /// Falls back to the `documents` union view when the row isn't in [wallet]
+  /// (e.g. after a move).
+  Future<Document?> getById(String id, {required String wallet}) async {
+    final userId = _uid;
+    if (userId == null) return null;
+    try {
+      final row = await _client
+          .from(_tableFor(wallet))
+          .select()
+          .eq('id', id)
+          .eq('auth_user_id', userId)
+          .maybeSingle()
+          .timeout(NetGuard.query);
+      if (row != null) return Document.fromMap(row, wallet: wallet);
+
+      final any = await _client
+          .from(WalletTables.documentsView)
+          .select()
+          .eq('id', id)
+          .eq('auth_user_id', userId)
+          .maybeSingle()
+          .timeout(NetGuard.query);
+      if (any == null) return null;
+      return Document.fromMap(any);
+    } catch (e, st) {
+      developer.log('getById($id, $wallet) failed: $e',
+          name: 'docs', error: e, stackTrace: st);
+      return null;
+    }
+  }
+
   /// Updates a few columns on an existing row (e.g. favourite / status).
   /// RLS guarantees the user can only touch their own rows; the explicit
   /// auth_user_id filter is defense-in-depth so ownership is verified here too.
