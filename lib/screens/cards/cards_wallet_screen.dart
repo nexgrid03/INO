@@ -357,15 +357,14 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
           ),
         ),
       ),
+      // Scaffold already lifts the FAB above [bottomNavigationBar] — extra
+      // bottom padding was pushing it into the security banner.
       floatingActionButton: hasAny
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 72),
-              child: GradientButton(
-                label: 'Add card',
-                icon: Icons.add_rounded,
-                expand: false,
-                onTap: _add,
-              ),
+          ? GradientButton(
+              label: 'Add card',
+              icon: Icons.add_rounded,
+              expand: false,
+              onTap: _add,
             )
           : null,
       bottomNavigationBar: InoBottomNav(
