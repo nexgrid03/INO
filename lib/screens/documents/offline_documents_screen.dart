@@ -154,7 +154,12 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    AppSpacing.md,
+                    AppSpacing.screen,
+                    0,
+                  ),
                   sliver: SliverToBoxAdapter(
                     child: ModuleSkeleton(height: 72, count: 4),
                   ),
@@ -175,10 +180,16 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    AppSpacing.sm,
+                    AppSpacing.screen,
+                    0,
+                  ),
                   sliver: SliverList.separated(
                     itemCount: docs.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (context, i) {
                       final doc = docs[i];
                       return FadeSlideIn(
@@ -237,28 +248,31 @@ class _OfflineDocTile extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 11, 6, 11),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            gradient: palette.cardGradient,
+            color: palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: palette.border),
-            boxShadow: palette.cardShadow,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.14),
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 21, color: AppColors.primaryGreen),
+                child: Icon(icon, size: 22, color: AppColors.primaryGreen),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       doc.name,
@@ -266,35 +280,47 @@ class _OfflineDocTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(
                         color: palette.textPrimary,
-                        fontSize: 14.5,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                        height: 1.2,
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Protected copies are marked, so the biometric prompt on tap is
-              // expected rather than a surprise.
+              const SizedBox(width: 8),
               if (protected) ...[
-                Icon(Icons.lock_rounded, size: 16, color: palette.textSecondary),
-                const SizedBox(width: 6),
+                Icon(Icons.lock_rounded,
+                    size: 16, color: palette.textSecondary),
+                const SizedBox(width: 8),
               ],
-              // The offline badge - the whole point of this list.
-               Icon(Icons.offline_pin_rounded,
-                  size: 18, color: AppColors.primaryGreen),
+              Icon(
+                Icons.offline_pin_rounded,
+                size: 20,
+                color: AppColors.primaryGreen,
+              ),
+              const SizedBox(width: 4),
               IconButton(
                 onPressed: onRemove,
                 visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 tooltip: 'Remove offline copy',
-                icon: Icon(Icons.delete_outline_rounded,
-                    size: 19, color: palette.textSecondary),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: palette.textSecondary,
+                ),
               ),
             ],
           ),

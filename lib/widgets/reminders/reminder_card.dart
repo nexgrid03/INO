@@ -10,9 +10,9 @@ import '../pressable_scale.dart';
 
 /// A compact reminder row - the workhorse card used across every Reminders
 /// surface, styled as a floating agenda card: a priority accent running down
-/// the card's left edge, a glossy category icon badge, a small meta line
-/// (due chip + category) above the bold title, and an optional tap-to-complete
-/// circle on the right. Tapping the body opens details.
+/// the card's left edge, a glossy category icon badge, a bold title beside it,
+/// a small meta line (due chip + category) under the title, and an optional
+/// tap-to-complete circle on the right. Tapping the body opens details.
 ///
 /// Deliberately short so a stack of them reads as a clean list rather than a
 /// wall of boxes.
@@ -54,10 +54,13 @@ class ReminderCard extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm + 2,
+                  ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Glossy category icon badge.
+                      // Glossy category icon badge — same vocabulary as Wallets.
                       ShinyIcon(
                         icon: reminder.category.icon,
                         color: categoryColor,
@@ -65,37 +68,13 @@ class ReminderCard extends StatelessWidget {
                         iconSize: 22,
                         radius: AppRadius.chip,
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Meta line: due chip + category, above the title.
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: _DueBadge(
-                                    label: reminder.localizedDueLabel(
-                                        today, l10n),
-                                    color: urgency,
-                                  ),
-                                ),
-                                const SizedBox(width: 7),
-                                Flexible(
-                                  child: Text(
-                                    reminder.category.localizedLabel(l10n),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.label.copyWith(
-                                        color: palette.textFaint,
-                                        fontSize: 11,
-                                        letterSpacing: 0.3),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 5),
                             Text(
                               reminder.title,
                               maxLines: 1,
@@ -104,13 +83,44 @@ class ReminderCard extends StatelessWidget {
                                 color: palette.textPrimary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
+                                height: 1.2,
                               ),
+                            ),
+                            const SizedBox(height: 6),
+                            // Due chip + category on one baseline, centred.
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: _DueBadge(
+                                    label: reminder.localizedDueLabel(
+                                      today,
+                                      l10n,
+                                    ),
+                                    color: urgency,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    reminder.category.localizedLabel(l10n),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.label.copyWith(
+                                      color: palette.textFaint,
+                                      fontSize: 11,
+                                      letterSpacing: 0.2,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                       if (onComplete != null) ...[
-                        const SizedBox(width: AppSpacing.xs),
+                        const SizedBox(width: AppSpacing.sm),
                         _CompleteButton(color: urgency, onTap: onComplete!),
                       ],
                     ],
@@ -141,6 +151,7 @@ class _DueBadge extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 6,
@@ -153,7 +164,11 @@ class _DueBadge extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.label.copyWith(color: color, fontSize: 11),
+              style: AppText.label.copyWith(
+                color: color,
+                fontSize: 11,
+                height: 1.0,
+              ),
             ),
           ),
         ],

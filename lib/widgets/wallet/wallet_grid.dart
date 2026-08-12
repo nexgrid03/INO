@@ -251,11 +251,11 @@ class _WalletCard extends StatelessWidget {
                       height: 44,
                       decoration: BoxDecoration(
                         color: accent.withValues(
-                          alpha: palette.isDark ? 0.22 : 0.14,
+                          alpha: palette.isDark ? 0.22 : 0.16,
                         ),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: accent.withValues(alpha: 0.25),
+                          color: accent.withValues(alpha: 0.28),
                         ),
                       ),
                       child: _VaultGlyph(
@@ -308,10 +308,12 @@ class _WalletCard extends StatelessWidget {
       ],
     );
 
+    // Higher frost + white tint keeps cards crisp on the sky wash (less grey).
     final surface = LiquidGlass(
       borderRadius: BorderRadius.circular(20),
-      blur: 16,
-      frost: palette.isDark ? 1.1 : 0.72,
+      blur: 18,
+      frost: palette.isDark ? 1.1 : 1.34,
+      tint: palette.isDark ? null : Colors.white,
       padding: EdgeInsets.zero,
       child: SizedBox.expand(child: content),
     );

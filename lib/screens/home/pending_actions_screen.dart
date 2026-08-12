@@ -21,14 +21,20 @@ class _Pending {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.color,
+    required this.accent,
+    required this.urgencyColor,
     required this.urgency,
     this.wallet,
   });
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color color;
+
+  /// Icon badge colour (category / vault accent — never urgency sky-blue).
+  final Color accent;
+
+  /// Due-chip colour (critical / warning / brand teal).
+  final Color urgencyColor;
   final String urgency;
   final String? wallet; // set for documents → opens that wallet
 }
@@ -65,7 +71,8 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
             title: r.title,
             subtitle: r.subtitle.isEmpty ? r.category.label : r.subtitle,
             icon: r.category.icon,
-            color: reminderUrgencyColor(r, today),
+            accent: r.category.color,
+            urgencyColor: reminderUrgencyColor(r, today),
             urgency: r.dueLabel(today),
           ));
         }
@@ -101,7 +108,8 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
         title: '${d.name} expires soon',
         subtitle: '${d.category ?? 'Document'} · ${d.wallet}',
         icon: Icons.event_busy_rounded,
-        color: days <= 7 ? AppColors.critical : AppColors.warning,
+        accent: AppColors.primaryGreen,
+        urgencyColor: days <= 7 ? AppColors.critical : AppColors.warning,
         urgency: days == 0 ? 'Expires today' : 'In $days days',
         wallet: d.wallet,
       );
@@ -180,30 +188,38 @@ class _PendingTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
+                  color: item.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(item.icon, color: item.color, size: 21),
+                child: Icon(item.icon, color: item.accent, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.subtitle
-                        .copyWith(color: palette.textPrimary)),
+                child: Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
+                  color: item.urgencyColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
-                child: Text(item.urgency,
-                    style: AppText.label.copyWith(
-                        color: item.color, fontSize: 11)),
+                child: Text(
+                  item.urgency,
+                  style: AppText.label.copyWith(
+                    color: item.urgencyColor,
+                    fontSize: 11,
+                  ),
+                ),
               ),
             ],
           ),

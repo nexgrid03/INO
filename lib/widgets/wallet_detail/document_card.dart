@@ -498,7 +498,7 @@ class _ExtractedSummary extends StatelessWidget {
     }
 
     add(Icons.person_rounded, data['name']);
-    add(Icons.cake_rounded, data['dob']);
+    add(Icons.event_rounded, data['dob']);
     final number = data['number'];
     if (number != null) add(Icons.tag_rounded, _maskedNumber(number));
 

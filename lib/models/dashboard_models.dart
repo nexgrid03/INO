@@ -316,11 +316,11 @@ class FamilyEvent {
   IconData get icon {
     switch (type) {
       case FamilyEventType.birthday:
-        return Icons.cake_rounded;
+        return Icons.event_rounded;
       case FamilyEventType.anniversary:
-        return Icons.favorite_rounded;
+        return Icons.workspace_premium_rounded;
       case FamilyEventType.event:
-        return Icons.celebration_rounded;
+        return Icons.event_available_rounded;
     }
   }
 }

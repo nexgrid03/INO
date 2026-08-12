@@ -99,32 +99,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     _particles = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 18),
+      duration: const Duration(seconds: 22),
     )..repeat();
 
     _intro = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 480),
     );
     _arrowSlide = Tween<Offset>(
-      begin: const Offset(0, 0.6),
+      begin: const Offset(0, 0.28),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic));
-    _arrowFade = CurvedAnimation(parent: _intro, curve: Curves.easeIn);
+    _arrowFade = CurvedAnimation(parent: _intro, curve: Curves.easeOut);
     _arrowScale = Tween<double>(
-      begin: 0.8,
+      begin: 0.94,
       end: 1.0,
-    ).animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutBack));
+    ).animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic));
     _intro.forward();
 
     _dotPop = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 280),
     );
     _dotPopScale = TweenSequence<double>(<TweenSequenceItem<double>>[
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.25, end: 1.0), weight: 60),
-    ]).animate(CurvedAnimation(parent: _dotPop, curve: Curves.easeInOut));
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.14), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.14, end: 1.0), weight: 60),
+    ]).animate(CurvedAnimation(parent: _dotPop, curve: Curves.easeOutCubic));
   }
 
   void _onPageChanged(int index) {
@@ -139,10 +139,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 380),
+        reverseTransitionDuration: const Duration(milliseconds: 260),
         pageBuilder: (_, _, _) => const SecuredIntroScreen(),
         transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
         },
       ),
     );
@@ -154,8 +168,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       _finishOnboarding();
     } else {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
       );
     }
   }
@@ -187,12 +201,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.skyBlue,
-                        AppColors.tealPale,
                         AppColors.tealMist,
+                        AppColors.tealPale,
                         AppColors.tealFoam,
+                        palette.bg,
                       ],
-                      stops: const [0.0, 0.28, 0.62, 1.0],
+                      stops: const [0.0, 0.32, 0.68, 1.0],
                     ),
                   ),
                 ),
@@ -351,13 +365,12 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
   /// Perpetual loop that drives the gentle bobbing of the floating satellites.
   late final AnimationController _float;
 
-  // Staggered phases over a 1400ms controller. The order is deliberate so the
-  // eye lands on the illustration first, then the content:
-  //   circle  0.03–0.20   (appears first, completes early)
-  //   inner   0.10–0.34   (folder pop / chart draw / QR scan + glow)
-  //   chips   0.40–0.80   (satellites pop in one-by-one - see FloatingSatellites)
-  //   title   0.81–0.90   (only after the chips have appeared)
-  //   desc    0.91–1.00   (last)
+  // Staggered phases over a ~900ms controller — fast but still readable:
+  //   circle  0.00–0.22
+  //   inner   0.10–0.36
+  //   chips   0.34–0.72  (FloatingSatellites)
+  //   title   0.68–0.86
+  //   desc    0.80–1.00
   late final Animation<Offset> _contentSlide;
   late final Animation<double> _iconScale;
   late final Animation<double> _iconFade;
@@ -374,23 +387,22 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 900),
     );
 
     _float = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 6),
+      duration: const Duration(milliseconds: 4800),
     )..repeat(reverse: true);
 
-    _contentSlide = _slide(0.0, 0.30, 0.05);
-    // Circle appears first and finishes early (before the chips start).
-    _iconScale = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _contentSlide = _slide(0.0, 0.26, 0.03);
+    _iconScale = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.03, 0.20, curve: Curves.easeOutBack),
+        curve: const Interval(0.00, 0.22, curve: Curves.easeOutCubic),
       ),
     );
-    _iconFade = _fade(0.0, 0.14);
+    _iconFade = _fade(0.0, 0.16);
     _glow = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem(
         tween: Tween(
@@ -406,20 +418,18 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
         ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 55,
       ),
-    ]).animate(CurvedAnimation(parent: _c, curve: const Interval(0.10, 0.34)));
-    _reveal = _fade(0.10, 0.34, Curves.easeInOutCubic);
-    _folderPop = Tween<double>(begin: 0.85, end: 1.0).animate(
+    ]).animate(CurvedAnimation(parent: _c, curve: const Interval(0.08, 0.36)));
+    _reveal = _fade(0.08, 0.36, Curves.easeInOutCubic);
+    _folderPop = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.10, 0.32, curve: Curves.elasticOut),
+        curve: const Interval(0.08, 0.32, curve: Curves.easeOutCubic),
       ),
     );
-    // Title only after all the chips (which finish ~0.80).
-    _titleSlide = _slide(0.81, 0.90, 0.5);
-    _titleFade = _fade(0.81, 0.90);
-    // Description last.
-    _descSlide = _slide(0.91, 1.0, 0.5);
-    _descFade = _fade(0.91, 1.0);
+    _titleSlide = _slide(0.68, 0.86, 0.22);
+    _titleFade = _fade(0.68, 0.86);
+    _descSlide = _slide(0.80, 1.0, 0.18);
+    _descFade = _fade(0.80, 1.0);
 
     _c.forward();
   }
@@ -743,8 +753,8 @@ class _Dot extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
       margin: const EdgeInsets.only(right: 8),
       height: 8,
       width: isActive ? 28 : 8,

@@ -23,13 +23,13 @@ IconData walletIconFor(String key) => categoryIconFor(key);
 /// (see `WalletGrid._accents`) so a custom wallet never looks bolted on.
 const List<int> kWalletAccentValues = [
   0xFF14B8A6, // teal
-  0xFF4383EA, // blue
+  0xFF098F90, // aqua brand
   0xFF9B6DE0, // purple
   0xFFF5704A, // coral
   0xFF10B981, // green
   0xFFF2B33D, // amber
-  0xFF4E7FE0, // indigo-blue
-  0xFF0EA5E9, // brand teal
+  0xFF2BA8A9, // aqua secondary
+  0xFF0D9488, // deep teal
   0xFFE0699B, // rose
   0xFF64748B, // slate
 ];

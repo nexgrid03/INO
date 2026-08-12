@@ -6,7 +6,6 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/avatar_color.dart';
 import '../../theme/theme_style.dart';
-import '../common/liquid_glass.dart';
 import '../home/voice_mic_button.dart';
 import '../pressable_scale.dart';
 
@@ -286,10 +285,11 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
           VoiceMicIconButton(key: widget.voiceButtonKey, size: 42),
           const SizedBox(width: 8),
           _HeaderIcon(
-            icon: Icons.notifications_none_rounded,
+            icon: Icons.notifications_rounded,
             onTap: widget.onNotifications,
             tooltip: AppLocalizations.of(context).t('notifications'),
             badge: widget.notificationCount,
+            matchVoice: true,
           ),
         ],
       ],
@@ -303,6 +303,7 @@ class _HeaderIcon extends StatelessWidget {
     required this.onTap,
     required this.tooltip,
     this.badge = 0,
+    this.matchVoice = false,
   });
 
   final IconData icon;
@@ -310,65 +311,70 @@ class _HeaderIcon extends StatelessWidget {
   final String tooltip;
   final int badge;
 
+  /// When true, use the same brand-gradient disc as [VoiceMicIconButton].
+  final bool matchVoice;
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final iconStack = Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          icon,
+          size: 21,
+          color: AppColors.primaryGreen,
+        ),
+        if (badge > 0)
+          Positioned(
+            top: 5,
+            right: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.critical,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: palette.surfaceVariant,
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                badge > 9 ? '9+' : '$badge',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
         message: tooltip,
-        // Liquid Glass chrome: the sky gradient refracts through the circle.
-        child: LiquidGlass(
-          circle: true,
-          blur: 16,
-          shadow: false,
-          child: Material(
-            type: MaterialType.transparency,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
+        child: Material(
+          color: palette.isDark ? palette.bgElevated : Colors.white,
+          shape: CircleBorder(side: BorderSide(color: palette.border)),
+          clipBehavior: Clip.antiAlias,
+          elevation: palette.isDark ? 0 : 1,
+          shadowColor: Colors.black26,
+          child: InkWell(
             onTap: onTap,
             child: SizedBox(
               width: 42,
               height: 42,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(icon, size: 21, color: AppColors.primaryGreen),
-                  if (badge > 0)
-                    Positioned(
-                      top: 5,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.critical,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: palette.surfaceVariant,
-                            width: 1.5,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          badge > 9 ? '9+' : '$badge',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+              child: iconStack,
             ),
           ),
         ),

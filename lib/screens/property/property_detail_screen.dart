@@ -234,7 +234,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   child: ModuleSection(
                     title: 'Location',
                     icon: Icons.place_rounded,
-                    accent: const Color(0xFF4383EA),
+                    accent: AppColors.aquaPrimary,
                     children: [
                       DetailRow(label: 'Address', value: p.address),
                       DetailRow(label: 'City', value: p.city),

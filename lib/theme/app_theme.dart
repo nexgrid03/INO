@@ -140,18 +140,19 @@ class AppColors {
   static const Color vaultIdentity = Color(0xFF8B6CEF);
   static const Color vaultProperty = Color(0xFF22C55E);
   static const Color vaultInvestments = Color(0xFFF59E0B);
-  static const Color _vaultCardsSky = Color(0xFF4383EA);
+  /// Cards / Banking / Documents vault accent — brand aqua teal (never sky blue).
+  static const Color _vaultCardsTeal = Color(0xFF098F90);
   static const Color vaultInsurance = Color(0xFFF5704A);
-  static const Color vaultHealth = Color(0xFF22C55E);
-  static const Color vaultPassword = Color(0xFFF2B33D);
+  /// Medical blue — distinct from Property green in the launcher grid.
+  static const Color vaultHealth = Color(0xFF3B82F6);
+  /// Indigo lock accent — distinct from Investment amber in the launcher grid.
+  static const Color vaultPassword = Color(0xFF6366F1);
 
-  /// Cards / Banking — sky blue on Classic/Clay; Aqua brand teal under Aqua.
-  static Color get vaultCards =>
-      _aquaActive ? aquaPrimary : _vaultCardsSky;
+  /// Cards / Banking — aqua teal on every theme (no sky-blue chrome).
+  static Color get vaultCards => _vaultCardsTeal;
 
-  /// Document Wallet — same as Cards (Home hub consistency); Aqua → brand teal.
-  static Color get vaultDocuments =>
-      _aquaActive ? aquaPrimary : _vaultCardsSky;
+  /// Document Wallet — same as Cards (Home hub consistency).
+  static Color get vaultDocuments => _vaultCardsTeal;
 
   /// Accent for a built-in wallet name (Home My Vaults / Wallet Hub).
   /// Under Aqua styles, chrome follows the brand teal ladder for blue vaults

@@ -29,7 +29,7 @@ class FamilySection extends StatelessWidget {
           title: l10n.t('familyEvents'),
           subtitle: l10n.t('familySubtitle'),
           actionLabel: l10n.t('allEvents'),
-          icon: Icons.celebration_rounded,
+          icon: Icons.groups_rounded,
         ),
         ResponsiveHList(
           baseHeight: 124,

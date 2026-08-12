@@ -27,7 +27,7 @@ import 'onboarding_layout.dart';
 /// their shell; everyone else continues to [SignupScreen] (with Continue as
 /// guest available there).
 ///
-/// One 3.2s [AnimationController] drives the whole build-up via [Interval]s; a
+/// One ~2.0s [AnimationController] drives the whole build-up via [Interval]s; a
 /// second slow repeating controller keeps the orbit chips gently breathing
 /// afterwards, so the screen stays alive while the user reads.
 class SecuredIntroScreen extends StatefulWidget {
@@ -41,13 +41,13 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
     with TickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 3200),
+    duration: const Duration(milliseconds: 2000),
   );
 
   /// Perpetual gentle float for the orbit chips once they've landed.
   late final AnimationController _float = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 6),
+    duration: const Duration(milliseconds: 4800),
   )..repeat(reverse: true);
 
   bool _clicked = false; // haptic fired once when the shackle shuts
@@ -61,7 +61,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
   }
 
   void _maybeClick() {
-    if (!_clicked && _c.value >= 0.52) {
+    if (!_clicked && _c.value >= 0.48) {
       _clicked = true;
       HapticFeedback.mediumImpact(); // the shackle "click"
     }
@@ -111,10 +111,24 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 380),
+        reverseTransitionDuration: const Duration(milliseconds: 260),
         pageBuilder: (_, _, _) => const SignupScreen(),
         transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(opacity: animation, child: child);
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
         },
       ),
     );
@@ -193,16 +207,16 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                           CustomPaint(
                             size: const Size(210, 210),
                             painter: _RingPainter(
-                              sweep: _seg(0.06, 0.42, Curves.easeInOutCubic),
-                              settle: _seg(0.42, 0.62),
+                              sweep: _seg(0.04, 0.36, Curves.easeInOutCubic),
+                              settle: _seg(0.36, 0.55),
                             ),
                           ),
                           // Glass disc the padlock sits on.
                           Transform.scale(
                             scale:
-                                0.7 + 0.3 * _seg(0.0, 0.30, Curves.easeOutBack),
+                                0.82 + 0.18 * _seg(0.0, 0.24, Curves.easeOutCubic),
                             child: Opacity(
-                              opacity: _seg(0.0, 0.18),
+                              opacity: _seg(0.0, 0.16),
                               child: Container(
                                 width: 168,
                                 height: 168,
@@ -233,11 +247,11 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                           ),
                           // The padlock itself (shackle drops shut).
                           Opacity(
-                            opacity: _seg(0.16, 0.30),
+                            opacity: _seg(0.12, 0.26),
                             child: CustomPaint(
                               size: const Size(92, 100),
                               painter: _PadlockPainter(
-                                close: _seg(0.34, 0.52, Curves.bounceOut),
+                                close: _seg(0.28, 0.48, Curves.easeOutCubic),
                               ),
                             ),
                           ),
@@ -246,9 +260,9 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                             _OrbitChip(
                               spec: _chips[i],
                               appear: _seg(
-                                0.50 + i * 0.05,
-                                0.66 + i * 0.05,
-                                Curves.easeOutBack,
+                                0.44 + i * 0.05,
+                                0.60 + i * 0.05,
+                                Curves.easeOutCubic,
                               ),
                               float: floatT,
                               phase: i,
@@ -258,7 +272,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                             top: 46,
                             right: 58,
                             child: _Sparkle(
-                              t: _seg(0.55, 0.85),
+                              t: _seg(0.52, 0.78),
                               size: 20,
                               color: AppColors.secondaryGreen,
                             ),
@@ -267,7 +281,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                             bottom: 60,
                             left: 52,
                             child: _Sparkle(
-                              t: _seg(0.66, 0.96),
+                              t: _seg(0.60, 0.88),
                               size: 15,
                               color: const Color(0xFFF2B33D),
                             ),
@@ -284,9 +298,9 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                         horizontal: OnboardingLayout.textHorizontal,
                       ),
                       child: Opacity(
-                        opacity: _seg(0.60, 0.78),
+                        opacity: _seg(0.55, 0.72),
                         child: Transform.translate(
-                          offset: Offset(0, 16 * (1 - _seg(0.60, 0.78))),
+                          offset: Offset(0, 12 * (1 - _seg(0.55, 0.72))),
                           child: ShaderMask(
                             shaderCallback: (b) =>
                                 AppColors.brandGradient.createShader(b),
@@ -319,9 +333,9 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                         OnboardingLayout.bottomPadding,
                       ),
                       child: Opacity(
-                        opacity: _seg(0.80, 0.97),
+                        opacity: _seg(0.72, 0.92),
                         child: Transform.translate(
-                          offset: Offset(0, 22 * (1 - _seg(0.80, 0.97))),
+                          offset: Offset(0, 14 * (1 - _seg(0.72, 0.92))),
                           child: _GetStartedButton(
                             busy: _busy,
                             onTap: _getStarted,
@@ -357,7 +371,7 @@ class _ChipSpec {
 /// Four "document" chips, each in its own accent so the scene carries the
 /// whole palette family rather than a single teal.
 const _chips = [
-  _ChipSpec(Icons.description_rounded, Color(0xFF4383EA), -108, -66),
+  _ChipSpec(Icons.description_rounded, Color(0xFF098F90), -108, -66),
   _ChipSpec(Icons.badge_rounded, Color(0xFF9B6DE0), 108, -58),
   _ChipSpec(Icons.home_work_rounded, Color(0xFFF2B33D), -100, 72),
   _ChipSpec(Icons.favorite_rounded, Color(0xFFF5704A), 104, 78),
@@ -382,7 +396,7 @@ class _OrbitChip extends StatelessWidget {
     final dark = palette.isDark;
     if (appear == 0) return const SizedBox.shrink();
     // Each chip bobs slightly out of step with its neighbours.
-    final bob = math.sin(float * math.pi + phase * 1.6) * 5;
+    final bob = math.sin(float * math.pi + phase * 1.6) * 3.2;
     final chipFill = dark
         ? Color.alphaBlend(
             spec.color.withValues(alpha: 0.28),
@@ -452,7 +466,7 @@ class _RingPainter extends CustomPainter {
         colors:  [
           AppColors.primaryGreen,
           AppColors.secondaryGreen,
-          AppColors.skyBlue,
+          AppColors.aquaSky,
           AppColors.primaryGreen,
         ],
         stops: const [0.0, 0.45, 0.75, 1.0],

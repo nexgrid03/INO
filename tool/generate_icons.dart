@@ -1,84 +1,19 @@
-// Generates the INO launcher icons: the lowercase "ino" wordmark in brand
-// Rama Blue (#30ACB3) on the soft teal-mist gradient used by the splash.
-//
-// Outputs (1024×1024, consumed by the flutter_launcher_icons config):
-//   assets/icon/ino_icon.png     - full icon (gradient + wordmark)
-//   assets/icon/ino_icon_bg.png  - adaptive background (gradient only)
-//   assets/icon/ino_icon_fg.png  - adaptive foreground (wordmark, transparent)
+// Builds launcher icons that match the splash: soft mist gradient + the
+// existing INO shield wordmark (assets/icon/ino_icon.png artwork).
 //
 // Run:  dart run tool/generate_icons.dart
 // Then: dart run flutter_launcher_icons
-//
-// The wordmark is rasterised from the same 182×110 design space as the splash
-// painter (lib/screens/splash/splash_screen.dart) via signed-distance fields,
-// so the icon and the animated splash mark are pixel-for-pixel the same brand.
 
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:image/image.dart' as img;
 
 const int _size = 1024;
 
-// Brand teal #30ACB3.
-const int _tealR = 0x30, _tealG = 0xAC, _tealB = 0xB3;
-
-// Rama Blue gradient stops (top → mid → bottom).
+// Splash-matched mist gradient (top → mid → bottom).
 const _gradTop = (0xF8, 0xFF, 0xFF);
 const _gradMid = (0xEA, 0xF9, 0xF9);
 const _gradBottom = (0xDF, 0xF8, 0xF8);
-
-// --- Wordmark geometry (identical to the splash painter design space) -------
-const double _halfW = 6.5; // stroke width 13
-// i
-const double _iX = 16, _iStemTopY = 42, _baseY = 88;
-const double _iDotY = 24, _iDotR = 7;
-// n
-const double _nLeftX = 46, _nRightX = 88, _nTopY = 59, _nArchR = 21;
-const double _nArchCX = 67;
-// o
-const double _oCX = 143, _oCY = 63, _oR = 25;
-
-// Wordmark bounding box in design units (ink extents incl. stroke).
-const double _bbMinX = _iX - _halfW; // 9.5
-const double _bbMaxX = _oCX + _oR + _halfW; // 174.5
-const double _bbMinY = _iDotY - _iDotR; // 17
-const double _bbMaxY = _baseY + _halfW; // 94.5
-
-double _sdSegment(double px, double py, double ax, double ay, double bx,
-    double by) {
-  final abx = bx - ax, aby = by - ay;
-  final apx = px - ax, apy = py - ay;
-  final t = ((apx * abx + apy * aby) / (abx * abx + aby * aby)).clamp(0.0, 1.0);
-  final cx = ax + abx * t, cy = ay + aby * t;
-  return math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
-}
-
-double _dist(double px, double py, double cx, double cy) =>
-    math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
-
-/// Signed distance (design units) from a point to the OUTSIDE of the "ino"
-/// ink: <= 0 means inside a stroke.
-double _wordmarkDistance(double x, double y) {
-  var d = double.infinity;
-
-  // i stem + dot
-  d = math.min(d, _sdSegment(x, y, _iX, _baseY, _iX, _iStemTopY) - _halfW);
-  d = math.min(d, _dist(x, y, _iX, _iDotY) - _iDotR);
-
-  // n: two stems + upper arch ring
-  d = math.min(d, _sdSegment(x, y, _nLeftX, _baseY, _nLeftX, _nTopY) - _halfW);
-  d = math.min(
-      d, _sdSegment(x, y, _nRightX, _baseY, _nRightX, _nTopY) - _halfW);
-  if (y <= _nTopY) {
-    d = math.min(d, (_dist(x, y, _nArchCX, _nTopY) - _nArchR).abs() - _halfW);
-  }
-
-  // o: full ring
-  d = math.min(d, (_dist(x, y, _oCX, _oCY) - _oR).abs() - _halfW);
-
-  return d;
-}
 
 (int, int, int) _gradientAt(int y) {
   final t = y / (_size - 1);
@@ -92,43 +27,135 @@ double _wordmarkDistance(double x, double y) {
       : lerp(_gradMid, _gradBottom, (t - 0.5) * 2);
 }
 
-img.Image _render({required bool background, required double wordmarkWidth}) {
+img.Image _mistBg() {
   final image = img.Image(width: _size, height: _size, numChannels: 4);
-
-  // Scale + centring so the wordmark bbox sits centred at [wordmarkWidth] px.
-  final s = wordmarkWidth / (_bbMaxX - _bbMinX);
-  final offX = (_size - (_bbMaxX - _bbMinX) * s) / 2 - _bbMinX * s;
-  final offY = (_size - (_bbMaxY - _bbMinY) * s) / 2 - _bbMinY * s;
-
   for (var y = 0; y < _size; y++) {
-    final (bgR, bgG, bgB) = _gradientAt(y);
+    final (r, g, b) = _gradientAt(y);
     for (var x = 0; x < _size; x++) {
-      // Wordmark coverage with ~1px anti-aliasing (distance scaled to px).
-      var coverage = 0.0;
-      if (wordmarkWidth > 0) {
-        final dPx = _wordmarkDistance((x - offX) / s, (y - offY) / s) * s;
-        coverage = (0.5 - dPx).clamp(0.0, 1.0);
-      }
-
-      if (background) {
-        final r = (bgR + (_tealR - bgR) * coverage).round();
-        final g = (bgG + (_tealG - bgG) * coverage).round();
-        final b = (bgB + (_tealB - bgB) * coverage).round();
-        image.setPixelRgba(x, y, r, g, b, 255);
-      } else {
-        image.setPixelRgba(
-            x, y, _tealR, _tealG, _tealB, (coverage * 255).round());
-      }
+      image.setPixelRgba(x, y, r, g, b, 255);
     }
   }
   return image;
 }
 
-void main() {
-  final outDir = Directory('assets/icon');
-  if (!outDir.existsSync()) {
-    stderr.writeln('Run from the project root (assets/icon not found).');
+/// Finds the opaque / non-white content bbox so we can lift the shield off a
+/// white or transparent canvas.
+({int minX, int minY, int maxX, int maxY}) _contentBBox(img.Image src) {
+  var minX = src.width, minY = src.height, maxX = -1, maxY = -1;
+  for (var y = 0; y < src.height; y++) {
+    for (var x = 0; x < src.width; x++) {
+      final p = src.getPixel(x, y);
+      final a = p.a.toInt();
+      if (a < 12) continue;
+      // Skip near-white background pixels from the legacy flat icon.
+      final nearWhite = p.r.toInt() > 245 && p.g.toInt() > 245 && p.b.toInt() > 245;
+      if (nearWhite) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < 0) {
+    stderr.writeln('No shield content found in source icon.');
     exit(1);
+  }
+  return (minX: minX, minY: minY, maxX: maxX, maxY: maxY);
+}
+
+img.Image _extractShield(img.Image src) {
+  final box = _contentBBox(src);
+  final w = box.maxX - box.minX + 1;
+  final h = box.maxY - box.minY + 1;
+  final side = w > h ? w : h;
+  final out = img.Image(width: side, height: side, numChannels: 4);
+  // Clear transparent.
+  for (final p in out) {
+    p.r = 0;
+    p.g = 0;
+    p.b = 0;
+    p.a = 0;
+  }
+  final ox = (side - w) ~/ 2;
+  final oy = (side - h) ~/ 2;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      final p = src.getPixel(box.minX + x, box.minY + y);
+      final a = p.a.toInt();
+      final nearWhite =
+          p.r.toInt() > 245 && p.g.toInt() > 245 && p.b.toInt() > 245;
+      if (a < 12 || nearWhite) continue;
+      out.setPixelRgba(
+        ox + x,
+        oy + y,
+        p.r.toInt(),
+        p.g.toInt(),
+        p.b.toInt(),
+        a,
+      );
+    }
+  }
+  return out;
+}
+
+void _compositeCentered(img.Image dst, img.Image shield, {required int side}) {
+  final resized = img.copyResize(
+    shield,
+    width: side,
+    height: side,
+    interpolation: img.Interpolation.average,
+  );
+  final ox = (_size - side) ~/ 2;
+  final oy = (_size - side) ~/ 2;
+  for (var y = 0; y < side; y++) {
+    for (var x = 0; x < side; x++) {
+      final sp = resized.getPixel(x, y);
+      final a = sp.a.toInt() / 255.0;
+      if (a <= 0.01) continue;
+      final dx = ox + x;
+      final dy = oy + y;
+      if (dx < 0 || dy < 0 || dx >= _size || dy >= _size) continue;
+      final dp = dst.getPixel(dx, dy);
+      final r = (dp.r.toInt() * (1 - a) + sp.r.toInt() * a).round();
+      final g = (dp.g.toInt() * (1 - a) + sp.g.toInt() * a).round();
+      final b = (dp.b.toInt() * (1 - a) + sp.b.toInt() * a).round();
+      final outA = (dp.a.toInt() + ((255 - dp.a.toInt()) * a)).round();
+      dst.setPixelRgba(dx, dy, r, g, b, outA);
+    }
+  }
+}
+
+void main() {
+  // Prefer a dedicated source so re-runs don't eat their own output.
+  final candidates = [
+    'tool/ino_icon_source.png',
+    'assets/icon/ino_icon.png',
+  ];
+  File? srcFile;
+  for (final path in candidates) {
+    final f = File(path);
+    if (f.existsSync()) {
+      srcFile = f;
+      break;
+    }
+  }
+  if (srcFile == null) {
+    stderr.writeln('No shield source found.');
+    exit(1);
+  }
+
+  final decoded = img.decodePng(srcFile.readAsBytesSync());
+  if (decoded == null) {
+    stderr.writeln('Could not decode ${srcFile.path}');
+    exit(1);
+  }
+
+  // Cache a clean transparent shield once so later runs stay stable.
+  final shield = _extractShield(decoded);
+  final sourcePath = 'tool/ino_icon_source.png';
+  if (!File(sourcePath).existsSync()) {
+    File(sourcePath).writeAsBytesSync(img.encodePng(shield));
+    stdout.writeln('cached $sourcePath');
   }
 
   void save(String name, img.Image image) {
@@ -137,12 +164,24 @@ void main() {
     stdout.writeln('wrote $path');
   }
 
-  // Full icon: gradient + wordmark at 72% width.
-  save('ino_icon.png', _render(background: true, wordmarkWidth: 740));
-  // Adaptive background: gradient only.
-  save('ino_icon_bg.png', _render(background: true, wordmarkWidth: 0));
-  // Adaptive foreground: wordmark only, ~53% width (inside the 66% safe zone).
-  save('ino_icon_fg.png', _render(background: false, wordmarkWidth: 540));
+  // Full icon: mist + shield (splash-like).
+  final full = _mistBg();
+  _compositeCentered(full, shield, side: 780);
+  save('ino_icon.png', full);
+
+  // Adaptive background: mist only.
+  save('ino_icon_bg.png', _mistBg());
+
+  // Adaptive foreground: shield on transparent, inside safe zone.
+  final fg = img.Image(width: _size, height: _size, numChannels: 4);
+  for (final p in fg) {
+    p.r = 0;
+    p.g = 0;
+    p.b = 0;
+    p.a = 0;
+  }
+  _compositeCentered(fg, shield, side: 680);
+  save('ino_icon_fg.png', fg);
 
   stdout.writeln('done - now run: dart run flutter_launcher_icons');
 }

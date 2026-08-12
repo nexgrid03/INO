@@ -29,13 +29,17 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    // Deep brand teal — stays readable over the sky wash while scrolling,
+    // unlike a faint TextButton default that blends into the gradient.
+    final actionColor = AppColors.primaryGreen;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 18, color: iconColor ?? AppColors.primaryGreen),
+            Icon(icon, size: 18, color: iconColor ?? actionColor),
             const SizedBox(width: 8),
           ],
           Expanded(
@@ -50,31 +54,51 @@ class SectionHeader extends StatelessWidget {
             ),
           ),
           if (actionLabel != null)
-            TextButton(
-              onPressed: onAction,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    actionLabel!,
-                    style:  TextStyle(
-                      color: AppColors.primaryGreen,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onAction,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: actionColor.withValues(alpha: 0.28),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: palette.isDark ? 0.25 : 0.05,
+                        ),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 3),
-                   Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 14,
-                    color: AppColors.primaryGreen,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        actionLabel!,
+                        style: TextStyle(
+                          color: actionColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: actionColor,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
         ],

@@ -7,11 +7,13 @@ import '../../navigation/wallet_module_router.dart';
 import '../../services/card_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/common/floating_search_bar.dart';
-import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/ino_back_button.dart';
+import '../../widgets/common/shiny_icon.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
-import '../../widgets/divine_glass/divine_glass.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../shell/shell_controller.dart';
 import 'card_form_screen.dart';
 
 /// The Banking Wallet - the user's cards, rendered as cards.
@@ -121,47 +123,35 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
     final hasAny = _store.items.isNotEmpty;
     final visible = _visible;
     final attention = _store.needingAttention.length;
+    // Match Documents: solid page chrome — no sky wash / glass backdrop.
+    final pageBg = palette.isDark ? palette.bg : Colors.white;
 
     return Scaffold(
-      backgroundColor: palette.bg,
-      body: InoBackground(
-        showDots: false,
-        sky: divineGlassEnabled(context),
+      backgroundColor: pageBg,
+      extendBody: true,
+      body: ColoredBox(
+        color: pageBg,
         child: SafeArea(
-          top: !divineGlassEnabled(context),
           bottom: false,
           child: CustomScrollView(
-            physics: const ClampingScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
             slivers: [
               SliverToBoxAdapter(
-                child: ModuleHeader(
-                    title: 'My Cards',
-                    subtitle: hasAny
-                        ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
-                        : 'Debit & credit cards',
-                    icon: Icons.credit_card_rounded,
-                    accent: AppColors.primaryGreen,
-                    actions: [
-                      ModuleIconButton(
-                        icon: Icons.folder_shared_rounded,
-                        tooltip: 'Banking documents',
-                        color: AppColors.primaryGreen,
-                        onTap: _openDocuments,
-                      ),
-                      ModuleIconButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Add card',
-                        color: AppColors.primaryGreen,
-                        onTap: _add,
-                      ),
-                    ],
-                  ),
+                child: _CardsDocHeader(
+                  subtitle: hasAny
+                      ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
+                      : 'Debit & credit cards',
+                  onDocuments: _openDocuments,
+                  onAdd: _add,
+                ),
               ),
               if (!_store.isLoaded)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                   sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 186, count: 2),
+                    child: ModuleSkeleton(height: 88, count: 3),
                   ),
                 )
               else if (!hasAny)
@@ -181,7 +171,8 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 if (attention > 0)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
+                      padding:
+                          const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
                       child: FadeSlideIn(
                         child: _AttentionBanner(count: attention),
                       ),
@@ -189,30 +180,25 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                   ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
-                    child: FloatingSearchBar(
-                      hint: 'Search cards',
-                      height: 48,
+                    padding:
+                        const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
+                    child: _CardsSearchBar(
                       controller: _searchController,
                       onChanged: (v) => setState(() => _query = v),
-                      trailing: ModuleIconButton(
-                        icon: Icons.swap_vert_rounded,
-                        tooltip: 'Sort',
-                        size: 34,
-                        onTap: _openSort,
-                      ),
+                      onSort: _openSort,
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: ModuleChipRow.rowHeight,
+                    height: 48,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
                       clipBehavior: Clip.none,
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                       children: [
-                        ModuleChip(
+                        _DocFilterChip(
                           label: 'All',
                           count: _store.count,
                           selected: _kindFilter == null,
@@ -221,7 +207,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                         for (final k in CardKind.values)
                           if (_store.countOf(k) > 0) ...[
                             const SizedBox(width: 8),
-                            ModuleChip(
+                            _DocFilterChip(
                               label: k.label,
                               count: _store.countOf(k),
                               selected: _kindFilter == k,
@@ -232,7 +218,39 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 16, 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Cards · ${visible.length} of ${_store.count}',
+                            style: AppText.caption.copyWith(
+                              color: palette.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _openSort,
+                          icon: Icon(Icons.swap_vert_rounded,
+                              size: 18, color: AppColors.primaryGreen),
+                          label: Text(
+                            'Sort',
+                            style: AppText.label.copyWith(
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 if (visible.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -251,32 +269,32 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList.separated(
                       itemCount: visible.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: AppSpacing.sm),
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         final card = visible[i];
+                        final expanded = _expandedId == card.id;
                         return FadeSlideIn(
-                          delay: Duration(milliseconds: (i * 60).clamp(0, 360)),
-                          offset: 16,
+                          delay:
+                              Duration(milliseconds: (i * 50).clamp(0, 300)),
+                          offset: 12,
                           child: Column(
                             children: [
-                              BankCardFace(
+                              _CardDocTile(
                                 card: card,
+                                selected: expanded,
                                 onTap: () => setState(() {
                                   HapticFeedback.selectionClick();
                                   _expandedId =
-                                      _expandedId == card.id ? null : card.id;
+                                      expanded ? null : card.id;
                                 }),
                                 onFavorite: () =>
                                     _store.toggleFavorite(card.id),
                               ),
-                              // The action row slides open under the tapped
-                              // card - the interaction from the reference.
                               AnimatedSize(
                                 duration: const Duration(milliseconds: 240),
                                 curve: Curves.easeOutCubic,
                                 alignment: Alignment.topCenter,
-                                child: _expandedId == card.id
+                                child: expanded
                                     ? Padding(
                                         padding: const EdgeInsets.only(top: 10),
                                         child: _CardActions(
@@ -307,14 +325,15 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                             : AppColors.tealFoam,
                         borderRadius: BorderRadius.circular(AppRadius.card),
                         border: Border.all(
-                            color: palette.isDark
-                                ? palette.border
-                                : AppColors.tealPale.withValues(alpha: 0.6)),
+                          color: palette.isDark
+                              ? palette.border
+                              : AppColors.tealPale.withValues(alpha: 0.6),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                           Icon(Icons.verified_user_outlined,
+                          Icon(Icons.verified_user_outlined,
                               size: 16, color: AppColors.primaryGreen),
                           const SizedBox(width: 8),
                           Flexible(
@@ -332,20 +351,386 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ],
           ),
         ),
       ),
       floatingActionButton: hasAny
-          ? GradientButton(
-              label: 'Add card',
-              icon: Icons.add_rounded,
-              expand: false,
-              onTap: _add,
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 72),
+              child: GradientButton(
+                label: 'Add card',
+                icon: Icons.add_rounded,
+                expand: false,
+                onTap: _add,
+              ),
             )
           : null,
+      bottomNavigationBar: InoBottomNav(
+        index: 1,
+        onSelect: (i) {
+          if (i == 1) return;
+          ShellController.tab.value = i;
+          Navigator.of(context).popUntil((r) => r.isFirst);
+        },
+      ),
+    );
+  }
+}
+
+/// Documents-style solid header (no frosted glass app bar).
+class _CardsDocHeader extends StatelessWidget {
+  const _CardsDocHeader({
+    required this.subtitle,
+    required this.onDocuments,
+    required this.onAdd,
+  });
+
+  final String subtitle;
+  final VoidCallback onDocuments;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          InoBackButton(size: 40),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'My Cards',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.35,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      AppText.caption.copyWith(color: palette.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          ModuleIconButton(
+            icon: Icons.folder_shared_rounded,
+            tooltip: 'Banking documents',
+            color: AppColors.primaryGreen,
+            size: 46,
+            iconSize: 26,
+            onTap: onDocuments,
+          ),
+          const SizedBox(width: 8),
+          ModuleIconButton(
+            icon: Icons.add_rounded,
+            tooltip: 'Add card',
+            color: AppColors.primaryGreen,
+            size: 46,
+            iconSize: 28,
+            onTap: onAdd,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Solid white search field matching Documents [DetailSearchBar] classic mode.
+class _CardsSearchBar extends StatelessWidget {
+  const _CardsSearchBar({
+    required this.controller,
+    required this.onChanged,
+    required this.onSort,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: palette.isDark ? palette.surface : Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.search),
+        border: Border.all(color: palette.border),
+        boxShadow: palette.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: AppText.body.copyWith(color: palette.textPrimary),
+              cursorColor: AppColors.primaryGreen,
+              decoration: InputDecoration(
+                hintText: 'Search cards',
+                hintStyle: AppText.body.copyWith(color: palette.textFaint),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          ModuleIconButton(
+            icon: Icons.swap_vert_rounded,
+            tooltip: 'Sort',
+            size: 34,
+            onTap: onSort,
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+    );
+  }
+}
+
+/// Documents [DocumentFilterBar]-style chip with vault gradient when selected.
+class _DocFilterChip extends StatelessWidget {
+  const _DocFilterChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final accent = AppColors.primaryGreen;
+    return PressableScale(
+      pressedScale: 0.94,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? null
+                  : (palette.isDark ? palette.surface : Colors.white),
+              gradient: selected ? AppColors.vaultFillGradient(accent) : null,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: selected ? Colors.transparent : palette.border,
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.22),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              '$label $count',
+              style: AppText.label.copyWith(
+                color: selected ? Colors.white : palette.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Documents-style list row for a saved card (solid white, not glass).
+class _CardDocTile extends StatelessWidget {
+  const _CardDocTile({
+    required this.card,
+    required this.onTap,
+    required this.onFavorite,
+    this.selected = false,
+  });
+
+  final SavedCard card;
+  final VoidCallback onTap;
+  final VoidCallback onFavorite;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final accent = card.theme.top;
+    final title = card.bank.isEmpty ? card.name : card.bank;
+    final statusLabel = card.isExpired
+        ? 'Expired'
+        : (card.isExpiringSoon ? 'Expiring soon' : card.kind.label);
+    final statusColor = card.isExpired
+        ? AppColors.critical
+        : (card.isExpiringSoon ? AppColors.warning : AppColors.primaryGreen);
+
+    return PressableScale(
+      child: Material(
+        color: palette.isDark ? palette.surface : Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: selected ? AppColors.primaryGreen : palette.border,
+                width: selected ? 1.4 : 1,
+              ),
+              boxShadow: palette.isDark
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ShinyIcon(
+                        icon: Icons.credit_card_rounded,
+                        color: accent,
+                        size: 46,
+                        iconSize: 23,
+                        radius: 13,
+                      ),
+                      if (card.isFavorite)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.star_rounded,
+                              size: 13,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '•••• ${card.last4} · ${card.network.label}'
+                          '${card.holderName.isEmpty ? '' : ' · ${card.holderName}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption.copyWith(
+                            color: palette.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: AppText.label.copyWith(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onFavorite,
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      card.isFavorite
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      size: 20,
+                      color: card.isFavorite
+                          ? AppColors.warning
+                          : palette.textFaint,
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: palette.textFaint,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

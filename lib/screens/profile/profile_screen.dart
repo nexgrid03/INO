@@ -22,7 +22,6 @@ import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
-import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/security/biometric_ux.dart';
@@ -1140,6 +1139,9 @@ class _HeroBadge extends StatelessWidget {
 /// The prominent Storage-usage card (Stitch "Storage Usage" tile): an icon in
 /// a gradient-wash container, a percent pill, and a thick gradient meter -
 /// all fed by the same real Storage usage as before.
+///
+/// Solid [AppPalette.surface] (same as [SettingsGroup]) so it stays white on
+/// the soft wash — not frosted glass that reads grey.
 class _StorageCard extends StatelessWidget {
   const _StorageCard({
     required this.usedLabel,
@@ -1156,8 +1158,13 @@ class _StorageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InoCard(
+    return Container(
       padding: const EdgeInsets.all(AppSpacing.internal),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1170,7 +1177,7 @@ class _StorageCard extends StatelessWidget {
                   gradient: AppGradients.wash(opacity: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child:  Icon(
+                child: Icon(
                   Icons.storage_rounded,
                   size: 22,
                   color: AppColors.primaryGreen,
@@ -1226,7 +1233,7 @@ class _StorageCard extends StatelessWidget {
                   Container(color: palette.surfaceVariant),
                   FractionallySizedBox(
                     widthFactor: fraction.clamp(0.0, 1.0),
-                    child:  DecoratedBox(
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: AppColors.brandGradient,
                       ),

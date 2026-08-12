@@ -542,23 +542,67 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              // Document title — a true header, not another action row.
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(r.icon, color: AppColors.primaryGreen, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        r.name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: palette.textPrimary,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.28),
                         ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        r.icon,
+                        color: AppColors.primaryGreen,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                              color: palette.textPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Document',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: palette.textFaint,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: palette.border.withValues(alpha: 0.7),
                 ),
               ),
               _action(
@@ -787,7 +831,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 else
                   Positioned(
                     right: 16,
-                    bottom: 96,
+                    // Clear the floating InoBottomNav pill + centre + bump.
+                    bottom: MediaQuery.paddingOf(context).bottom + 108,
                     child: ExpandableFab(
                       actions: _fabActionsForWallet,
                       onAction: _onFabAction,

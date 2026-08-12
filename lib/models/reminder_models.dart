@@ -55,7 +55,7 @@ extension ReminderPriorityX on ReminderPriority {
       case ReminderPriority.important:
         return AppColors.warning; // orange
       case ReminderPriority.normal:
-        return AppColors.skyBrand; // green
+        return AppColors.aquaPrimary; // brand teal
     }
   }
 }
@@ -119,24 +119,27 @@ extension ReminderCategoryX on ReminderCategory {
     }
   }
 
+  /// Professional glyphs shared with the Wallets vocabulary so reminders,
+  /// wallets and filters read as one system (no clip-art cake/party icons).
   IconData get icon {
     switch (this) {
       case ReminderCategory.documents:
-        return Icons.description_rounded;
+        // Same glyph as Document Wallet on the hub — not Identity's badge.
+        return Icons.folder_shared_rounded;
       case ReminderCategory.insurance:
-        return Icons.shield_rounded;
+        return Icons.verified_user_rounded;
       case ReminderCategory.health:
-        return Icons.favorite_rounded;
+        return Icons.medical_services_rounded;
       case ReminderCategory.property:
-        return Icons.home_work_rounded;
+        return Icons.apartment_rounded;
       case ReminderCategory.investments:
-        return Icons.trending_up_rounded;
+        return Icons.show_chart_rounded;
       case ReminderCategory.birthdays:
-        return Icons.cake_rounded;
+        return Icons.event_rounded;
       case ReminderCategory.anniversaries:
-        return Icons.celebration_rounded;
+        return Icons.workspace_premium_rounded;
       case ReminderCategory.custom:
-        return Icons.bolt_rounded;
+        return Icons.bookmark_rounded;
     }
   }
 
@@ -156,21 +159,21 @@ extension ReminderCategoryX on ReminderCategory {
   Color get color {
     switch (this) {
       case ReminderCategory.documents:
-        return const Color(0xFF4383EA); // blue
+        return const Color(0xFF098F90); // aqua teal (never sky blue)
       case ReminderCategory.insurance:
         return const Color(0xFFF2B33D); // amber - protection/renewal
       case ReminderCategory.health:
-        return const Color(0xFF06B6D4); // cyan
+        return const Color(0xFF10B981); // emerald
       case ReminderCategory.property:
         return const Color(0xFF9B6DE0); // purple
       case ReminderCategory.investments:
-        return const Color(0xFF10B981); // green - growth
+        return const Color(0xFF22C55E); // green - growth
       case ReminderCategory.birthdays:
         return const Color(0xFFF5704A); // coral
       case ReminderCategory.anniversaries:
         return const Color(0xFF7C6CF0); // violet
       case ReminderCategory.custom:
-        return AppColors.skyBrand; // brand teal for the catch-all
+        return const Color(0xFF098F90); // brand aqua teal
     }
   }
 
@@ -301,14 +304,15 @@ String reminderRelativeLabel(DateTime t) {
 }
 
 /// The colour that communicates a reminder's *time urgency* (independent of its
-/// priority accent): red when overdue/today, orange tomorrow, green this week,
-/// blue for anything further out. Used by the due badge and complete control.
+/// priority accent): red when overdue/today, orange tomorrow, brand teal for
+/// this week and later. Used by the due badge and complete control.
 Color reminderUrgencyColor(Reminder r, DateTime today) {
   final d = r.daysFrom(today);
   if (d <= 0) return AppColors.critical; // overdue or due today
   if (d == 1) return AppColors.warning; // due tomorrow
-  if (d <= 7) return AppColors.skyBrand; // this week
-  return AppColors.skyBrandSecondary; // later
+  // Brand teal (theme-aware) — never sky-blue #0EA5E9.
+  if (d <= 7) return AppColors.primaryGreen;
+  return AppColors.secondaryGreen;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,17 +363,17 @@ extension ReminderFilterKindX on ReminderFilterKind {
   IconData get icon {
     switch (this) {
       case ReminderFilterKind.all:
-        return Icons.apps_rounded;
+        return Icons.grid_view_rounded;
       case ReminderFilterKind.documents:
-        return Icons.description_rounded;
+        return Icons.badge_rounded;
       case ReminderFilterKind.insurance:
-        return Icons.shield_rounded;
+        return Icons.verified_user_rounded;
       case ReminderFilterKind.health:
-        return Icons.favorite_rounded;
+        return Icons.medical_services_rounded;
       case ReminderFilterKind.property:
-        return Icons.home_work_rounded;
+        return Icons.apartment_rounded;
       case ReminderFilterKind.family:
-        return Icons.people_alt_rounded;
+        return Icons.groups_rounded;
     }
   }
 

@@ -37,7 +37,7 @@ class RemindersSummaryRow extends StatelessWidget {
         label: l10n.t('today'),
         count: today,
         icon: Icons.calendar_today_rounded,
-        accent: AppColors.accentIndigo,
+        accent: AppColors.aquaPrimary,
         onTap: onToday,
       ),
       _Tile(

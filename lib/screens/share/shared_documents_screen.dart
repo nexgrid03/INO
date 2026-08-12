@@ -6,27 +6,53 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/public_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../services/auth_service.dart';
-import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
-import '../../widgets/common/ino_background.dart';
-import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
-import 'qr_share_screen.dart' show remainingShareLabel;
 
-/// The recipient-facing viewer for a shared link/QR — Figma **Vault Viewer**.
+/// Brand tokens from [INO-Share-Web](https://github.com/nexgrid03/INO-Share-Web)
+/// (`tailwind.config.ts` — ino.green + ino.blue). Kept local so the recipient
+/// viewer matches the public Vercel page even when the app theme is Aqua Teal.
+class _ShareWeb {
+  static const green50 = Color(0xFFECFDF3);
+  static const green600 = Color(0xFF039855);
+  static const green700 = Color(0xFF027A48);
+  static const green500 = Color(0xFF12B76A);
+  static const blue50 = Color(0xFFF0F9FF);
+  static const blue200 = Color(0xFFBAE6FD);
+  static const blue500 = Color(0xFF0EA5E9);
+  static const blue700 = Color(0xFF0369A1);
+  static const slate50 = Color(0xFFF8FAFC);
+  static const slate200 = Color(0xFFE2E8F0);
+  static const slate400 = Color(0xFF94A3B8);
+  static const slate500 = Color(0xFF64748B);
+  static const slate700 = Color(0xFF334155);
+  static const slate800 = Color(0xFF1E293B);
+  static const slate900 = Color(0xFF0F172A);
+  static const amber100 = Color(0xFFFEF3C7);
+  static const amber800 = Color(0xFF92400E);
+  static const rose100 = Color(0xFFFFE4E6);
+  static const rose600 = Color(0xFFE11D48);
+
+  static const brandGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [green600, blue500],
+  );
+}
+
+/// Recipient-facing viewer for a shared link/QR — styled to match the
+/// INO-Share-Web `ActiveShare` page at `/s/{token}`.
 ///
-/// Fetches public metadata from the `share` Edge Function (anonymous) and shows
-/// a preview + details card with Save to INO Vault / Download Copy. Files are
-/// streamed through the Edge Function so storage paths are never exposed.
+/// Fetches public metadata from the `share` Edge Function (anonymous). Files
+/// are streamed through the Edge Function so storage paths are never exposed.
 class SharedDocumentsScreen extends StatefulWidget {
   const SharedDocumentsScreen({super.key, required this.token});
 
@@ -40,10 +66,6 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   PublicShare? _share;
   bool _loading = true;
   String? _busyDocId;
-  SharedDoc? _selected;
-  SharedFile? _previewFile;
-  bool _previewLoading = false;
-  double _zoom = 1.0;
   Timer? _ticker;
 
   @override
@@ -71,11 +93,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
     setState(() {
       _share = share;
       _loading = false;
-      if (share.isActive && share.documents.length == 1) {
-        _selected = share.documents.first;
-      }
     });
-    if (_selected != null) await _loadPreview(_selected!);
   }
 
   PublicShareStatus get _status {
@@ -95,49 +113,47 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
+        backgroundColor: error ? AppColors.critical : _ShareWeb.green600,
       ),
     );
   }
 
-  Future<void> _loadPreview(SharedDoc doc) async {
-    setState(() {
-      _previewLoading = true;
-      _previewFile = null;
-      _zoom = 1.0;
-    });
+  Future<SharedFile?> _fetchFile(SharedDoc doc, {required bool download}) {
+    return ShareRepository.instance
+        .fetchSharedFile(widget.token, doc, download: download);
+  }
+
+  Future<void> _view(SharedDoc doc) async {
+    if (_busyDocId != null) return;
+    final l10n = AppLocalizations.of(context);
+    setState(() => _busyDocId = doc.id);
     try {
-      final file = await ShareRepository.instance
-          .fetchSharedFile(widget.token, doc, download: false);
-      if (!mounted || _selected?.id != doc.id) return;
-      setState(() {
-        _previewFile = file;
-        _previewLoading = false;
-      });
+      final file = await _fetchFile(doc, download: false);
+      if (file == null || !mounted) return;
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/${file.filename}';
+      await File(path).writeAsBytes(file.bytes, flush: true);
+      if (!mounted) return;
+      final result = await OpenFilex.open(path, type: file.mimeType);
+      if (result.type != ResultType.done) {
+        _toast(l10n.t('noAppToOpenFile'), error: true);
+      }
+    } on ShareException catch (e) {
+      _toast(e.message, error: true);
     } catch (_) {
-      if (!mounted || _selected?.id != doc.id) return;
-      setState(() => _previewLoading = false);
+      _toast(l10n.t('couldNotOpenDoc'), error: true);
+    } finally {
+      if (mounted) setState(() => _busyDocId = null);
     }
   }
 
-  Future<void> _selectDoc(SharedDoc doc) async {
-    setState(() => _selected = doc);
-    await _loadPreview(doc);
-  }
-
-  Future<SharedFile?> _ensureFile(SharedDoc doc) async {
-    if (_previewFile != null && _selected?.id == doc.id) return _previewFile;
-    return ShareRepository.instance
-        .fetchSharedFile(widget.token, doc, download: true);
-  }
-
-  Future<void> _downloadCopy(SharedDoc doc) async {
+  Future<void> _download(SharedDoc doc) async {
     if (_busyDocId != null) return;
     final l10n = AppLocalizations.of(context);
     setState(() => _busyDocId = doc.id);
     final origin = shareOrigin(context);
     try {
-      final file = await _ensureFile(doc);
+      final file = await _fetchFile(doc, download: true);
       if (file == null) throw StateError('empty');
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/${file.filename}';
@@ -173,7 +189,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
 
     setState(() => _busyDocId = doc.id);
     try {
-      final file = await _ensureFile(doc);
+      final file = await _fetchFile(doc, download: true);
       if (file == null) throw StateError('empty');
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/ino_import_${file.filename}';
@@ -196,374 +212,389 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
     }
   }
 
-  Future<void> _openExternally(SharedDoc doc) async {
-    final l10n = AppLocalizations.of(context);
-    try {
-      final file = await _ensureFile(doc);
-      if (file == null) return;
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/${file.filename}';
-      await File(path).writeAsBytes(file.bytes, flush: true);
-      if (!mounted) return;
-      final result = await OpenFilex.open(path, type: file.mimeType);
-      if (result.type != ResultType.done) {
-        _toast(l10n.t('noAppToOpenFile'), error: true);
-      }
-    } catch (_) {
-      _toast(l10n.t('couldNotOpenDoc'), error: true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: palette.bg,
-      body: InoBackground(
-        sky: true,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _VaultViewerHeader(
-                title: l10n.t('vaultViewer'),
-                onClose: () => Navigator.of(context).maybePop(),
-              ),
-              Expanded(child: _body(palette, l10n)),
+      backgroundColor: _ShareWeb.slate50,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: _ShareWeb.slate50,
+          gradient: RadialGradient(
+            center: Alignment(-0.9, -1.0),
+            radius: 1.2,
+            colors: [
+              Color(0x1412B76A), // green wash ~8%
+              Colors.transparent,
             ],
           ),
+        ),
+        child: Stack(
+          children: [
+            // Soft blue wash (top-right) matching Share-Web globals.css.
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment(1.0, -0.9),
+                    radius: 1.1,
+                    colors: [
+                      Color(0x140EA5E9),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(child: _body()),
+          ],
         ),
       ),
     );
   }
 
-  Widget _body(AppPalette palette, AppLocalizations l10n) {
-    if (_loading) {
-      return  Center(
-        child: CircularProgressIndicator(color: AppColors.primaryGreen),
-      );
-    }
+  Widget _body() {
+    if (_loading) return const _LoadingState();
     switch (_status) {
       case PublicShareStatus.active:
-        return _activeBody(palette, l10n);
+        return _ActiveShareBody(
+          share: _share!,
+          busyDocId: _busyDocId,
+          onView: _view,
+          onDownload: _download,
+          onSave: _saveToVault,
+          onClose: () => Navigator.of(context).maybePop(),
+        );
       case PublicShareStatus.expired:
-        return _TerminalState(
-          icon: Icons.timer_off_rounded,
-          color: AppColors.critical,
-          title: l10n.t('shareLinkExpiredTitle'),
-          subtitle: l10n.t('shareLinkExpiredBody'),
-          showLinkActions: true,
+        return _StatusCard(
+          kind: _StatusKind.expired,
+          onClose: () => Navigator.of(context).maybePop(),
         );
       case PublicShareStatus.revoked:
-        return _TerminalState(
-          icon: Icons.link_off_rounded,
-          color: AppColors.critical,
-          title: l10n.t('shareLinkRevokedTitle'),
-          subtitle: l10n.t('shareLinkRevokedBody'),
-          showLinkActions: true,
+        return _StatusCard(
+          kind: _StatusKind.revoked,
+          onClose: () => Navigator.of(context).maybePop(),
         );
       case PublicShareStatus.notFound:
-        return _TerminalState(
-          icon: Icons.search_off_rounded,
-          color: palette.textFaint,
-          title: l10n.t('linkNotFound'),
-          subtitle: l10n.t('linkNotFoundBody'),
-          showLinkActions: true,
+        return _StatusCard(
+          kind: _StatusKind.notFound,
+          onClose: () => Navigator.of(context).maybePop(),
         );
       case PublicShareStatus.error:
-        return _TerminalState(
-          icon: Icons.cloud_off_rounded,
-          color: AppColors.critical,
-          title: l10n.t('couldntLoadShare'),
-          subtitle: _share?.message ?? l10n.t('checkConnection'),
+        return _StatusCard(
+          kind: _StatusKind.error,
+          detail: _share?.message,
           onRetry: _load,
-          showLinkActions: true,
+          onClose: () => Navigator.of(context).maybePop(),
         );
     }
-  }
-
-  Widget _activeBody(AppPalette palette, AppLocalizations l10n) {
-    final share = _share!;
-    final docs = share.documents;
-    final selected = _selected;
-
-    if (docs.isEmpty) {
-      return Center(
-        child: Text(l10n.t('noDocumentsYet'),
-            style: AppText.body.copyWith(color: palette.textSecondary)),
-      );
-    }
-
-    // Multi-doc picker before opening the viewer.
-    if (selected == null) {
-      return ListView(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.lg),
-        children: [
-          Text(
-            l10n
-                .t(docs.length == 1 ? 'docCountOne' : 'docCountMany')
-                .replaceFirst('{n}', '${docs.length}'),
-            style: AppText.subtitle.copyWith(color: palette.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (final d in docs) ...[
-            _FilePickRow(doc: d, onTap: () => _selectDoc(d)),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ],
-      );
-    }
-
-    final busy = _busyDocId == selected.id;
-    return ListView(
-      physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, 4, AppSpacing.screen, AppSpacing.lg),
-      children: [
-        if (docs.length > 1)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() {
-                _selected = null;
-                _previewFile = null;
-              }),
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              label: Text(l10n.t('sharedDocuments')),
-            ),
-          ),
-        _PreviewCard(
-          loading: _previewLoading,
-          file: _previewFile,
-          zoom: _zoom,
-          onZoomIn: () => setState(() => _zoom = math.min(2.5, _zoom + 0.25)),
-          onZoomOut: () => setState(() => _zoom = math.max(0.75, _zoom - 0.25)),
-          onFullscreen: () => _openExternally(selected),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        _DetailsCard(
-          doc: selected,
-          file: _previewFile,
-          share: share,
-          busy: busy,
-          onSave: () => _saveToVault(selected),
-          onDownload: () => _downloadCopy(selected),
-        ),
-      ],
-    );
   }
 }
 
 // ---------------------------------------------------------------------------
+// Active share (matches ActiveShare.tsx)
+// ---------------------------------------------------------------------------
 
-class _VaultViewerHeader extends StatelessWidget {
-  const _VaultViewerHeader({required this.title, required this.onClose});
+class _ActiveShareBody extends StatelessWidget {
+  const _ActiveShareBody({
+    required this.share,
+    required this.busyDocId,
+    required this.onView,
+    required this.onDownload,
+    required this.onSave,
+    required this.onClose,
+  });
 
-  final String title;
+  final PublicShare share;
+  final String? busyDocId;
+  final Future<void> Function(SharedDoc) onView;
+  final Future<void> Function(SharedDoc) onDownload;
+  final Future<void> Function(SharedDoc) onSave;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child:  Icon(Icons.shield_rounded,
-                size: 18, color: AppColors.primaryGreen),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
+    final l10n = AppLocalizations.of(context);
+    final docs = share.documents;
+    final count = share.count > 0 ? share.count : docs.length;
+    final expires = share.expiresAt;
+    final remaining = expires?.difference(DateTime.now());
+    final urgent = remaining != null &&
+        !remaining.isNegative &&
+        remaining.inHours < 1;
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      children: [
+        // Header: logo + Secure share pill
+        Row(
+          children: [
+            const _InoLogoMark(),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _ShareWeb.green50,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield_rounded,
+                      size: 14, color: _ShareWeb.green700),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Secure share',
+                    style: TextStyle(
+                      color: _ShareWeb.green700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onClose,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.close_rounded, color: _ShareWeb.slate500),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Summary card
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _ShareWeb.slate200),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F101828),
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+              BoxShadow(
+                color: Color(0x1A101828),
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
           ),
-          PressableScale(
-            child: GestureDetector(
-              onTap: onClose,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: palette.border),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                decoration: const BoxDecoration(
+                  gradient: _ShareWeb.brandGradient,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      AppLocalizations.of(context).t('close'),
-                      style: AppText.caption.copyWith(
-                        color: palette.textPrimary,
+                    const Text(
+                      'Documents shared with you',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        height: 1.25,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.close_rounded,
-                        size: 16, color: palette.textSecondary),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Review, view and download the files below.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13.5,
+                        height: 1.35,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({
-    required this.loading,
-    required this.file,
-    required this.zoom,
-    required this.onZoomIn,
-    required this.onZoomOut,
-    required this.onFullscreen,
-  });
-
-  final bool loading;
-  final SharedFile? file;
-  final double zoom;
-  final VoidCallback onZoomIn;
-  final VoidCallback onZoomOut;
-  final VoidCallback onFullscreen;
-
-  bool get _isImage {
-    final mime = file?.mimeType ?? '';
-    return mime.startsWith('image/');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return InoCard(
-      radius: AppRadius.large,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(
-                'Page 1 of 1',
-                style: AppText.caption.copyWith(color: palette.textSecondary),
-              ),
-              const Spacer(),
-              _ToolIcon(icon: Icons.zoom_out_rounded, onTap: onZoomOut),
-              _ToolIcon(icon: Icons.zoom_in_rounded, onTap: onZoomIn),
-              _ToolIcon(
-                  icon: Icons.open_in_full_rounded, onTap: onFullscreen),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 220,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: palette.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: loading
-                ?  Center(
-                    child: CircularProgressIndicator(
-                        color: AppColors.primaryGreen),
-                  )
-                : file == null
-                    ? Center(
-                        child: Icon(Icons.description_outlined,
-                            size: 48, color: palette.textFaint),
-                      )
-                    : InteractiveViewer(
-                        minScale: 0.75,
-                        maxScale: 3,
-                        child: Transform.scale(
-                          scale: zoom,
-                          child: _isImage
-                              ? Image.memory(file!.bytes, fit: BoxFit.contain)
-                              : _PdfPlaceholder(filename: file!.filename),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(Icons.description_outlined,
+                        size: 20, color: _ShareWeb.green600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        count == 1
+                            ? '1 document'
+                            : '$count documents',
+                        style: const TextStyle(
+                          color: _ShareWeb.slate700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                    ),
+                    if (expires != null && remaining != null) ...[
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Expires in',
+                                style: TextStyle(
+                                  color: _ShareWeb.slate500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _CountdownPill(
+                                label: remaining.isNegative
+                                    ? l10n.t('expired')
+                                    : _shortCountdown(remaining),
+                                urgent: urgent || remaining.isNegative,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDateTime(expires),
+                            style: const TextStyle(
+                              color: _ShareWeb.slate400,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
+        ),
+        const SizedBox(height: 20),
 
-class _PdfPlaceholder extends StatelessWidget {
-  const _PdfPlaceholder({required this.filename});
-
-  final String filename;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-           Text(
-            'CONFIDENTIAL',
+        // Documents section
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'SHARED DOCUMENTS',
             style: TextStyle(
-              color: AppColors.primaryGreen,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
+              color: _ShareWeb.slate400,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            filename,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF334155),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          for (var i = 0; i < 4; i++) ...[
-            Container(
-              height: 8,
-              margin: EdgeInsets.only(bottom: 8, right: i == 3 ? 40 : 0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1).withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(4),
+        ),
+        if (docs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                l10n.t('noDocumentsYet'),
+                style: const TextStyle(color: _ShareWeb.slate500),
               ),
             ),
-          ],
-          const Spacer(),
-          Container(
-            height: 56,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0).withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(8),
+          )
+        else
+          for (var i = 0; i < docs.length; i++) ...[
+            _ShareDocRow(
+              doc: docs[i],
+              busy: busyDocId == docs[i].id,
+              onView: () => onView(docs[i]),
+              onDownload: () => onDownload(docs[i]),
+              onSave: () => onSave(docs[i]),
             ),
-            child: Icon(Icons.bar_chart_rounded,
-                color: AppPalette.of(context).textFaint, size: 28),
+            if (i < docs.length - 1) const SizedBox(height: 10),
+          ],
+
+        const SizedBox(height: 40),
+        const Text(
+          'These documents were shared securely via INO. Do not forward this '
+          'link — it is private and time-limited.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _ShareWeb.slate400,
+            fontSize: 12,
+            height: 1.45,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _shortCountdown(Duration d) {
+    if (d.inDays > 0) {
+      return '${d.inDays}d ${d.inHours % 24}h';
+    }
+    if (d.inHours > 0) {
+      return '${d.inHours}h ${(d.inMinutes % 60).toString().padLeft(2, '0')}m';
+    }
+    if (d.inMinutes > 0) {
+      return '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}s';
+    }
+    return '${math.max(0, d.inSeconds)}s';
+  }
+
+  static String _formatDateTime(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final local = dt.toLocal();
+    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final ampm = local.hour >= 12 ? 'PM' : 'AM';
+    final m = local.minute.toString().padLeft(2, '0');
+    return '${months[local.month - 1]} ${local.day}, ${local.year} · $h:$m $ampm';
+  }
+}
+
+class _CountdownPill extends StatelessWidget {
+  const _CountdownPill({required this.label, required this.urgent});
+
+  final String label;
+  final bool urgent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: urgent ? _ShareWeb.amber100 : _ShareWeb.blue50,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.schedule_rounded,
+            size: 14,
+            color: urgent ? _ShareWeb.amber800 : _ShareWeb.blue700,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: urgent ? _ShareWeb.amber800 : _ShareWeb.blue700,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ),
@@ -571,99 +602,74 @@ class _PdfPlaceholder extends StatelessWidget {
   }
 }
 
-class _ToolIcon extends StatelessWidget {
-  const _ToolIcon({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
-      icon: Icon(icon, size: 20, color: AppPalette.of(context).textSecondary),
-    );
-  }
-}
-
-class _DetailsCard extends StatelessWidget {
-  const _DetailsCard({
+class _ShareDocRow extends StatelessWidget {
+  const _ShareDocRow({
     required this.doc,
-    required this.file,
-    required this.share,
     required this.busy,
-    required this.onSave,
+    required this.onView,
     required this.onDownload,
+    required this.onSave,
   });
 
   final SharedDoc doc;
-  final SharedFile? file;
-  final PublicShare share;
   final bool busy;
-  final VoidCallback onSave;
+  final VoidCallback onView;
   final VoidCallback onDownload;
+  final VoidCallback onSave;
 
-  String get _sizeLabel {
-    final b = file?.bytes.length ?? 0;
-    if (b <= 0) return doc.type;
-    if (b >= 1024 * 1024) {
-      return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB · ${doc.type}';
+  String get _kind {
+    final n = doc.name.toLowerCase();
+    if (n.endsWith('.pdf') || doc.type.toLowerCase().contains('pdf')) {
+      return 'PDF';
     }
-    if (b >= 1024) return '${(b / 1024).round()} KB · ${doc.type}';
-    return '$b B · ${doc.type}';
+    if (n.endsWith('.png')) return 'PNG';
+    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'JPG';
+    if (n.endsWith('.webp')) return 'WEBP';
+    final t = doc.type.trim();
+    if (t.isEmpty || t.toLowerCase() == 'document') return 'FILE';
+    return t.length <= 4 ? t.toUpperCase() : t.substring(0, 4).toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final ownerName = share.ownerName;
-    final ownerEmail = share.ownerEmail;
-    final initial = (ownerName == null || ownerName.trim().isEmpty)
-        ? 'I'
-        : ownerName
-            .trim()
-            .split(RegExp(r'\s+'))
-            .take(2)
-            .map((p) => p[0])
-            .join()
-            .toUpperCase();
-
-    final expiryParts = <String>[];
-    if (share.sharedOnLabel != null) {
-      expiryParts.add('Shared on ${share.sharedOnLabel}');
-    }
-    if (share.expiresAt != null) {
-      final d = share.expiresAt!.difference(DateTime.now());
-      if (!d.isNegative) {
-        expiryParts.add(remainingShareLabel(l10n, d));
-      }
-    }
-
-    return InoCard(
-      radius: AppRadius.large,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _ShareWeb.slate200),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F101828),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4A574),
-                  borderRadius: BorderRadius.circular(10),
-                ),
                 alignment: Alignment.center,
-                child: const Text(
-                  'PDF',
-                  style: TextStyle(
-                    color: Colors.white,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_ShareWeb.green50, _ShareWeb.blue50],
+                  ),
+                ),
+                child: Text(
+                  _kind,
+                  style: const TextStyle(
+                    color: _ShareWeb.green700,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                    letterSpacing: 0.4,
                   ),
                 ),
               ),
@@ -674,188 +680,129 @@ class _DetailsCard extends StatelessWidget {
                   children: [
                     Text(
                       doc.name,
-                      style: AppText.title.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 15,
-                        height: 1.25,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ShareWeb.slate800,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
-                      _sizeLabel,
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
+                      _kind,
+                      style: const TextStyle(
+                        color: _ShareWeb.slate500,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
+              if (busy)
+                const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: _ShareWeb.green600,
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            l10n.t('sharedBy').toUpperCase(),
-            style: AppText.caption.copyWith(
-              color: palette.textFaint,
-              fontSize: 11,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.tealMist,
-                child: Text(
-                  initial,
-                  style:  TextStyle(
-                    color: AppColors.primaryGreen,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
+              Expanded(
+                child: _ActionBtn(
+                  label: 'View',
+                  icon: Icons.visibility_outlined,
+                  filled: false,
+                  onTap: busy ? null : onView,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ownerName ?? 'INO Share',
-                      style: AppText.subtitle.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (ownerEmail != null && ownerEmail.isNotEmpty)
-                      Text(
-                        ownerEmail,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary),
-                      ),
-                  ],
+                child: _ActionBtn(
+                  label: 'Download',
+                  icon: Icons.download_rounded,
+                  filled: true,
+                  onTap: busy ? null : onDownload,
                 ),
               ),
             ],
           ),
-          if (expiryParts.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(Icons.schedule_rounded,
-                    size: 15, color: palette.textFaint),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    expiryParts.join(' · '),
-                    style: AppText.caption
-                        .copyWith(color: palette.textSecondary),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: busy ? null : onSave,
+            style: TextButton.styleFrom(
+              foregroundColor: _ShareWeb.green700,
+              visualDensity: VisualDensity.compact,
             ),
-          ],
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                 Icon(Icons.lock_rounded,
-                    size: 16, color: AppColors.primaryGreen),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.t('viewOnlyRestricted'),
-                    style: AppText.caption.copyWith(
-                      color: AppColors.darkGreen,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              l10n.t('saveToInoVault'),
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 14),
-          if (busy)
-             Center(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: AppColors.primaryGreen),
-              ),
-            )
-          else ...[
-            _CtaButton(
-              icon: Icons.download_for_offline_rounded,
-              label: l10n.t('saveToInoVault'),
-              filled: true,
-              onTap: onSave,
-            ),
-            const SizedBox(height: 10),
-            _CtaButton(
-              icon: Icons.download_rounded,
-              label: l10n.t('downloadCopy'),
-              filled: false,
-              onTap: onDownload,
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
-class _CtaButton extends StatelessWidget {
-  const _CtaButton({
-    required this.icon,
+class _ActionBtn extends StatelessWidget {
+  const _ActionBtn({
     required this.label,
+    required this.icon,
     required this.filled,
     required this.onTap,
   });
 
-  final IconData icon;
   final String label;
+  final IconData icon;
   final bool filled;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     return PressableScale(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: 50,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: filled ? AppColors.primaryGreen : palette.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: filled
+      pressedScale: onTap == null ? 1 : 0.97,
+      child: Material(
+        color: filled ? _ShareWeb.green600 : _ShareWeb.blue50,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: filled
                 ? null
-                : Border.all(color: AppColors.primaryGreen, width: 1.5),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 20,
-                  color: filled ? Colors.white : AppColors.primaryGreen),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: filled ? Colors.white : AppColors.primaryGreen,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+                : BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _ShareWeb.blue200),
+                  ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: filled ? Colors.white : _ShareWeb.blue700,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: filled ? Colors.white : _ShareWeb.blue700,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -863,207 +810,260 @@ class _CtaButton extends StatelessWidget {
   }
 }
 
-class _FilePickRow extends StatelessWidget {
-  const _FilePickRow({required this.doc, required this.onTap});
+// ---------------------------------------------------------------------------
+// Loading / status (matches Loading.tsx + StatusScreen.tsx)
+// ---------------------------------------------------------------------------
 
-  final SharedDoc doc;
-  final VoidCallback onTap;
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return PressableScale(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: InoCard(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.tealMist,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child:  Icon(Icons.description_rounded,
-                    color: AppColors.primaryGreen, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(doc.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.subtitle
-                            .copyWith(color: palette.textPrimary)),
-                    Text(doc.type,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: palette.textFaint),
-            ],
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _InoLogoMark(large: true),
+          SizedBox(height: 20),
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.6,
+              color: _ShareWeb.green600,
+            ),
           ),
-        ),
+          SizedBox(height: 14),
+          Text(
+            'Loading secure share…',
+            style: TextStyle(
+              color: _ShareWeb.slate500,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TerminalState extends StatelessWidget {
-  const _TerminalState({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
+enum _StatusKind { expired, revoked, notFound, error }
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.kind,
+    required this.onClose,
+    this.detail,
     this.onRetry,
-    this.showLinkActions = false,
   });
 
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
+  final _StatusKind kind;
+  final VoidCallback onClose;
+  final String? detail;
   final VoidCallback? onRetry;
-  final bool showLinkActions;
-
-  Future<void> _requestNewLink() async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: 'support@ino.app',
-      queryParameters: {'subject': 'Request new INO share link'},
-    );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _returnToDashboard(BuildContext context) async {
-    final uri = Uri.parse('https://inoapp.in');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return;
-    }
-    if (context.mounted) Navigator.of(context).pop();
-  }
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final (
+      IconData icon,
+      Color accent,
+      Color ring,
+      String title,
+      String message,
+    ) = switch (kind) {
+      _StatusKind.expired => (
+          Icons.timer_off_rounded,
+          const Color(0xFFD97706),
+          _ShareWeb.amber100,
+          l10n.t('shareLinkExpiredTitle'),
+          l10n.t('shareLinkExpiredBody'),
+        ),
+      _StatusKind.revoked => (
+          Icons.block_rounded,
+          _ShareWeb.rose600,
+          _ShareWeb.rose100,
+          l10n.t('shareLinkRevokedTitle'),
+          l10n.t('shareLinkRevokedBody'),
+        ),
+      _StatusKind.notFound => (
+          Icons.search_off_rounded,
+          _ShareWeb.slate500,
+          const Color(0xFFF1F5F9),
+          l10n.t('linkNotFound'),
+          l10n.t('linkNotFoundBody'),
+        ),
+      _StatusKind.error => (
+          Icons.warning_amber_rounded,
+          _ShareWeb.blue700,
+          _ShareWeb.blue50,
+          l10n.t('couldntLoadShare'),
+          detail ?? l10n.t('checkConnection'),
+        ),
+    };
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
-          decoration: BoxDecoration(
-            color: palette.surface,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: palette.border),
-            boxShadow: AppShadows.card,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 92,
-                height: 92,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 44, color: color),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                onPressed: onClose,
+                icon: const Icon(Icons.close_rounded, color: _ShareWeb.slate500),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(title,
-                  textAlign: TextAlign.center,
-                  style: AppText.title.copyWith(
-                      color: palette.textPrimary, fontWeight: FontWeight.w800)),
-              const SizedBox(height: AppSpacing.xs),
-              Text(subtitle,
-                  textAlign: TextAlign.center,
-                  style: AppText.body
-                      .copyWith(color: palette.textSecondary, height: 1.45)),
-              if (onRetry != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                PressableScale(
-                  child: Material(
-                    color: AppColors.primaryGreen,
-                    clipBehavior: Clip.antiAlias,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: InkWell(
-                      onTap: onRetry,
-                      child: SizedBox(
-                        height: 48,
-                        width: double.infinity,
-                        child: Center(
-                          child: Text(l10n.t('tryAgain'),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
+            ),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 420),
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _ShareWeb.slate200),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0F101828),
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                  BoxShadow(
+                    color: Color(0x1A101828),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const _InoLogoMark(large: true),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(color: ring, shape: BoxShape.circle),
+                    child: Icon(icon, size: 30, color: accent),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _ShareWeb.slate900,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _ShareWeb.slate500,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: 22),
+                    PressableScale(
+                      child: Material(
+                        color: _ShareWeb.green600,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          onTap: onRetry,
+                          borderRadius: BorderRadius.circular(10),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 22, vertical: 12),
+                            child: Text(
+                              'Try again',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-              if (showLinkActions) ...[
-                const SizedBox(height: AppSpacing.md),
-                PressableScale(
-                  child: Material(
-                    color: AppColors.primaryGreen,
-                    clipBehavior: Clip.antiAlias,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: InkWell(
-                      onTap: _requestNewLink,
-                      child: SizedBox(
-                        height: 48,
-                        width: double.infinity,
-                        child: Center(
-                          child: Text(l10n.t('requestNewLink'),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                PressableScale(
-                  child: Material(
-                    color: palette.surface,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      side: BorderSide(color: AppColors.primaryGreen
-                          .withValues(alpha: 0.35)),
-                    ),
-                    child: InkWell(
-                      onTap: () => _returnToDashboard(context),
-                      child: SizedBox(
-                        height: 48,
-                        width: double.infinity,
-                        child: Center(
-                          child: Text(l10n.t('returnToDashboard'),
-                              style: AppText.subtitle.copyWith(
-                                  color: AppColors.primaryGreen,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            const Text(
+              'Secured by INO',
+              style: TextStyle(
+                color: _ShareWeb.slate400,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// INO mark matching Share-Web `InoLogo.tsx` (green→blue rounded square).
+class _InoLogoMark extends StatelessWidget {
+  const _InoLogoMark({this.large = false});
+
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = large ? 40.0 : 32.0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(size * 0.28),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_ShareWeb.green500, _ShareWeb.blue500],
+            ),
+          ),
+          child: Center(
+            child: Container(
+              width: size * 0.42,
+              height: size * 0.42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Center(
+                child: Container(
+                  width: size * 0.14,
+                  height: size * 0.14,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'INO',
+          style: TextStyle(
+            color: _ShareWeb.slate900,
+            fontSize: large ? 20 : 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+          ),
+        ),
+      ],
     );
   }
 }
