@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
@@ -71,6 +73,34 @@ class DocumentRepository {
     _cachedAllTime = null;
     _cachedWallet.clear();
     _cachedWalletTime.clear();
+  }
+
+  // --- Disk persistence layer for offline-first hydration -------------------
+  static const String _diskCachePrefix = 'ino_doc_cache';
+
+  Future<void> _persistDiskCache(String userId, List<Document> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = '${_diskCachePrefix}_$userId';
+      final jsonList = list.map((d) => d.toMap()).toList();
+      await prefs.setString(key, jsonEncode(jsonList));
+    } catch (e) {
+      developer.log('failed to persist document disk cache: $e', name: 'documents');
+    }
+  }
+
+  Future<List<Document>> _readDiskCache(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = '${_diskCachePrefix}_$userId';
+      final raw = prefs.getString(key);
+      if (raw == null || raw.isEmpty) return const [];
+      final List decoded = jsonDecode(raw) as List;
+      return decoded.map((e) => Document.fromMap(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      developer.log('failed to read document disk cache: $e', name: 'documents');
+      return const [];
+    }
   }
 
   /// Uploads a local image/PDF to the `documents` Storage bucket and returns
@@ -283,6 +313,15 @@ class DocumentRepository {
         _cachedWallet[wallet] = list;
         _cachedWalletTime[wallet] = DateTime.now();
         return list;
+      } catch (e) {
+        developer.log('listForWallet($wallet) network failed: $e — checking cache/all fallback', name: 'documents');
+        if (_cachedWallet.containsKey(wallet)) {
+          return _cachedWallet[wallet]!;
+        }
+        final allDocs = _cachedAll ?? await _readDiskCache(userId);
+        final walletDocs = allDocs.where((d) => WalletTables.slugFor(d.wallet) == WalletTables.slugFor(wallet)).toList();
+        _cachedWallet[wallet] = walletDocs;
+        return walletDocs;
       } finally {
         _inFlightWallet.remove(wallet);
       }
@@ -313,6 +352,15 @@ class DocumentRepository {
       return _inFlightAll!;
     }
 
+    // Hydrate disk cache into RAM if memory cache is null for instant offline rendering
+    if (_cachedAll == null) {
+      final diskDocs = await _readDiskCache(userId);
+      if (diskDocs.isNotEmpty) {
+        _cachedAll = diskDocs;
+        _cachedAllTime = DateTime.now();
+      }
+    }
+
     final future = () async {
       try {
         final rows = await fetchAllPaged(
@@ -330,7 +378,13 @@ class DocumentRepository {
         final list = [for (final r in rows) Document.fromMap(r)];
         _cachedAll = list;
         _cachedAllTime = DateTime.now();
+        unawaited(_persistDiskCache(userId, list));
         return list;
+      } catch (e) {
+        developer.log('listAll network failed: $e — returning local disk cache fallback', name: 'documents');
+        final fallback = _cachedAll ?? await _readDiskCache(userId);
+        _cachedAll = fallback;
+        return fallback;
       } finally {
         _inFlightAll = null;
       }
