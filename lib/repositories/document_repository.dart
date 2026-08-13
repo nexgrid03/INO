@@ -84,6 +84,7 @@ class DocumentRepository {
       final key = '${_diskCachePrefix}_$userId';
       final jsonList = list.map((d) => d.toMap()).toList();
       await prefs.setString(key, jsonEncode(jsonList));
+      developer.log('[DOC_CACHE] Disk cache saved count=${list.length} key=$key', name: 'documents');
     } catch (e) {
       developer.log('failed to persist document disk cache: $e', name: 'documents');
     }
@@ -96,7 +97,9 @@ class DocumentRepository {
       final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return const [];
       final List decoded = jsonDecode(raw) as List;
-      return decoded.map((e) => Document.fromMap(e as Map<String, dynamic>)).toList();
+      final docs = decoded.map((e) => Document.fromMap(e as Map<String, dynamic>)).toList();
+      developer.log('[DOC_CACHE] Disk cache loaded count=${docs.length} key=$key', name: 'documents');
+      return docs;
     } catch (e) {
       developer.log('failed to read document disk cache: $e', name: 'documents');
       return const [];
@@ -277,6 +280,9 @@ class DocumentRepository {
     return Document.fromMap(row, wallet: wallet);
   }
 
+  /// Fast 2-second timeout for document query network fetches so offline detection is instant.
+  static const Duration _queryOfflineTimeout = Duration(seconds: 2);
+
   /// All documents in one wallet, newest first. Reads the wallet's own table
   /// rather than the union view, so it never scans the other wallets.
   Future<List<Document>> listForWallet(String wallet, {bool forceRefresh = false}) =>
@@ -306,15 +312,16 @@ class DocumentRepository {
               .order('created_at', ascending: false)
               .order('id', ascending: false)
               .range(from, to)
-              .timeout(NetGuard.query),
+              .timeout(_queryOfflineTimeout),
           label: 'listForWallet($wallet)',
         );
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
         _cachedWallet[wallet] = list;
         _cachedWalletTime[wallet] = DateTime.now();
+        developer.log('[DOC_CACHE] Network sync success wallet=$wallet count=${list.length}', name: 'documents');
         return list;
       } catch (e) {
-        developer.log('listForWallet($wallet) network failed: $e — checking cache/all fallback', name: 'documents');
+        developer.log('[DOC_CACHE] Network sync failed using cache wallet=$wallet error: $e', name: 'documents');
         if (_cachedWallet.containsKey(wallet)) {
           return _cachedWallet[wallet]!;
         }
@@ -353,15 +360,17 @@ class DocumentRepository {
     }
 
     // Hydrate disk cache into RAM if memory cache is null for instant offline rendering
+    var hasLocalDiskData = false;
     if (_cachedAll == null) {
       final diskDocs = await _readDiskCache(userId);
       if (diskDocs.isNotEmpty) {
         _cachedAll = diskDocs;
         _cachedAllTime = DateTime.now();
+        hasLocalDiskData = true;
       }
     }
 
-    final future = () async {
+    final fetchFuture = () async {
       try {
         final rows = await fetchAllPaged(
           (from, to) => _client
@@ -372,16 +381,17 @@ class DocumentRepository {
               .order('created_at', ascending: false)
               .order('id', ascending: false)
               .range(from, to)
-              .timeout(NetGuard.query),
+              .timeout(_queryOfflineTimeout),
           label: 'listAll',
         );
         final list = [for (final r in rows) Document.fromMap(r)];
         _cachedAll = list;
         _cachedAllTime = DateTime.now();
+        developer.log('[DOC_CACHE] Network sync success count=${list.length}', name: 'documents');
         unawaited(_persistDiskCache(userId, list));
         return list;
       } catch (e) {
-        developer.log('listAll network failed: $e — returning local disk cache fallback', name: 'documents');
+        developer.log('[DOC_CACHE] Network sync failed using cache error: $e', name: 'documents');
         final fallback = _cachedAll ?? await _readDiskCache(userId);
         _cachedAll = fallback;
         return fallback;
@@ -390,8 +400,15 @@ class DocumentRepository {
       }
     }();
 
-    _inFlightAll = future;
-    return future;
+    _inFlightAll = fetchFuture;
+
+    // If we have valid local disk data, fire-and-forget network sync in background so UI renders instantly!
+    if (hasLocalDiskData && !forceRefresh) {
+      unawaited(fetchFuture);
+      return _cachedAll!;
+    }
+
+    return fetchFuture;
   });
 
   /// The processed share copies (hidden [shareCacheWallet] rows), newest first.
