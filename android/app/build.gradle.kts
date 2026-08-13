@@ -42,7 +42,7 @@ android {
 
     defaultConfig {
         // Production Application ID for INO App
-        applicationId = "in.inoapp.app"
+        applicationId = "com.example.inoapp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
