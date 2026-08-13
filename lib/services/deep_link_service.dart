@@ -149,7 +149,7 @@ class DeepLinkService {
   /// Returns null when it isn't a share link.
   ///
   /// Handles every shape it can arrive in:
-  ///   • `https://share.inoapp.in/s/<token>`                   → `<token>`
+  ///   • `https://ino-share-web.vercel.app/s/<token>`         → `<token>`
   ///   • `https://<ref>.functions.supabase.co/share/share_x`   → `share_x`
   ///   • `https://<ref>.functions.supabase.co/functions/v1/share/share_x` → `share_x`
   ///   • `ino://share/<token>`                                 → `<token>`
@@ -180,7 +180,7 @@ class DeepLinkService {
   ///
   /// One-time links live under `/v/` (regular shares use `/s/`), so the two can
   /// never be confused:
-  ///   • `https://share.inoapp.in/v/<token>`                → `<token>`
+  ///   • `https://ino-share-web.vercel.app/v/<token>`       → `<token>`
   ///   • `https://<ref>.functions.supabase.co/share/v/<t>`  → `<t>`
   ///   • `ino://viewonce/<token>`                           → `<token>`
   static String? parseViewOnceToken(Uri? uri) {

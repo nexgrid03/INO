@@ -17,7 +17,7 @@ import 'package:inoapp/services/deep_link_service.dart';
 void main() {
   group('deep-link routing keeps the two kinds of link apart', () {
     test('a /v/ link parses as view-once and NOT as a regular share', () {
-      final uri = Uri.parse('https://share.inoapp.in/v/a1b2c3d4e5f60718293a4b5c6d7e8f90');
+      final uri = Uri.parse('https://ino-share-web.vercel.app/v/a1b2c3d4e5f60718293a4b5c6d7e8f90');
 
       expect(DeepLinkService.parseViewOnceToken(uri),
           'a1b2c3d4e5f60718293a4b5c6d7e8f90');
@@ -28,7 +28,7 @@ void main() {
     });
 
     test('a /s/ link parses as a regular share and NOT as view-once', () {
-      final uri = Uri.parse('https://share.inoapp.in/s/a8f9x2k40b1c');
+      final uri = Uri.parse('https://ino-share-web.vercel.app/s/a8f9x2k40b1c');
 
       expect(DeepLinkService.parseShareId(uri), 'a8f9x2k40b1c');
       expect(DeepLinkService.parseViewOnceToken(uri), isNull);
@@ -53,7 +53,7 @@ void main() {
     test('unrelated links resolve to neither', () {
       for (final raw in const [
         'https://inoapp.in/about',
-        'https://share.inoapp.in/',
+        'https://ino-share-web.vercel.app/',
         'ino://home',
       ]) {
         final uri = Uri.parse(raw);
