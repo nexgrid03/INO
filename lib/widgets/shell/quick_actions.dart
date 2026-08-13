@@ -30,16 +30,18 @@ enum QuickMenuAction {
 }
 
 extension QuickMenuActionX on QuickMenuAction {
+  /// Crisp, product-grade glyphs - the same visual language as Wallets /
+  /// Reminders (payments, scan, notes) rather than generic pencil/alarm clip-art.
   IconData get icon => switch (this) {
-        QuickMenuAction.expenses => Icons.account_balance_wallet_rounded,
+        QuickMenuAction.expenses => Icons.payments_rounded,
         QuickMenuAction.scan => Icons.document_scanner_rounded,
-        QuickMenuAction.notes => Icons.edit_rounded,
-        QuickMenuAction.reminders => Icons.alarm_rounded,
-        QuickMenuAction.emi => Icons.account_balance_rounded,
-        QuickMenuAction.sip => Icons.trending_up_rounded,
-        QuickMenuAction.areaConverter => Icons.straighten_rounded,
-        QuickMenuAction.valuation => Icons.home_work_rounded,
-        QuickMenuAction.gold => Icons.diamond_rounded,
+        QuickMenuAction.notes => Icons.sticky_note_2_rounded,
+        QuickMenuAction.reminders => Icons.notifications_active_rounded,
+        QuickMenuAction.emi => Icons.calculate_rounded,
+        QuickMenuAction.sip => Icons.show_chart_rounded,
+        QuickMenuAction.areaConverter => Icons.square_foot_rounded,
+        QuickMenuAction.valuation => Icons.real_estate_agent_rounded,
+        QuickMenuAction.gold => Icons.monetization_on_rounded,
         QuickMenuAction.taxRecords => Icons.receipt_long_rounded,
       };
 

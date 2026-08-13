@@ -5,6 +5,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_back_button.dart';
 import '../common/liquid_glass.dart';
+import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
 import 'divine_glass.dart';
 
@@ -50,7 +51,8 @@ class DivineGlassAppBar extends StatelessWidget {
     List<Widget>? actions,
     bool centerTitle = false,
   }) {
-    final top = MediaQuery.viewPaddingOf(context).top;
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final top = topInset > 0 ? topInset + 6 : 18.0;
     Widget? trail = trailing;
     if (trail == null && actions != null && actions.isNotEmpty) {
       trail = actions.length == 1
@@ -73,8 +75,13 @@ class DivineGlassAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top =
+    final statusTop =
         includeStatusBar ? MediaQuery.viewPaddingOf(context).top : 0.0;
+    // Web / no-notch devices often report 0 inset — keep a minimum so the
+    // title never sits flush against the screen edge.
+    final top = includeStatusBar
+        ? (statusTop > 0 ? statusTop + 6 : 18.0)
+        : 0.0;
     final canPop = Navigator.of(context).canPop();
     final showBack = onBack != null || canPop;
     final palette = AppPalette.of(context);
@@ -82,7 +89,6 @@ class DivineGlassAppBar extends StatelessWidget {
     // Title-only — second-line subtitles are omitted across the app.
     const contentH = barHeight;
 
-    // Soft ink on a light frost — cozy, not a heavy white slab.
     final titleStyle = AppText.appBarHeading(
       palette.headingInk,
       prominent: true,
@@ -101,15 +107,16 @@ class DivineGlassAppBar extends StatelessWidget {
       ),
     );
 
+    // Transparent plate — white Material under frost made every page heading
+    // read as a solid slab. LiquidGlass alone provides the glassy wash so the
+    // sky / mist shows through like Document cards.
     return Material(
-      color: dark
-          ? palette.surface.withValues(alpha: 0.72)
-          : Colors.white.withValues(alpha: 0.42),
+      color: Colors.transparent,
       elevation: 0,
       child: LiquidGlass(
         borderRadius: BorderRadius.zero,
-        blur: 18,
-        frost: dark ? 0.55 : 0.38,
+        blur: 22,
+        frost: dark ? 0.62 : 0.48,
         tint: dark ? palette.surface : Colors.white,
         shadow: false,
         padding: EdgeInsets.zero,
@@ -124,7 +131,7 @@ class DivineGlassAppBar extends StatelessWidget {
                   bottom: BorderSide(
                     color: dark
                         ? Colors.white.withValues(alpha: 0.08)
-                        : palette.border.withValues(alpha: 0.55),
+                        : Colors.white.withValues(alpha: 0.55),
                     width: 0.8,
                   ),
                 ),
@@ -179,14 +186,12 @@ class DivineGlassHeaderBar extends StatelessWidget {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
     return Material(
-      color: dark
-          ? palette.surface.withValues(alpha: 0.72)
-          : Colors.white.withValues(alpha: 0.42),
+      color: Colors.transparent,
       elevation: 0,
       child: LiquidGlass(
         borderRadius: BorderRadius.zero,
-        blur: 18,
-        frost: dark ? 0.55 : 0.38,
+        blur: 22,
+        frost: dark ? 0.62 : 0.48,
         tint: dark ? palette.surface : Colors.white,
         shadow: false,
         padding: EdgeInsets.zero,
@@ -197,7 +202,7 @@ class DivineGlassHeaderBar extends StatelessWidget {
               bottom: BorderSide(
                 color: dark
                     ? Colors.white.withValues(alpha: 0.08)
-                    : palette.border.withValues(alpha: 0.55),
+                    : Colors.white.withValues(alpha: 0.55),
                 width: 0.8,
               ),
             ),
@@ -326,7 +331,7 @@ class DivineGlassStatusChip extends StatelessWidget {
   }
 }
 
-/// Round icon disc used on Identity document cards.
+/// Soft accent disc used on Identity / wallet list cards under Divine Glass.
 class DivineGlassRoundIcon extends StatelessWidget {
   const DivineGlassRoundIcon({
     super.key,
@@ -352,6 +357,47 @@ class DivineGlassRoundIcon extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Icon(icon, color: accent, size: iconSize),
+    );
+  }
+}
+
+/// One list-icon language for every wallet module.
+///
+/// Divine Glass / Aqua family → soft round disc (matches Document cards).
+/// Classic → glossy [ShinyIcon] chip.
+class AdaptiveListIcon extends StatelessWidget {
+  const AdaptiveListIcon({
+    super.key,
+    required this.icon,
+    required this.accent,
+    this.size = 48,
+    this.iconSize,
+    this.radius = 13,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final double size;
+  final double? iconSize;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = iconSize ?? (size * 0.42);
+    if (divineGlassEnabled(context)) {
+      return DivineGlassRoundIcon(
+        icon: icon,
+        accent: accent,
+        size: size,
+        iconSize: glyph,
+      );
+    }
+    return ShinyIcon(
+      icon: icon,
+      color: accent,
+      size: size,
+      iconSize: glyph,
+      radius: radius,
     );
   }
 }
@@ -548,7 +594,7 @@ class DivineGlassListRow extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          DivineGlassIconChip(icon: icon, accent: accent, size: 46, iconSize: 22),
+          DivineGlassRoundIcon(icon: icon, accent: accent, size: 46, iconSize: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

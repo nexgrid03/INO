@@ -75,10 +75,9 @@ bytes (`image/*`, `application/pdf`) are **not** downgraded - only `text/html`.
 This is enforced *after* the function returns, so **no code change in
 `index.ts` can fix it**. Two ways to get a rendered browser page:
 
-1. **Reverse proxy (recommended, free)** - `share-proxy/cloudflare-worker.js`:
-   a Cloudflare Worker on a domain you control that re-serves the page as real
-   `text/html`. Deploy it, then set `ShareConfig.customBaseUrlOverride` to your
-   domain so new QR codes point at it.
+1. **Public share web app (recommended)** - `share-frontend/` on Vercel:
+   serves the recipient viewer as real `text/html` on your share domain.
+   Deploy it, then set `ShareConfig.publicBase` so new QR codes point at it.
 2. **App deep link** - with App Links configured (see `DEEP_LINKING.md`), the QR
    opens the native `SharedDocumentsScreen` instead of the browser.
 

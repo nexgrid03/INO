@@ -6,9 +6,6 @@ import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
-import '../common/liquid_glass.dart';
-import '../common/shiny_icon.dart';
-import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
 
 /// Opens the Create Wallet sheet and returns the created [CustomWallet], or
@@ -19,9 +16,10 @@ import '../pressable_scale.dart';
 /// dialog popup so it never occupies the entire viewport.
 Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
   final palette = AppPalette.of(context);
-  final glass = divineGlassEnabled(context);
   final width = MediaQuery.sizeOf(context).width;
   final useDialog = width >= 600;
+  // Force solid opaque sheet chrome — never translucent glass over the scrim.
+  final sheetBg = palette.isDark ? palette.surface : Colors.white;
 
   if (useDialog) {
     return showDialog<CustomWallet>(
@@ -39,7 +37,7 @@ Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
                 maxHeight: maxH,
               ),
               child: Material(
-                color: glass ? Colors.transparent : palette.surface,
+                color: sheetBg,
                 borderRadius: BorderRadius.circular(AppRadius.large),
                 clipBehavior: Clip.antiAlias,
                 child: const CreateWalletSheet(asDialog: true),
@@ -55,17 +53,32 @@ Future<CustomWallet?> showCreateWalletSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     showDragHandle: false,
-    backgroundColor: glass ? Colors.transparent : palette.surface,
+    backgroundColor: sheetBg,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     shape: const RoundedRectangleBorder(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
     ),
     builder: (ctx) {
       final maxH = MediaQuery.sizeOf(ctx).height * 0.85;
-      return SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxH),
-          child: const CreateWalletSheet(),
+      return Theme(
+        data: Theme.of(ctx).copyWith(
+          bottomSheetTheme: BottomSheetThemeData(
+            backgroundColor: sheetBg,
+            modalBackgroundColor: sheetBg,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+          ),
+          canvasColor: sheetBg,
+        ),
+        child: SafeArea(
+          child: ColoredBox(
+            color: sheetBg,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxH),
+              child: const CreateWalletSheet(),
+            ),
+          ),
         ),
       );
     },
@@ -138,14 +151,21 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
   }
 
   Widget _previewRow(AppLocalizations l10n, Color color, AppPalette palette) {
+    // Same borderless chip as [WalletGrid] tiles — no accent ring.
     return Row(
       children: [
-        ShinyIcon(
-          icon: walletIconFor(_iconKey),
-          color: color,
-          size: AppSizes.iconContainer,
-          iconSize: 26,
-          radius: AppRadius.chip,
+        Container(
+          width: AppSizes.iconContainer,
+          height: AppSizes.iconContainer,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: palette.isDark ? 0.22 : 0.16),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            walletIconFor(_iconKey),
+            color: color,
+            size: 26,
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
@@ -181,191 +201,181 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
     final l10n = AppLocalizations.of(context);
     final color = Color(_colorValue);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final launcher = divineGlassEnabled(context);
+    final sheetBg = palette.isDark ? palette.surface : Colors.white;
+    final radius = widget.asDialog
+        ? BorderRadius.circular(AppRadius.large)
+        : const BorderRadius.vertical(top: Radius.circular(AppRadius.large));
 
-    final body = SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen,
-          AppSpacing.sm,
-          AppSpacing.screen,
-          AppSpacing.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.asDialog)
-              const SizedBox(height: AppSpacing.sm)
-            else
-              const Center(child: InoSheetGrip()),
-            const SizedBox(height: AppSpacing.md),
-            // Live preview of the wallet card (solid surface — not nested glass).
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                gradient: palette.cardGradient,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: palette.border),
-                boxShadow: AppShadows.card,
-              ),
-              child: _previewRow(l10n, color, palette),
+    return Material(
+      color: sheetBg,
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: widget.asDialog ? 0 : bottomInset),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.sm,
+              AppSpacing.screen,
+              AppSpacing.lg,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              l10n.t('walletName'),
-              style: AppText.subtitle
-                  .copyWith(color: palette.textPrimary, fontSize: 13),
-            ),
-            const SizedBox(height: 7),
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.done,
-              onChanged: (_) => setState(() => _error = null),
-              onSubmitted: (_) => _save(),
-              decoration: _decoration(context, l10n.t('walletNameHint'), color),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    size: 15,
-                    color: AppColors.critical,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.asDialog)
+                  const SizedBox(height: AppSpacing.sm)
+                else
+                  const Center(child: InoSheetGrip()),
+                const SizedBox(height: AppSpacing.md),
+                // Live preview of the wallet card.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    gradient: palette.cardGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                    border: Border.all(color: palette.border),
+                    boxShadow: AppShadows.card,
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _error!,
-                    style: AppText.label.copyWith(color: AppColors.critical),
+                  child: _previewRow(l10n, color, palette),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  l10n.t('walletName'),
+                  style: AppText.subtitle
+                      .copyWith(color: palette.textPrimary, fontSize: 13),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() => _error = null),
+                  onSubmitted: (_) => _save(),
+                  decoration:
+                      _decoration(context, l10n.t('walletNameHint'), color),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 15,
+                        color: AppColors.critical,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _error!,
+                        style:
+                            AppText.label.copyWith(color: AppColors.critical),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              l10n.t('icon'),
-              style: AppText.subtitle
-                  .copyWith(color: palette.textPrimary, fontSize: 13),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final option in kWalletIcons)
-                  _IconSwatch(
-                    icon: option.icon,
-                    selected: option.key == _iconKey,
-                    color: color,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _iconKey = option.key);
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              l10n.t('accent'),
-              style: AppText.subtitle
-                  .copyWith(color: palette.textPrimary, fontSize: 13),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final value in kWalletAccentValues)
-                  _ColorSwatch(
-                    value: value,
-                    selected: value == _colorValue,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _colorValue = value);
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            PressableScale(
-              child: Container(
-                height: AppSizes.button,
-                decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  l10n.t('icon'),
+                  style: AppText.subtitle
+                      .copyWith(color: palette.textPrimary, fontSize: 13),
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _saving ? null : _save,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: Center(
-                      child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.check_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.t('createWallet'),
-                                  style: AppText.subtitle.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final option in kWalletIcons)
+                      _IconSwatch(
+                        icon: option.icon,
+                        selected: option.key == _iconKey,
+                        color: color,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _iconKey = option.key);
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  l10n.t('accent'),
+                  style: AppText.subtitle
+                      .copyWith(color: palette.textPrimary, fontSize: 13),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final value in kWalletAccentValues)
+                      _ColorSwatch(
+                        value: value,
+                        selected: value == _colorValue,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _colorValue = value);
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                PressableScale(
+                  child: Container(
+                    height: AppSizes.button,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _saving ? null : _save,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        child: Center(
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      l10n.t('createWallet'),
+                                      style: AppText.subtitle.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    );
-
-    final radius = widget.asDialog
-        ? BorderRadius.circular(AppRadius.large)
-        : const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.large),
-          );
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: widget.asDialog ? 0 : bottomInset),
-      child: launcher
-          ? ClipRRect(
-              borderRadius: radius,
-              child: LiquidGlass(
-                borderRadius: radius,
-                blur: 28,
-                frost: 1.05,
-                shadow: false,
-                padding: EdgeInsets.zero,
-                child: body,
-              ),
-            )
-          : body,
     );
   }
 
@@ -379,8 +389,11 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
       hintText: hint,
       hintStyle: AppText.body.copyWith(color: palette.textFaint),
       filled: true,
-      fillColor: palette.surfaceVariant,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      fillColor: palette.isDark
+          ? palette.surfaceVariant
+          : AppColors.tealFoam,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       border: border(palette.border),
       enabledBorder: border(palette.border),
       focusedBorder: border(accent, 1.6),
@@ -414,13 +427,11 @@ class _IconSwatch extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: selected
-                ? color.withValues(alpha: 0.16)
-                : palette.surfaceVariant,
+                ? color.withValues(alpha: 0.22)
+                : (palette.isDark
+                    ? palette.surfaceVariant
+                    : AppColors.tealFoam),
             borderRadius: BorderRadius.circular(AppRadius.chip),
-            border: Border.all(
-              color: selected ? color : palette.border,
-              width: selected ? 1.8 : 1,
-            ),
           ),
           child: Icon(
             icon,

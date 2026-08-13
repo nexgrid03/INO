@@ -56,10 +56,23 @@ class Document {
       expiresAt: map['expires_at'] == null
           ? null
           : DateTime.parse(map['expires_at'] as String),
-      filePath: map['file_path'] as String?,
+      filePath: _nullablePath(map['file_path']),
       doctorName: map['doctor_name'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
+  }
+
+  /// True when this row points at a real Storage object.
+  bool get hasUploadedFile {
+    final p = filePath;
+    return p != null && p.trim().isNotEmpty;
+  }
+
+  /// Normalises DB / JSON path values (trim, empty → null).
+  static String? _nullablePath(Object? value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 }

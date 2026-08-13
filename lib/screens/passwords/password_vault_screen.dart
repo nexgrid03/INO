@@ -211,31 +211,32 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
         child: SafeArea(
           top: !divineGlassEnabled(context),
           bottom: false,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            slivers: [
-              SliverToBoxAdapter(
-                child: ModuleHeader(
-                    title: 'Passwords',
-                    subtitle: hasAny
-                        ? '${_store.count} saved · unlocked'
-                        : 'Locked behind your biometrics',
-                    actions: [
-                      ModuleIconButton(
-                        icon: Icons.auto_awesome_rounded,
-                        tooltip: 'Password generator',
-                        onTap: _openGenerator,
-                      ),
-                      ModuleIconButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Add password',
-                        onTap: _add,
-                      ),
-                    ],
+          child: Column(
+            children: [
+              ModuleHeader(
+                title: 'Passwords',
+                subtitle: hasAny
+                    ? '${_store.count} saved · unlocked'
+                    : 'Locked behind your biometrics',
+                actions: [
+                  ModuleIconButton(
+                    icon: Icons.auto_awesome_rounded,
+                    tooltip: 'Password generator',
+                    onTap: _openGenerator,
                   ),
+                  ModuleIconButton(
+                    icon: Icons.add_rounded,
+                    tooltip: 'Add password',
+                    onTap: _add,
+                  ),
+                ],
               ),
+              Expanded(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  slivers: [
               if (!_store.isLoaded)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -308,6 +309,9 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -359,13 +363,13 @@ class PasswordTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  // Monogram tile - the first letter of the nickname.
+                  // Soft round monogram — matches Document / Property list discs.
                   Container(
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
+                      color: color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: Text(

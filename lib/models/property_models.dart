@@ -57,7 +57,8 @@ extension PropertyStatusX on PropertyStatus {
       };
 
   Color get color => switch (this) {
-        PropertyStatus.owned => AppColors.skyBrand,
+        // Brand accent — tracks Aqua teal / Classic sky like Document cards.
+        PropertyStatus.owned => AppColors.primaryGreen,
         PropertyStatus.underConstruction => AppColors.warning,
         PropertyStatus.rented => const Color(0xFF4383EA),
         PropertyStatus.leased => const Color(0xFF9B6DE0),

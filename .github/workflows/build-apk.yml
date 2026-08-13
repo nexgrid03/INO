@@ -8,7 +8,6 @@ on:
       - "**.md"
       - "docs/**"
       - "share-frontend/**"
-      - "share-proxy/**"
       - "supabase/**"
 
 permissions:

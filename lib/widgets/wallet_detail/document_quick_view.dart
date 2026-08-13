@@ -5,7 +5,9 @@ import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/shiny_icon.dart';
+import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
+import 'document_card.dart' show documentCardAccent;
 
 /// Quick View - a peek at a document's key details (name, type, and the
 /// OCR-extracted fields) WITHOUT opening the full file. Requirement #6: the user
@@ -54,6 +56,8 @@ class _QuickViewSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final extraction = record.extraction;
+    final iconAccent =
+        documentCardAccent(record, walletAccent: accent.first);
     final List<({String label, String value})> fields;
     final String typeLabel;
     if (isHealth) {
@@ -93,14 +97,24 @@ class _QuickViewSheet extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  ShinyIcon(
-                    icon: record.icon,
-                    color: accent.first,
-                    size: 48,
-                    iconSize: 24,
-                    radius: 14,
-                    style: ShinyIconStyle.filled,
-                  ),
+                  // Same chrome as DivineGlassDocumentCard / classic DocumentCard
+                  // — soft round disc under Divine Glass (no accent ring), glossy
+                  // chip in classic.
+                  divineGlassEnabled(context)
+                      ? DivineGlassRoundIcon(
+                          icon: record.icon,
+                          accent: iconAccent,
+                          size: 48,
+                          iconSize: 20,
+                        )
+                      : ShinyIcon(
+                          icon: record.icon,
+                          color: iconAccent,
+                          size: 48,
+                          iconSize: 24,
+                          radius: 14,
+                          style: ShinyIconStyle.filled,
+                        ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(

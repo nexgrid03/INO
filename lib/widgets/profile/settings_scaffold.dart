@@ -12,8 +12,8 @@ import '../pressable_scale.dart';
 /// Cloud Backup, About, …): a transparent back-button app bar over the themed
 /// background, with the content laid out by the caller.
 ///
-/// Under Launcher (Divine Glass), uses the Figma frosted Top App Bar with a
-/// sky wash so headings always have a proper glass background and back control.
+/// Under Launcher / Aqua (Divine Glass), uses the frosted Top App Bar over a
+/// sky wash so the heading reads as glass — same chrome as Reminders / hubs.
 class SettingsScaffold extends StatelessWidget {
   const SettingsScaffold({
     super.key,
@@ -32,23 +32,25 @@ class SettingsScaffold extends StatelessWidget {
     final launcher = InoStyle.usesDivineGlass(context);
 
     if (launcher) {
+      final topInset = MediaQuery.viewPaddingOf(context).top;
+      final barTop = topInset > 0 ? topInset + 6 : 18.0;
+      final barH = DivineGlassAppBar.barHeight + barTop;
+
       return Scaffold(
         backgroundColor: palette.bg,
-        extendBodyBehindAppBar: false,
+        extendBodyBehindAppBar: true,
         appBar: DivineGlassAppBar.asPreferredSize(
           context,
           title: title,
           centerTitle: false,
           actions: actions,
         ),
-        // Soft wash (sky: false) — saturated hero-sky made body/labels
-        // unreadable on Aqua (teal-on-teal). Settings forms need contrast.
         body: InoBackground(
           showDots: false,
-          sky: false,
-          intensity: 0.55,
-          child: SafeArea(
-            top: false,
+          sky: true,
+          intensity: 0.5,
+          child: Padding(
+            padding: EdgeInsets.only(top: barH),
             child: child,
           ),
         ),
@@ -97,6 +99,9 @@ class SettingsScaffold extends StatelessWidget {
 
 /// A rounded, grouped container (matches the Profile settings groups) for use as
 /// a section card inside a sub-screen.
+///
+/// Under Divine Glass this is frosted [AdaptiveGlassCard]; Classic keeps a
+/// flat solid surface for dense forms.
 class SettingsCard extends StatelessWidget {
   const SettingsCard({super.key, required this.child, this.padding});
 
@@ -105,10 +110,17 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
+    final pad = padding ?? const EdgeInsets.all(AppSpacing.md);
 
-    // Flat surface + hairline only — no drop shadows (they muddy forms on
-    // the aqua wash and sit poorly under input fields).
+    if (divineGlassEnabled(context)) {
+      return AdaptiveGlassCard(
+        padding: pad,
+        radius: AppRadius.card,
+        child: SizedBox(width: double.infinity, child: child),
+      );
+    }
+
+    final palette = AppPalette.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.surface,
@@ -116,7 +128,7 @@ class SettingsCard extends StatelessWidget {
         border: Border.all(color: palette.border),
       ),
       child: Padding(
-        padding: padding ?? const EdgeInsets.all(AppSpacing.md),
+        padding: pad,
         child: SizedBox(width: double.infinity, child: child),
       ),
     );

@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../../data/wallet_detail_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/document.dart';
 import '../../models/dashboard_models.dart' show QuickAction;
 import '../../models/wallet_detail_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
@@ -373,26 +375,102 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _shareSingle(DocumentRecord r) => _startShare([r]);
 
-  /// Opens the Share Configuration flow for [docs]. Only documents with an
-  /// uploaded file can be shared; any without one are skipped (never fabricated).
-  void _startShare(List<DocumentRecord> docs) {
-    final shareable = docs.where((r) => r.filePath != null).toList();
-    final skipped = docs.length - shareable.length;
-    if (shareable.isEmpty) {
-      _toast('These documents have no uploaded file to share yet');
-      return;
-    }
-    if (skipped > 0) {
-      _toast(
-        '$skipped document${skipped == 1 ? '' : 's'} without a file skipped',
-      );
-    }
-    _exitSelection();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ShareSettingsScreen(documents: shareable),
+  /// Opens the Secure Share portal for [docs].
+  ///
+  /// Always navigates to [ShareSettingsScreen] (the portal). File paths are
+  /// refreshed first so Generate Secure Link can succeed when Storage has the
+  /// file even if the in-memory list was stale.
+  Future<void> _startShare(List<DocumentRecord> docs) async {
+    if (docs.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
       ),
     );
+
+    List<DocumentRecord> hydrated;
+    try {
+      hydrated = await _hydrateShareDocs(docs);
+    } catch (_) {
+      hydrated = docs;
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+    if (!mounted) return;
+
+    if (hydrated.any((d) => d.hasUploadedFile)) {
+      setState(() {
+        _records = [
+          for (final r in _records)
+            hydrated.firstWhere((h) => h.id == r.id, orElse: () => r),
+        ];
+      });
+    }
+
+    _exitSelection();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareSettingsScreen(documents: hydrated),
+      ),
+    );
+  }
+
+  /// Prefer live DB `file_path`, then offline object path, then the list value.
+  Future<List<DocumentRecord>> _hydrateShareDocs(
+    List<DocumentRecord> docs,
+  ) async {
+    final wallet = widget.category.name;
+    final offline = OfflineDocumentStore.instance;
+    final byId = <String, Document>{};
+
+    try {
+      final freshList = await DocumentRepository.instance
+          .listForWallet(wallet, forceRefresh: true);
+      for (final d in freshList) {
+        byId[d.id] = d;
+      }
+    } catch (_) {}
+
+    final out = <DocumentRecord>[];
+    for (final doc in docs) {
+      String? path = doc.hasUploadedFile ? doc.filePath!.trim() : null;
+
+      final listed = byId[doc.id];
+      if ((path == null || path.isEmpty) &&
+          listed != null &&
+          listed.hasUploadedFile) {
+        path = listed.filePath!.trim();
+      }
+
+      if (path == null || path.isEmpty) {
+        final fresh = await DocumentRepository.instance
+            .getById(doc.id, wallet: wallet);
+        if (fresh != null && fresh.hasUploadedFile) {
+          path = fresh.filePath!.trim();
+        }
+      }
+
+      if (path == null || path.isEmpty) {
+        final offlineDoc = offline.byId(doc.id);
+        final offlinePath = offlineDoc?.objectPath.trim();
+        if (offlinePath != null && offlinePath.isNotEmpty) {
+          path = offlinePath;
+          // Persist recovered path so future share / open use the DB.
+          DocumentRepository.instance
+              .update(doc.id, {'file_path': path}, wallet: wallet)
+              .catchError((_) {});
+        }
+      }
+
+      out.add(
+        (path == null || path.isEmpty) ? doc : doc.copyWith(filePath: path),
+      );
+    }
+    return out;
   }
 
   void _openManageShares() {
@@ -542,23 +620,67 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              // Document title — a true header, not another action row.
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(r.icon, color: AppColors.primaryGreen, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        r.name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: palette.textPrimary,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.28),
                         ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        r.icon,
+                        color: AppColors.primaryGreen,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                              color: palette.textPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Document',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: palette.textFaint,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: palette.border.withValues(alpha: 0.7),
                 ),
               ),
               _action(
@@ -716,60 +838,60 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           bottom: false,
           child: Stack(
               children: [
-                FutureBuilder<WalletDetailData>(
-                  future: _future,
-                  builder: (context, snapshot) {
-                    final data = snapshot.data;
-                      return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: ClampingScrollPhysics(),
-                        ),
-                        slivers: [
-                        // 1. Compact header — Launcher uses full-bleed frosted bar.
-                        SliverToBoxAdapter(
-                          child: divineGlassEnabled(context)
-                              ? WalletHeader(
-                                  title: localizedWalletName(
-                                    AppLocalizations.of(context),
-                                    widget.category.name,
-                                  ),
-                                  icon: widget.category.icon,
-                                  accent: _vaultAccent,
-                                  onBack: () =>
-                                      Navigator.of(context).maybePop(),
-                                  onManageShares: _openManageShares,
-                                  onAreaConverter: _isPropertyWallet
-                                      ? _openAreaConverter
-                                      : null,
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      16, 12, 16, 12),
-                                  child: WalletHeader(
-                                    title: localizedWalletName(
-                                      AppLocalizations.of(context),
-                                      widget.category.name,
-                                    ),
-                                    icon: widget.category.icon,
-                                    accent: _vaultAccent,
-                                    onBack: () =>
-                                        Navigator.of(context).maybePop(),
-                                    onManageShares: _openManageShares,
-                                    onAreaConverter: _isPropertyWallet
-                                        ? _openAreaConverter
-                                        : null,
-                                  ),
-                                ),
-                        ),
-                        if (data == null)
-                          _loadingSliver()
-                        else if (_records.isEmpty)
-                          _emptyWalletSliver()
-                        else
-                          ..._loadedSlivers(data),
-                      ],
-                    );
-                  },
+                Column(
+                  children: [
+                    divineGlassEnabled(context)
+                        ? WalletHeader(
+                            title: localizedWalletName(
+                              AppLocalizations.of(context),
+                              widget.category.name,
+                            ),
+                            icon: widget.category.icon,
+                            accent: _vaultAccent,
+                            onBack: () => Navigator.of(context).maybePop(),
+                            onManageShares: _openManageShares,
+                            onAreaConverter: _isPropertyWallet
+                                ? _openAreaConverter
+                                : null,
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: WalletHeader(
+                              title: localizedWalletName(
+                                AppLocalizations.of(context),
+                                widget.category.name,
+                              ),
+                              icon: widget.category.icon,
+                              accent: _vaultAccent,
+                              onBack: () => Navigator.of(context).maybePop(),
+                              onManageShares: _openManageShares,
+                              onAreaConverter: _isPropertyWallet
+                                  ? _openAreaConverter
+                                  : null,
+                            ),
+                          ),
+                    Expanded(
+                      child: FutureBuilder<WalletDetailData>(
+                        future: _future,
+                        builder: (context, snapshot) {
+                          final data = snapshot.data;
+                          return CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: ClampingScrollPhysics(),
+                            ),
+                            slivers: [
+                              if (data == null)
+                                _loadingSliver()
+                              else if (_records.isEmpty)
+                                _emptyWalletSliver()
+                              else
+                                ..._loadedSlivers(data),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 // The selection action bar takes over from the FAB while the user
                 // is multi-selecting documents to share.
@@ -787,7 +909,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 else
                   Positioned(
                     right: 16,
-                    bottom: 96,
+                    // Clear the floating InoBottomNav pill + centre + bump.
+                    bottom: MediaQuery.paddingOf(context).bottom + 108,
                     child: ExpandableFab(
                       actions: _fabActionsForWallet,
                       onAction: _onFabAction,

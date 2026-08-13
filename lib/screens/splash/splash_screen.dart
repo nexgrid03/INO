@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/user_profile.dart';
@@ -43,6 +44,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   late final List<Animation<double>> _letterFade;
   late final List<Animation<double>> _letterScale;
+  late final List<Animation<Offset>> _letterSlide;
 
   bool _navigated = false;
   bool _exiting = false;
@@ -54,48 +56,62 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    // Premium brand beat: settle → shine → INO cascade → brief hold → exit.
+    // Calm pacing (~1.5s) so the mark reads clearly without feeling slow.
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 5200),
+      duration: const Duration(milliseconds: 1500),
     )..addStatusListener(_onStatusChanged);
 
     _float = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 3800),
     )..repeat(reverse: true);
 
     _exit = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 260),
     );
     _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _exit, curve: Curves.easeInCubic),
     );
-    _exitScale = Tween<double>(begin: 1.0, end: 0.92).animate(
+    _exitScale = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _exit, curve: Curves.easeInCubic),
     );
 
-    // 1) Oversized shield fades in while scaling down to rest size.
-    _shieldFade = _phase(0.00, 0.32, Curves.easeOut);
-    _shieldScale = Tween<double>(begin: 1.55, end: 1.0).animate(
+    // 1) Shield settles in.
+    _shieldFade = _phase(0.00, 0.30, Curves.easeOut);
+    _shieldScale = Tween<double>(begin: 1.42, end: 1.0).animate(
       CurvedAnimation(
         parent: _c,
-        curve: const Interval(0.00, 0.42, curve: Curves.easeOutCubic),
+        curve: const Interval(0.00, 0.40, curve: Curves.easeOutCubic),
       ),
     );
 
     // 2) Diagonal glass shine once the shield is nearly settled.
-    _shine = _phase(0.32, 0.55, Curves.easeInOut);
+    _shine = _phase(0.30, 0.52, Curves.easeInOutCubic);
 
-    // 3) I → N → O after the shine finishes.
-    const starts = [0.58, 0.66, 0.74];
-    const ends = [0.70, 0.78, 0.86];
+    // 3) I → N → O cascade with a soft rise.
+    const starts = [0.50, 0.58, 0.66];
+    const ends = [0.68, 0.76, 0.84];
     _letterFade = [
       for (var i = 0; i < 3; i++) _phase(starts[i], ends[i], Curves.easeOut),
     ];
     _letterScale = [
       for (var i = 0; i < 3; i++)
-        Tween<double>(begin: 0.7, end: 1.0).animate(
+        Tween<double>(begin: 0.72, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _c,
+            curve: Interval(starts[i], ends[i], curve: Curves.easeOutCubic),
+          ),
+        ),
+    ];
+    _letterSlide = [
+      for (var i = 0; i < 3; i++)
+        Tween<Offset>(
+          begin: const Offset(0, 0.22),
+          end: Offset.zero,
+        ).animate(
           CurvedAnimation(
             parent: _c,
             curve: Interval(starts[i], ends[i], curve: Curves.easeOutCubic),
@@ -117,7 +133,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _onStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      Future<void>.delayed(const Duration(milliseconds: 1200), _beginExit);
+      // Let the finished mark sit briefly so it registers.
+      Future<void>.delayed(const Duration(milliseconds: 200), _beginExit);
     }
   }
 
@@ -251,7 +268,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: AnimatedBuilder(
             animation: Listenable.merge([_c, _float, _exit]),
             builder: (context, _) {
-              final bob = math.sin(_float.value * math.pi) * 3;
+              final bob = math.sin(_float.value * math.pi) * 2.2;
               return Center(
                 child: FadeTransition(
                   opacity: _exitFade,
@@ -313,34 +330,24 @@ class _SplashScreenState extends State<SplashScreen>
                                   progress: _shine.value,
                                 ),
 
-                                // INO reveal on the shield face.
+                                // Premium INO wordmark on the shield face.
                                 Transform.translate(
-                                  offset: Offset(0, -shieldSize * 0.02),
+                                  offset: Offset(0, -shieldSize * 0.015),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       for (var i = 0; i < 3; i++) ...[
                                         if (i > 0)
-                                          SizedBox(width: shieldSize * 0.014),
+                                          SizedBox(width: shieldSize * 0.028),
                                         FadeTransition(
                                           opacity: _letterFade[i],
-                                          child: ScaleTransition(
-                                            scale: _letterScale[i],
-                                            child: Text(
-                                              const ['I', 'N', 'O'][i],
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: shieldSize * 0.23,
-                                                fontWeight: FontWeight.w800,
-                                                height: 1.0,
-                                                shadows: [
-                                                  Shadow(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.28),
-                                                    blurRadius: 8,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
+                                          child: SlideTransition(
+                                            position: _letterSlide[i],
+                                            child: ScaleTransition(
+                                              scale: _letterScale[i],
+                                              child: _InoLetter(
+                                                letter: const ['I', 'N', 'O'][i],
+                                                size: shieldSize,
                                               ),
                                             ),
                                           ),
@@ -362,6 +369,78 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One letter of the splash wordmark — Plus Jakarta Sans, carved white face
+/// with depth + a soft brand glow so it reads as premium type on the clay shield.
+class _InoLetter extends StatelessWidget {
+  const _InoLetter({required this.letter, required this.size});
+
+  final String letter;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final fontSize = size * 0.225;
+    final base = GoogleFonts.plusJakartaSans(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w800,
+      height: 1.0,
+      letterSpacing: fontSize * 0.05,
+    );
+
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        // Soft brand halo.
+        Text(
+          letter,
+          style: base.copyWith(
+            color: Colors.white.withValues(alpha: 0.01),
+            shadows: [
+              Shadow(
+                color: Colors.white.withValues(alpha: 0.40),
+                blurRadius: fontSize * 0.42,
+              ),
+              Shadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.40),
+                blurRadius: fontSize * 0.70,
+              ),
+            ],
+          ),
+        ),
+        // Depth plate.
+        Transform.translate(
+          offset: Offset(0, fontSize * 0.04),
+          child: Text(
+            letter,
+            style: base.copyWith(
+              color: Colors.black.withValues(alpha: 0.30),
+            ),
+          ),
+        ),
+        // Lit face — soft vertical sheen.
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFF5FCFB),
+              Color(0xFFE6F4F3),
+            ],
+            stops: [0.0, 0.48, 1.0],
+          ).createShader(bounds),
+          child: Text(
+            letter,
+            style: base.copyWith(color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MarketRatesService.instance.fetchLive().catchError((_) => <MarketQuote>[]),
     ]);
 
-    final dashboard = results[0] as DashboardData;
+    // results[0] warms DashboardRepository cache (side effect).
     final hub = results[2] as WalletHubData;
     final market = results[4] as List<MarketQuote>;
 

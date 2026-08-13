@@ -292,13 +292,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         textCapitalization: TextCapitalization.sentences,
                         style: AppText.headline
                             .copyWith(color: palette.textPrimary, fontSize: 22),
-                        decoration: InputDecoration(
+                        decoration: _borderlessFieldDecoration(
                           hintText: 'Title',
                           hintStyle: AppText.headline
                               .copyWith(color: palette.textFaint, fontSize: 22),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
@@ -315,9 +312,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           hintText: 'Write your note…',
                           hintStyle:
                               AppText.body.copyWith(color: palette.textFaint),
-                          border: InputBorder.none,
+                          filled: false,
                           isDense: true,
-                          contentPadding: EdgeInsets.zero,
+                          // Keep text inset from the outline so it doesn't
+                          // sit flush against the border while typing.
+                          contentPadding: const EdgeInsets.all(AppSpacing.md),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.chip),
+                            borderSide: BorderSide(color: palette.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.chip),
+                            borderSide: BorderSide(color: palette.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.chip),
+                            borderSide: BorderSide(
+                              color: AppColors.primaryGreen,
+                              width: 1.4,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -335,13 +352,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           controller: _tags,
                           style:
                               AppText.body.copyWith(color: palette.textPrimary),
-                          decoration: InputDecoration(
+                          decoration: _borderlessFieldDecoration(
                             hintText: 'Tags (comma separated)',
                             hintStyle: AppText.body
                                 .copyWith(color: palette.textFaint),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),
@@ -354,6 +368,27 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           _saveBar(palette),
         ],
       ),
+    );
+  }
+
+  /// Clears the app-wide outlined InputDecorationTheme so title/tags stay
+  /// flush inside the card without a nested focus ring.
+  InputDecoration _borderlessFieldDecoration({
+    required String hintText,
+    required TextStyle hintStyle,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: hintStyle,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+      filled: false,
+      isDense: true,
+      contentPadding: EdgeInsets.zero,
     );
   }
 

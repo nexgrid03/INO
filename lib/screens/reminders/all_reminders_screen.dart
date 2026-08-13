@@ -67,8 +67,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final glass = divineGlassEnabled(context);
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final barTop = topInset > 0 ? topInset + 6 : 18.0;
+    final barH = DivineGlassAppBar.barHeight + barTop;
+
     return Scaffold(
       backgroundColor: palette.bg,
+      extendBodyBehindAppBar: glass,
       appBar: DivineGlassAppBar.asPreferredSize(
         context,
         title: widget.scope.localizedTitle(l10n),
@@ -87,9 +93,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         child: const Icon(Icons.add_rounded),
       ),
       body: InoBackground(
-        child: SafeArea(
-          top: false,
-          child: ListenableBuilder(
+        sky: glass,
+        child: Padding(
+          padding: EdgeInsets.only(top: glass ? barH : 0),
+          child: SafeArea(
+            top: !glass,
+            child: ListenableBuilder(
             listenable: _store,
             builder: (context, _) {
               if (!_store.isLoaded) {
@@ -145,6 +154,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               );
             },
           ),
+        ),
         ),
       ),
     );

@@ -133,13 +133,15 @@ class _InoBottomNavState extends State<InoBottomNav>
 
   /// Item angles (degrees, screen coords: -90 is straight up) for [n] slots -
   /// a symmetric arc centred over the button that widens with the count.
+  /// Spreads are tuned so neighbouring icons keep even visual gaps at the
+  /// menu / wheel radius (outer slots used to look cramped vs the crown).
   static List<double> arcAngles(int n) {
     if (n <= 1) return const [-90];
     final spread = switch (n) {
-      2 => 56.0,
-      3 => 100.0,
-      4 => 126.0,
-      _ => 144.0,
+      2 => 70.0,
+      3 => 118.0,
+      4 => 148.0,
+      _ => 168.0,
     };
     final start = -90 - spread / 2;
     final step = spread / (n - 1);
@@ -203,7 +205,7 @@ class _InoBottomNavState extends State<InoBottomNav>
 
   // ---- Press-and-hold wheel --------------------------------------------------
 
-  static const double _wheelRadius = 118;
+  static const double _wheelRadius = 126;
 
   void _onHoldStart(LongPressStartDetails details) {
     if (_open || _wheelOpen) return;
@@ -655,7 +657,11 @@ class _ScanButtonState extends State<_ScanButton> {
 // ---------------------------------------------------------------------------
 
 /// Radius of the fan-out arc the tap menu lays its items on.
-const double _kMenuRadius = 104;
+const double _kMenuRadius = 118;
+
+/// Diameter of each quick-menu icon disc - used so arc maths pin the *disc*
+/// centre (not the label) onto the arc.
+const double _kMenuIconSize = 54;
 
 class _ScanMenu extends StatelessWidget {
   const _ScanMenu({
@@ -729,7 +735,9 @@ class _ScanMenu extends StatelessWidget {
     final t = Curves.easeOutBack.transform(raw);
     final fade = Curves.easeOut.transform(raw);
 
-    const box = 74.0;
+    // Wide enough for the longest English label ("Expenses" / "Reminder")
+    // without clipping; icon + label stay centred in this column.
+    const box = 80.0;
     final cx = center.dx + offset.dx;
     final cy = center.dy + offset.dy;
     // 20px upward rise that eases to 0 as the item settles.
@@ -737,7 +745,8 @@ class _ScanMenu extends StatelessWidget {
 
     return Positioned(
       left: cx - box / 2,
-      top: cy - 27 + rise,
+      // Pin the icon disc centre onto the arc (labels hang below, centred).
+      top: cy - (_kMenuIconSize / 2) + rise,
       width: box,
       child: Opacity(
         opacity: fade,
@@ -752,56 +761,67 @@ class _ScanMenu extends StatelessWidget {
 
   /// A compact tonal "Edit" pill above the arc - opens the quick-menu
   /// customiser. Enters last, after the feature items.
+  ///
+  /// Anchored on the "+" button centre (not the screen centre) so it sits
+  /// directly above the crown item. Width is intrinsic so localized labels
+  /// like Hindi "संपादित करें" never overflow the pill.
   Widget _editChip(BuildContext context) {
     final palette = AppPalette.of(context);
     final raw = ((animation.value - 0.55) / 0.45).clamp(0.0, 1.0);
     final t = Curves.easeOutBack.transform(raw);
     final fade = Curves.easeOut.transform(raw);
+    const chipSlot = 200.0;
 
-    const w = 86.0;
     return Positioned(
-      left: center.dx - w / 2,
-      top: center.dy - _kMenuRadius - 64,
-      width: w,
-      child: Opacity(
-        opacity: fade,
-        child: Transform.scale(
-          scale: 0.7 + 0.3 * t,
-          child: GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: palette.isDark ? palette.bgElevated : Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.35),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black
-                        .withValues(alpha: palette.isDark ? 0.4 : 0.10),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
+      left: center.dx - chipSlot / 2,
+      width: chipSlot,
+      top: center.dy - _kMenuRadius - 76,
+      child: Center(
+        child: Opacity(
+          opacity: fade,
+          child: Transform.scale(
+            scale: 0.7 + 0.3 * t,
+            child: GestureDetector(
+              onTap: onEdit,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: palette.isDark ? palette.bgElevated : Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.35),
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.tune_rounded,
-                      size: 15, color: AppColors.primaryGreen),
-                  const SizedBox(width: 5),
-                  Text(
-                    AppLocalizations.of(context).t('edit'),
-                    style: TextStyle(
-                      color: palette.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black
+                          .withValues(alpha: palette.isDark ? 0.4 : 0.10),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune_rounded,
+                        size: 15, color: AppColors.primaryGreen),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        AppLocalizations.of(context).t('edit'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -842,13 +862,23 @@ class _MenuButtonState extends State<_MenuButton> {
         curve: Curves.easeOut,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 54,
-              height: 54,
+              width: _kMenuIconSize,
+              height: _kMenuIconSize,
               decoration: BoxDecoration(
-                color: palette.isDark ? palette.bgElevated : Colors.white,
+                color: palette.isDark
+                    ? palette.bgElevated
+                    : Color.alphaBlend(
+                        AppColors.primaryGreen.withValues(alpha: 0.06),
+                        Colors.white,
+                      ),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.22),
+                  width: 1.4,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(
@@ -859,13 +889,14 @@ class _MenuButtonState extends State<_MenuButton> {
                   ),
                 ],
               ),
+              alignment: Alignment.center,
               child: Icon(
                 widget.action.icon,
                 color: AppColors.primaryGreen,
                 size: 24,
               ),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 8),
             Text(
               widget.action.label(AppLocalizations.of(context)),
               maxLines: 1,
@@ -875,6 +906,7 @@ class _MenuButtonState extends State<_MenuButton> {
                 color: palette.textPrimary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
+                height: 1.1,
                 shadows: palette.isDark
                     ? null
                     : const [
@@ -988,14 +1020,15 @@ class _QuickWheel extends StatelessWidget {
     final t = Curves.easeOutBack.transform(raw);
     final fade = Curves.easeOut.transform(raw);
 
-    const box = 78.0;
+    const box = 80.0;
+    const iconSize = 56.0;
     final cx = center.dx + offset.dx;
     final cy = center.dy + offset.dy;
     final rise = 16 * (1 - fade);
 
     return Positioned(
       left: cx - box / 2,
-      top: cy - 28 + rise,
+      top: cy - (iconSize / 2) + rise,
       width: box,
       child: ValueListenableBuilder<int?>(
         valueListenable: highlight,
@@ -1008,6 +1041,7 @@ class _QuickWheel extends StatelessWidget {
               alignment: Alignment.topCenter,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (InoStyle.usesDivineGlass(context) && !hot)
                     LiquidGlass(
@@ -1015,8 +1049,8 @@ class _QuickWheel extends StatelessWidget {
                       blur: 16,
                       padding: EdgeInsets.zero,
                       child: SizedBox(
-                        width: 56,
-                        height: 56,
+                        width: iconSize,
+                        height: iconSize,
                         child: Icon(
                           action.icon,
                           color: AppColors.primaryGreen,
@@ -1028,15 +1062,27 @@ class _QuickWheel extends StatelessWidget {
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 140),
                       curve: Curves.easeOut,
-                      width: 56,
-                      height: 56,
+                      width: iconSize,
+                      height: iconSize,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: hot
                             ? AppColors.primaryGreen
                             : (palette.isDark
                                 ? palette.bgElevated
-                                : Colors.white),
+                                : Color.alphaBlend(
+                                    AppColors.primaryGreen
+                                        .withValues(alpha: 0.06),
+                                    Colors.white,
+                                  )),
                         shape: BoxShape.circle,
+                        border: hot
+                            ? null
+                            : Border.all(
+                                color: AppColors.primaryGreen
+                                    .withValues(alpha: 0.22),
+                                width: 1.4,
+                              ),
                         boxShadow: [
                           BoxShadow(
                             color: hot
@@ -1054,7 +1100,7 @@ class _QuickWheel extends StatelessWidget {
                         size: InoStyle.usesDivineGlass(context) ? 26 : 24,
                       ),
                     ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 8),
                   Text(
                     action.label(AppLocalizations.of(context)),
                     maxLines: 1,
@@ -1066,6 +1112,7 @@ class _QuickWheel extends StatelessWidget {
                           : palette.textPrimary,
                       fontSize: 11.5,
                       fontWeight: hot ? FontWeight.w800 : FontWeight.w700,
+                      height: 1.1,
                       shadows: palette.isDark
                           ? null
                           : const [Shadow(color: Colors.white, blurRadius: 6)],

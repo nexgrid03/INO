@@ -1,8 +1,9 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
@@ -15,7 +16,6 @@ import '../../services/document_file_service.dart';
 import '../../services/document_processor.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -67,7 +67,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   /// Copy-style processing is only available when every selected document is an
   /// image (PDFs can't be transformed with the current toolchain).
   bool get _allImages => widget.documents.every((d) =>
-      d.filePath != null && !d.filePath!.toLowerCase().endsWith('.pdf'));
+      d.hasUploadedFile && !d.filePath!.toLowerCase().endsWith('.pdf'));
 
   ShareSettings _settings() => ShareSettings(
         colorMode: _color,
@@ -92,49 +92,34 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     return results;
   }
 
-  Future<void> _generateAndShare() async {
-    if (_busy) return;
-    final l10n = AppLocalizations.of(context);
-    final settings = _settings();
-    setState(() => _busy = true);
-    try {
-      final results = await _processAll(settings);
-      if (!mounted) return;
-      final files = [
-        for (var i = 0; i < results.length; i++)
-          XFile(results[i].path,
-              name: _shareName(widget.documents[i], results[i].isPdf)),
-      ];
-      final origin = shareOrigin(context);
-      await Share.shareXFiles(
-        files,
-        subject: 'Shared securely from INO',
-        sharePositionOrigin: origin,
-      );
-      if (mounted) Navigator.of(context).maybePop();
-    } on DocumentProcessException catch (e) {
-      _toast(e.message, error: true);
-    } catch (_) {
-      _toast(l10n.t('couldNotGenerateShareCopy'), error: true);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// Generates the QR share through the EXISTING, already-deployed sharing
-  /// backend (the `create_document_share` RPC + `share` Edge Function + Vercel
-  /// viewer). Two paths, both landing on the same viewer with the EXACT copy
-  /// style the user selected:
+  /// Generates the QR / secure link through the EXISTING sharing backend
+  /// (`create_document_share` RPC + `share` Edge Function + public viewer).
   ///
-  ///   • Original Color (no pixel change) → shares the real documents directly,
-  ///     exactly like the pre-existing QR flow.
-  ///   • Black & White / Grayscale / Compressed PDF → produces the processed
-  ///     copy, uploads it as a hidden document, and shares THAT - so the QR
-  ///     opens the selected copy style in the existing viewer.
+  ///   • Original Color → shares the real documents directly.
+  ///   • Black & White / Grayscale / Compressed PDF → processed copy upload
+  ///     (mobile only; web uses Original Color).
   Future<void> _generateQr() async {
     if (_busy) return;
     final l10n = AppLocalizations.of(context);
+    final missing = widget.documents.where((d) => !d.hasUploadedFile).toList();
+    if (missing.isNotEmpty) {
+      _toast(
+        missing.length == widget.documents.length
+            ? 'These documents have no uploaded file to share yet'
+            : '${missing.length} document${missing.length == 1 ? '' : 's'} have no uploaded file',
+        error: true,
+      );
+      return;
+    }
     final settings = _settings();
+    // Pixel processing needs dart:io temp files — not available on web.
+    if (kIsWeb && settings.requiresImageProcessing) {
+      _toast(
+        'B&W / grayscale share is available in the mobile app. Use Original Color on web.',
+        error: true,
+      );
+      return;
+    }
     setState(() => _busy = true);
     try {
       final DocumentShare share;
@@ -180,7 +165,8 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
       _toast(e.message, error: true);
     } on DocumentProcessException catch (e) {
       _toast(e.message, error: true);
-    } catch (_) {
+    } catch (e, st) {
+      developer.log('generateQr failed: $e', name: 'share', error: e, stackTrace: st);
       _toast(l10n.t('couldNotCreateQr'), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -259,12 +245,6 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
     );
   }
 
-  String _shareName(DocumentRecord doc, bool isPdf) {
-    final base = doc.name.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
-    final safe = base.isEmpty ? 'document' : base;
-    return '$safe (shared).${isPdf ? 'pdf' : 'jpg'}';
-  }
-
   void _toast(String m, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -313,6 +293,14 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                       meta: meta,
                       icon: primary.icon,
                     ),
+                    if (docs.any((d) => !d.hasUploadedFile)) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _InfoBanner(
+                        icon: Icons.upload_file_rounded,
+                        text:
+                            'One or more selected documents have no uploaded file. Open the document and re-upload a photo/PDF, then Generate again.',
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
 
                     _sectionLabel(l10n.t('accessType'), palette),
@@ -375,8 +363,11 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
               _ActionBar(
                 busy: _busy,
                 viewOnce: _isViewOnce,
+                // Secure Link + QR both mint a backend share and open the QR/
+                // link screen. The old OS "share file copy" path breaks on web
+                // (dart:io) and did not produce a secure link.
                 onGenerate:
-                    _isViewOnce ? _generateViewOnce : _generateAndShare,
+                    _isViewOnce ? _generateViewOnce : _generateQr,
                 onQr: _isViewOnce || _busy ? null : _generateQr,
               ),
             ],

@@ -187,12 +187,20 @@ class DocumentRecord {
   /// The structured OCR data extracted from this document (empty when none).
   DocumentExtraction get extraction => DocumentExtraction.decode(notes);
 
+  /// True when [filePath] points at a real uploaded Storage object.
+  bool get hasUploadedFile {
+    final p = filePath;
+    return p != null && p.trim().isNotEmpty;
+  }
+
   DocumentRecord copyWith({
     String? name,
     String? category,
     DocumentStatus? status,
     bool? isFavorite,
     String? doctorName,
+    String? filePath,
+    bool clearFilePath = false,
   }) {
     return DocumentRecord(
       id: id,
@@ -206,7 +214,7 @@ class DocumentRecord {
       recordNumber: recordNumber,
       tags: tags,
       isFavorite: isFavorite ?? this.isFavorite,
-      filePath: filePath,
+      filePath: clearFilePath ? null : (filePath ?? this.filePath),
       notes: notes,
       doctorName: doctorName ?? this.doctorName,
     );

@@ -62,7 +62,7 @@ class WalletHeader extends StatelessWidget {
       );
     } else if (onManageShares != null) {
       trailing = DivineGlassHeaderAction(
-        icon: Icons.more_vert_rounded,
+        icon: Icons.qr_code_scanner_rounded,
         tooltip: l10n.t('sharedLinks'),
         onTap: onManageShares!,
       );

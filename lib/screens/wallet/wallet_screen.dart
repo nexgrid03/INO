@@ -11,7 +11,6 @@ import '../../navigation/wallet_module_router.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
-import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/pressable_scale.dart';
@@ -182,69 +181,75 @@ class _WalletScreenState extends State<WalletScreen> {
             future: _future,
             builder: (context, snapshot) {
               final data = snapshot.data;
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header - avatar · "My Wallets" · notification bell.
-                    // No FadeSlideIn on Divine Glass / web — staggered tickers
-                    // have left hub content stuck at opacity 0 after hot reload.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: _animateIn(
-                        context,
-                        child: _HubHeader(
-                          fullName: widget.profile.fullName,
-                          notificationCount: data?.insights.length ?? 0,
-                          onNotifications: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationsScreen(),
-                            ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header - avatar · "My Wallets" · notification bell.
+                  // Fixed — only the search + grid below scroll.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _animateIn(
+                      context,
+                      child: _HubHeader(
+                        fullName: widget.profile.fullName,
+                        notificationCount: data?.insights.length ?? 0,
+                        onNotifications: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
                           ),
                         ),
                       ),
                     ),
-                    // Compact hero search - the hub's primary affordance.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                      child: _animateIn(
-                        context,
-                        delay: const Duration(milliseconds: 60),
-                        child: FloatingSearchBar(
-                          hint: l10n.t('searchWallets'),
-                          height: 46,
-                          onTap: _searchDocuments,
-                          // Its own tap target: taps on the filter icon open the
-                          // filter panel, not the search (the inner
-                          // GestureDetector wins the tap over the bar's outer one).
-                          trailing: _FilterButton(
-                            onTap: data == null
-                                ? null
-                                : () => _openFilters(data.categories),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Compact hero search - the hub's primary affordance.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                            child: _animateIn(
+                              context,
+                              delay: const Duration(milliseconds: 60),
+                              child: FloatingSearchBar(
+                                hint: l10n.t('searchWallets'),
+                                height: 46,
+                                onTap: _searchDocuments,
+                                // Its own tap target: taps on the filter icon open the
+                                // filter panel, not the search (the inner
+                                // GestureDetector wins the tap over the bar's outer one).
+                                trailing: _FilterButton(
+                                  onTap: data == null
+                                      ? null
+                                      : () => _openFilters(data.categories),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          // Launcher grid - fixed-height cards, every wallet plus the
+                          // trailing "New Wallet" slot.
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: data == null
+                                ? const _LoadingState()
+                                : WalletGrid(
+                                    categories: data.categories,
+                                    onOpen: _openWallet,
+                                    onAdd: _addWallet,
+                                    onLongPress: _onLongPress,
+                                  ),
+                          ),
+                          // Clear the floating bottom nav (matches Home).
+                          SizedBox(
+                            height: MediaQuery.paddingOf(context).bottom + 110,
+                          ),
+                        ],
                       ),
                     ),
-                    // Launcher grid - fixed-height cards, every wallet plus the
-                    // trailing "New Wallet" slot.
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: data == null
-                          ? const _LoadingState()
-                          : WalletGrid(
-                              categories: data.categories,
-                              onOpen: _openWallet,
-                              onAdd: _addWallet,
-                              onLongPress: _onLongPress,
-                            ),
-                    ),
-                    // Clear the floating bottom nav (matches Home).
-                    SizedBox(
-                      height: MediaQuery.paddingOf(context).bottom + 110,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           ),
@@ -375,7 +380,8 @@ class _HubHeader extends StatelessWidget {
   }
 }
 
-/// Circular notification control (hub header style) with an unread dot.
+/// Circular notification control matching [VoiceMicIconButton]: solid white
+/// disc + brand-green glyph so mic and bell read as one pair on sky washes.
 class _BellButton extends StatelessWidget {
   const _BellButton({
     required this.onTap,
@@ -390,47 +396,50 @@ class _BellButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final iconStack = Stack(
-      alignment: Alignment.center,
-      children: [
-        Icon(
-          Icons.notifications_none_rounded,
-          size: 20,
-          color: palette.textPrimary,
-        ),
-        if (badge > 0)
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: AppColors.critical,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
+    const size = 44.0;
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
         message: tooltip,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: LiquidGlass(
-            circle: true,
-            blur: 12,
-            frost: palette.isDark ? 1.0 : 0.72,
-            shadow: false,
-            padding: EdgeInsets.zero,
-            child: SizedBox(width: 44, height: 44, child: iconStack),
+        child: Material(
+          color: palette.isDark ? palette.bgElevated : Colors.white,
+          shape: CircleBorder(side: BorderSide(color: palette.border)),
+          clipBehavior: Clip.antiAlias,
+          elevation: palette.isDark ? 0 : 1,
+          shadowColor: Colors.black26,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_rounded,
+                    size: 21,
+                    color: AppColors.primaryGreen,
+                  ),
+                  if (badge > 0)
+                    Positioned(
+                      top: 9,
+                      right: 9,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppColors.critical,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

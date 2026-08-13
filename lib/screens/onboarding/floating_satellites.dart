@@ -31,12 +31,12 @@ const List<double> _floatPhases = [0.0, 0.4, 0.7, 0.2, 0.55];
 
 /// Distinct palette accents (const) — readable in light and dark, independent
 /// of [AppColors.primaryGreen] which tracks the Aqua style switch.
-const Color _cTeal = Color(0xFF0EA5E9);
+const Color _cTeal = Color(0xFF098F90);
 const Color _cMint = Color(0xFF14B8A6);
 const Color _cViolet = Color(0xFF8B5CF6);
 const Color _cAmber = Color(0xFFF59E0B);
 const Color _cCoral = Color(0xFFF43F5E);
-const Color _cIndigo = Color(0xFF6366F1);
+const Color _cIndigo = Color(0xFF0D9488);
 const Color _cEmerald = Color(0xFF10B981);
 
 /// Contextual chips per screen — each icon gets its own accent.
@@ -104,9 +104,8 @@ class FloatingSatellites extends StatelessWidget {
             _Satellite(
               data: data[i],
               offset: _positions[i],
-              // Stagger the pops AFTER the main circle has fully appeared
-              // (~0.34) and BEFORE the title starts (~0.81).
-              popStart: 0.38 + i * 0.07,
+              // Stagger pops after the main circle (~0.22) and before title (~0.68).
+              popStart: 0.32 + i * 0.06,
               floatPhase: _floatPhases[i],
               pop: pop,
               float: float,
@@ -134,8 +133,8 @@ class _Satellite extends StatelessWidget {
   final Animation<double> pop;
   final Animation<double> float;
 
-  static const double _popLength = 0.14;
-  static const double _floatAmplitude = 5.0; // px of vertical bob
+  static const double _popLength = 0.12;
+  static const double _floatAmplitude = 3.5; // subtle bob — premium, not playful
 
   @override
   Widget build(BuildContext context) {

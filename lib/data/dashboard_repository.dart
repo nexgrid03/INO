@@ -207,7 +207,7 @@ class SampleDashboardRepository implements DashboardRepository {
       PriorityItem(
         title: "Aanya's birthday",
         subtitle: 'Plan a gift & reminder',
-        icon: Icons.cake_rounded,
+        icon: Icons.event_rounded,
         level: PriorityLevel.info,
         due: 'in 5 days',
       ),

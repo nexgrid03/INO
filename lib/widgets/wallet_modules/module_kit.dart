@@ -8,7 +8,6 @@ import '../../theme/theme_style.dart';
 import '../common/ino_back_button.dart';
 import '../common/ino_options_sheet.dart';
 import '../common/liquid_glass.dart';
-import '../common/shiny_icon.dart';
 import '../common/success_tick_mark.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
@@ -64,9 +63,9 @@ class ModuleSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              ShinyIcon(
+              AdaptiveListIcon(
                 icon: icon,
-                color: color,
+                accent: color,
                 size: 38,
                 iconSize: 19,
                 radius: 12,
@@ -126,33 +125,43 @@ class DetailRow extends StatelessWidget {
     final palette = AppPalette.of(context);
     final v = value?.trim();
     if (v == null || v.isEmpty) return const SizedBox.shrink();
+
+    final isUrl = v.startsWith('http://') || v.startsWith('https://');
+    // Long map links stay on one centred line with ellipsis so they don't
+    // stack awkwardly beside the copy / chevron controls.
+    final valueStyle = AppText.subtitle.copyWith(
+      color: valueColor ?? palette.textPrimary,
+      fontSize: 13.5,
+      fontFamily: monospace ? 'monospace' : null,
+      height: 1.25,
+    );
+
     final row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
             Icon(icon, size: 15, color: palette.textFaint),
             const SizedBox(width: 8),
           ],
-          Expanded(
-            flex: 4,
+          SizedBox(
+            width: 88,
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: palette.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            flex: 6,
             child: Text(
-              v,
+              isUrl ? _shortMapsLabel(v) : v,
               textAlign: TextAlign.right,
-              style: AppText.subtitle.copyWith(
-                color: valueColor ?? palette.textPrimary,
-                fontSize: 13.5,
-                fontFamily: monospace ? 'monospace' : null,
-              ),
+              maxLines: isUrl ? 1 : 3,
+              overflow: TextOverflow.ellipsis,
+              style: valueStyle,
             ),
           ),
           if (copyable) ...[
@@ -168,8 +177,9 @@ class DetailRow extends StatelessWidget {
             ),
           ],
           if (onTap != null) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, size: 18, color: palette.textFaint),
+            const SizedBox(width: 2),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: palette.textFaint),
           ],
         ],
       ),
@@ -181,6 +191,20 @@ class DetailRow extends StatelessWidget {
       child: row,
     );
   }
+}
+
+/// Friendly single-line label for Google Maps / generic https links.
+String _shortMapsLabel(String url) {
+  final lower = url.toLowerCase();
+  if (lower.contains('maps.app.goo.gl') ||
+      lower.contains('google.com/maps') ||
+      lower.contains('maps.google')) {
+    return 'Google Maps link';
+  }
+  // Strip scheme for a cleaner ellipsis.
+  return url
+      .replaceFirst(RegExp(r'^https?://'), '')
+      .replaceFirst(RegExp(r'^www\.'), '');
 }
 
 class _MiniIconButton extends StatelessWidget {
@@ -977,6 +1001,7 @@ class ModuleIconButton extends StatelessWidget {
     this.tooltip,
     this.color,
     this.size = 42,
+    this.iconSize,
     this.badge = 0,
   });
 
@@ -985,20 +1010,25 @@ class ModuleIconButton extends StatelessWidget {
   final String? tooltip;
   final Color? color;
   final double size;
+
+  /// Glyph size inside the circular button. Defaults to 18 (glass) / 20 (classic).
+  final double? iconSize;
   final int badge;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final launcher = divineGlassEnabled(context);
+    final mist = InoStyle.isAquaMist(context) && !palette.isDark;
+    final glyph = iconSize ?? (launcher ? 18.0 : 20.0);
+    final brand = AppColors.aquaPrimary;
     final iconWidget = Stack(
       alignment: Alignment.center,
       children: [
         Icon(
           icon,
-          size: launcher ? 18 : 20,
-          color: color ??
-              (launcher ? AppColors.primaryGreen : palette.textPrimary),
+          size: glyph,
+          color: color ?? AppColors.primaryGreen,
         ),
         if (badge > 0)
           Positioned(
@@ -1016,38 +1046,53 @@ class ModuleIconButton extends StatelessWidget {
           ),
       ],
     );
+    final plate = Material(
+      color: palette.isDark ? palette.bgElevated : Colors.white,
+      shape: CircleBorder(
+        side: BorderSide(
+          color: mist
+              ? brand.withValues(alpha: 0.34)
+              : palette.border,
+          width: mist ? 1.35 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: mist || palette.isDark ? 0 : 1,
+      shadowColor: Colors.black26,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: iconWidget,
+        ),
+      ),
+    );
     final button = PressableScale(
       pressedScale: 0.9,
-      child: launcher
-          ? GestureDetector(
-              onTap: onTap,
-              behavior: HitTestBehavior.opaque,
-              child: LiquidGlass(
-                circle: true,
-                blur: 12,
-                frost: 0.9,
-                shadow: false,
-                padding: EdgeInsets.zero,
-                child: SizedBox(
-                  width: size,
-                  height: size,
-                  child: iconWidget,
-                ),
+      // Always solid white/surface — frosted LiquidGlass washed out on sky
+      // backdrops (Passwords / Investments headers). Mist gets a teal jewelry
+      // rim + soft brand bloom so the disc doesn't dissolve into #DFF3F3.
+      child: mist
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: brand.withValues(alpha: 0.18),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
+              child: plate,
             )
-          : Material(
-              color: palette.surface,
-              shape: CircleBorder(side: BorderSide(color: palette.border)),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onTap,
-                child: SizedBox(
-                  width: size,
-                  height: size,
-                  child: iconWidget,
-                ),
-              ),
-            ),
+          : plate,
     );
     return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
   }
@@ -1109,35 +1154,43 @@ class _SuccessBurstState extends State<_SuccessBurst>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    // Overlay entries sit above the tree — wrap in Material so the message
+    // inherits DefaultTextStyle (avoids the debug yellow underline).
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (context, _) {
-          final t = _c.value;
-          // Fade the whole overlay in quickly, hold, then fade out.
-          final opacity = t < 0.10
-              ? t / 0.10
-              : (t > 0.78 ? (1 - (t - 0.78) / 0.22).clamp(0.0, 1.0) : 1.0);
-          return Opacity(
-            opacity: opacity,
-            child: Container(
-              color: palette.bg.withValues(alpha: 0.62),
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SuccessTickMark(size: 84),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    widget.message,
-                    textAlign: TextAlign.center,
-                    style: AppText.title.copyWith(color: palette.textPrimary),
-                  ),
-                ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) {
+            final t = _c.value;
+            // Fade the whole overlay in quickly, hold, then fade out.
+            final opacity = t < 0.10
+                ? t / 0.10
+                : (t > 0.78 ? (1 - (t - 0.78) / 0.22).clamp(0.0, 1.0) : 1.0);
+            return Opacity(
+              opacity: opacity,
+              child: Container(
+                color: palette.bg.withValues(alpha: 0.62),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SuccessTickMark(size: 84),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      widget.message,
+                      textAlign: TextAlign.center,
+                      style: AppText.title.copyWith(
+                        color: palette.textPrimary,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

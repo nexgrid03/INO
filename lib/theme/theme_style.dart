@@ -83,6 +83,11 @@ class InoStyle {
     return style == ThemeStyle.aquaLight || style == ThemeStyle.aquaMist;
   }
 
+  /// Flat #DFF3F3 mist wash — circular chrome needs porcelain + teal rim
+  /// so back / header actions don't dissolve into the backdrop.
+  static bool isAquaMist(BuildContext context) =>
+      of(context) == ThemeStyle.aquaMist;
+
   /// Compact Home + Divine Glass chrome — launcher + aqua family + clay.
   static bool usesDivineGlass(BuildContext context) =>
       usesDivineGlassStyle(of(context));

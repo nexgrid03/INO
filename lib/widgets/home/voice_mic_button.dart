@@ -11,12 +11,11 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
 
-/// A small, **highlighted** voice-assistant button - a filled brand-gradient
-/// circle with a white mic and a soft teal glow, meant to sit beside the
-/// notification bell so the voice action clearly stands out. It looks identical
-/// everywhere it's used (Home, Wallet, …). Tapping it opens the voice-command
-/// sheet; when a command is recognized, the matched destination navigates itself
-/// (via [VoiceCommand.navigate]) - no host wiring required.
+/// A small voice-assistant button that sits beside the notification bell.
+///
+/// Uses a solid white disc + brand-green mic so it stays readable on sky
+/// washes and matches the bell (not a darker filled gradient that looks
+/// like a different control).
 class VoiceMicIconButton extends StatelessWidget {
   const VoiceMicIconButton({super.key, this.size = 42});
 
@@ -24,39 +23,35 @@ class VoiceMicIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
         message: 'Voice assistant',
-        child: GestureDetector(
-          onTap: () async {
-            HapticFeedback.mediumImpact();
-            // Voice commands act on the user's data (open wallets, create
-            // reminders…), so explore mode asks for an account first.
-            if (!await GuestMode.requireAuth(context)) return;
-            if (!context.mounted) return;
-            showVoiceCommandSheet(context);
-          },
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              gradient: InoStyle.gradient(context, AppColors.brandGradient),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.5),
-                width: 1.2,
+        child: Material(
+          color: palette.isDark ? palette.bgElevated : Colors.white,
+          shape: CircleBorder(side: BorderSide(color: palette.border)),
+          clipBehavior: Clip.antiAlias,
+          elevation: palette.isDark ? 0 : 1,
+          shadowColor: Colors.black26,
+          child: InkWell(
+            onTap: () async {
+              HapticFeedback.mediumImpact();
+              // Voice commands act on the user's data (open wallets, create
+              // reminders…), so explore mode asks for an account first.
+              if (!await GuestMode.requireAuth(context)) return;
+              if (!context.mounted) return;
+              showVoiceCommandSheet(context);
+            },
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(
+                Icons.mic_rounded,
+                color: AppColors.primaryGreen,
+                size: size * 0.48,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
-            child: const Icon(Icons.mic_rounded, color: Colors.white, size: 21),
           ),
         ),
       ),
