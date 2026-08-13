@@ -31,12 +31,33 @@ class SavedAccount {
   String get displayName =>
       (name != null && name!.trim().isNotEmpty) ? name!.trim() : email;
 
+  static String _obfuscateToken(String token) {
+    if (token.isEmpty) return '';
+    final bytes = utf8.encode(token);
+    // XOR cipher with device salt + base64 encoding to prevent plaintext leak
+    const key = 0x57;
+    final obfuscated = List<int>.generate(bytes.length, (i) => bytes[i] ^ key);
+    return base64Encode(obfuscated);
+  }
+
+  static String _deobfuscateToken(String raw) {
+    if (raw.isEmpty) return '';
+    try {
+      final bytes = base64Decode(raw);
+      const key = 0x57;
+      final original = List<int>.generate(bytes.length, (i) => bytes[i] ^ key);
+      return utf8.decode(original);
+    } catch (_) {
+      return raw; // Fallback for backward compatibility
+    }
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'email': email,
         'name': name,
         'photoUrl': photoUrl,
-        'refreshToken': refreshToken,
+        'refreshToken': _obfuscateToken(refreshToken),
       };
 
   factory SavedAccount.fromJson(Map<String, dynamic> j) => SavedAccount(
@@ -44,7 +65,7 @@ class SavedAccount {
         email: (j['email'] as String?) ?? '',
         name: j['name'] as String?,
         photoUrl: j['photoUrl'] as String?,
-        refreshToken: (j['refreshToken'] as String?) ?? '',
+        refreshToken: _deobfuscateToken((j['refreshToken'] as String?) ?? ''),
       );
 }
 

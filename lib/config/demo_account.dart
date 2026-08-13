@@ -18,4 +18,4 @@ const String demoPassword = 'DemoUser@123';
 
 /// When `true`, the login screen shows the "Login as Guest" button.
 /// Set to `false` for production releases to hide it completely.
-const bool isDemoBuild = true;
+const bool isDemoBuild = false;

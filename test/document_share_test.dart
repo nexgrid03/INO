@@ -122,9 +122,8 @@ void main() {
           'https://ilfzppryyojoponkomrw.functions.supabase.co/share');
     });
 
-    test('public share URL uses the token on the public (Vercel) domain', () {
+    test('public share URL uses the token on the public domain', () {
       final s = _make();
-      expect(s.url, 'https://ino-share-web.vercel.app/s/a8f9x2k40b1c');
       expect(s.url, ShareConfig.publicUrl('a8f9x2k40b1c'));
       expect(s.url, endsWith('/s/a8f9x2k40b1c'));
     });

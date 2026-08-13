@@ -47,6 +47,34 @@ class TwoFactorService {
     }
   }
 
+  /// Checks whether the current session requires an MFA challenge (aal1 -> aal2).
+  Future<bool> needsMfaChallenge() async {
+    try {
+      final res = _auth.mfa.getAuthenticatorAssuranceLevel();
+      final current = res.currentLevel?.name.toLowerCase() ?? '';
+      final next = res.nextLevel?.name.toLowerCase() ?? '';
+      return current == 'aal1' && next == 'aal2';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verifies TOTP code during sign-in challenge to elevate session to aal2.
+  Future<void> challengeAndVerifyCurrentSession(String code) async {
+    final factors = await _auth.mfa.listFactors();
+    final verified = factors.totp.where((f) => f.status == FactorStatus.verified);
+    if (verified.isEmpty) {
+      throw const AuthException('No verified 2FA factor found on this account.');
+    }
+    final factor = verified.first;
+    final challenge = await _auth.mfa.challenge(factorId: factor.id);
+    await _auth.mfa.verify(
+      factorId: factor.id,
+      challengeId: challenge.id,
+      code: code.trim(),
+    );
+  }
+
   /// Begins TOTP enrollment. Clears any stale *unverified* factors first so a
   /// retried setup doesn't collide on friendly-name uniqueness.
   Future<TotpSetup> startEnrollment() async {

@@ -55,6 +55,8 @@ class DocumentShare {
     required this.createdAt,
     required this.expiresAt,
     this.lastAccessedAt,
+    this.hasPassword = false,
+    this.isViewOnly = false,
   });
 
   final String id;
@@ -68,6 +70,8 @@ class DocumentShare {
   final DateTime createdAt;
   final DateTime expiresAt;
   final DateTime? lastAccessedAt;
+  final bool hasPassword;
+  final bool isViewOnly;
 
   /// The public, Google-Drive-style URL encoded in the QR code.
   String get url => ShareConfig.publicUrl(token);
@@ -102,6 +106,8 @@ class DocumentShare {
       createdAt: createdAt,
       expiresAt: expiresAt,
       lastAccessedAt: lastAccessedAt,
+      hasPassword: hasPassword,
+      isViewOnly: isViewOnly,
     );
   }
 
@@ -123,9 +129,11 @@ class DocumentShare {
       downloadsCount: (map['downloads_count'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       expiresAt: DateTime.parse(map['expires_at'] as String),
-      lastAccessedAt: map['last_accessed_at'] == null
-          ? null
-          : DateTime.parse(map['last_accessed_at'] as String),
+      lastAccessedAt: map['last_accessed_at'] != null
+          ? DateTime.tryParse(map['last_accessed_at'] as String)
+          : null,
+      hasPassword: (map['has_password'] as bool?) ?? (map['password_hash'] != null),
+      isViewOnly: (map['is_view_only'] as bool?) ?? false,
     );
   }
 

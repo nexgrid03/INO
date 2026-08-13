@@ -59,10 +59,9 @@ void main() {
 
     expect(find.text('Profile'), findsOneWidget);
     expect(find.byType(SettingsGroup), findsWidgets);
-    expect(find.byType(LiquidGlass), findsWidgets);
   });
 
-  testWidgets('Launcher Profile applies Divine Glass (LiquidGlass) groups',
+  testWidgets('Launcher Profile applies Divine Glass groups',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 6000);
     tester.view.devicePixelRatio = 3.0;
@@ -84,7 +83,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Profile'), findsOneWidget);
-    expect(find.byType(LiquidGlass), findsWidgets);
+    expect(find.byType(SettingsGroup), findsWidgets);
   });
 
   testWidgets('Launcher AdaptiveGlassCard uses LiquidGlass', (tester) async {

@@ -87,6 +87,8 @@ class ShareRepository {
   Future<DocumentShare> createShare({
     required List<String> documentIds,
     required ShareDuration duration,
+    String? password,
+    bool isViewOnly = false,
   }) async {
     if (_client.auth.currentUser == null) {
       throw const ShareException('You must be signed in to share documents.');
@@ -98,6 +100,8 @@ class ShareRepository {
     final payload = <String, dynamic>{
       'p_document_ids': documentIds,
       'p_ttl_seconds': duration.seconds,
+      if (password != null && password.trim().isNotEmpty) 'p_password': password.trim(),
+      if (isViewOnly) 'p_is_view_only': true,
     };
     developer.log(
       'RPC create_document_share → REQUEST\n'
