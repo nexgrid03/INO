@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../screens/scan/scan_theme.dart';
 import '../pressable_scale.dart';
 
 /// Lifecycle of the capture button, which changes its look per state.
@@ -31,8 +30,6 @@ class ScanControls extends StatelessWidget {
   final VoidCallback onToggleFlash;
   final IconData flashIcon;
   final String flashLabel;
-
-  /// Whether the flash is in a non-off mode (drives the active accent).
   final bool flashActive;
   final CaptureButtonState captureState;
   final bool enabled;
@@ -52,12 +49,7 @@ class ScanControls extends StatelessWidget {
           state: captureState,
           onTap: enabled ? onCapture : null,
         ),
-        _SideButton(
-          icon: flashIcon,
-          label: flashLabel,
-          active: flashActive,
-          onTap: enabled ? onToggleFlash : null,
-        ),
+        const SizedBox(width: 64),
       ],
     );
   }
@@ -73,7 +65,6 @@ class _CaptureButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final busy = state == CaptureButtonState.capturing;
     final success = state == CaptureButtonState.success;
-    final detected = state == CaptureButtonState.detected;
 
     Widget core;
     if (busy) {
@@ -81,45 +72,36 @@ class _CaptureButton extends StatelessWidget {
         padding: EdgeInsets.all(18),
         child: CircularProgressIndicator(
           strokeWidth: 3,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
         ),
       );
     } else if (success) {
-      core = const Icon(Icons.check_rounded, color: Colors.white, size: 30);
+      core = const Icon(Icons.check_rounded, color: Colors.black, size: 30);
     } else {
-      core = const Icon(Icons.camera_rounded, color: Colors.white, size: 28);
+      core = const SizedBox.shrink();
     }
 
     return PressableScale(
-      pressedScale: 0.9,
+      pressedScale: 0.92,
       child: GestureDetector(
         onTap: busy ? null : onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          width: 78,
-          height: 78,
+        child: Container(
+          width: 76,
+          height: 76,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: ScanColors.surface,
+            color: Colors.black.withValues(alpha: 0.3),
             border: Border.all(
-              color: detected ? ScanColors.accent : ScanColors.border,
-              width: detected ? 5 : 4,
+              color: Colors.white,
+              width: 3.5,
             ),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    ScanColors.accent.withValues(alpha: detected ? 0.55 : 0.35),
-                blurRadius: detected ? 28 : 20,
-                spreadRadius: detected ? 2 : 1,
-              ),
-            ],
           ),
-          padding: const EdgeInsets.all(5),
+          padding: const EdgeInsets.all(4.5),
           child: Container(
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: ScanColors.gradient,
+              color: Colors.white,
             ),
             child: Center(child: core),
           ),
@@ -134,17 +116,14 @@ class _SideButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.active = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? ScanColors.accent : ScanColors.textSecondary;
     return Opacity(
       opacity: onTap == null ? 0.4 : 1,
       child: PressableScale(
@@ -161,19 +140,20 @@ class _SideButton extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: ScanColors.surfaceVariant,
+                    color: Colors.black.withValues(alpha: 0.4),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: active ? ScanColors.accent : ScanColors.border,
+                      color: Colors.white.withValues(alpha: 0.4),
+                      width: 1.5,
                     ),
                   ),
-                  child: Icon(icon, color: color, size: 23),
+                  child: Icon(icon, color: Colors.white, size: 23),
                 ),
                 const SizedBox(height: 7),
                 Text(
                   label,
-                  style: TextStyle(
-                    color: color,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),

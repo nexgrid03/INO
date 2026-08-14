@@ -9,10 +9,7 @@ import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
-import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/scan/scan_controls.dart';
-import '../../widgets/scan/scan_detection_toast.dart';
-import '../../widgets/scan/scanner_overlay.dart';
 import 'scan_theme.dart';
 
 /// Screen 1 - the production document scanner.
@@ -53,20 +50,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// pre-loaded to a "detected"/"ready" value.
   ScannerState _state = ScannerState.idle;
 
+  bool _isAutoMode = true;
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
-
-  // ---- Transient detection feedback ---------------------------------------
-  // A one-shot success toast + "hold steady" hint that appear only on a genuine
-  // idle → detected transition and fade themselves out - so the preview stays
-  // clean and the same document never re-spams a popup.
-  bool _showToast = false;
-  bool _showHoldHint = false;
-  Timer? _toastTimer;
-  Timer? _hintTimer;
-
-  static const Duration _kToastDuration = Duration(milliseconds: 1500);
-  static const Duration _kHintDuration = Duration(milliseconds: 2000);
 
   // ---- Live document detection --------------------------------------------
   final LiveDocumentDetector _detector = LiveDocumentDetector();
@@ -98,8 +84,6 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _toastTimer?.cancel();
-    _hintTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -306,41 +290,21 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     setState(() {
       _state = next;
-      if (newDetection) {
-        _showToast = true;
-        _showHoldHint = true;
-      } else if (next == ScannerState.idle) {
-        _showToast = false;
-        _showHoldHint = false;
-      }
     });
 
     if (newDetection) {
       HapticFeedback.selectionClick();
-      _toastTimer?.cancel();
-      _toastTimer = Timer(_kToastDuration, () {
-        if (mounted) setState(() => _showToast = false);
-      });
-      _hintTimer?.cancel();
-      _hintTimer = Timer(_kHintDuration, () {
-        if (mounted) setState(() => _showHoldHint = false);
-      });
-    } else if (next == ScannerState.idle) {
-      _toastTimer?.cancel();
-      _hintTimer?.cancel();
     } else if (next == ScannerState.readyToScan) {
       HapticFeedback.lightImpact();
+      if (_isAutoMode &&
+          _state != ScannerState.capturing &&
+          _state != ScannerState.success) {
+        _capturePressed();
+      }
     }
   }
 
-  /// Cancels timers and hides the toast/hint without a rebuild (used during
-  /// camera teardown, where a rebuild would be wasted).
-  void _clearTransientFeedback() {
-    _toastTimer?.cancel();
-    _hintTimer?.cancel();
-    _showToast = false;
-    _showHoldHint = false;
-  }
+  void _clearTransientFeedback() {}
 
   // ---- Controls ------------------------------------------------------------
 
@@ -436,83 +400,73 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   Widget build(BuildContext context) {
     final ready = _phase == _Phase.ready;
-    return Scaffold(
-      backgroundColor: ScanColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            Expanded(child: _viewport()),
-            if (ready)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-                child: ScanControls(
-                  onGallery: _galleryPressed,
-                  onCapture: _capturePressed,
-                  onToggleFlash: _cycleFlash,
-                  flashIcon: _flashIcon,
-                  flashLabel: _flashLabel,
-                  flashActive: _flash != 0,
-                  captureState: _captureButtonState,
-                ),
-              )
-            else
-              const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _header() {
-    final ready = _phase == _Phase.ready;
     final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-      child: Row(
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          InoBackButton(onTap: widget.onClose),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  l10n.t('scanDocument'),
-                  style: const TextStyle(
-                    color: ScanColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
+          _viewport(),
+          if (ready) ...[
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _FloatingGlassButton(
+                            icon: Icons.close_rounded,
+                            onTap: widget.onClose,
+                            tooltip: 'Close',
+                          ),
+                          _FloatingGlassButton(
+                            icon: _flashIcon,
+                            active: _flash != 0,
+                            onTap: _cycleFlash,
+                            tooltip: '${l10n.t('flash')}: $_flashLabel',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const _InstructionPill(),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                // Small-caps teal sub-label (Divine Glass scanner chrome).
-                Text(
-                  l10n.t('positionDocument').toUpperCase(),
-                  style: const TextStyle(
-                    color: ScanColors.accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Quick flash toggle (mirrors the bottom control) - only while live.
-          if (ready)
-            IconButton(
-              onPressed: _cycleFlash,
-              icon: Icon(
-                _flashIcon,
-                color: _flash == 0
-                    ? ScanColors.textPrimary
-                    : ScanColors.accentDeep,
-                size: 24,
               ),
-              tooltip: '${l10n.t('flash')}: $_flashLabel',
-            )
-          else
-            const SizedBox(width: 48),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _AutoManualToggle(
+                        isAuto: _isAutoMode,
+                        onChanged: (isAuto) => setState(() => _isAutoMode = isAuto),
+                      ),
+                      const SizedBox(height: 18),
+                      ScanControls(
+                        onGallery: _galleryPressed,
+                        onCapture: _capturePressed,
+                        onToggleFlash: _cycleFlash,
+                        flashIcon: _flashIcon,
+                        flashLabel: _flashLabel,
+                        flashActive: _flash != 0,
+                        captureState: _captureButtonState,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -562,71 +516,10 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Widget _cameraViewport() {
     final controller = _controller;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      // Divine Glass viewport: generous radius, hairline light-blue edge and a
-      // soft brand halo lifting the camera window off the wash.
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: ScanColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: ScanColors.accent.withValues(alpha: 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (controller != null && controller.value.isInitialized)
-              _CoveredPreview(controller: controller)
-            else
-              const ColoredBox(color: Colors.black),
-            // The frame reflects the live state: neutral while searching, green
-            // + a soft pulsing glow once a document is detected/ready. The
-            // centre of the preview is intentionally kept clear.
-            ScannerOverlay(state: _overlayState),
-            // Transient success toast - near the top, so it never covers the
-            // document. Mounted only briefly on a genuine new detection.
-            Positioned(
-              top: 18,
-              left: 16,
-              right: 16,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  transitionBuilder: _toastTransition,
-                  child: _showToast
-                      ? const ScanSuccessToast(key: ValueKey('toast'))
-                      : const SizedBox.shrink(key: ValueKey('no-toast')),
-                ),
-              ),
-            ),
-            // Subtle bottom guidance hint (searching / hold steady / capturing).
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 18,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 260),
-                  transitionBuilder: _hintTransition,
-                  child: _bottomHint(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (controller != null && controller.value.isInitialized) {
+      return _CoveredPreview(controller: controller);
+    }
+    return const ColoredBox(color: Colors.black);
   }
 
   /// Capture button visuals derived from the detection state - idle (neutral)
@@ -642,85 +535,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         ScannerState.success => CaptureButtonState.success,
       };
 
-  /// Frame overlay style derived from the detection state.
-  ScanOverlayState get _overlayState => switch (_state) {
-        ScannerState.idle ||
-        ScannerState.detecting =>
-          ScanOverlayState.idle,
-        ScannerState.documentDetected => ScanOverlayState.detected,
-        ScannerState.readyToScan ||
-        ScannerState.capturing ||
-        ScannerState.success =>
-          ScanOverlayState.ready,
-      };
 
-  /// The subtle bottom guidance hint for the current state. Never blocks the
-  /// document (it hugs the bottom edge) and disappears entirely once a detected
-  /// document is locked in and steady - keeping the preview clean.
-  Widget _bottomHint() {
-    final l10n = AppLocalizations.of(context);
-    switch (_state) {
-      case ScannerState.idle:
-      case ScannerState.detecting:
-        return ScanHintPill(
-          key: const ValueKey('searching'),
-          icon: Icons.crop_free_rounded,
-          label: l10n.t('searchingForDocument'),
-        );
-      case ScannerState.documentDetected:
-      case ScannerState.readyToScan:
-        // The "hold steady" hint shows briefly on detection, then fades - after
-        // which the bottom stays clear.
-        return _showHoldHint
-            ? ScanHintPill(
-                key: const ValueKey('hold'),
-                icon: Icons.back_hand_rounded,
-                label: l10n.t('holdSteadyToCapture'),
-                positive: true,
-              )
-            : const SizedBox.shrink(key: ValueKey('clear'));
-      case ScannerState.capturing:
-        return ScanHintPill(
-          key: const ValueKey('capturing'),
-          icon: Icons.camera_rounded,
-          label: l10n.t('capturing'),
-          positive: true,
-        );
-      case ScannerState.success:
-        return const SizedBox.shrink(key: ValueKey('done'));
-    }
-  }
-
-  /// Success toast: fade + a gentle scale/drop from above.
-  Widget _toastTransition(Widget child, Animation<double> anim) {
-    return FadeTransition(
-      opacity: anim,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.9, end: 1).animate(anim),
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, -0.35),
-            end: Offset.zero,
-          ).animate(anim),
-          child: child,
-        ),
-      ),
-    );
-  }
-
-  /// Bottom hint: fade + a small rise from below.
-  Widget _hintTransition(Widget child, Animation<double> anim) {
-    return FadeTransition(
-      opacity: anim,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.4),
-          end: Offset.zero,
-        ).animate(anim),
-        child: child,
-      ),
-    );
-  }
 }
 
 /// Fills the viewport with the camera preview using BoxFit.cover (no stretch),
@@ -903,6 +718,137 @@ class _GradientButton extends StatelessWidget {
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingGlassButton extends StatelessWidget {
+  const _FloatingGlassButton({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 22,
+        ),
+      ),
+    );
+    if (tooltip != null) {
+      return Tooltip(message: tooltip!, child: button);
+    }
+    return button;
+  }
+}
+
+class _InstructionPill extends StatelessWidget {
+  const _InstructionPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        l10n.t('positionDocument'),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _AutoManualToggle extends StatelessWidget {
+  const _AutoManualToggle({
+    required this.isAuto,
+    required this.onChanged,
+  });
+
+  final bool isAuto;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildOption(label: 'AUTO', active: isAuto, onTap: () => onChanged(true)),
+          _buildOption(label: 'MANUAL', active: !isAuto, onTap: () => onChanged(false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOption({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.black : Colors.white.withValues(alpha: 0.7),
+            fontSize: 11.5,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+            letterSpacing: 0.8,
           ),
         ),
       ),
