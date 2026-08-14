@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'core/net/net_guard.dart';
 import 'core/responsive/responsive.dart';
+import 'core/storage/shared_prefs_cache.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
 import 'screens/share/shared_documents_screen.dart';
@@ -27,37 +28,32 @@ import 'services/wallet_store.dart';
 import 'theme/app_theme.dart';
 import 'theme/ino_scroll_behavior.dart';
 import 'theme/theme_controller.dart';
+import 'widgets/common/liquid_glass.dart';
 import 'theme/theme_style.dart';
 
 Future<void> main() async {
   // Flutter needs this before any async work runs before runApp().
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize shared preferences cache early so all subsequent stores use it
+  await SharedPrefsCache.init();
+
   // Create the Supabase client once, at startup. After this, the rest of the
   // app reaches Supabase via `Supabase.instance.client` (see AuthService).
-  // The custom transport caps how long ANY Supabase request (including
-  // SDK-internal ones like token refresh) can hang on a dead/throttled link;
-  // per-call `.timeout()`s in the repositories are the tighter first line.
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
     httpClient: TimeoutHttpClient(http.Client()),
   );
 
-  // Multi-account registry: remembers every account that signs in on this
-  // device (Profile → Accounts) and keeps the live one's entry fresh.
-  await AccountSwitcher.instance.init();
-
-  // Hydrate persisted preferences before the first frame so the UI (theme, lock
-  // screen, settings toggles) renders in its saved state with no flash.
-  await ThemeController.load();
-  await BiometricService.instance.loadLockState();
-  await AppSettings.instance.load();
-
-  // Capture a share deep link the app may have been cold-launched from, BEFORE
-  // the first frame - so the app root can show the shared documents directly
-  // (see [InoApp._home]) instead of the splash flow overwriting it.
-  await DeepLinkService.instance.captureInitialLink();
+  // Parallelize independent startup initializations to reduce cold start time
+  await Future.wait([
+    AccountSwitcher.instance.init(),
+    ThemeController.load(),
+    BiometricService.instance.loadLockState(),
+    AppSettings.instance.load(),
+    DeepLinkService.instance.captureInitialLink(),
+  ]);
 
   runApp(const InoApp());
 }
@@ -180,7 +176,9 @@ class _InoAppState extends State<InoApp> {
                   builder: (context, child) => InoResponsiveInit(
                     child: InoStyleScope(
                       style: style,
-                      child: AppLock(child: child ?? const SizedBox.shrink()),
+                      child: GlassScrollListener(
+                        child: AppLock(child: child ?? const SizedBox.shrink()),
+                      ),
                     ),
                   ),
                   home: _home,

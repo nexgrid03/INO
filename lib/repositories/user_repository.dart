@@ -1,7 +1,8 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../core/net/net_guard.dart';
 import '../models/user_profile.dart';
@@ -115,7 +116,7 @@ class UserRepository {
   Future<void> _cacheProfile(UserProfile profile) async {
     _inMemoryProfile = profile;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       await prefs.setString(
         '${_cachePrefix}_${profile.authUserId}',
         jsonEncode(profile.toMap()),
@@ -132,7 +133,7 @@ class UserRepository {
       return _inMemoryProfile;
     }
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final raw = prefs.getString('${_cachePrefix}_$authUserId');
       if (raw == null) return null;
       final profile = UserProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);

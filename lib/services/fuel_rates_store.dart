@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
+
 /// User-entered petrol / diesel rates (₹/litre).
 ///
 /// Fuel prices are not fetched live — the user types them when needed. Values
@@ -65,7 +67,7 @@ class FuelRatesStore extends ChangeNotifier {
   Future<void> ensureLoaded() async {
     if (_loaded) return;
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       _petrol = p.getDouble(_kPetrol);
       _diesel = p.getDouble(_kDiesel);
       _selectedCity = p.getString(_kSelectedCity) ?? 'Custom';
@@ -86,7 +88,7 @@ class FuelRatesStore extends ChangeNotifier {
     _selectedCity = city;
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setString(_kSelectedCity, city);
     } catch (e) {
       debugPrint('FuelRatesStore save selected city failed: $e');
@@ -102,7 +104,7 @@ class FuelRatesStore extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final key = _selectedCity == 'Custom' ? _kPetrol : '${_kPetrol}_$_selectedCity';
       if (v == null) {
         await p.remove(key);
@@ -123,7 +125,7 @@ class FuelRatesStore extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final key = _selectedCity == 'Custom' ? _kDiesel : '${_kDiesel}_$_selectedCity';
       if (v == null) {
         await p.remove(key);

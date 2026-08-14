@@ -1,8 +1,8 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
 import 'app_theme.dart';
 import 'theme_style.dart';
 
@@ -32,7 +32,7 @@ class ThemeController {
   /// startup, before the first frame, so there's no flash of the wrong theme.
   static Future<void> load() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final stored = p.getString(_kThemeMode);
       mode.value = _decode(stored);
       final nextStyle = _decodeStyle(p.getString(_kThemeStyle));
@@ -74,7 +74,7 @@ class ThemeController {
 
   static Future<void> _persistStyle(ThemeStyle next) async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setString(_kThemeStyle, next.name);
       developer.log('saved style=$next', name: 'theme');
     } catch (e) {
@@ -104,7 +104,7 @@ class ThemeController {
 
   static Future<void> _persist(ThemeMode next) async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setString(_kThemeMode, next.name);
       developer.log('saved theme=$next', name: 'theme');
     } catch (e) {

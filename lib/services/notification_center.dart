@@ -1,7 +1,8 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
@@ -75,7 +76,7 @@ class NotificationCenter extends ChangeNotifier {
   Future<void> load() async {
     if (_loaded && _inFlightRefresh == null) return;
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       _read
         ..clear()
         ..addAll(p.getStringList(_kRead) ?? const []);
@@ -213,7 +214,7 @@ class NotificationCenter extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(_kRead, _read.toList());
       await p.setStringList(_kDismissed, _dismissed.toList());
     } catch (_) {
@@ -233,7 +234,7 @@ class NotificationCenter extends ChangeNotifier {
     _loaded = false;
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(_kRead);
       await p.remove(_kDismissed);
     } catch (_) {

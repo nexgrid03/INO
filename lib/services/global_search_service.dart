@@ -1,7 +1,8 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../data/reminder_store.dart';
 import '../models/document.dart';
@@ -157,7 +158,7 @@ class GlobalSearchService {
 
   Future<List<String>> recentSearches() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       return p.getStringList(_kRecent) ?? const [];
     } catch (_) {
       return const [];
@@ -168,7 +169,7 @@ class GlobalSearchService {
     final t = term.trim();
     if (t.isEmpty) return;
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final list = p.getStringList(_kRecent) ?? <String>[];
       list.removeWhere((e) => e.toLowerCase() == t.toLowerCase());
       list.insert(0, t);
@@ -181,7 +182,7 @@ class GlobalSearchService {
 
   Future<void> clearRecent() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(_kRecent);
     } catch (_) {}
   }

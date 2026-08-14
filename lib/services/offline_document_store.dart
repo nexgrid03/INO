@@ -4,9 +4,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
 import 'document_file_service.dart';
 
 /// One document saved for offline viewing.
@@ -133,7 +133,7 @@ class OfflineDocumentStore extends ChangeNotifier {
     if (_loaded && uid == _loadedUid) return;
     final loaded = <OfflineDoc>[];
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       for (final raw in p.getStringList(_prefsKey(uid)) ?? const <String>[]) {
         try {
           final doc =
@@ -239,7 +239,7 @@ class OfflineDocumentStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
         _prefsKey(_loadedUid),
         [for (final d in _docs) jsonEncode(d.toJson())],

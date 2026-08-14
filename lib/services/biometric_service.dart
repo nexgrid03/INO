@@ -4,7 +4,8 @@ import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:local_auth/local_auth.dart';
 import 'package:local_auth_android/local_auth_android.dart';
 import 'package:local_auth_darwin/local_auth_darwin.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 /// The kind of biometric a device offers, used to label the UI.
 enum BiometricKind { faceId, fingerprint, iris, generic, none }
@@ -242,7 +243,7 @@ class BiometricService {
 
   Future<bool> _readLockEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       return prefs.getBool(_lockKey) ?? false;
     } catch (_) {
       return false;
@@ -254,7 +255,7 @@ class BiometricService {
   Future<void> setLockEnabled(bool value) async {
     lockEnabled.value = value;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       await prefs.setBool(_lockKey, value);
     } catch (_) {
       // Best-effort; the in-memory notifier is still correct for this session.

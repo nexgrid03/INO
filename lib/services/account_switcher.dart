@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
 import 'session_reset.dart';
 
 /// One account remembered on this device, switchable from Profile → Accounts.
@@ -108,6 +108,13 @@ class AccountSwitcher extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _sub = null;
+    super.dispose();
   }
 
   /// Loads the saved list and starts tracking the live session so the current
@@ -214,7 +221,7 @@ class AccountSwitcher extends ChangeNotifier {
 
   Future<void> _load() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       _accounts.clear();
       for (final raw in p.getStringList(_key) ?? const <String>[]) {
         try {
@@ -233,7 +240,7 @@ class AccountSwitcher extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
         _key,
         [for (final a in _accounts) jsonEncode(a.toJson())],

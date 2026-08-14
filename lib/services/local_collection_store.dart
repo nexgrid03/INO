@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
 import '../core/net/paged_query.dart';
 import '../core/perf/perf_tracer.dart';
+import '../core/storage/shared_prefs_cache.dart';
 
 /// Parses a list of JSON strings into maps, skipping corrupt entries. Top-level
 /// so [compute] can run it in a background isolate for big collections - the
@@ -143,24 +143,18 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     await _load(_currentUid());
   }
 
-  /// Below this many records the isolate-spawn overhead of [compute] costs
-  /// more than the JSON work it saves; above it, parsing off the main isolate
-  /// keeps the UI thread free.
-  static const int _computeThreshold = 50;
-
   Future<void> _load(String? uid) async {
     _loading = true;
     notifyListeners();
     final loaded = <T>[];
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final raw = p.getStringList(_keyFor(uid)) ?? const <String>[];
-      // Big collections parse in a background isolate so hydration never
-      // janks the first frame; tiny ones parse inline (cheaper than an
-      // isolate round-trip).
-      final maps = raw.length > _computeThreshold
+      // All collection JSON decoding runs in a background isolate to ensure
+      // the main UI thread stays 100% free of parsing overhead.
+      final maps = raw.isNotEmpty
           ? await compute(decodeJsonMapList, raw)
-          : decodeJsonMapList(raw);
+          : <Map<String, dynamic>>[];
       for (final m in maps) {
         try {
           loaded.add(decode(m));
@@ -180,9 +174,6 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     notifyListeners();
 
     // Paint from the local cache first (above), then reconcile with the server.
-    // Ordering matters: hydrating from cache synchronously means the wallet
-    // renders its real contents on the first frame instead of an empty state
-    // that fills in a second later.
     if (syncTable != null && uid != null) {
       await _syncFromServer(uid);
     }
@@ -251,14 +242,11 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
 
   Future<void> persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      // Domain encode (cheap map building) stays here; the JSON string
-      // serialisation - the expensive part for big collections - runs in a
-      // background isolate past the same threshold as loading.
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final maps = [for (final i in items) encode(i)];
-      final encoded = maps.length > _computeThreshold
+      final encoded = maps.isNotEmpty
           ? await compute(encodeJsonMapList, maps)
-          : encodeJsonMapList(maps);
+          : <String>[];
       await p.setStringList(_keyFor(_loadedUid), encoded);
     } catch (_) {
       // Best-effort; the in-memory list stays correct for this session.
@@ -364,7 +352,7 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     _loading = false;
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(key);
     } catch (_) {
       // Best-effort.

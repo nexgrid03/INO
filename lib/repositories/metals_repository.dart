@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../models/metal_rates.dart';
 import '../services/metals_api_service.dart';
@@ -87,7 +88,7 @@ class MetalsRepository {
 
   Future<MetalRates?> _readCache() async {
     if (_memory != null) return _memory;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsCache.instance.prefsAsync;
     final raw = prefs.getString(_cacheKey);
     if (raw == null) return null;
     try {
@@ -101,7 +102,7 @@ class MetalsRepository {
 
   Future<void> _writeCache(MetalRates rates) async {
     _memory = rates;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsCache.instance.prefsAsync;
     await prefs.setString(_cacheKey, rates.encode());
   }
 

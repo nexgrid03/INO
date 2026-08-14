@@ -5,8 +5,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../core/net/net_guard.dart';
 import '../core/net/paged_query.dart';
@@ -80,7 +81,7 @@ class DocumentRepository {
 
   Future<void> _persistDiskCache(String userId, List<Document> list) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final key = '${_diskCachePrefix}_$userId';
       final jsonList = list.map((d) => d.toMap()).toList();
       await prefs.setString(key, jsonEncode(jsonList));
@@ -92,7 +93,7 @@ class DocumentRepository {
 
   Future<List<Document>> _readDiskCache(String userId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final key = '${_diskCachePrefix}_$userId';
       final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return const [];
