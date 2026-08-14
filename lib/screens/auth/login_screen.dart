@@ -202,6 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
   /// would make. Guarded by [isDemoBuild] at the call site.
   Future<void> _loginAsGuest() async {
     if (_busy || _googleBusy || _guestBusy) return;
+    if (demoPassword.isEmpty) return;
     setState(() => _guestBusy = true);
     try {
       await _typeInto(_identifierController, demoEmail);
@@ -421,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                if (isDemoBuild) ...[
+                if (isDemoBuild && demoPassword.isNotEmpty) ...[
                   SizedBox(height: gapSm),
                   _GuestLoginButton(
                     label: l10n.t('loginAsGuest'),

@@ -55,6 +55,7 @@ class ModuleSection extends StatelessWidget {
     // Title-only — section subtitles omitted across the app.
     return LiquidGlass(
       borderRadius: BorderRadius.circular(AppRadius.card),
+      enableBlur: false,
       blur: 20,
       frost: palette.isDark ? 1.05 : 0.72,
       padding: padding,
@@ -294,6 +295,7 @@ class StatTile extends StatelessWidget {
 
     final tile = LiquidGlass(
       borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+      enableBlur: false,
       blur: 14,
       frost: palette.isDark ? 1.05 : 0.72,
       shadow: false,

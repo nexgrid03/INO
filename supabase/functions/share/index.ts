@@ -68,6 +68,11 @@ interface ShareRow {
   expires_at: string;
   views_count: number;
   downloads_count: number;
+  processed_paths: string[] | null;
+  processed_names: string[] | null;
+  processed_mimes: string[] | null;
+  view_only: boolean;
+  password_hash: string | null;
 }
 
 interface DocRow {
@@ -127,7 +132,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (tail[1] === "file" && tail[2] !== undefined) {
-      return await serveFile(shareId, tail[2], url.searchParams.get("mode") ?? "view");
+      return await serveFile(
+        shareId,
+        tail[2],
+        url.searchParams.get("mode") ?? "view",
+        url.searchParams.get("pw"),
+        req,
+      );
     }
     return await serveShare(shareId, req);
   } catch (e) {
@@ -144,7 +155,10 @@ async function loadShare(idOrToken: string): Promise<LoadResult> {
   // share_id (legacy links) - both resolve to the same row.
   const { data, error } = await admin
     .from("document_shares")
-    .select("share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count")
+    .select(
+      "share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count, " +
+        "processed_paths, processed_names, processed_mimes, view_only, password_hash",
+    )
     .or(`token.eq.${idOrToken},share_id.eq.${idOrToken}`)
     .maybeSingle();
 
@@ -185,9 +199,72 @@ function fileKind(path: string | null): { kind: "pdf" | "image" | "other"; mime:
   return { kind: "other", mime: mimeFromPath(path ?? "") };
 }
 
+function fileKindFromMime(mime: string): { kind: "pdf" | "image" | "other"; mime: string } {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("pdf")) return { kind: "pdf", mime: mime || "application/pdf" };
+  if (m.startsWith("image/")) return { kind: "image", mime };
+  return { kind: "other", mime: mime || "application/octet-stream" };
+}
+
+function hasProcessedCopies(share: ShareRow): boolean {
+  return Array.isArray(share.processed_paths) && share.processed_paths.length > 0;
+}
+
+function shareFileCount(share: ShareRow): number {
+  return hasProcessedCopies(share) ? share.processed_paths!.length : share.document_ids.length;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+/** Accepts either the stored SHA-256 hex or the plaintext password. */
+async function passwordAccepted(share: ShareRow, provided: string | null): Promise<boolean> {
+  const expected = (share.password_hash ?? "").trim().toLowerCase();
+  if (!expected) return true;
+  if (!provided) return false;
+  const raw = provided.trim();
+  if (!raw) return false;
+  const hashed = (await sha256Hex(raw)).toLowerCase();
+  return timingSafeEqual(raw.toLowerCase(), expected) || timingSafeEqual(hashed, expected);
+}
+
+function passwordDenied(req: Request, shareId: string, wrong: boolean): Response {
+  const message = wrong
+    ? "Incorrect password."
+    : "This document is password protected.";
+  if (wantsJson(req)) {
+    return json({ status: "password_required", message }, 401);
+  }
+  return htmlResponse(passwordHtml(shareId, wrong), 401);
+}
+
 /** Fetches the share's documents IN ORDER, dropping any that were deleted, and
  *  keeping each one's original position (used as its opaque file handle). */
 async function loadCards(share: ShareRow): Promise<Card[]> {
+  if (hasProcessedCopies(share)) {
+    return share.processed_paths!.map((_p, index) => {
+      const mime = share.processed_mimes?.[index] ?? "application/octet-stream";
+      const { kind } = fileKindFromMime(mime);
+      return {
+        index,
+        name: share.processed_names?.[index] ?? `Document ${index + 1}`,
+        type: "Shared copy",
+        kind,
+        mime,
+      };
+    });
+  }
   const { data, error } = await admin
     .from("documents")
     .select("id, name, category, file_path")
@@ -223,6 +300,11 @@ async function serveShare(shareId: string, req: Request): Promise<Response> {
   if (res.kind !== "active") return renderShare(res.kind, req, null, []);
 
   const share = res.share;
+  const pw = new URL(req.url).searchParams.get("pw");
+  if (share.password_hash && !(await passwordAccepted(share, pw))) {
+    return passwordDenied(req, shareId, Boolean(pw));
+  }
+
   let cards: Card[];
   try {
     cards = await loadCards(share);
@@ -238,7 +320,10 @@ async function serveShare(shareId: string, req: Request): Promise<Response> {
     .update({ views_count: (share.views_count ?? 0) + 1, last_accessed_at: new Date().toISOString() })
     .eq("share_id", share.share_id);
 
-  return renderShare("active", req, share.expires_at, cards, shareId);
+  return renderShare("active", req, share.expires_at, cards, shareId, {
+    viewOnly: Boolean(share.view_only),
+    pw,
+  });
 }
 
 /** Renders EITHER HTML or JSON depending on the client. */
@@ -248,6 +333,7 @@ function renderShare(
   expiresAt: string | null,
   cards: Card[],
   shareId?: string,
+  opts?: { viewOnly?: boolean; pw?: string | null },
 ): Response {
   const asJson = wantsJson(req);
   console.log("Branch:", asJson ? "JSON" : "HTML"); // requirement 6
@@ -259,6 +345,7 @@ function renderShare(
           shareId,
           count: cards.length,
           expiresAt,
+          viewOnly: Boolean(opts?.viewOnly),
           documents: cards.map((c) => ({
             id: String(c.index),
             name: c.name,
@@ -273,46 +360,78 @@ function renderShare(
     return json({ status: kind, message: MESSAGES[kind] }, STATUS[kind]);
   }
   // Browser → HTML.
-  const html = kind === "active" ? viewerHtml(cards, expiresAt, shareId ?? "") : statusHtml(kind);
+  const html = kind === "active"
+    ? viewerHtml(cards, expiresAt, shareId ?? "", Boolean(opts?.viewOnly), opts?.pw ?? null)
+    : statusHtml(kind);
   return htmlResponse(html, STATUS[kind]);
 }
 
 // ---- File proxy (bytes; never exposes storage internals) --------------------
 
-async function serveFile(shareId: string, handle: string, mode: string): Promise<Response> {
+async function serveFile(
+  shareId: string,
+  handle: string,
+  mode: string,
+  pw: string | null,
+  req: Request,
+): Promise<Response> {
   const res = await loadShare(shareId);
   if (res.kind !== "active") return htmlResponse(statusHtml(res.kind), STATUS[res.kind]);
   const share = res.share;
 
-  const index = Number.parseInt(handle, 10);
-  if (!Number.isInteger(index) || index < 0 || index >= share.document_ids.length) {
-    return htmlResponse(statusHtml("not_found"), 404);
+  if (share.password_hash && !(await passwordAccepted(share, pw))) {
+    return passwordDenied(req, shareId, Boolean(pw));
   }
-  const documentId = share.document_ids[index];
-
-  const { data: docData, error } = await admin
-    .from("documents")
-    .select("id, name, category, file_path, auth_user_id")
-    .eq("id", documentId)
-    .maybeSingle();
-
-  if (error || !docData) return htmlResponse(statusHtml("not_found"), 404);
-  const doc = docData as DocRow;
-
-  // Defense in depth: the document must belong to the share's owner.
-  if (doc.auth_user_id !== share.owner_id) {
-    console.warn(`[share] ownership mismatch index=${index} share=${shareId}`);
-    return htmlResponse(statusHtml("not_found"), 404);
-  }
-  if (!doc.file_path) return htmlResponse(statusHtml("not_found"), 404);
 
   const download = mode === "download";
+  if (share.view_only && download) {
+    return json({ error: "This document is view-only." }, 403);
+  }
+
+  const index = Number.parseInt(handle, 10);
+  if (!Number.isInteger(index) || index < 0 || index >= shareFileCount(share)) {
+    return htmlResponse(statusHtml("not_found"), 404);
+  }
+
+  let objectPath: string;
+  let filename: string;
+  let documentId: string | null = null;
+
+  if (hasProcessedCopies(share)) {
+    objectPath = share.processed_paths![index];
+    if (!objectPath) return htmlResponse(statusHtml("not_found"), 404);
+    filename = downloadName(
+      share.processed_names?.[index] ?? `document-${index + 1}`,
+      objectPath,
+    );
+  } else {
+    documentId = share.document_ids[index];
+
+    const { data: docData, error } = await admin
+      .from("documents")
+      .select("id, name, category, file_path, auth_user_id")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    if (error || !docData) return htmlResponse(statusHtml("not_found"), 404);
+    const doc = docData as DocRow;
+
+    // Defense in depth: the document must belong to the share's owner.
+    if (doc.auth_user_id !== share.owner_id) {
+      console.warn(`[share] ownership mismatch index=${index} share=${shareId}`);
+      return htmlResponse(statusHtml("not_found"), 404);
+    }
+    if (!doc.file_path) return htmlResponse(statusHtml("not_found"), 404);
+    objectPath = doc.file_path;
+    filename = downloadName(doc.name, doc.file_path);
+  }
+
   console.log(`[share] sign+proxy share_id=${shareId} index=${index} mode=${mode}`);
 
   // Signed URL generated + used server-side only; never sent to the client.
   const { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
-    .createSignedUrl(doc.file_path, SIGNED_URL_TTL);
+    .createSignedUrl(objectPath, SIGNED_URL_TTL);
   if (signErr || !signed?.signedUrl) {
     console.error(`[share] createSignedUrl error index=${index}:`, signErr);
     return htmlResponse(statusHtml("error"), 500);
@@ -325,7 +444,12 @@ async function serveFile(shareId: string, handle: string, mode: string): Promise
   }
 
   if (download) {
-    await admin.from("share_downloads").insert({ share_id: share.share_id, document_id: documentId });
+    if (documentId) {
+      await admin.from("share_downloads").insert({
+        share_id: share.share_id,
+        document_id: documentId,
+      });
+    }
     await admin
       .from("document_shares")
       .update({
@@ -335,8 +459,7 @@ async function serveFile(shareId: string, handle: string, mode: string): Promise
       .eq("share_id", share.share_id);
   }
 
-  const filename = downloadName(doc.name, doc.file_path);
-  const contentType = upstream.headers.get("content-type") ?? mimeFromPath(doc.file_path);
+  const contentType = upstream.headers.get("content-type") ?? mimeFromPath(objectPath);
   return new Response(upstream.body, {
     status: 200,
     headers: {
@@ -781,10 +904,17 @@ function brandTop(): string {
   </div></div>`;
 }
 
-function viewerHtml(cards: Card[], expiresAt: string | null, shareId: string): string {
+function viewerHtml(
+  cards: Card[],
+  expiresAt: string | null,
+  shareId: string,
+  viewOnly: boolean,
+  pw: string | null,
+): string {
   // Relative to the current page (…/share/<shareId>) the file lives at
   // <shareId>/file/<index>, so links resolve correctly on any host prefix.
   const base = escapeAttr(shareId);
+  const pwQ = pw ? `&pw=${encodeURIComponent(pw)}` : "";
   const items = cards
     .map(
       (c) => `<div class="card">
@@ -793,8 +923,8 @@ function viewerHtml(cards: Card[], expiresAt: string | null, shareId: string): s
           <div class="info"><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.type)}</span></div>
         </div>
         <div class="acts">
-          <a class="btn view" href="${base}/file/${c.index}?mode=view" target="_blank" rel="noopener">${ICON_VIEW}View</a>
-          <a class="btn dl" href="${base}/file/${c.index}?mode=download">${ICON_DL}Download</a>
+          <a class="btn view" href="${base}/file/${c.index}?mode=view${pwQ}" target="_blank" rel="noopener">${ICON_VIEW}View</a>
+          ${viewOnly ? "" : `<a class="btn dl" href="${base}/file/${c.index}?mode=download${pwQ}">${ICON_DL}Download</a>`}
         </div>
       </div>`,
     )
@@ -829,6 +959,31 @@ function viewerHtml(cards: Card[], expiresAt: string | null, shareId: string): s
       ${cards.length ? items : `<div class="card"><div class="info"><b>No documents</b><span>This share has no documents.</span></div></div>`}
       <div class="foot">🔒 Shared securely via INO · you can only view these documents</div>
     </div>${countdownScript}`;
+  return shell(body);
+}
+
+function passwordHtml(shareId: string, wrong: boolean): string {
+  const err = wrong
+    ? `<p style="color:#b91c1c;font-size:13.5px;margin:0 0 12px">Incorrect password. Try again.</p>`
+    : "";
+  const body = `${brandTop()}
+    <div class="wrap">
+      <div class="card">
+        <div class="info" style="margin-bottom:14px">
+          <b>Password required</b>
+          <span>This share is protected. Enter the password the sender gave you.</span>
+        </div>
+        ${err}
+        <form method="GET" action="">
+          <input type="password" name="pw" autocomplete="current-password" required
+            placeholder="Share password"
+            style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--hairline);
+                   font-size:15px;margin-bottom:12px"/>
+          <button class="btn primary" type="submit" style="width:100%">Unlock</button>
+        </form>
+      </div>
+      <div class="foot">🔒 Shared securely via INO</div>
+    </div>`;
   return shell(body);
 }
 

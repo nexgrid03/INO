@@ -54,8 +54,9 @@ class TwoFactorService {
       final current = res.currentLevel?.name.toLowerCase() ?? '';
       final next = res.nextLevel?.name.toLowerCase() ?? '';
       return current == 'aal1' && next == 'aal2';
-    } catch (_) {
-      return false;
+    } catch (e) {
+      developer.log('2FA AAL check failed: $e', name: '2fa');
+      return isEnabled();
     }
   }
 

@@ -238,6 +238,7 @@ class _MarketCardState extends State<MarketCard> {
 
     final card = LiquidGlass(
       borderRadius: BorderRadius.circular(AppRadius.card),
+      enableBlur: false,
       blur: 20,
       child: Column(
         children: [

@@ -306,8 +306,10 @@ class _WalletCard extends StatelessWidget {
     );
 
     // Higher frost + white tint keeps cards crisp on the sky wash (less grey).
+    // Frost-only on the grid — one blur per card tanked Wallet scroll FPS.
     final surface = LiquidGlass(
       borderRadius: BorderRadius.circular(20),
+      enableBlur: false,
       blur: 18,
       frost: palette.isDark ? 1.1 : 1.34,
       tint: palette.isDark ? null : Colors.white,
@@ -353,6 +355,7 @@ class _AddWalletCard extends StatelessWidget {
           ),
           child: LiquidGlass(
             borderRadius: BorderRadius.circular(20),
+            enableBlur: false,
             blur: 14,
             frost: palette.isDark ? 1.05 : 0.65,
             shadow: false,

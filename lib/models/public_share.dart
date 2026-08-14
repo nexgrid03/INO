@@ -3,7 +3,7 @@ import 'dart:typed_data';
 /// Recipient-facing lifecycle of a share, as reported by the `share` Edge
 /// Function's JSON API. Distinct from the owner-side `ShareStatus` because the
 /// public API also reports `notFound` and `error`.
-enum PublicShareStatus { active, expired, revoked, notFound, error }
+enum PublicShareStatus { active, expired, revoked, notFound, passwordRequired, error }
 
 PublicShareStatus _statusFrom(String? raw) {
   switch (raw) {
@@ -15,6 +15,8 @@ PublicShareStatus _statusFrom(String? raw) {
       return PublicShareStatus.revoked;
     case 'not_found':
       return PublicShareStatus.notFound;
+    case 'password_required':
+      return PublicShareStatus.passwordRequired;
     default:
       return PublicShareStatus.error;
   }
@@ -53,6 +55,7 @@ class PublicShare {
     this.ownerName,
     this.ownerEmail,
     this.sharedOnLabel,
+    this.viewOnly = false,
   });
 
   final PublicShareStatus status;
@@ -66,6 +69,7 @@ class PublicShare {
   final String? ownerName;
   final String? ownerEmail;
   final String? sharedOnLabel;
+  final bool viewOnly;
 
   bool get isActive => status == PublicShareStatus.active;
 
@@ -93,6 +97,7 @@ class PublicShare {
           (json['sharedByEmail'] as String?),
       sharedOnLabel: json['sharedOn'] as String? ??
           json['shared_on'] as String?,
+      viewOnly: json['viewOnly'] == true || json['view_only'] == true,
     );
   }
 

@@ -428,8 +428,13 @@ class ShareRepository {
   /// [PublicShare] whose [PublicShare.status] tells the viewer what to render
   /// (active / expired / revoked / notFound / error). Never throws - a network
   /// failure resolves to [PublicShare.errored].
-  Future<PublicShare> fetchPublicShare(String token) async {
-    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json');
+  Future<PublicShare> fetchPublicShare(String token, {String? passwordHash}) async {
+    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json').replace(
+      queryParameters: {
+        'format': 'json',
+        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
+      },
+    );
     developer.log('fetchPublicShare → GET $uri', name: 'share');
     try {
       // Ask for JSON explicitly - the Edge Function content-negotiates and
@@ -460,10 +465,15 @@ class ShareRepository {
     String token,
     SharedDoc doc, {
     required bool download,
+    String? passwordHash,
   }) async {
     final uri = Uri.parse(
-      '${ShareConfig.apiUrl(token)}/file/${doc.id}'
-      '?mode=${download ? 'download' : 'view'}',
+      '${ShareConfig.apiUrl(token)}/file/${doc.id}',
+    ).replace(
+      queryParameters: {
+        'mode': download ? 'download' : 'view',
+        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
+      },
     );
     developer.log('fetchSharedFile → GET $uri', name: 'share');
     final http.Response res;
