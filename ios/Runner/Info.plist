@@ -117,7 +117,7 @@
 			<string>google-signin</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REVERSED_GOOGLE_IOS_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.205011674878-rlcitaa0kkujirl66h8pov8fu429s5o8</string>
 			</array>
 		</dict>
 		<!-- INO custom scheme for share deep links: ino://share/<token>  -->

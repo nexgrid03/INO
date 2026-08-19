@@ -23,10 +23,10 @@ class SupabaseConfig {
   /// Google provider settings). Used as the token audience on every platform.
   /// e.g. 1234567890-abc123.apps.googleusercontent.com
   static const String googleWebClientId =
-      '535920485088-rk5bv3pg2erg484tsvmugq5dpvanii6e.apps.googleusercontent.com';
+      '205011674878-opqarfjlcruvqmbpcnr92mu2otd221tk.apps.googleusercontent.com';
 
   /// Google OAuth **iOS** client ID (only needed for the iOS build).
-  static const String googleIosClientId = 'YOUR_GOOGLE_IOS_CLIENT_ID';
+  static const String googleIosClientId = '205011674878-rlcitaa0kkujirl66h8pov8fu429s5o8.apps.googleusercontent.com';
 
   /// True once a real Google **Web** client ID has been supplied (i.e. it's no
   /// longer the placeholder / empty). The native Google flow uses this value as
