@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
 import '../data/notes_repository.dart';
 import '../models/note_models.dart';
 
@@ -106,7 +107,7 @@ class NotesStore extends ChangeNotifier {
   Future<List<Note>> _loadLocal(String? uid) async {
     final out = <Note>[];
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final raw = p.getStringList(_keyFor(uid)) ?? const [];
       for (final s in raw) {
         try {
@@ -129,7 +130,7 @@ class NotesStore extends ChangeNotifier {
     List<String> raw;
     SharedPreferences p;
     try {
-      p = await SharedPreferences.getInstance();
+      p = await SharedPrefsCache.instance.prefsAsync;
       raw = p.getStringList(_keyFor(uid)) ?? const [];
     } catch (_) {
       return; // No plugin (tests) → nothing to migrate.
@@ -153,7 +154,7 @@ class NotesStore extends ChangeNotifier {
 
   Future<void> _persistLocal() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
         _keyFor(_loadedUid),
         [for (final n in _notes) jsonEncode(n.toJson())],

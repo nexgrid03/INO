@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 /// Secure-preference store for *which documents require biometric unlock*.
 ///
@@ -20,7 +21,7 @@ class DocumentProtectionStore extends ChangeNotifier {
   /// Loads the persisted set. Safe to call once at startup.
   Future<void> load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       _ids
         ..clear()
         ..addAll(prefs.getStringList(_key) ?? const []);
@@ -40,7 +41,7 @@ class DocumentProtectionStore extends ChangeNotifier {
     if (!changed) return;
     notifyListeners();
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       await prefs.setStringList(_key, _ids.toList());
     } catch (_) {
       // Best-effort; the in-memory set stays correct for this session.
@@ -54,7 +55,7 @@ class DocumentProtectionStore extends ChangeNotifier {
     _loaded = false;
     notifyListeners();
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       await prefs.remove(_key);
     } catch (_) {
       // Best-effort.

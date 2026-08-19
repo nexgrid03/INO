@@ -48,9 +48,11 @@ class LauncherGlassIconTile extends StatelessWidget {
     // Tight inset so glyphs fill the plate without looking sparse.
     const iconPad = 4.0;
     const glyphSize = 62.0;
+    // Dense launcher grids: frost-only (same look as dashboard hero tiles).
+    // Dozens of BackdropFilters on one home screen was the main scroll jank.
     final plate = LiquidGlass(
       borderRadius: BorderRadius.circular(20),
-      enableBlur: true,
+      enableBlur: false,
       blur: flat ? 18 : 20,
       frost: frost,
       shadow: true,
@@ -60,7 +62,7 @@ class LauncherGlassIconTile extends StatelessWidget {
               imageAsset!,
               fit: BoxFit.contain,
               alignment: Alignment.center,
-              filterQuality: FilterQuality.high,
+              filterQuality: FilterQuality.medium,
               gaplessPlayback: true,
             )
           : Center(

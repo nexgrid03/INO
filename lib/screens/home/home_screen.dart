@@ -128,6 +128,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Session-local dismissal of the expiry alert banner.
   bool _bannerDismissed = false;
 
+  /// Live market quotes refreshed after first paint (same card, fresher numbers).
+  List<MarketQuote>? _marketOverride;
+
   @override
   void initState() {
     super.initState();
@@ -138,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // 1) Fetch user documents ONCE upfront (cached defensively in DocumentRepository)
     final docs = await DocumentRepository.instance.listAll().catchError((_) => <Document>[]);
 
-    // 2) Run independent background initializations concurrently in parallel
+    // 2) Critical path — markets use cache only so Swissquote/FX never block Home.
     final results = await Future.wait([
       DashboardRepository.instance.load(),
       ReminderStore.instance.ensureLoaded().then((_) => true).catchError((_) => false),
@@ -147,12 +150,18 @@ class _HomeScreenState extends State<HomeScreen> {
         categories: const [], quickActions: const [], recents: const [], security: const SecurityStatus(score: 0, vaultLocked: true, biometricEnabled: false, lastBackup: '', cloudSynced: false), insights: const [],
       )),
       NetWorthService.instance.ensureReady().then((_) => true).catchError((_) => false),
-      MarketRatesService.instance.fetchLive().catchError((_) => <MarketQuote>[]),
     ]);
+
+    // Warm live rates after first paint; UI already has cache/fallback.
+    // ignore: unawaited_futures
+    MarketRatesService.instance.fetchLive().then((quotes) {
+      if (!mounted || quotes.isEmpty) return;
+      setState(() => _marketOverride = quotes);
+    }).catchError((Object _) {});
 
     // results[0] warms DashboardRepository cache (side effect).
     final hub = results[2] as WalletHubData;
-    final market = results[4] as List<MarketQuote>;
+    final market = _marketOverride ?? MarketRatesService.instance.peekCached();
 
     final documentCount = docs.length;
     final now = DateTime.now();
@@ -288,11 +297,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final data = _load();
     // Block body: an arrow hands setState the assigned Future, which it rejects.
     setState(() {
+      _marketOverride = null;
       _future = data;
     });
     await NotificationCenter.instance.refresh();
     await data;
   }
+
+  List<MarketQuote> _marketsFor(_HomeData data) =>
+      _marketOverride ?? data.market;
 
   // ---- Navigation ----------------------------------------------------------
 
@@ -345,7 +358,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _header(palette),
               // 2. Scrollable feed — QR upload attached at the bottom (no overlay).
               Expanded(
-                child: RefreshIndicator(
+                child: GlassScrollListener(
+                  child: RefreshIndicator(
                   color: AppColors.primaryGreen,
                   onRefresh: _refresh,
                   child: FutureBuilder<_HomeData>(
@@ -403,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+                ),
                 ),
               ),
             ],
@@ -518,11 +533,11 @@ class _HomeScreenState extends State<HomeScreen> {
         header: SectionHeader(
           title: l10n.t('marketSnapshot'),
           actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: data.market)),
+          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
         ),
         child: MarketCard(
-          quotes: data.market,
-          onTap: () => _push(MarketsScreen(quotes: data.market)),
+          quotes: _marketsFor(data),
+          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
         ),
       ),
     ];
@@ -642,11 +657,11 @@ class _HomeScreenState extends State<HomeScreen> {
         header: SectionHeader(
           title: l10n.t('marketSnapshot'),
           actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: data.market)),
+          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
         ),
         child: MarketCard(
-          quotes: data.market,
-          onTap: () => _push(MarketsScreen(quotes: data.market)),
+          quotes: _marketsFor(data),
+          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
         ),
       ),
     ];
@@ -672,6 +687,7 @@ class _ExpiryBanner extends StatelessWidget {
     final palette = AppPalette.of(context);
     return LiquidGlass(
       borderRadius: BorderRadius.circular(18),
+      enableBlur: false,
       blur: 18,
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       child: Row(
@@ -942,6 +958,7 @@ class _ToolTile extends StatelessWidget {
 
     final tile = LiquidGlass(
       borderRadius: BorderRadius.circular(16),
+      enableBlur: false,
       blur: 16,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: content,

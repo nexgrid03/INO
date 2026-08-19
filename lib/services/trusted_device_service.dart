@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
+
 /// A device that has signed in on this install.
 class TrustedDevice {
   const TrustedDevice({
@@ -71,7 +73,7 @@ class TrustedDeviceService {
   /// Ensures the current device is registered and its `lastActive` is now.
   Future<void> registerCurrent() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final currentId = await _ensureCurrentId(p);
       final devices = _decode(p.getString(_kDevices), currentId);
       final now = DateTime.now();
@@ -99,7 +101,7 @@ class TrustedDeviceService {
   /// The known devices, current one first, then most-recently-active.
   Future<List<TrustedDevice>> list() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final currentId = p.getString(_kCurrentId) ?? '';
       final devices = _decode(p.getString(_kDevices), currentId);
       devices.sort((a, b) {
@@ -116,7 +118,7 @@ class TrustedDeviceService {
   /// Forgets a non-current device. Returns false if the id is the current one.
   Future<bool> remove(String id) async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final currentId = p.getString(_kCurrentId) ?? '';
       if (id == currentId) return false;
       final devices = _decode(p.getString(_kDevices), currentId)

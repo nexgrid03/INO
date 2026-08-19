@@ -276,7 +276,14 @@ class _MainShellState extends State<MainShell>
 
     final pages = [
       for (var i = 0; i < rawPages.length; i++)
-        _visitedTabs.contains(i) ? rawPages[i] : const SizedBox.shrink(),
+        _visitedTabs.contains(i)
+            // Pause tickers on hidden tabs — InoBackground / skeletons keep
+            // animating otherwise and burn GPU while the user is elsewhere.
+            ? TickerMode(
+                enabled: i == _index,
+                child: rawPages[i],
+              )
+            : const SizedBox.shrink(),
     ];
 
     final shell = Scaffold(

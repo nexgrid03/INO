@@ -6,11 +6,11 @@ void main() {
     String? parse(String url) => DeepLinkService.parseShareId(Uri.parse(url));
 
     test('extracts the token from the public /s/<token> link', () {
-      expect(parse('https://share.inoapp.in/s/a8f9x2k40b1c'), 'a8f9x2k40b1c');
+      expect(parse('https://ino-share-web.vercel.app/s/a8f9x2k40b1c'), 'a8f9x2k40b1c');
     });
 
     test('handles /s/<token> with a query string', () {
-      expect(parse('https://share.inoapp.in/s/a8f9x2k4?ref=qr'), 'a8f9x2k4');
+      expect(parse('https://ino-share-web.vercel.app/s/a8f9x2k4?ref=qr'), 'a8f9x2k4');
     });
 
     test('extracts the id from the legacy Supabase functions App Link', () {

@@ -856,6 +856,14 @@ const Map<String, Map<String, String>> _strings = {
     'protectingVault': 'Protecting your vault',
     'turnOnToLock': 'Turn on to lock the app',
     'twoFactorOnText': 'A second factor is required at sign-in',
+    'mfaChallengeTitle': 'Two-factor verification',
+    'mfaChallengeBody':
+        'Enter the 6-digit code from your authenticator app to continue.',
+    'sharePasswordTitle': 'Password required',
+    'sharePasswordHint':
+        'This share is protected. Enter the password the sender gave you.',
+    'sharePasswordUnlock': 'Unlock',
+    'sharePasswordIncorrect': 'Incorrect password. Try again.',
     'twoFactorOffText': 'Add a second layer of security',
     'protectedDocuments': 'Protected documents',
     'protectedDocsRequireUnlock': '{n} documents require unlock',
@@ -2149,6 +2157,14 @@ const Map<String, Map<String, String>> _strings = {
     'protectingVault': 'आपके वॉल्ट की सुरक्षा कर रहा है',
     'turnOnToLock': 'ऐप लॉक करने के लिए चालू करें',
     'twoFactorOnText': 'साइन-इन पर दूसरा फैक्टर आवश्यक है',
+    'mfaChallengeTitle': 'दो-चरणीय सत्यापन',
+    'mfaChallengeBody':
+        'जारी रखने के लिए अपने ऑथेंटिकेटर ऐप का 6-अंकों का कोड दर्ज करें।',
+    'sharePasswordTitle': 'पासवर्ड आवश्यक है',
+    'sharePasswordHint':
+        'यह शेयर सुरक्षित है। भेजने वाले का पासवर्ड दर्ज करें।',
+    'sharePasswordUnlock': 'अनलॉक',
+    'sharePasswordIncorrect': 'गलत पासवर्ड। फिर कोशिश करें।',
     'twoFactorOffText': 'सुरक्षा की दूसरी परत जोड़ें',
     'protectedDocuments': 'सुरक्षित दस्तावेज़',
     'protectedDocsRequireUnlock': '{n} दस्तावेज़ों को अनलॉक की आवश्यकता है',
@@ -3409,6 +3425,14 @@ const Map<String, Map<String, String>> _strings = {
     'protectingVault': 'మీ వాల్ట్‌ను రక్షిస్తోంది',
     'turnOnToLock': 'యాప్‌ను లాక్ చేయడానికి ఆన్ చేయండి',
     'twoFactorOnText': 'సైన్-ఇన్‌లో రెండవ ఫ్యాక్టర్ అవసరం',
+    'mfaChallengeTitle': 'రెండంచెల ధృవీకరణ',
+    'mfaChallengeBody':
+        'కొనసాగించడానికి మీ ఆథెంటికేటర్ యాప్ నుండి 6-అంకెల కోడ్‌ను నమోదు చేయండి.',
+    'sharePasswordTitle': 'పాస్‌వర్డ్ అవసరం',
+    'sharePasswordHint':
+        'ఈ షేర్ రక్షించబడింది. పంపినవారు ఇచ్చిన పాస్‌వర్డ్‌ను నమోదు చేయండి.',
+    'sharePasswordUnlock': 'అన్‌లాక్',
+    'sharePasswordIncorrect': 'తప్పు పాస్‌వర్డ్. మళ్ళీ ప్రయత్నించండి.',
     'twoFactorOffText': 'భద్రత రెండవ పొరను జోడించండి',
     'protectedDocuments': 'రక్షిత డాక్యుమెంట్‌లు',
     'protectedDocsRequireUnlock': '{n} డాక్యుమెంట్‌లకు అన్‌లాక్ అవసరం',

@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 /// A selectable icon for a document category.
 ///
@@ -150,7 +151,7 @@ class CategoryStore extends ChangeNotifier {
   /// built-ins are always available even before this runs (e.g. in tests).
   Future<void> load() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final raw = p.getStringList(_key) ?? const [];
       _custom
         ..clear()
@@ -205,7 +206,7 @@ class CategoryStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
           _key, [for (final c in _custom) jsonEncode(c.toJson())]);
     } catch (_) {
@@ -222,7 +223,7 @@ class CategoryStore extends ChangeNotifier {
     _loaded = false;
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(_key);
     } catch (_) {
       // Best-effort.

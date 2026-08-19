@@ -87,6 +87,8 @@ class ShareRepository {
   Future<DocumentShare> createShare({
     required List<String> documentIds,
     required ShareDuration duration,
+    String? password,
+    bool isViewOnly = false,
   }) async {
     if (_client.auth.currentUser == null) {
       throw const ShareException('You must be signed in to share documents.');
@@ -98,6 +100,8 @@ class ShareRepository {
     final payload = <String, dynamic>{
       'p_document_ids': documentIds,
       'p_ttl_seconds': duration.seconds,
+      if (password != null && password.trim().isNotEmpty) 'p_password': password.trim(),
+      if (isViewOnly) 'p_is_view_only': true,
     };
     developer.log(
       'RPC create_document_share → REQUEST\n'
@@ -428,8 +432,13 @@ class ShareRepository {
   /// [PublicShare] whose [PublicShare.status] tells the viewer what to render
   /// (active / expired / revoked / notFound / error). Never throws - a network
   /// failure resolves to [PublicShare.errored].
-  Future<PublicShare> fetchPublicShare(String token) async {
-    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json');
+  Future<PublicShare> fetchPublicShare(String token, {String? passwordHash}) async {
+    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json').replace(
+      queryParameters: {
+        'format': 'json',
+        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
+      },
+    );
     developer.log('fetchPublicShare → GET $uri', name: 'share');
     try {
       // Ask for JSON explicitly - the Edge Function content-negotiates and
@@ -460,10 +469,15 @@ class ShareRepository {
     String token,
     SharedDoc doc, {
     required bool download,
+    String? passwordHash,
   }) async {
     final uri = Uri.parse(
-      '${ShareConfig.apiUrl(token)}/file/${doc.id}'
-      '?mode=${download ? 'download' : 'view'}',
+      '${ShareConfig.apiUrl(token)}/file/${doc.id}',
+    ).replace(
+      queryParameters: {
+        'mode': download ? 'download' : 'view',
+        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
+      },
     );
     developer.log('fetchSharedFile → GET $uri', name: 'share');
     final http.Response res;

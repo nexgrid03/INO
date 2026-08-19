@@ -82,60 +82,19 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
   @override
   void initState() {
     super.initState();
-    if (DocumentScannerService.instance.isSupported) {
-      _stage = _Stage.mlkit;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _launchMlKit());
-    } else {
-      _stage = _Stage.scanner;
-    }
+    _stage = _Stage.scanner;
   }
 
   void _go(_Stage stage) => setState(() => _stage = stage);
 
   void _exit(ScanFlowResult? result) => Navigator.of(context).pop(result);
 
-  /// Opens the native ML Kit document scanner (auto edge detection, auto-crop,
-  /// perspective correction, multi-page). Cancelling exits the flow; a genuine
-  /// failure falls back to the in-app camera so scanning always works.
-  Future<void> _launchMlKit() async {
-    try {
-      final pages = await DocumentScannerService.instance.scanPages();
-      if (!mounted) return;
-      if (pages == null || pages.isEmpty) {
-        _exit(null); // user cancelled the scanner
-        return;
-      }
-      setState(() {
-        _usedMlKit = true;
-        _pages = pages;
-        _capturePath = pages.first;
-        _stage = _Stage.review;
-      });
-    } catch (e) {
-      developer.log(
-        'ML Kit scanner failed, falling back to in-app camera: $e',
-        name: 'scan',
-      );
-      if (mounted) {
-        setState(() {
-          _usedMlKit = false;
-          _stage = _Stage.scanner;
-        });
-      }
-    }
-  }
-
-  /// Retake / review-back: return to whichever capture surface produced the
-  /// current pages.
+  /// Retake / review-back: return to the camera scanner surface.
   void _recapture() {
     _pages = null;
     _capturePath = null;
-    if (_usedMlKit) {
-      _go(_Stage.mlkit);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _launchMlKit());
-    } else {
-      _go(_Stage.scanner);
-    }
+    _usedMlKit = false;
+    _go(_Stage.scanner);
   }
 
   /// Maps the system back gesture to the previous stage (instead of exiting).

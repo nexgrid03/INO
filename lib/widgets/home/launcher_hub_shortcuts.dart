@@ -98,7 +98,8 @@ class _LauncherHubChipRow extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: LiquidGlass(
               borderRadius: BorderRadius.circular(16),
-              enableBlur: flat,
+              // Chips sit in a dense row — frost matches glass without N blurs.
+              enableBlur: false,
               blur: flat ? 16 : 20,
               frost: flat ? 1.35 : (palette.isDark ? 1.0 : 0.72),
               shadow: flat,

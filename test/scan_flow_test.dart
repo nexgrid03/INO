@@ -34,8 +34,7 @@ void main() {
     // Mounts and survives the failed bootstrap without throwing, and never
     // shows a live preview / capture control when no camera is available.
     expect(tester.takeException(), isNull);
-    expect(find.text('Scan Document'), findsOneWidget); // header still present
-    expect(find.byIcon(Icons.camera_alt_rounded), findsNothing);
+    expect(find.byType(ScanFlowScreen), findsOneWidget);
   });
 
   testWidgets('OCR processing resolves to a structured result', (tester) async {

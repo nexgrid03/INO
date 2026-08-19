@@ -63,6 +63,23 @@ class Document {
     );
   }
 
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'wallet': wallet,
+        'name': name,
+        'category': category,
+        'record_number': recordNumber,
+        'status': status,
+        'tags': tags,
+        'notes': notes,
+        'is_favorite': isFavorite,
+        'expires_at': expiresAt?.toIso8601String(),
+        'file_path': filePath,
+        'doctor_name': doctorName,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
   /// True when this row points at a real Storage object.
   bool get hasUploadedFile {
     final p = filePath;

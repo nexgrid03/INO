@@ -5,17 +5,23 @@
 /// replace authentication - the credentials below are typed into the normal
 /// email/password fields and signed in through the existing Supabase flow.
 ///
-/// To point the guest button at a different demo user, change [demoEmail] /
-/// [demoPassword]. To remove the button from a production build, flip
-/// [isDemoBuild] to `false` - the code stays in place but the button is hidden.
+/// Production builds leave [isDemoBuild] false (the default). QA APKs enable
+/// the button with `--dart-define=INO_DEMO_BUILD=true` and inject credentials
+/// via `INO_DEMO_EMAIL` / `INO_DEMO_PASSWORD` so they are never baked into
+/// release clients.
 library;
 
 /// Email of the demo account that lives in Supabase.
-const String demoEmail = 'demo@ino.app';
+const String demoEmail = String.fromEnvironment(
+  'INO_DEMO_EMAIL',
+  defaultValue: 'demo@ino.app',
+);
 
-/// Password for the demo account above.
-const String demoPassword = 'DemoUser@123';
+/// Password for the demo account. Empty unless passed at build time.
+const String demoPassword = String.fromEnvironment('INO_DEMO_PASSWORD');
 
 /// When `true`, the login screen shows the "Login as Guest" button.
-/// Set to `false` for production releases to hide it completely.
-const bool isDemoBuild = true;
+const bool isDemoBuild = bool.fromEnvironment(
+  'INO_DEMO_BUILD',
+  defaultValue: false,
+);

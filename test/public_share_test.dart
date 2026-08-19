@@ -47,6 +47,25 @@ void main() {
       expect(missing.status, PublicShareStatus.notFound);
     });
 
+    test('maps password_required and viewOnly', () {
+      final locked = PublicShare.fromJson({
+        'status': 'password_required',
+        'message': 'This document is password protected.',
+      });
+      expect(locked.status, PublicShareStatus.passwordRequired);
+      expect(locked.isActive, isFalse);
+
+      final viewOnly = PublicShare.fromJson({
+        'status': 'active',
+        'viewOnly': true,
+        'documents': [
+          {'id': '0', 'name': 'Copy', 'type': 'Shared copy'},
+        ],
+      });
+      expect(viewOnly.viewOnly, isTrue);
+      expect(viewOnly.documents, hasLength(1));
+    });
+
     test('an unknown/absent status becomes error', () {
       expect(PublicShare.fromJson({'status': 'weird'}).status,
           PublicShareStatus.error);

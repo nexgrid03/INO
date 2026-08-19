@@ -13,6 +13,7 @@ import '../../repositories/share_repository.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../utils/share_password.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
@@ -67,6 +68,9 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   bool _loading = true;
   String? _busyDocId;
   Timer? _ticker;
+  String? _passwordHash;
+  final _password = TextEditingController();
+  bool _unlocking = false;
 
   @override
   void initState() {
@@ -82,18 +86,39 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   void dispose() {
     _ticker?.cancel();
     _ticker = null;
+    _password.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
     if (!mounted) return;
     setState(() => _loading = true);
-    final share = await ShareRepository.instance.fetchPublicShare(widget.token);
+    final share = await ShareRepository.instance.fetchPublicShare(
+      widget.token,
+      passwordHash: _passwordHash,
+    );
     if (!mounted) return;
     setState(() {
       _share = share;
       _loading = false;
     });
+  }
+
+  Future<void> _unlock() async {
+    final raw = _password.text.trim();
+    if (raw.isEmpty || _unlocking) return;
+    setState(() => _unlocking = true);
+    try {
+      _passwordHash = await sharePasswordHash(raw);
+      await _load();
+      if (!mounted) return;
+      if (_share?.status == PublicShareStatus.passwordRequired) {
+        _toast(AppLocalizations.of(context).t('sharePasswordIncorrect'),
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _unlocking = false);
+    }
   }
 
   PublicShareStatus get _status {
@@ -119,8 +144,12 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   }
 
   Future<SharedFile?> _fetchFile(SharedDoc doc, {required bool download}) {
-    return ShareRepository.instance
-        .fetchSharedFile(widget.token, doc, download: download);
+    return ShareRepository.instance.fetchSharedFile(
+      widget.token,
+      doc,
+      download: download,
+      passwordHash: _passwordHash,
+    );
   }
 
   Future<void> _view(SharedDoc doc) async {
@@ -264,6 +293,14 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
           onSave: _saveToVault,
           onClose: () => Navigator.of(context).maybePop(),
         );
+      case PublicShareStatus.passwordRequired:
+        return _PasswordGate(
+          controller: _password,
+          busy: _unlocking,
+          wrong: _passwordHash != null,
+          onUnlock: _unlock,
+          onClose: () => Navigator.of(context).maybePop(),
+        );
       case PublicShareStatus.expired:
         return _StatusCard(
           kind: _StatusKind.expired,
@@ -287,6 +324,117 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
           onClose: () => Navigator.of(context).maybePop(),
         );
     }
+  }
+}
+
+class _PasswordGate extends StatelessWidget {
+  const _PasswordGate({
+    required this.controller,
+    required this.busy,
+    required this.wrong,
+    required this.onUnlock,
+    required this.onClose,
+  });
+
+  final TextEditingController controller;
+  final bool busy;
+  final bool wrong;
+  final VoidCallback onUnlock;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      children: [
+        Row(
+          children: [
+            const _InoLogoMark(),
+            const Spacer(),
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, color: _ShareWeb.slate500),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _ShareWeb.slate200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.t('sharePasswordTitle'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: _ShareWeb.slate900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.t('sharePasswordHint'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: _ShareWeb.slate500,
+                ),
+              ),
+              if (wrong) ...[
+                const SizedBox(height: 10),
+                Text(
+                  l10n.t('sharePasswordIncorrect'),
+                  style: const TextStyle(
+                    color: _ShareWeb.rose600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                enabled: !busy,
+                onSubmitted: (_) => onUnlock(),
+                decoration: InputDecoration(
+                  hintText: l10n.t('password'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  onPressed: busy ? null : onUnlock,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _ShareWeb.green600,
+                  ),
+                  child: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(l10n.t('sharePasswordUnlock')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -507,8 +655,8 @@ class _ActiveShareBody extends StatelessWidget {
               doc: docs[i],
               busy: busyDocId == docs[i].id,
               onView: () => onView(docs[i]),
-              onDownload: () => onDownload(docs[i]),
-              onSave: () => onSave(docs[i]),
+              onDownload: share.viewOnly ? null : () => onDownload(docs[i]),
+              onSave: share.viewOnly ? null : () => onSave(docs[i]),
             ),
             if (i < docs.length - 1) const SizedBox(height: 10),
           ],
@@ -607,15 +755,15 @@ class _ShareDocRow extends StatelessWidget {
     required this.doc,
     required this.busy,
     required this.onView,
-    required this.onDownload,
-    required this.onSave,
+    this.onDownload,
+    this.onSave,
   });
 
   final SharedDoc doc;
   final bool busy;
   final VoidCallback onView;
-  final VoidCallback onDownload;
-  final VoidCallback onSave;
+  final VoidCallback? onDownload;
+  final VoidCallback? onSave;
 
   String get _kind {
     final n = doc.name.toLowerCase();
@@ -722,19 +870,21 @@ class _ShareDocRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: _ActionBtn(
-                  label: 'Download',
-                  icon: Icons.download_rounded,
-                  filled: true,
-                  onTap: busy ? null : onDownload,
+              if (onDownload != null)
+                Expanded(
+                  child: _ActionBtn(
+                    label: 'Download',
+                    icon: Icons.download_rounded,
+                    filled: true,
+                    onTap: busy ? null : onDownload,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 6),
-          TextButton(
-            onPressed: busy ? null : onSave,
+          if (onSave != null)
+            TextButton(
+              onPressed: busy ? null : onSave,
             style: TextButton.styleFrom(
               foregroundColor: _ShareWeb.green700,
               visualDensity: VisualDensity.compact,

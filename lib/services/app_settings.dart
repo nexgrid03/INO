@@ -1,7 +1,8 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 /// App-wide, locally-persisted user preferences (the ones that don't warrant a
 /// backend column): push notifications, auto-backup, 2FA cache flag, language
@@ -74,7 +75,7 @@ class AppSettings {
   /// Reads every persisted preference into memory. Call once at startup.
   Future<void> load() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       notifications.value = p.getBool(_kNotifications) ?? true;
       welcomeSound.value = p.getBool(_kWelcomeSound) ?? false;
       autoBackup.value = p.getBool(_kAutoBackup) ?? false;
@@ -123,7 +124,7 @@ class AppSettings {
     language.value = code;
     developer.log('language → $code', name: 'settings');
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setString(_kLanguage, code);
     } catch (e) {
       developer.log('setLanguage failed: $e', name: 'settings');
@@ -135,7 +136,7 @@ class AppSettings {
     quickMenu.value = capped;
     developer.log('quickMenu → $capped', name: 'settings');
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(_kQuickMenu, capped);
     } catch (e) {
       developer.log('setQuickMenu failed: $e', name: 'settings');
@@ -146,7 +147,7 @@ class AppSettings {
     currency.value = code;
     developer.log('currency → $code', name: 'settings');
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setString(_kCurrency, code);
     } catch (e) {
       developer.log('setCurrency failed: $e', name: 'settings');
@@ -157,7 +158,7 @@ class AppSettings {
     final now = DateTime.now();
     lastBackupAt.value = now;
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setInt(_kLastBackup, now.millisecondsSinceEpoch);
     } catch (e) {
       developer.log('markBackedUpNow failed: $e', name: 'settings');
@@ -172,7 +173,7 @@ class AppSettings {
     notifier.value = value;
     developer.log('$key → $value', name: 'settings');
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setBool(key, value);
     } catch (e) {
       developer.log('persist $key failed: $e', name: 'settings');
@@ -190,7 +191,7 @@ class AppSettings {
     twoFactor.value = false;
     lastBackupAt.value = null;
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(_kNotifications);
       await p.remove(_kAutoBackup);
       await p.remove(_kTwoFactor);

@@ -32,6 +32,10 @@ class MarketRatesService {
   Future<List<MarketQuote>>? _inFlightFetch;
   static const Duration _cacheTtl = Duration(minutes: 15);
 
+  /// Instant snapshot for first paint — never hits the network.
+  List<MarketQuote> peekCached() =>
+      _cachedQuotes == null ? const [] : List<MarketQuote>.unmodifiable(_cachedQuotes!);
+
   /// Returns [fallback] with the Gold & Silver entries replaced by live rates.
   Future<List<MarketQuote>> fetchLive([List<MarketQuote> fallback = const [], bool force = false]) async {
     final now = DateTime.now();

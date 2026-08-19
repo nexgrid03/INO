@@ -26,11 +26,14 @@ interface Props {
   token: string;
   doc: SharedDoc;
   onBack?: () => void;
+  viewOnly?: boolean;
+  pwHash?: string;
 }
 
-export default function DocViewer({ token, doc, onBack }: Props) {
-  const view = `/api/s/${token}/file/${doc.id}?mode=view`;
-  const download = `/api/s/${token}/file/${doc.id}?mode=download`;
+export default function DocViewer({ token, doc, onBack, viewOnly, pwHash }: Props) {
+  const pwQ = pwHash ? `&pw=${encodeURIComponent(pwHash)}` : "";
+  const view = `/api/s/${token}/file/${doc.id}?mode=view${pwQ}`;
+  const download = viewOnly ? undefined : `/api/s/${token}/file/${doc.id}?mode=download${pwQ}`;
   const inner =
     doc.kind === "image" ? (
       <ImageView src={view} name={doc.name} download={download} onBack={onBack} />
@@ -46,7 +49,7 @@ export default function DocViewer({ token, doc, onBack }: Props) {
 
 function Bar(props: {
   name: string;
-  download: string;
+  download?: string;
   onBack?: () => void;
   children?: React.ReactNode; // zoom controls
 }) {
@@ -60,17 +63,19 @@ function Bar(props: {
       <div className="name">{props.name}</div>
       <div className="spacer" />
       {props.children}
-      <a className="btn primary" href={props.download} aria-label="Download">
-        {DL_ICON}
-        <span>Download</span>
-      </a>
+      {props.download && (
+        <a className="btn primary" href={props.download} aria-label="Download">
+          {DL_ICON}
+          <span>Download</span>
+        </a>
+      )}
     </div>
   );
 }
 
 /* ---- image (pinch / double-tap zoom) -------------------------------------- */
 
-function ImageView({ src, name, download, onBack }: { src: string; name: string; download: string; onBack?: () => void }) {
+function ImageView({ src, name, download, onBack }: { src: string; name: string; download?: string; onBack?: () => void }) {
   const ref = useRef<ReactZoomPanPinchRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -105,7 +110,7 @@ function ImageView({ src, name, download, onBack }: { src: string; name: string;
 
 /* ---- pdf (page render + zoom) --------------------------------------------- */
 
-function PdfView({ src, name, download, onBack }: { src: string; name: string; download: string; onBack?: () => void }) {
+function PdfView({ src, name, download, onBack }: { src: string; name: string; download?: string; onBack?: () => void }) {
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(800);
@@ -154,7 +159,7 @@ function PdfView({ src, name, download, onBack }: { src: string; name: string; d
 
 /* ---- other (no inline preview) -------------------------------------------- */
 
-function OtherView({ name, type, download, onBack }: { name: string; type: string; download: string; onBack?: () => void }) {
+function OtherView({ name, type, download, onBack }: { name: string; type: string; download?: string; onBack?: () => void }) {
   return (
     <div className="viewer">
       <Bar name={name} download={download} onBack={onBack} />
@@ -167,7 +172,9 @@ function OtherView({ name, type, download, onBack }: { name: string; type: strin
             <div style={{ fontWeight: 700, color: "#0f172a" }}>{name}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>{type} · preview not available</div>
           </div>
-          <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+          {download && (
+            <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+          )}
         </div>
       </div>
     </div>
@@ -183,14 +190,16 @@ function Loading() {
   );
 }
 
-function Fallback({ download }: { download: string }) {
+function Fallback({ download }: { download?: string }) {
   return (
     <div className="center">
       <div style={{ width: 44, height: 44, color: "#0284c7" }}>
         <FileTextIcon />
       </div>
       <div style={{ fontSize: 13 }}>Couldn’t preview this file.</div>
-      <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+      {download && (
+        <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+      )}
     </div>
   );
 }

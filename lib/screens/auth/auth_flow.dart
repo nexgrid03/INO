@@ -6,9 +6,11 @@ import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/guest_mode.dart';
+import '../../services/two_factor_service.dart';
 import '../../theme/theme_controller.dart';
 import '../shell/main_shell.dart';
 import 'complete_profile_screen.dart';
+import 'mfa_challenge_screen.dart';
 
 /// Guards against two callers (e.g. the sign-in future and a retry) both
 /// routing at once and pushing the shell twice.
@@ -23,12 +25,14 @@ bool _routingAfterAuth = false;
 /// (Android Credential Manager) was open - the root cause of the "nothing
 /// happens after picking an account" bug.
 ///
+///   • enrolled TOTP and session still aal1 → MFA challenge
 ///   • no profile row yet, or an incomplete one (no phone) → Complete Profile
 ///   • otherwise → the app shell (Home)
 Future<void> routeAfterAuth({
   required String authUserId,
   required String fullName,
   required String email,
+  bool mfaSatisfied = false,
 }) async {
   if (_routingAfterAuth) {
     developer.log('routeAfterAuth ignored - already routing', name: 'auth');
@@ -46,6 +50,23 @@ Future<void> routeAfterAuth({
       'routeAfterAuth: fetching profile for $authUserId',
       name: 'auth',
     );
+
+    if (!mfaSatisfied &&
+        await TwoFactorService.instance.needsMfaChallenge()) {
+      if (!navContext.mounted) return;
+      developer.log('routeAfterAuth → MFA challenge', name: 'auth');
+      Navigator.of(navContext).push(
+        MaterialPageRoute(
+          builder: (_) => MfaChallengeScreen(
+            authUserId: authUserId,
+            fullName: fullName,
+            email: email,
+          ),
+        ),
+      );
+      return;
+    }
+
     final existing = await UserRepository.instance.getProfileByAuthId(
       authUserId,
     );

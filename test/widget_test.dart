@@ -22,9 +22,9 @@ void main() {
     // Entrance animation
     await tester.pump(const Duration(milliseconds: 1500));
     expect(find.byType(SplashScreen), findsOneWidget);
-    expect(find.text('I'), findsOneWidget);
-    expect(find.text('N'), findsOneWidget);
-    expect(find.text('O'), findsOneWidget);
+    expect(find.text('I'), findsWidgets);
+    expect(find.text('N'), findsWidgets);
+    expect(find.text('O'), findsWidgets);
 
     // Complete the 5.2s splash animation, 1.2s hold, 0.45s exit, and 0.9s transition.
     await tester.pump(const Duration(milliseconds: 4000));

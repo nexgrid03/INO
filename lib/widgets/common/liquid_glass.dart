@@ -6,6 +6,88 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 
+/// Shared blur filters — creating a new [ImageFilter.blur] per build forces
+/// the engine to recompile the blur shader. Bucketing keeps visuals identical
+/// while cutting GPU churn across dozens of glass tiles.
+final Map<int, ImageFilter> _kBlurFilters = <int, ImageFilter>{};
+
+ImageFilter _blurFilterFor(double sigma) {
+  // Cap at 16: values 18–24 look nearly identical on phone screens but cost
+  // disproportionately more fill-rate (backdrop blur is O(sigma²) work).
+  final s = sigma.clamp(0.0, 16.0);
+  final key = (s * 2).round(); // 0.5px buckets
+  return _kBlurFilters.putIfAbsent(
+    key,
+    () => ImageFilter.blur(sigmaX: key / 2.0, sigmaY: key / 2.0),
+  );
+}
+
+/// Whether backdrop blur is allowed right now (false while a parent scroll
+/// view is actively scrolling). Resting UI keeps full glass; mid-scroll uses
+/// frost-only so frame time stays production-smooth.
+class GlassScrollPerformance extends InheritedWidget {
+  const GlassScrollPerformance({
+    super.key,
+    required this.allowBlur,
+    required super.child,
+  });
+
+  final bool allowBlur;
+
+  static bool blurAllowedOf(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<GlassScrollPerformance>();
+    return scope?.allowBlur ?? true;
+  }
+
+  @override
+  bool updateShouldNotify(GlassScrollPerformance oldWidget) =>
+      allowBlur != oldWidget.allowBlur;
+}
+
+/// Wraps a scrollable so dense [LiquidGlass] surfaces drop backdrop blur only
+/// while the user is scrolling. Appearance at rest is unchanged.
+class GlassScrollListener extends StatefulWidget {
+  const GlassScrollListener({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<GlassScrollListener> createState() => _GlassScrollListenerState();
+}
+
+class _GlassScrollListenerState extends State<GlassScrollListener> {
+  bool _allowBlur = true;
+  int _scrollGen = 0;
+
+  void _onScrollActivity() {
+    if (_allowBlur) setState(() => _allowBlur = false);
+    final gen = ++_scrollGen;
+    Future<void>.delayed(const Duration(milliseconds: 140), () {
+      if (!mounted || gen != _scrollGen) return;
+      setState(() => _allowBlur = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is ScrollUpdateNotification || n is ScrollStartNotification) {
+          _onScrollActivity();
+        } else if (n is ScrollEndNotification) {
+          _onScrollActivity();
+        }
+        return false;
+      },
+      child: GlassScrollPerformance(
+        allowBlur: _allowBlur,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 /// The app's iOS 26 "Liquid Glass" material.
 ///
 /// Renders a surface exactly the way Apple's Liquid Glass reads:
@@ -86,8 +168,11 @@ class LiquidGlass extends StatelessWidget {
 
     // Dark: never sample the backdrop — translucent glass + sky wash made
     // icon tiles shift colour while scrolling. Light keeps real blur on
-    // native; web always uses frosted fill only.
-    final useBlur = enableBlur && blur > 0 && !kIsWeb && !dark;
+    // native; web always uses frosted fill only. Mid-scroll parents may
+    // temporarily suspend blur via [GlassScrollPerformance] (frost-only).
+    final scrollOk = GlassScrollPerformance.blurAllowedOf(context);
+    final useBlur =
+        enableBlur && blur > 0 && !kIsWeb && !dark && scrollOk;
 
     final BorderRadius? radius = circle
         ? null
@@ -172,7 +257,7 @@ class LiquidGlass extends StatelessWidget {
     Widget surface = useBlur
         ? RepaintBoundary(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              filter: _blurFilterFor(blur),
               child: body,
             ),
           )

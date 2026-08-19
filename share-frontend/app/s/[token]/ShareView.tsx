@@ -49,14 +49,19 @@ export default function ShareView({
   token,
   documents,
   expiresAt,
+  viewOnly = false,
+  pwHash,
 }: {
   token: string;
   documents: SharedDoc[];
   expiresAt: string | null;
+  viewOnly?: boolean;
+  pwHash?: string;
 }) {
   const [open, setOpen] = useState<SharedDoc | null>(null);
   const when = useMemo(() => formatSharedAt(), []);
   const countLabel = `${documents.length} document${documents.length === 1 ? "" : "s"}`;
+  const pwQ = pwHash ? `&pw=${encodeURIComponent(pwHash)}` : "";
 
   return (
     <>
@@ -65,7 +70,11 @@ export default function ShareView({
         <div className="hero">
           <div className="hero-banner">
             <h1>Documents shared with you</h1>
-            <p>Review, view and download the files below.</p>
+            <p>
+              {viewOnly
+                ? "These files are view-only. Download is disabled by the sender."
+                : "Review, view and download the files below."}
+            </p>
           </div>
           <div className="hero-body">
             <div className="hero-count">
@@ -103,13 +112,15 @@ export default function ShareView({
                 >
                   <EyeIcon />
                 </button>
-                <a
-                  className="icon-act download"
-                  aria-label={`Download ${d.name}`}
-                  href={`/api/s/${token}/file/${d.id}?mode=download`}
-                >
-                  <DownloadIcon />
-                </a>
+                {!viewOnly && (
+                  <a
+                    className="icon-act download"
+                    aria-label={`Download ${d.name}`}
+                    href={`/api/s/${token}/file/${d.id}?mode=download${pwQ}`}
+                  >
+                    <DownloadIcon />
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -134,7 +145,13 @@ export default function ShareView({
               <ExpiryPill expiresAt={expiresAt} />
             </div>
           </div>
-          <DocViewer token={token} doc={open} onBack={() => setOpen(null)} />
+          <DocViewer
+            token={token}
+            doc={open}
+            onBack={() => setOpen(null)}
+            viewOnly={viewOnly}
+            pwHash={pwHash}
+          />
         </div>
       )}
     </>

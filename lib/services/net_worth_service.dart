@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/storage/shared_prefs_cache.dart';
 
 import '../models/dashboard_models.dart';
 import '../models/investment_models.dart';
@@ -237,7 +238,7 @@ class NetWorthService extends ChangeNotifier {
 
   Future<void> _loadHistory() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final raw = prefs.getString(_historyKey);
       if (raw == null || raw.isEmpty) {
         _history = const [];
@@ -279,7 +280,7 @@ class NetWorthService extends ChangeNotifier {
     }
     _history = List.unmodifiable(next);
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
       await prefs.setString(
         _historyKey,
         jsonEncode([

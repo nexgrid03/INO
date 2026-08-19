@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/storage/shared_prefs_cache.dart';
 import '../models/wallet_models.dart';
 import '../repositories/wallet_tables.dart';
 import 'category_store.dart';
@@ -113,7 +113,7 @@ class CustomWalletStore extends ChangeNotifier {
   /// Hydrates custom wallets from disk. Safe to call once at startup.
   Future<void> load() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       final raw = p.getStringList(_key) ?? const [];
       _wallets
         ..clear()
@@ -193,7 +193,7 @@ class CustomWalletStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
           _key, [for (final w in _wallets) jsonEncode(w.toJson())]);
     } catch (_) {
@@ -209,7 +209,7 @@ class CustomWalletStore extends ChangeNotifier {
     _loaded = false;
     notifyListeners();
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await SharedPrefsCache.instance.prefsAsync;
       await p.remove(_key);
     } catch (_) {
       // Best-effort.

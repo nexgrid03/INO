@@ -16,9 +16,12 @@ export async function GET(
   { params }: { params: { token: string; index: string } },
 ) {
   const mode = new URL(req.url).searchParams.get("mode") === "download" ? "download" : "view";
+  const pw = new URL(req.url).searchParams.get("pw") ?? "";
+  const qs = new URLSearchParams({ mode });
+  if (pw) qs.set("pw", pw);
   const upstream =
     `${FUNCTIONS_URL}/share/${encodeURIComponent(params.token)}` +
-    `/file/${encodeURIComponent(params.index)}?mode=${mode}`;
+    `/file/${encodeURIComponent(params.index)}?${qs.toString()}`;
 
   const r = await fetch(upstream, { cache: "no-store" });
 

@@ -15,11 +15,12 @@ export interface SharedDoc {
 }
 
 export interface ShareData {
-  status: "active" | "expired" | "revoked" | "not_found" | "error";
+  status: "active" | "expired" | "revoked" | "not_found" | "error" | "password_required";
   count: number;
   expiresAt: string | null;
   documents: SharedDoc[];
   message?: string;
+  viewOnly?: boolean;
 }
 
 // ---- View Once --------------------------------------------------------------
@@ -60,12 +61,17 @@ export async function peekViewOnce(token: string): Promise<ViewOncePeek> {
 }
 
 /** Fetches share metadata (JSON) from the Edge Function, server-side. */
-export async function fetchShare(token: string): Promise<ShareData> {
+export async function fetchShare(token: string, pw?: string | null): Promise<ShareData> {
   try {
-    const res = await fetch(`${FUNCTIONS_URL}/share/${encodeURIComponent(token)}?format=json`, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
+    const qs = new URLSearchParams({ format: "json" });
+    if (pw) qs.set("pw", pw);
+    const res = await fetch(
+      `${FUNCTIONS_URL}/share/${encodeURIComponent(token)}?${qs.toString()}`,
+      {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      },
+    );
     const json = await res.json();
     return {
       status: json.status ?? "error",
@@ -73,6 +79,7 @@ export async function fetchShare(token: string): Promise<ShareData> {
       expiresAt: json.expiresAt ?? null,
       documents: Array.isArray(json.documents) ? json.documents : [],
       message: json.message,
+      viewOnly: Boolean(json.viewOnly),
     };
   } catch {
     return { status: "error", count: 0, expiresAt: null, documents: [] };
