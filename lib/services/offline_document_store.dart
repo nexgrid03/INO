@@ -107,9 +107,17 @@ class OfflineDocumentStore extends ChangeNotifier {
   bool get isEmpty => _docs.isEmpty;
   int get count => _docs.length;
 
+  SupabaseClient? _client() {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
   String? _uid() {
     try {
-      return Supabase.instance.client.auth.currentUser?.id;
+      return _client()?.auth.currentUser?.id;
     } catch (_) {
       return null;
     }
@@ -156,6 +164,12 @@ class OfflineDocumentStore extends ChangeNotifier {
     _loaded = true;
     _loadedUid = uid;
     notifyListeners();
+
+    // Background sync: push any locally cached documents to Supabase so
+    // existing offline records populate the server-side table.
+    if (uid != null && _docs.isNotEmpty) {
+      _syncToSupabase(uid);
+    }
   }
 
   /// The durable folder for the current user's offline files.
@@ -209,6 +223,10 @@ class OfflineDocumentStore extends ChangeNotifier {
       await _persist();
       developer.log('saved offline: $name (${entry.sizeLabel})',
           name: 'offline');
+
+      // Best-effort sync to Supabase table
+      _upsertToSupabase(uid, entry);
+
       return entry;
     } catch (e) {
       developer.log('save offline failed: $e', name: 'offline');
@@ -218,6 +236,7 @@ class OfflineDocumentStore extends ChangeNotifier {
 
   /// Removes a doc from the offline library and deletes its on-device file.
   Future<void> remove(String docId) async {
+    final uid = _uid();
     final entry = byId(docId);
     if (entry == null) return;
     _docs.removeWhere((d) => d.id == docId);
@@ -230,6 +249,10 @@ class OfflineDocumentStore extends ChangeNotifier {
       // The entry is gone from the list either way; an orphaned file is
       // reclaimed the next time the same doc is saved (same target name).
       developer.log('offline file delete failed: $e', name: 'offline');
+    }
+
+    if (uid != null) {
+      _deleteFromSupabase(uid, docId);
     }
   }
 
@@ -246,6 +269,77 @@ class OfflineDocumentStore extends ChangeNotifier {
       );
     } catch (_) {
       // Best-effort; the in-memory list stays correct for this session.
+    }
+  }
+
+  Future<void> _syncToSupabase(String uid) async {
+    final client = _client();
+    if (client == null || _docs.isEmpty) return;
+    try {
+      final rows = _docs
+          .map((doc) => {
+                'auth_user_id': uid,
+                'document_id': doc.id,
+                'name': doc.name,
+                'wallet': doc.wallet,
+                'category': doc.category,
+                'object_path': doc.objectPath,
+                'local_path': doc.localPath,
+                'size_bytes': doc.sizeBytes,
+                'saved_at': doc.savedAt.toIso8601String(),
+              })
+          .toList();
+
+      await client.from('offline_documents').upsert(
+            rows,
+            onConflict: 'auth_user_id, document_id',
+          );
+      developer.log('synced ${_docs.length} offline docs to Supabase',
+          name: 'offline');
+    } catch (e) {
+      developer.log('sync offline docs to Supabase failed: $e', name: 'offline');
+    }
+  }
+
+  Future<void> _upsertToSupabase(String uid, OfflineDoc doc) async {
+    final client = _client();
+    if (client == null) return;
+    try {
+      await client.from('offline_documents').upsert(
+        {
+          'auth_user_id': uid,
+          'document_id': doc.id,
+          'name': doc.name,
+          'wallet': doc.wallet,
+          'category': doc.category,
+          'object_path': doc.objectPath,
+          'local_path': doc.localPath,
+          'size_bytes': doc.sizeBytes,
+          'saved_at': doc.savedAt.toIso8601String(),
+        },
+        onConflict: 'auth_user_id, document_id',
+      );
+      developer.log('upserted offline doc ${doc.id} to Supabase',
+          name: 'offline');
+    } catch (e) {
+      developer.log('upsert offline doc to Supabase failed: $e',
+          name: 'offline');
+    }
+  }
+
+  Future<void> _deleteFromSupabase(String uid, String docId) async {
+    final client = _client();
+    if (client == null) return;
+    try {
+      await client.from('offline_documents').delete().match({
+        'auth_user_id': uid,
+        'document_id': docId,
+      });
+      developer.log('deleted offline doc $docId from Supabase',
+          name: 'offline');
+    } catch (e) {
+      developer.log('delete offline doc from Supabase failed: $e',
+          name: 'offline');
     }
   }
 

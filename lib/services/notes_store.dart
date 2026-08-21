@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
@@ -122,41 +121,39 @@ class NotesStore extends ChangeNotifier {
     return out;
   }
 
-  /// One-time upload of notes an older build stored on-device for [uid].
+  /// One-time upload of notes an older build or guest session stored on-device.
   /// Runs before the first Supabase load; on success the local key is removed
-  /// so it never runs again. A failure leaves the local copy intact for the
-  /// next attempt.
+  /// so it never runs again.
   Future<void> _migrateLegacyLocal(String uid) async {
-    List<String> raw;
-    SharedPreferences p;
     try {
-      p = await SharedPrefsCache.instance.prefsAsync;
-      raw = p.getStringList(_keyFor(uid)) ?? const [];
-    } catch (_) {
-      return; // No plugin (tests) → nothing to migrate.
-    }
-    if (raw.isEmpty) return;
-    debugPrint('Notes: migrating ${raw.length} legacy local note(s) to Supabase');
-    for (final s in raw) {
-      try {
-        final note = Note.fromJson(jsonDecode(s) as Map<String, dynamic>);
-        await NotesRepository.instance.add(note);
-      } catch (e) {
-        // A malformed entry is dropped; a network failure aborts the migration
-        // (rethrown) so the local copy is preserved for the next attempt.
-        if (e is FormatException || e is TypeError) continue;
-        rethrow;
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      final keysToMigrate = {_keyFor(uid), _keyFor(null), 'ino_notes_local'};
+      for (final key in keysToMigrate) {
+        final raw = p.getStringList(key) ?? const [];
+        if (raw.isEmpty) continue;
+        debugPrint('Notes: migrating ${raw.length} local note(s) from $key to Supabase');
+        for (final s in raw) {
+          try {
+            final note = Note.fromJson(jsonDecode(s) as Map<String, dynamic>);
+            await NotesRepository.instance.add(note);
+          } catch (e) {
+            if (e is FormatException || e is TypeError) continue;
+            debugPrint('Notes: note migration item skipped ($e)');
+          }
+        }
+        await p.remove(key);
       }
+      debugPrint('Notes: local notes migration finished');
+    } catch (e) {
+      debugPrint('Notes: legacy migration error ($e)');
     }
-    await p.remove(_keyFor(uid));
-    debugPrint('Notes: legacy local notes migrated');
   }
 
   Future<void> _persistLocal() async {
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
       await p.setStringList(
-        _keyFor(_loadedUid),
+        _keyFor(_currentUid() ?? _loadedUid),
         [for (final n in _notes) jsonEncode(n.toJson())],
       );
     } catch (_) {
@@ -164,7 +161,7 @@ class NotesStore extends ChangeNotifier {
     }
   }
 
-  bool get _remote => _loadedUid != null;
+  bool get _remote => _currentUid() != null;
 
   int _cmp(Note a, Note b) {
     if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
