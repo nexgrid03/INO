@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
@@ -733,14 +734,25 @@ class _Thumbnail extends StatelessWidget {
   final Property property;
   final Color accent;
 
+  /// Painted size of this thumbnail (see the 48×48 box at the call site).
+  static const double _size = 48;
+
   @override
   Widget build(BuildContext context) {
     final path = property.imagePath;
-    if (path != null && File(path).existsSync()) {
+    if (path != null && path.isNotEmpty) {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
-        // A deleted/moved photo must never break the card.
+        // Decode straight to thumbnail size. Property photos come from the
+        // camera/gallery at full resolution; without this a 48px tile pulled a
+        // multi-megabyte bitmap into the image cache and evicted every other
+        // card's thumbnail, so scrolling re-decoded them over and over.
+        cacheWidth: context.decodeWidthFor(_size),
+        cacheHeight: context.decodeWidthFor(_size),
+        // A deleted/moved photo must never break the card. This also covers the
+        // missing-file case that an `existsSync()` used to pre-check — that was
+        // a blocking disk stat running on the UI thread on every single build.
         errorBuilder: (_, _, _) => _placeholder(context),
       );
     }

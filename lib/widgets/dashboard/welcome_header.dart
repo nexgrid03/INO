@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/avatar_color.dart';
@@ -172,6 +173,11 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
                           fit: BoxFit.cover,
                           width: 48,
                           height: 48,
+                          // Avatars arrive at whatever resolution the user
+                          // uploaded; decode to the 48px circle we actually
+                          // paint instead of caching a full-size portrait.
+                          cacheWidth: context.decodeWidthFor(48),
+                          cacheHeight: context.decodeWidthFor(48),
                           errorBuilder: (_, _, _) => _initialsLabel(),
                         )
                       : _initialsLabel(),

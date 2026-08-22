@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
 import '../../services/expense_store.dart';
@@ -405,6 +406,10 @@ class _ReceiptView extends StatelessWidget {
           width: double.infinity,
           height: 260,
           fit: BoxFit.cover,
+          // Receipt photos come straight from the camera. This preview is
+          // 260px tall; the full-resolution decode is only needed by the
+          // zoomable viewer that `_openFull` pushes.
+          cacheHeight: context.decodeWidthFor(260),
           errorBuilder: (_, _, _) => Container(
             height: 160,
             alignment: Alignment.center,

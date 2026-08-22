@@ -7,12 +7,14 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/payment_qr.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/deep_link_service.dart';
+import '../../services/qr_crop_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
@@ -61,6 +63,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   /// Set the moment a code is accepted, so the stream can't fire the handler a
   /// second time while the sheet is opening.
   bool _handled = false;
+
+  /// True while the gallery picker / decode is in flight, so the upload button
+  /// can show progress and refuse a second tap.
+  bool _picking = false;
 
   final Stopwatch _throttle = Stopwatch();
 
@@ -309,6 +315,66 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     await _startStream();
   }
 
+  /// Reads a QR out of a photo in the gallery instead of off the camera.
+  ///
+  /// Payment QRs very often arrive as an image rather than something to point a
+  /// camera at — a shopkeeper WhatsApps their code, a biller emails one, or the
+  /// user screenshots it from another app. Without this the only way to pay was
+  /// to print the code or open it on a second screen.
+  ///
+  /// Reuses [QrCropService], which already runs ML Kit over a picked file and
+  /// hands back the decoded payload, so this adds no new vision pipeline. The
+  /// decoded string goes through the very same [_onCode] the camera path uses,
+  /// so an uploaded payment QR reaches the payment-app picker by exactly the
+  /// route a scanned one does.
+  Future<void> _pickFromGallery() async {
+    if (_picking || _handled) return;
+    setState(() => _picking = true);
+    // Free the camera while the OS picker is in front of us.
+    await _stopStream();
+
+    String? path;
+    try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        // The code only needs to be legible, not full resolution.
+        maxWidth: 2000,
+        maxHeight: 2000,
+      );
+      path = file?.path;
+    } catch (_) {
+      path = null;
+    }
+
+    if (!mounted) return;
+
+    if (path == null) {
+      // Cancelled the picker — put the scanner back the way it was.
+      setState(() => _picking = false);
+      if (_phase == _Phase.ready) await _startStream();
+      return;
+    }
+
+    String? payload;
+    try {
+      final result = await QrCropService.instance.cropFromFile(path);
+      payload = result?.payload;
+    } catch (_) {
+      payload = null;
+    }
+
+    if (!mounted) return;
+    setState(() => _picking = false);
+
+    if (payload == null || payload.isEmpty) {
+      _toast(AppLocalizations.of(context).t('qrNotFoundInImage'));
+      if (_phase == _Phase.ready) await _startStream();
+      return;
+    }
+
+    await _onCode(payload);
+  }
+
   Future<void> _stopStream() async {
     final controller = _controller;
     if (controller == null || !_streaming) return;
@@ -525,6 +591,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               onRetry: _bootstrap,
               onSettings: CameraPermissionService.instance.openSettings,
             ),
+          const SizedBox(height: AppSpacing.lg),
+          // Offered in every phase on purpose: when the camera is blocked or
+          // unavailable, uploading a saved payment QR is the only way through,
+          // so this must not be gated behind `_Phase.ready`.
+          _UploadQrButton(
+            busy: _picking,
+            label: l10n.t('qrUploadFromGallery'),
+            onTap: _pickFromGallery,
+          ),
           const Spacer(flex: 2),
         ],
       ),
@@ -533,6 +608,66 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 }
 
 // ---------------------------------------------------------------------------
+
+/// "Upload a QR image" affordance under the scan frame.
+///
+/// Deliberately a quiet glass pill rather than a filled button: scanning stays
+/// the primary action, this is the fallback for a code that arrived as a photo.
+class _UploadQrButton extends StatelessWidget {
+  const _UploadQrButton({
+    required this.busy,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool busy;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: !busy,
+      label: label,
+      child: GestureDetector(
+        onTap: busy ? null : onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.internal, vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (busy)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              else
+                const Icon(Icons.photo_library_rounded,
+                    size: 18, color: Colors.white),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: AppText.label.copyWith(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _TorchButton extends StatelessWidget {
   const _TorchButton({required this.on, required this.onTap});

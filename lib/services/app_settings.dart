@@ -26,6 +26,7 @@ class AppSettings {
   static const _kWelcomeSound = 'pref_welcome_sound_enabled';
   static const _kTourSeen = 'pref_feature_tour_seen';
   static const _kOnboardingSeen = 'pref_onboarding_seen';
+  static const _kPaymentAppConsent = 'pref_payment_app_consent';
   static const _kQuickMenu = 'pref_quick_menu';
 
   /// Push / reminder notifications. Default on.
@@ -64,6 +65,15 @@ class AppSettings {
   /// After this is true, cold starts skip onboarding and go Splash → auth/shell.
   final ValueNotifier<bool> onboardingSeen = ValueNotifier<bool>(false);
 
+  /// Whether the user has agreed to let INO hand a scanned payment QR off to
+  /// an installed payment app (Google Pay, PhonePe, Paytm, …).
+  ///
+  /// Asked once, then remembered — leaving a payment app is a real trust
+  /// boundary (INO passes the payee VPA out to another app and the payment
+  /// itself happens there, outside INO), so it deserves an explicit yes rather
+  /// than happening silently on first tap. Revocable from Profile → Privacy.
+  final ValueNotifier<bool> paymentAppConsent = ValueNotifier<bool>(false);
+
   /// The user's picked quick-menu features (action ids, in their chosen order,
   /// max 5) for the bottom nav's "+" button. Device preference. The ids map to
   /// `QuickAction.name`s; unknown ids are ignored at read time so an old
@@ -84,6 +94,7 @@ class AppSettings {
       currency.value = p.getString(_kCurrency) ?? 'INR';
       tourSeen.value = p.getBool(_kTourSeen) ?? false;
       onboardingSeen.value = p.getBool(_kOnboardingSeen) ?? false;
+      paymentAppConsent.value = p.getBool(_kPaymentAppConsent) ?? false;
       final menu = p.getStringList(_kQuickMenu);
       if (menu != null && menu.isNotEmpty) {
         quickMenu.value = List.unmodifiable(menu.take(5));
@@ -113,6 +124,9 @@ class AppSettings {
 
   Future<void> setOnboardingSeen(bool value) =>
       _setBool(_kOnboardingSeen, onboardingSeen, value);
+
+  Future<void> setPaymentAppConsent(bool value) =>
+      _setBool(_kPaymentAppConsent, paymentAppConsent, value);
 
   Future<void> setAutoBackup(bool value) =>
       _setBool(_kAutoBackup, autoBackup, value);

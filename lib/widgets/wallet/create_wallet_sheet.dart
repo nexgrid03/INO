@@ -200,7 +200,7 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final color = Color(_colorValue);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final sheetBg = palette.isDark ? palette.surface : Colors.white;
     final radius = widget.asDialog
         ? BorderRadius.circular(AppRadius.large)

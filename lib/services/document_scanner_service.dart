@@ -31,7 +31,27 @@ class DocumentScannerService {
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
         documentFormats: const {DocumentFormat.jpeg},
-        mode: ScannerMode.full, // auto-capture + crop + perspective + enhance
+        // BASE, deliberately — not `full`.
+        //
+        // All three ML Kit modes do the part we actually want: live edge
+        // detection, auto-capture, auto-crop and perspective correction. What
+        // `full` / `filter` add on top is ML Kit's own *filter* stage
+        // (grayscale / auto-enhance), and that filter is **sticky** — Google's
+        // scanner UI remembers the last one the user picked and silently
+        // reapplies it to every future scan.
+        //
+        // That was the bug behind "I scanned a colour document and it saved in
+        // black and white". Once a user tried the B&W filter, ML Kit baked it
+        // into the JPEG before INO ever received the file, so the Original chip
+        // on the review screen had no colour left to restore — it was already
+        // gone upstream.
+        //
+        // INO offers its own colour modes downstream (ScanColorMode: original /
+        // enhanced / grayscale / B&W in ScanReviewScreen), so ML Kit's filter
+        // was both redundant and destructive. BASE returns the geometrically
+        // corrected capture with its colour intact, which makes "Original"
+        // genuinely original and every other mode reversible.
+        mode: ScannerMode.base, // auto-capture + crop + perspective, no filter
         pageLimit: pageLimit,
         isGalleryImport: allowGalleryImport,
       ),

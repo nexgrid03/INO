@@ -53,7 +53,7 @@ class ResponsiveBuilder extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
-            : MediaQuery.of(context).size.width;
+            : MediaQuery.sizeOf(context).width;
         final deviceType = ScreenBreakpoints.getDeviceType(width);
         return builder(context, constraints, deviceType);
       },
@@ -69,7 +69,7 @@ T responsiveValue<T>(
   T? mobileLarge,
   T? tablet,
 }) {
-  final width = MediaQuery.of(context).size.width;
+  final width = MediaQuery.sizeOf(context).width;
   final deviceType = ScreenBreakpoints.getDeviceType(width);
   switch (deviceType) {
     case InoDeviceType.mobileSmall:

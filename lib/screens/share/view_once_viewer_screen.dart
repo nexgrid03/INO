@@ -66,6 +66,15 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
 
   Timer? _ticker;
 
+  /// Counts the on-screen life of an OPEN document down to zero, then burns the
+  /// view. Separate from [_ticker], which only keeps the gate's link-expiry text
+  /// honest — this one destroys something, so it is started only after a
+  /// successful claim and is driven by the server's `viewSeconds`.
+  Timer? _viewTimer;
+
+  /// Seconds left on screen. `null` means no limit was set for this share.
+  int? _secondsLeft;
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +94,8 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
   void dispose() {
     _ticker?.cancel();
     _ticker = null;
+    _viewTimer?.cancel();
+    _viewTimer = null;
     ScreenSecurityService.instance.screenshotTaken.removeListener(_onScreenshot);
     ScreenSecurityService.instance.captureDetected
         .removeListener(_onCaptureChanged);
@@ -156,6 +167,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
         _file = file;
         _phase = _Phase.open;
       });
+      _startViewCountdown(claim.viewSeconds);
     } on ShareException catch (e) {
       if (!mounted) return;
       // The token is already burned at this point - going back to the gate would
@@ -173,6 +185,53 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
             message: AppLocalizations.of(context).t('viewOnceCouldNotOpen'));
       });
     }
+  }
+
+  /// Begins the sender's on-screen time limit for an open document.
+  ///
+  /// Started only once the bytes are actually rendered, never at claim time — a
+  /// slow fetch must not eat into the recipient's look. `0` seconds means the
+  /// sender chose no limit, in which case nothing is scheduled at all.
+  void _startViewCountdown(int seconds) {
+    _viewTimer?.cancel();
+    if (seconds <= 0) {
+      _secondsLeft = null;
+      return;
+    }
+    setState(() => _secondsLeft = seconds);
+    _viewTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final left = (_secondsLeft ?? 0) - 1;
+      if (left > 0) {
+        setState(() => _secondsLeft = left);
+        return;
+      }
+      timer.cancel();
+      _burnOnTimeout();
+    });
+  }
+
+  /// Time is up: drop the bytes and show the terminal state.
+  ///
+  /// The token was already burned by the claim, so nothing new is being spent
+  /// here — this is about taking the pixels away. [_file] is cleared so the
+  /// document cannot be recovered by a rebuild.
+  void _burnOnTimeout() {
+    if (!mounted) return;
+    developer.log('view-once on-screen time elapsed', name: 'view-once');
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _file = null;
+      _secondsLeft = null;
+      _phase = _Phase.spent;
+      _peek = ViewOncePeek(
+        status: ViewOnceStatus.viewed,
+        message: AppLocalizations.of(context).t('viewOnceTimeUpBody'),
+      );
+    });
   }
 
   /// For file types the app can't render itself (PDF, Office). The bytes are
@@ -485,18 +544,43 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.subtitle.copyWith(color: palette.textPrimary)),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  l10n.t('viewOnceViewedNow'),
-                  style: AppText.caption.copyWith(
-                      color: AppColors.darkGreen, fontWeight: FontWeight.w700),
-                ),
-              ),
+              // A live countdown when the sender set a time limit, otherwise
+              // the plain "viewed now" badge. It turns red for the last five
+              // seconds so the document vanishing is never a surprise.
+              Builder(builder: (context) {
+                final left = _secondsLeft;
+                final urgent = left != null && left <= 5;
+                final accent =
+                    urgent ? AppColors.critical : AppColors.primaryGreen;
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (left != null) ...[
+                        Icon(Icons.timer_outlined, size: 13, color: accent),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        left == null
+                            ? l10n.t('viewOnceViewedNow')
+                            : l10n
+                                .t('viewOnceSecondsLeft')
+                                .replaceFirst('{n}', '$left'),
+                        style: AppText.caption.copyWith(
+                          color: urgent ? AppColors.critical : AppColors.darkGreen,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),

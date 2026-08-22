@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
@@ -24,9 +25,9 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
-import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
+import '../../widgets/security/biometric_ux.dart';
 import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../family/family_vault_screen.dart';
@@ -79,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   late bool _notifications = AppSettings.instance.notifications.value;
   late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
   bool _twoFactor = AppSettings.instance.twoFactor.value;
+  late bool _paymentAppConsent = AppSettings.instance.paymentAppConsent.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
 
   // Live storage meter, computed from real Storage objects.
@@ -227,6 +229,21 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() => _notifications = value);
     await AppSettings.instance.setNotifications(value);
     _toast(value ? 'Notifications enabled' : 'Notifications turned off');
+  }
+
+  /// Withdraws (or re-grants) permission for INO to open external payment apps.
+  /// Turning it off means the next scanned payment QR asks again before handing
+  /// anything to Google Pay / PhonePe / Paytm.
+  Future<void> _togglePaymentAppConsent(bool value) async {
+    // Resolved before the await — reading it after would use a BuildContext
+    // across an async gap.
+    final l10n = AppLocalizations.of(context);
+    setState(() => _paymentAppConsent = value);
+    await AppSettings.instance.setPaymentAppConsent(value);
+    if (!mounted) return;
+    _toast(value
+        ? l10n.t('paymentAppsAllowedToast')
+        : l10n.t('paymentAppsRevokedToast'));
   }
 
   Future<void> _toggleWelcomeSound(bool value) async {
@@ -643,7 +660,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final p = _profile;
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Title stays pinned above the list (Home-style). Putting it inside the
@@ -732,6 +749,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.devices_rounded,
             title: l10n.t('trustedDevices'),
             onTap: () => _push(const TrustedDevicesScreen()),
+          ),
+          SettingsRow(
+            icon: Icons.account_balance_wallet_rounded,
+            title: l10n.t('paymentAppsPermission'),
+            subtitle: l10n.t('paymentAppsPermissionDesc'),
+            trailing: Semantics(
+              label: l10n.t('paymentAppsPermission'),
+              toggled: _paymentAppConsent,
+              child: _switch(_paymentAppConsent, _togglePaymentAppConsent),
+            ),
           ),
         ],
       ),
@@ -1008,6 +1035,8 @@ class _ProfileHero extends StatelessWidget {
                               fit: BoxFit.cover,
                               width: 84,
                               height: 84,
+                              cacheWidth: context.decodeWidthFor(84),
+                              cacheHeight: context.decodeWidthFor(84),
                               errorBuilder: (_, _, _) => _HeroInitials(
                                 initials: _initials,
                                 gradient: accentGrad,

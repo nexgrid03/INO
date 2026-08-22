@@ -203,10 +203,12 @@ String _shortMapsLabel(String url) {
     return 'Google Maps link';
   }
   // Strip scheme for a cleaner ellipsis.
-  return url
-      .replaceFirst(RegExp(r'^https?://'), '')
-      .replaceFirst(RegExp(r'^www\.'), '');
+  return url.replaceFirst(_kScheme, '').replaceFirst(_kWww, '');
 }
+
+// Compiled once rather than per call — this helper runs from list-item builds.
+final RegExp _kScheme = RegExp(r'^https?://');
+final RegExp _kWww = RegExp(r'^www\.');
 
 class _MiniIconButton extends StatelessWidget {
   const _MiniIconButton({

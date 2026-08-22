@@ -107,7 +107,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final insets = MediaQuery.of(context).viewInsets.bottom;
+    final insets = MediaQuery.viewInsetsOf(context).bottom;
 
     return Padding(
       padding: EdgeInsets.only(bottom: insets),

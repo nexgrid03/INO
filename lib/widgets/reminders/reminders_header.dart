@@ -26,8 +26,10 @@ class RemindersHeader extends StatelessWidget {
   final VoidCallback onNotifications;
   final int notificationCount;
 
+  static final RegExp _kWhitespace = RegExp(r'\s+');
+
   String get _initials {
-    final parts = fullName.trim().split(RegExp(r'\s+'));
+    final parts = fullName.trim().split(_kWhitespace);
     if (parts.isEmpty || parts.first.isEmpty) return 'IN';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts.first[0] + parts.last[0]).toUpperCase();

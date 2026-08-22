@@ -84,7 +84,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
     final l10n = AppLocalizations.of(context);
     final color = Color(_colorValue);
     // Keep the sheet clear of the keyboard.
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),

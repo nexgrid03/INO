@@ -450,13 +450,17 @@ class _ExtractedSummary extends StatelessWidget {
   final DocumentRecord record;
   final Color? accent;
 
+  /// Compiled once. Built inline this was re-compiled for every card carrying
+  /// a document number, on every build.
+  static final RegExp _nonDigit = RegExp(r'\D');
+
   /// Masks the document number for a list view: the last 4 stay visible, the
   /// rest are hidden. A 12-digit Aadhaar keeps its familiar "XXXX XXXX 1234"
   /// grouping.
   static String _maskedNumber(String raw) {
     final v = raw.trim();
     if (v.isEmpty) return '';
-    final digits = v.replaceAll(RegExp(r'\D'), '');
+    final digits = v.replaceAll(_nonDigit, '');
     if (digits.length == 12) return 'XXXX XXXX ${digits.substring(8)}';
     if (v.length > 4) {
       return '${'•' * (v.length - 4)}${v.substring(v.length - 4)}';

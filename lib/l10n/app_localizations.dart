@@ -1457,6 +1457,35 @@ const Map<String, Map<String, String>> _strings = {
     'qrScanHint':
         'Point the camera at a QR code. Payment codes open in your UPI app.',
     'payUsing': 'Pay using',
+    'qrUploadFromGallery': 'Upload a QR image',
+    'qrNotFoundInImage':
+        "Couldn't find a QR code in that image. Try a clearer photo.",
+    'paymentConsentTitle': 'Open your payment app?',
+    'paymentConsentBody':
+        'INO will hand this payee to {app} to finish the payment. The amount, '
+        'your UPI PIN and the transfer all happen there — INO never sees them.',
+    'paymentConsentNote': "You'll only be asked once. Change this in Profile → Security.",
+    'paymentConsentAllow': 'Allow',
+    'paymentConsentAnyApp': 'your payment app',
+    'paymentAppsPermission': 'Payment apps',
+    'paymentAppsPermissionDesc':
+        'Let INO open Google Pay, PhonePe or Paytm for a scanned payment QR',
+    'paymentAppsAllowedToast': 'INO can open your payment apps',
+    'paymentAppsRevokedToast': "INO will ask again before opening a payment app",
+    // ---- View-once: sender-chosen on-screen duration ----
+    'viewDurationLabel': 'Time on screen',
+    'viewDurationHint':
+        'How long the document stays visible after they open it. The link is '
+        'still single-use either way.',
+    'view15Seconds': '15s',
+    'view30Seconds': '30s',
+    'view60Seconds': '60s',
+    'viewNoLimit': 'No limit',
+    'viewOnceSecondsLeft': '{n}s left',
+    'viewOnceTimeUpBody':
+        'Time is up. This was a one-time document, so it cannot be opened again.',
+    'viewOnceGateDuration':
+        "You'll have {n} seconds once you open it.",
     'useAnotherApp': 'Use another app',
     'amountEnteredInApp': "You'll enter the amount in your payment app",
     'paymentHandedOffNote':
@@ -2720,6 +2749,33 @@ const Map<String, Map<String, String>> _strings = {
     'qrScanHint':
         'कैमरा QR कोड पर रखें। भुगतान कोड आपके UPI ऐप में खुलेंगे।',
     'payUsing': 'इससे भुगतान करें',
+    'qrUploadFromGallery': 'QR छवि अपलोड करें',
+    'qrNotFoundInImage':
+        'उस छवि में कोई QR कोड नहीं मिला। कोई स्पष्ट फ़ोटो आज़माएँ।',
+    'paymentConsentTitle': 'अपना भुगतान ऐप खोलें?',
+    'paymentConsentBody':
+        'INO इस प्राप्तकर्ता को भुगतान पूरा करने के लिए {app} को सौंपेगा। राशि, '
+        'आपका UPI PIN और ट्रांसफ़र सब वहीं होते हैं — INO उन्हें कभी नहीं देखता।',
+    'paymentConsentNote': 'यह केवल एक बार पूछा जाएगा। प्रोफ़ाइल → सुरक्षा में बदलें।',
+    'paymentConsentAllow': 'अनुमति दें',
+    'paymentConsentAnyApp': 'आपका भुगतान ऐप',
+    'paymentAppsPermission': 'भुगतान ऐप',
+    'paymentAppsPermissionDesc':
+        'स्कैन किए गए भुगतान QR के लिए INO को Google Pay, PhonePe या Paytm खोलने दें',
+    'paymentAppsAllowedToast': 'INO आपके भुगतान ऐप खोल सकता है',
+    'paymentAppsRevokedToast': 'भुगतान ऐप खोलने से पहले INO फिर पूछेगा',
+    // ---- View-once: sender-chosen on-screen duration ----
+    'viewDurationLabel': 'स्क्रीन पर समय',
+    'viewDurationHint':
+        'खोलने के बाद दस्तावेज़ कितनी देर दिखेगा। लिंक फिर भी एक ही बार खुलेगा।',
+    'view15Seconds': '15से',
+    'view30Seconds': '30से',
+    'view60Seconds': '60से',
+    'viewNoLimit': 'कोई सीमा नहीं',
+    'viewOnceSecondsLeft': '{n}से बचे',
+    'viewOnceTimeUpBody':
+        'समय समाप्त। यह एक-बार का दस्तावेज़ था, इसे दोबारा नहीं खोला जा सकता।',
+    'viewOnceGateDuration': 'खोलने के बाद आपके पास {n} सेकंड होंगे।',
     'useAnotherApp': 'दूसरा ऐप चुनें',
     'amountEnteredInApp': 'राशि आप अपने भुगतान ऐप में डालेंगे',
     'paymentHandedOffNote':
@@ -4006,6 +4062,33 @@ const Map<String, Map<String, String>> _strings = {
     'qrScanHint':
         'కెమెరాను QR కోడ్‌పై ఉంచండి. చెల్లింపు కోడ్‌లు మీ UPI యాప్‌లో తెరుచుకుంటాయి.',
     'payUsing': 'దీనితో చెల్లించండి',
+    'qrUploadFromGallery': 'QR చిత్రాన్ని అప్‌లోడ్ చేయండి',
+    'qrNotFoundInImage':
+        'ఆ చిత్రంలో QR కోడ్ కనబడలేదు. స్పష్టమైన ఫోటోను ప్రయత్నించండి.',
+    'paymentConsentTitle': 'మీ చెల్లింపు యాప్‌ను తెరవాలా?',
+    'paymentConsentBody':
+        'చెల్లింపు పూర్తి చేయడానికి INO ఈ చెల్లింపుదారుని {app}కి అప్పగిస్తుంది. మొత్తం, '
+        'మీ UPI PIN మరియు బదిలీ అన్నీ అక్కడే జరుగుతాయి — INO వాటిని ఎప్పుడూ చూడదు.',
+    'paymentConsentNote': 'ఇది ఒకసారి మాత్రమే అడుగుతుంది. ప్రొఫైల్ → భద్రతలో మార్చండి.',
+    'paymentConsentAllow': 'అనుమతించు',
+    'paymentConsentAnyApp': 'మీ చెల్లింపు యాప్',
+    'paymentAppsPermission': 'చెల్లింపు యాప్‌లు',
+    'paymentAppsPermissionDesc':
+        'స్కాన్ చేసిన చెల్లింపు QR కోసం INO Google Pay, PhonePe లేదా Paytm తెరవనివ్వండి',
+    'paymentAppsAllowedToast': 'INO మీ చెల్లింపు యాప్‌లను తెరవగలదు',
+    'paymentAppsRevokedToast': 'చెల్లింపు యాప్ తెరవడానికి ముందు INO మళ్లీ అడుగుతుంది',
+    // ---- View-once: sender-chosen on-screen duration ----
+    'viewDurationLabel': 'స్క్రీన్‌పై సమయం',
+    'viewDurationHint':
+        'వారు తెరిచిన తర్వాత పత్రం ఎంతసేపు కనిపిస్తుంది. లింక్ ఏమైనా ఒక్కసారే పనిచేస్తుంది.',
+    'view15Seconds': '15సె',
+    'view30Seconds': '30సె',
+    'view60Seconds': '60సె',
+    'viewNoLimit': 'పరిమితి లేదు',
+    'viewOnceSecondsLeft': '{n}సె మిగిలింది',
+    'viewOnceTimeUpBody':
+        'సమయం ముగిసింది. ఇది ఒకసారి-చూసే పత్రం, దీన్ని మళ్లీ తెరవలేరు.',
+    'viewOnceGateDuration': 'తెరిచిన తర్వాత మీకు {n} సెకన్లు ఉంటాయి.',
     'useAnotherApp': 'మరో యాప్ ఎంచుకోండి',
     'amountEnteredInApp': 'మొత్తాన్ని మీ చెల్లింపు యాప్‌లో నమోదు చేస్తారు',
     'paymentHandedOffNote':

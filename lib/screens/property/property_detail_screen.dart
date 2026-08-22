@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
@@ -560,7 +561,10 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final path = property.imagePath;
-    final has = path != null && File(path).existsSync();
+    // No `existsSync()` here — that was a blocking disk stat on the UI thread
+    // every build. `errorBuilder` already renders the same fallback when the
+    // file has been moved or deleted.
+    final has = path != null && path.isNotEmpty;
     final accent = property.status.color;
     return Container(
       height: 190,
@@ -577,6 +581,9 @@ class _HeroCard extends StatelessWidget {
             Image.file(
               File(path),
               fit: BoxFit.cover,
+              // Bound the decode to the 190px band this actually paints into.
+              // Passing only the height keeps the aspect ratio intact.
+              cacheHeight: context.decodeWidthFor(190),
               errorBuilder: (_, _, _) => _fallback(context, accent),
             )
           else

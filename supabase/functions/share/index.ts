@@ -542,6 +542,10 @@ async function peekViewOnce(token: string, req: Request): Promise<Response> {
           name: payload.name ?? "Document",
           type: payload.type ?? "Document",
           expiresAt: payload.expiresAt ?? null,
+          // How long the recipient gets ON SCREEN once they open it (0 = no
+          // limit). Surfaced on the gate so the warning can be specific about
+          // what spending the single view actually buys.
+          viewSeconds: Number(payload.viewSeconds ?? 0),
         },
         200,
       );
@@ -611,6 +615,9 @@ async function claimViewOnce(token: string, req: Request): Promise<Response> {
       viewedAt: payload.viewedAt ?? null,
       name: payload.name ?? "Document",
       type: payload.type ?? "Document",
+      // Authoritative countdown length. The viewer must run its timer off this
+      // rather than off whatever the gate rendered a moment earlier.
+      viewSeconds: Number(payload.viewSeconds ?? 0),
       kind,
       mime,
     },

@@ -13,7 +13,7 @@ Rect shareOrigin(BuildContext context) {
   if (obj is RenderBox && obj.hasSize) {
     return obj.localToGlobal(Offset.zero) & obj.size;
   }
-  final size = MediaQuery.of(context).size;
+  final size = MediaQuery.sizeOf(context);
   return Rect.fromCenter(
     center: Offset(size.width / 2, size.height / 2),
     width: 1,

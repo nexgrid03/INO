@@ -1,6 +1,53 @@
 import 'dart:typed_data';
 
 import '../config/share_config.dart';
+import '../l10n/app_localizations.dart';
+
+/// How long a one-time document stays on screen after the recipient opens it.
+///
+/// The sender picks this per share, alongside (not instead of) the link's
+/// expiry. The two answer different questions: expiry is "how long may this
+/// link sit unopened", this is "how long is the look itself".
+///
+/// The values are mirrored by the `view_once_shares_view_seconds_ck` constraint
+/// in Postgres, which accepts 0 or 5–600 — keep them in step.
+enum ViewDuration {
+  fifteenSeconds,
+  thirtySeconds,
+  sixtySeconds,
+
+  /// No countdown: the document stays until the recipient closes it. Still a
+  /// single view — the link is burned either way.
+  noLimit,
+}
+
+extension ViewDurationX on ViewDuration {
+  /// Seconds sent to `create_view_once_share`. `0` means no limit.
+  int get seconds => switch (this) {
+        ViewDuration.fifteenSeconds => 15,
+        ViewDuration.thirtySeconds => 30,
+        ViewDuration.sixtySeconds => 60,
+        ViewDuration.noLimit => 0,
+      };
+
+  String get labelKey => switch (this) {
+        ViewDuration.fifteenSeconds => 'view15Seconds',
+        ViewDuration.thirtySeconds => 'view30Seconds',
+        ViewDuration.sixtySeconds => 'view60Seconds',
+        ViewDuration.noLimit => 'viewNoLimit',
+      };
+
+  String label(AppLocalizations l10n) => l10n.t(labelKey);
+
+  /// The closest enum value for a raw second count coming back from the server,
+  /// so a row written by a different client still renders as a known chip.
+  static ViewDuration fromSeconds(int seconds) => switch (seconds) {
+        15 => ViewDuration.fifteenSeconds,
+        60 => ViewDuration.sixtySeconds,
+        0 => ViewDuration.noLimit,
+        _ => ViewDuration.thirtySeconds,
+      };
+}
 
 /// Recipient-facing outcome of a one-time link, as reported by the `share` Edge
 /// Function's view-once API.
@@ -82,6 +129,9 @@ class ViewOnceShare {
     required this.documentId,
     required this.ownerId,
     required this.expiryTime,
+    // Mirrors the `view_seconds not null default 30` column, so a caller that
+    // only cares about link status (tests, status logic) needn't supply it.
+    this.viewSeconds = 30,
     required this.viewed,
     required this.revoked,
     required this.createdAt,
@@ -96,6 +146,15 @@ class ViewOnceShare {
   final String documentId;
   final String ownerId;
   final DateTime expiryTime;
+
+  /// How long the document stays on screen once the recipient opens it, in
+  /// seconds. `0` means no limit.
+  ///
+  /// Orthogonal to [expiryTime]: that bounds how long the *unopened link* stays
+  /// reachable, this bounds the *look itself*. A link can be good for a week and
+  /// still grant only fifteen seconds.
+  final int viewSeconds;
+
   final bool viewed;
   final bool revoked;
   final DateTime createdAt;
@@ -122,6 +181,7 @@ class ViewOnceShare {
       documentId: documentId,
       ownerId: ownerId,
       expiryTime: expiryTime,
+      viewSeconds: viewSeconds,
       viewed: viewed ?? this.viewed,
       revoked: revoked ?? this.revoked,
       createdAt: createdAt,
@@ -136,6 +196,10 @@ class ViewOnceShare {
       documentId: map['document_id'] as String,
       ownerId: map['owner_id'] as String,
       expiryTime: DateTime.parse(map['expiry_time'] as String),
+      // Older rows (and an app build talking to a pre-migration backend) have
+      // no column at all — fall back to the same 30s the RPC defaults to.
+      viewSeconds: (map['view_seconds'] as num?)?.toInt() ??
+          ViewDuration.thirtySeconds.seconds,
       viewed: (map['viewed'] as bool?) ?? false,
       revoked: (map['revoked'] as bool?) ?? false,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -157,6 +221,7 @@ class ViewOncePeek {
     this.name = 'Document',
     this.type = 'Document',
     this.expiresAt,
+    this.viewSeconds = 0,
     this.message,
   });
 
@@ -164,6 +229,11 @@ class ViewOncePeek {
   final String name;
   final String type;
   final DateTime? expiresAt;
+
+  /// Seconds the recipient will get once they open it (`0` = no limit). Shown
+  /// on the gate so the decision to spend the single view is an informed one.
+  final int viewSeconds;
+
   final String? message;
 
   factory ViewOncePeek.fromJson(Map<String, dynamic> json) => ViewOncePeek(
@@ -173,6 +243,7 @@ class ViewOncePeek {
         expiresAt: json['expiresAt'] == null
             ? null
             : DateTime.tryParse(json['expiresAt'] as String),
+        viewSeconds: (json['viewSeconds'] as num?)?.toInt() ?? 0,
         message: json['message'] as String?,
       );
 
@@ -188,6 +259,7 @@ class ViewOnceClaim {
     required this.type,
     required this.kind,
     required this.mime,
+    this.viewSeconds = 0,
     this.accessExpiresAt,
   });
 
@@ -196,6 +268,10 @@ class ViewOnceClaim {
   final String type;
   final ViewOnceKind kind;
   final String mime;
+
+  /// Seconds this document may stay on screen (`0` = no limit). Authoritative:
+  /// the viewer counts down from this, not from whatever the gate rendered.
+  final int viewSeconds;
 
   /// When the access key stops working (minutes, not hours).
   final DateTime? accessExpiresAt;
@@ -206,6 +282,7 @@ class ViewOnceClaim {
         type: _text(json['type'], 'Document'),
         kind: viewOnceKindFrom(json['kind'] as String?),
         mime: json['mime'] as String? ?? 'application/octet-stream',
+        viewSeconds: (json['viewSeconds'] as num?)?.toInt() ?? 0,
         accessExpiresAt: json['accessExpiresAt'] == null
             ? null
             : DateTime.tryParse(json['accessExpiresAt'] as String),

@@ -1,3 +1,4 @@
+import 'dart:async' show Timer;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,7 +12,16 @@ import '../../theme/theme_style.dart';
 /// while cutting GPU churn across dozens of glass tiles.
 final Map<int, ImageFilter> _kBlurFilters = <int, ImageFilter>{};
 
-ImageFilter _blurFilterFor(double sigma) {
+ImageFilter _blurFilterFor(double sigma) => sharedBlurFilter(sigma);
+
+/// A cached [ImageFilter.blur] for [sigma], snapped to 0.5px buckets.
+///
+/// Reach for this instead of constructing `ImageFilter.blur` inline — most
+/// importantly inside an [AnimatedBuilder], where a fresh filter per frame
+/// makes the engine rebuild the blur shader on every single frame of the
+/// animation. Bucketing means an animated sigma reuses ~30 cached filters
+/// across its whole sweep rather than allocating 60 new ones per second.
+ImageFilter sharedBlurFilter(double sigma) {
   // Cap at 16: values 18–24 look nearly identical on phone screens but cost
   // disproportionately more fill-rate (backdrop blur is O(sigma²) work).
   final s = sigma.clamp(0.0, 16.0);
@@ -58,24 +68,39 @@ class GlassScrollListener extends StatefulWidget {
 
 class _GlassScrollListenerState extends State<GlassScrollListener> {
   bool _allowBlur = true;
-  int _scrollGen = 0;
+
+  /// One reusable timer. The previous implementation allocated a fresh
+  /// `Future.delayed` for every [ScrollUpdateNotification] — 60–120 timers +
+  /// closures per second of flinging, all of them garbage a frame later.
+  /// Restarting a single [Timer] costs nothing and behaves identically.
+  Timer? _settle;
 
   void _onScrollActivity() {
     if (_allowBlur) setState(() => _allowBlur = false);
-    final gen = ++_scrollGen;
-    Future<void>.delayed(const Duration(milliseconds: 140), () {
-      if (!mounted || gen != _scrollGen) return;
+    _settle?.cancel();
+    _settle = Timer(const Duration(milliseconds: 140), () {
+      if (!mounted || _allowBlur) return;
       setState(() => _allowBlur = true);
     });
+  }
+
+  @override
+  void dispose() {
+    _settle?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
-        if (n is ScrollUpdateNotification || n is ScrollStartNotification) {
-          _onScrollActivity();
-        } else if (n is ScrollEndNotification) {
+        // Only real scroll motion matters. Depth 0 keeps this to the scrollable
+        // the user is actually dragging, so a nested horizontal chip strip
+        // doesn't also suspend blur for the whole page behind it.
+        if (n.depth == 0 &&
+            (n is ScrollStartNotification ||
+                n is ScrollUpdateNotification ||
+                n is ScrollEndNotification)) {
           _onScrollActivity();
         }
         return false;

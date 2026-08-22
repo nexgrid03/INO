@@ -56,6 +56,7 @@ class ViewOnceRepository {
   Future<ViewOnceShare> create({
     required String documentId,
     required ShareDuration duration,
+    ViewDuration viewDuration = ViewDuration.thirtySeconds,
   }) async {
     if (_client.auth.currentUser == null) {
       throw const ShareException('You must be signed in to share documents.');
@@ -67,10 +68,11 @@ class ViewOnceRepository {
     final payload = <String, dynamic>{
       'p_document_id': documentId,
       'p_ttl_seconds': duration.seconds,
+      'p_view_seconds': viewDuration.seconds,
     };
     developer.log(
       'RPC create_view_once_share → documentId=$documentId '
-      'ttl=${duration.seconds}s',
+      'ttl=${duration.seconds}s view=${viewDuration.seconds}s',
       name: 'view-once',
     );
 

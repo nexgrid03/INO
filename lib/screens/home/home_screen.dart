@@ -357,9 +357,11 @@ class _HomeScreenState extends State<HomeScreen> {
               // 1. Greeting header - FIXED at the top.
               _header(palette),
               // 2. Scrollable feed — QR upload attached at the bottom (no overlay).
+              // The app-root GlassScrollListener (main.dart) already suspends
+              // glass blur while this feed scrolls — a second listener here
+              // just doubled the setState + rebuild work on every gesture.
               Expanded(
-                child: GlassScrollListener(
-                  child: RefreshIndicator(
+                child: RefreshIndicator(
                   color: AppColors.primaryGreen,
                   onRefresh: _refresh,
                   child: FutureBuilder<_HomeData>(
@@ -417,7 +419,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-                ),
                 ),
               ),
             ],

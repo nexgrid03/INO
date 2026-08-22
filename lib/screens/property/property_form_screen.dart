@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
@@ -913,7 +914,9 @@ class _PhotoPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final has = imagePath != null && File(imagePath!).existsSync();
+    // Path-only check: `existsSync()` was a blocking disk stat run on the UI
+    // thread on every build of this form.
+    final has = imagePath != null && imagePath!.isNotEmpty;
     return PressableScale(
       pressedScale: 0.99,
       child: GestureDetector(
@@ -934,6 +937,9 @@ class _PhotoPicker extends StatelessWidget {
                 Image.file(
                   File(imagePath!),
                   fit: BoxFit.cover,
+                  // Preview band is 168px tall — decode to that, not to the
+                  // full camera resolution of the photo just picked.
+                  cacheHeight: context.decodeWidthFor(168),
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 )
               else
@@ -1151,7 +1157,7 @@ class _CoOwnerSheetState extends State<_CoOwnerSheet> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         decoration: BoxDecoration(
           color: palette.surface,

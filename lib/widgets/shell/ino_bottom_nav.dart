@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -127,7 +126,7 @@ class _InoBottomNavState extends State<InoBottomNav>
       return box.localToGlobal(box.size.center(Offset.zero),
           ancestor: overlayBox);
     }
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     return Offset(size.width / 2, size.height - 60);
   }
 
@@ -700,7 +699,10 @@ class _ScanMenu extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: onDismiss,
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
+                    // Bucketed + cached: building a fresh ImageFilter here made the
+                    // engine recompile the blur shader on every frame of the
+                    // menu animation.
+                    filter: sharedBlurFilter(7 * v),
                     child: ColoredBox(
                       color: Colors.black.withValues(alpha: 0.15 * v),
                     ),
@@ -960,7 +962,7 @@ class _QuickWheel extends StatelessWidget {
                   child: Opacity(
                     opacity: v,
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 7.0, sigmaY: 7.0),
+                      filter: sharedBlurFilter(7.0),
                       child: ColoredBox(
                         color: Colors.black.withValues(alpha: 0.18),
                       ),

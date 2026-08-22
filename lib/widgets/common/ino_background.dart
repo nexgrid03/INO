@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import 'liquid_glass.dart' show GlassScrollPerformance;
 
 /// The signature INO decorative backdrop - a soft teal aurora.
 ///
@@ -76,10 +77,20 @@ class _InoBackgroundState extends State<InoBackground>
     _syncDrift();
   }
 
+  /// Snaps the drift phase to ~180 discrete steps (~0.1px of blob travel per
+  /// step) so the painter only reports a real change a few times per second.
+  static double _quantise(double v) => (v * 180).roundToDouble() / 180;
+
   void _syncDrift() {
     final flat = InoStyle.usesFlatBackdrop(context);
-    if (flat || !widget.animate) {
-      if (_drift.isAnimating) _drift.stop();
+    // Hold the drift still while the user is scrolling. The backdrop sits
+    // *behind* the content being flung, so its repaint competes for exactly
+    // the frame budget the scroll needs — and nobody can perceive 0.02px/frame
+    // of blob travel mid-flick anyway. It resumes from the same phase 140ms
+    // after the scroll settles, so the motion never visibly jumps.
+    final scrolling = !GlassScrollPerformance.blurAllowedOf(context);
+    if (flat || !widget.animate || scrolling) {
+      if (_drift.isAnimating) _drift.stop(canceled: false);
       return;
     }
     if (!_drift.isAnimating) _drift.repeat(reverse: true);
@@ -113,7 +124,15 @@ class _InoBackgroundState extends State<InoBackground>
               animation: _drift,
               builder: (context, _) => CustomPaint(
                 painter: _AuroraPainter(
-                  t: Curves.easeInOut.transform(_drift.value),
+                  // Quantised on purpose. The blobs travel a total of 18px
+                  // across the controller's 14s sweep — about 0.02px per frame,
+                  // which is invisible, yet an unquantised value made `shouldRepaint`
+                  // true on *every* frame and repainted a full-screen gradient
+                  // plus three radial blobs behind every screen in the app,
+                  // forever. Snapping to ~180 steps keeps the drift just as
+                  // smooth to the eye while cutting those repaints ~4x, giving
+                  // the frame budget back to whatever is scrolling on top.
+                  t: _quantise(Curves.easeInOut.transform(_drift.value)),
                   palette: palette,
                   brand: AppColors.primaryGreen,
                   showDots: widget.showDots,

@@ -144,6 +144,11 @@ extension WalletSortX on WalletSort {
 // Document record
 // ---------------------------------------------------------------------------
 
+/// Per-record memo for [DocumentRecord.extraction]. Weak-keyed, so an entry
+/// lives exactly as long as the record it belongs to.
+final Expando<DocumentExtraction> _extractionCache =
+    Expando<DocumentExtraction>('DocumentRecord.extraction');
+
 class DocumentRecord {
   const DocumentRecord({
     required this.id,
@@ -185,7 +190,18 @@ class DocumentRecord {
   final String? doctorName;
 
   /// The structured OCR data extracted from this document (empty when none).
-  DocumentExtraction get extraction => DocumentExtraction.decode(notes);
+  ///
+  /// Memoised via [_extractionCache]. [DocumentExtraction.decode] runs a
+  /// `jsonDecode` plus a map rebuild, and this getter is read from
+  /// `DocumentCard`'s build — so it previously re-parsed the envelope for every
+  /// card, every time the list rebuilt or a card scrolled into view.
+  ///
+  /// An [Expando] rather than a field because [DocumentRecord] has a `const`
+  /// constructor, which forbids mutable state. The record is immutable (edits
+  /// go through [copyWith], producing a new instance), so a cached decode can
+  /// never go stale, and the entry is collected with the record itself.
+  DocumentExtraction get extraction =>
+      _extractionCache[this] ??= DocumentExtraction.decode(notes);
 
   /// True when [filePath] points at a real uploaded Storage object.
   bool get hasUploadedFile {

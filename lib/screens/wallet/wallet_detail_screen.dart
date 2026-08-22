@@ -879,6 +879,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             physics: const AlwaysScrollableScrollPhysics(
                               parent: ClampingScrollPhysics(),
                             ),
+                            // Build ~5 cards of runway beyond the viewport
+                            // instead of the 250px default (~2). A hard fling
+                            // pulls rows in faster than they can be built, and
+                            // the default left visible gaps at the leading edge.
+                            // Cards are cheap now that thumbnails decode small
+                            // and `extraction` no longer re-parses JSON.
+                            cacheExtent: 600,
                             slivers: [
                               if (data == null)
                                 _loadingSliver()
@@ -1144,6 +1151,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           if (i.isOdd) return const SizedBox(height: 10);
           final record = visible[i ~/ 2];
           return DocumentCard(
+            // Keyed by document id so filtering, sorting or a favourite toggle
+            // re-associates each element with its own card instead of having
+            // every card past the change point rebuild against new data.
+            key: ValueKey(record.id),
             record: record,
             walletAccent: _vaultAccent,
             isHealth: _isHealthWallet,
