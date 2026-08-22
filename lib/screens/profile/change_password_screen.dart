@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/account_service.dart';
+import '../../services/security_alert_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_text_field.dart';
@@ -73,6 +75,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         currentPassword: _current.text,
         newPassword: _next.text,
       );
+      // Other devices are told the credential changed. A database trigger on
+      // auth.users covers the paths the app never sees (reset-by-email, admin
+      // change); this covers the in-app one.
+      unawaited(SecurityAlertService.instance.passwordChanged());
       if (!mounted) return;
       BiometricUx.successSnack(context, l10n.t('passwordUpdated'));
       Navigator.of(context).pop(true);

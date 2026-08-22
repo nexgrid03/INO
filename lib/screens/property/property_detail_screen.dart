@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
@@ -63,12 +64,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   Future<void> _delete(Property p) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       context,
-      title: 'Delete property?',
-      message:
-          '"${p.name}" and everything recorded about it will be removed from '
-          'this device. Documents stored in the Property Wallet are not affected.',
+      title: l10n.t('deletePropertyQ'),
+      message: l10n.t('deletePropertyBody').replaceAll('{name}', p.name),
+      confirmLabel: l10n.t('delete'),
     );
     if (!ok || !mounted) return;
     await _store.remove(p.id);
@@ -86,7 +87,8 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   Future<void> _openMaps(String url) async {
     final clean = url.trim();
     if (!_isValidGoogleMapsUrl(clean)) {
-      showModuleToast(context, 'Invalid Google Maps link.', error: true);
+      showModuleToast(context, AppLocalizations.of(context).t('invalidMapsLink'),
+          error: true);
       return;
     }
     final uri = Uri.parse(clean);
@@ -103,7 +105,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
         await launchUrl(uri, mode: LaunchMode.platformDefault);
       } catch (_) {
         if (!mounted) return;
-        showModuleToast(context, 'Could not open maps link.', error: true);
+        showModuleToast(
+            context, AppLocalizations.of(context).t('couldNotOpenMapsLink'),
+            error: true);
       }
     }
   }
@@ -111,6 +115,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final p = _store.byId(widget.propertyId);
 
     // The property can vanish underneath us (deleted from another screen).
@@ -119,7 +124,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
         backgroundColor: palette.bg,
         body: SafeArea(
           child: Center(
-            child: Text('This property is no longer available',
+            child: Text(l10n.t('propertyNoLongerAvailable'),
                 style: AppText.body.copyWith(color: palette.textSecondary)),
           ),
         ),
@@ -145,15 +150,15 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               ModuleHeader(
                 title: p.name,
                 subtitle: p.locationLine.isEmpty
-                    ? p.type.label
-                    : '${p.type.label} · ${p.locationLine}',
+                    ? p.type.localizedLabel(l10n)
+                    : '${p.type.localizedLabel(l10n)} · ${p.locationLine}',
                 actions: [
                   ModuleIconButton(
                     icon: p.isFavorite
                         ? Icons.star_rounded
                         : Icons.star_outline_rounded,
                     color: p.isFavorite ? AppColors.warning : null,
-                    tooltip: 'Favourite',
+                    tooltip: l10n.t('favorite'),
                     onTap: () {
                       HapticFeedback.selectionClick();
                       _store.toggleFavorite(p.id);
@@ -161,7 +166,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   ),
                   ModuleIconButton(
                     icon: Icons.edit_rounded,
-                    tooltip: 'Edit',
+                    tooltip: l10n.t('edit'),
                     onTap: () => _edit(p),
                   ),
                 ],
@@ -178,6 +183,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               FadeSlideIn(
                 delay: const Duration(milliseconds: 40),
                 child: _ValuationCard(
+                  l10n: l10n,
                   property: p,
                   currency: currency,
                   appreciation: appreciation,
@@ -196,7 +202,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         value: p.area == null
                             ? '—'
                             : '${_trim(p.area!)} ${p.areaUnit.shortLabel}',
-                        label: 'Area',
+                        label: l10n.t('area'),
                         icon: Icons.square_foot_rounded,
                         accent: const Color(0xFF0D9488),
                       ),
@@ -207,7 +213,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         value: p.rentalIncome == null
                             ? '—'
                             : moneyWords(p.rentalIncome!, currency),
-                        label: 'Rent / month',
+                        label: l10n.t('rentPerMonth'),
                         icon: Icons.payments_rounded,
                         accent: AppColors.success,
                       ),
@@ -218,7 +224,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         value: p.annualCost > 0
                             ? moneyWords(p.annualCost, currency)
                             : '—',
-                        label: 'Cost / year',
+                        label: l10n.t('costPerYear'),
                         icon: Icons.receipt_long_rounded,
                         accent: AppColors.warning,
                       ),
@@ -233,22 +239,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 100),
                   child: ModuleSection(
-                    title: 'Location',
+                    title: l10n.t('location'),
                     icon: Icons.place_rounded,
                     accent: AppColors.aquaPrimary,
                     children: [
-                      DetailRow(label: 'Address', value: p.address),
-                      DetailRow(label: 'City', value: p.city),
-                      DetailRow(label: 'State', value: p.state),
-                      DetailRow(label: 'Country', value: p.country),
-                      DetailRow(label: 'PIN code', value: p.pinCode),
+                      DetailRow(label: l10n.t('address'), value: p.address),
+                      DetailRow(label: l10n.t('city'), value: p.city),
+                      DetailRow(label: l10n.t('stateRegion'), value: p.state),
+                      DetailRow(label: l10n.t('country'), value: p.country),
+                      DetailRow(label: l10n.t('pinCode'), value: p.pinCode),
                       DetailRow(
-                        label: 'Maps',
+                        label: l10n.t('maps'),
                         value: (p.mapsUrl ?? '').trim().isEmpty
-                            ? 'No location added.'
+                            ? l10n.t('noLocationAdded')
                             : p.mapsUrl,
                         copyable: (p.mapsUrl ?? '').trim().isNotEmpty,
-                        copyMessage: 'Location link copied.',
+                        copyMessage: l10n.t('locationLinkCopied'),
                         onTap: (p.mapsUrl ?? '').trim().isNotEmpty
                             ? () => _openMaps(p.mapsUrl!)
                             : null,
@@ -262,9 +268,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                             ? () => _openMaps(p.mapsUrl!)
                             : null,
                         icon: const Text('📍', style: TextStyle(fontSize: 16)),
-                        label: const Text(
-                          'Open in Google Maps',
-                          style: TextStyle(
+                        label: Text(
+                          l10n.t('openInGoogleMaps'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13.5,
                           ),
@@ -294,25 +300,25 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 130),
                   child: ModuleSection(
-                    title: 'Ownership',
+                    title: l10n.t('ownership'),
                     icon: Icons.badge_rounded,
                     accent: const Color(0xFF9B6DE0),
                     children: [
-                      DetailRow(label: 'Owner', value: p.ownerName),
+                      DetailRow(label: l10n.t('owner'), value: p.ownerName),
                       DetailRow(
-                        label: 'Ownership share',
+                        label: l10n.t('ownershipShare'),
                         value: p.ownershipPercent == null
                             ? null
                             : '${_trim(p.ownershipPercent!)}%',
                       ),
                       DetailRow(
-                        label: 'Registration no.',
+                        label: l10n.t('registrationNo'),
                         value: p.registrationNumber,
                         copyable: true,
                         monospace: true,
                       ),
                       DetailRow(
-                        label: 'Registered on',
+                        label: l10n.t('registeredOn'),
                         value: p.registrationDate == null
                             ? null
                             : formatModuleDate(p.registrationDate!),
@@ -320,8 +326,8 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       for (final c in p.coOwners)
                         DetailRow(
                           label: c.relationship == null
-                              ? 'Co-owner'
-                              : 'Co-owner · ${c.relationship}',
+                              ? l10n.t('coOwner')
+                              : '${l10n.t('coOwner')} · ${c.relationship}',
                           value: c.sharePercent == null
                               ? c.name
                               : '${c.name} (${_trim(c.sharePercent!)}%)',
@@ -337,31 +343,34 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 160),
                   child: ModuleSection(
-                    title: 'Legal details',
+                    title: l10n.t('legalDetails'),
                     icon: Icons.gavel_rounded,
                     accent: const Color(0xFFF5704A),
                     children: [
-                      DetailRow(label: 'Nominee', value: p.nomineeName),
+                      DetailRow(label: l10n.t('nominee'), value: p.nomineeName),
                       DetailRow(
-                          label: 'Relationship',
+                          label: l10n.t('relationship'),
                           value: p.nomineeRelationship),
                       DetailRow(
-                        label: 'Legal heirs',
+                        label: l10n.t('legalHeirs'),
                         value:
                             p.legalHeirs.isEmpty ? null : p.legalHeirs.join(', '),
                       ),
-                      DetailRow(label: 'Will', value: p.willDetails),
+                      DetailRow(label: l10n.t('will'), value: p.willDetails),
                       DetailRow(
-                        label: 'Property tax ID',
+                        label: l10n.t('propertyTaxId'),
                         value: p.taxId,
                         copyable: true,
                         monospace: true,
                       ),
-                      DetailRow(label: 'Encumbrance', value: p.encumbrance),
+                      DetailRow(
+                          label: l10n.t('encumbrance'), value: p.encumbrance),
                       if (p.hasLoan) ...[
-                        DetailRow(label: 'Loan provider', value: p.loanProvider),
                         DetailRow(
-                          label: 'Outstanding loan',
+                            label: l10n.t('loanProvider'),
+                            value: p.loanProvider),
+                        DetailRow(
+                          label: l10n.t('outstandingLoan'),
                           value: p.outstandingLoan == null
                               ? null
                               : money(p.outstandingLoan!, currency),
@@ -379,35 +388,35 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 190),
                   child: ModuleSection(
-                    title: 'Financial',
+                    title: l10n.t('financial'),
                     icon: Icons.payments_rounded,
                     accent: AppColors.success,
                     children: [
                       DetailRow(
-                        label: 'EMI / month',
+                        label: l10n.t('emiPerMonth'),
                         value: p.emi == null ? null : money(p.emi!, currency),
                       ),
                       DetailRow(
-                        label: 'Rental income / month',
+                        label: l10n.t('rentalIncomePerMonth'),
                         value: p.rentalIncome == null
                             ? null
                             : money(p.rentalIncome!, currency),
                         valueColor: AppColors.success,
                       ),
                       DetailRow(
-                        label: 'Annual property tax',
+                        label: l10n.t('annualPropertyTax'),
                         value: p.annualTax == null
                             ? null
                             : money(p.annualTax!, currency),
                       ),
                       DetailRow(
-                        label: 'Maintenance / year',
+                        label: l10n.t('maintenancePerYear'),
                         value: p.maintenanceCharges == null
                             ? null
                             : money(p.maintenanceCharges!, currency),
                       ),
                       DetailRow(
-                        label: 'Other expenses / year',
+                        label: l10n.t('otherExpensesPerYear'),
                         value: p.otherExpenses == null
                             ? null
                             : money(p.otherExpenses!, currency),
@@ -423,14 +432,16 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 220),
                   child: ModuleSection(
-                    title: 'Documents',
+                    title: l10n.t('documents'),
                     icon: Icons.folder_copy_rounded,
                     accent: const Color(0xFF0891B2),
-                    subtitle: '${p.attachments.length} attached',
+                    subtitle: l10n
+                        .t('nAttached')
+                        .replaceAll('{n}', '${p.attachments.length}'),
                     children: [
                       for (final a in p.attachments)
                         DetailRow(
-                          label: a.kind.label,
+                          label: a.kind.localizedLabel(l10n),
                           value: a.name,
                           icon: a.kind.icon,
                         ),
@@ -446,7 +457,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 250),
                   child: ModuleSection(
-                    title: 'Notes',
+                    title: l10n.t('notes'),
                     icon: Icons.sticky_note_2_rounded,
                     accent: const Color(0xFF64748B),
                     children: [
@@ -498,7 +509,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 child: TextButton.icon(
                   onPressed: () => _delete(p),
                   icon: const Icon(Icons.delete_outline_rounded, size: 19),
-                  label: const Text('Delete property'),
+                  label: Text(l10n.t('deleteProperty')),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.critical,
                     minimumSize: const Size.fromHeight(48),
@@ -560,6 +571,7 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final path = property.imagePath;
     // No `existsSync()` here — that was a blocking disk stat on the UI thread
     // every build. `errorBuilder` already renders the same fallback when the
@@ -615,12 +627,12 @@ class _HeroCard extends StatelessWidget {
               children: [
                 _GlassPill(
                   icon: property.type.icon,
-                  label: property.type.label,
+                  label: property.type.localizedLabel(l10n),
                 ),
                 const SizedBox(width: 8),
                 _GlassPill(
                   icon: property.status.icon,
-                  label: property.status.label,
+                  label: property.status.localizedLabel(l10n),
                   accent: accent,
                 ),
               ],
@@ -685,12 +697,14 @@ class _GlassPill extends StatelessWidget {
 /// the appreciation is felt, not just read.
 class _ValuationCard extends StatelessWidget {
   const _ValuationCard({
+    required this.l10n,
     required this.property,
     required this.currency,
     required this.appreciation,
     required this.gain,
   });
 
+  final AppLocalizations l10n;
   final Property property;
   final Currency currency;
   final double? appreciation;
@@ -710,7 +724,7 @@ class _ValuationCard extends StatelessWidget {
         : (property.purchasePrice! / property.currentValue!).clamp(0.0, 1.0);
 
     return ModuleSection(
-      title: 'Valuation',
+      title: l10n.t('valuation'),
       icon: Icons.trending_up_rounded,
       accent: up ? AppColors.success : AppColors.critical,
       children: [
@@ -721,7 +735,7 @@ class _ValuationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Current value',
+                  Text(l10n.t('currentValue'),
                       style: AppText.caption
                           .copyWith(color: palette.textSecondary)),
                   const SizedBox(height: 2),
@@ -730,7 +744,7 @@ class _ValuationCard extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       property.currentValue == null
-                          ? 'Not set'
+                          ? l10n.t('notSet')
                           : money(property.currentValue!, currency),
                       style: AppText.headline.copyWith(
                         color: property.currentValue == null
@@ -798,19 +812,19 @@ class _ValuationCard extends StatelessWidget {
         ],
         const SizedBox(height: 6),
         DetailRow(
-          label: 'Purchase price',
+          label: l10n.t('purchasePrice'),
           value: property.purchasePrice == null
               ? null
               : money(property.purchasePrice!, currency),
         ),
         DetailRow(
-          label: 'Purchased on',
+          label: l10n.t('purchasedOn'),
           value: property.purchaseDate == null
               ? null
               : formatModuleDate(property.purchaseDate!),
         ),
         DetailRow(
-          label: up ? 'Gain' : 'Loss',
+          label: up ? l10n.t('gain') : l10n.t('loss'),
           value: gain == null ? null : money(gain!.abs(), currency),
           valueColor: color,
         ),

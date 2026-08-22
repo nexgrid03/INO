@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/card_models.dart';
 import '../../services/card_store.dart';
 import '../../theme/app_dimens.dart';
@@ -12,7 +13,7 @@ import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
-import 'cards_wallet_screen.dart' show BankCardFace;
+import 'cards_wallet_screen.dart' show BankCardFace, cardKindLabel;
 
 /// Add / edit a card.
 ///
@@ -77,12 +78,15 @@ class _CardFormScreenState extends State<CardFormScreen> {
   /// [_save] persists.
   SavedCard get _draft => SavedCard(
         id: widget.existing?.id ?? 'preview',
-        name: _name.text.trim().isEmpty ? 'New card' : _name.text.trim(),
+        name: _name.text.trim().isEmpty
+            ? AppLocalizations.of(context).t('newCard')
+            : _name.text.trim(),
         bank: _bank.text.trim(),
         kind: _kind,
         network: _network,
-        holderName:
-            _holder.text.trim().isEmpty ? 'Card holder' : _holder.text.trim(),
+        holderName: _holder.text.trim().isEmpty
+            ? AppLocalizations.of(context).t('cardHolder')
+            : _holder.text.trim(),
         last4: _last4.text.trim().padLeft(4, '•'),
         expiryMonth: _expiryMonth,
         expiryYear: _expiryYear,
@@ -94,10 +98,11 @@ class _CardFormScreenState extends State<CardFormScreen> {
       );
 
   Future<void> _pickKind() async {
+    final l10n = AppLocalizations.of(context);
     final i = await showModulePicker(
       context,
-      title: 'Card type',
-      labels: [for (final k in CardKind.values) k.label],
+      title: l10n.t('cardType'),
+      labels: [for (final k in CardKind.values) cardKindLabel(l10n, k)],
       selectedIndex: CardKind.values.indexOf(_kind),
     );
     if (i == null || !mounted) return;
@@ -107,7 +112,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
   Future<void> _pickNetwork() async {
     final i = await showModulePicker(
       context,
-      title: 'Card network',
+      title: AppLocalizations.of(context).t('cardNetwork'),
       labels: [for (final n in CardNetwork.values) n.label],
       selectedIndex: CardNetwork.values.indexOf(_network),
     );
@@ -137,11 +142,12 @@ class _CardFormScreenState extends State<CardFormScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final l10n = AppLocalizations.of(context);
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
 
     // The consent gate: nothing is stored until the user agrees.
-    if (!await showDataConsentSheet(context, what: 'this card')) return;
+    if (!await showDataConsentSheet(context, what: l10n.t('thisCard'))) return;
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -170,7 +176,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
     }
     if (!mounted) return;
     HapticFeedback.mediumImpact();
-    if (_isEdit) await showSuccessBurst(context, 'Card updated');
+    if (_isEdit) await showSuccessBurst(context, l10n.t('cardUpdated'));
     if (!mounted) return;
     Navigator.of(context).pop(card);
   }
@@ -178,6 +184,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final glass = divineGlassEnabled(context);
     return Scaffold(
       backgroundColor: palette.bg,
@@ -192,8 +199,8 @@ class _CardFormScreenState extends State<CardFormScreen> {
             child: Column(
               children: [
                 ModuleHeader(
-                  title: _isEdit ? 'Edit card' : 'Add card',
-                  subtitle: 'Last 4 digits only · no CVV',
+                  title: l10n.t(_isEdit ? 'editCard' : 'addCard'),
+                  subtitle: l10n.t('last4OnlyNoCvv'),
                 ),
                 Expanded(
                   child: ListView(
@@ -214,34 +221,36 @@ class _CardFormScreenState extends State<CardFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 50),
                   child: ModuleSection(
-                    title: 'Card details',
+                    title: l10n.t('cardDetails'),
                     icon: Icons.credit_card_rounded,
                     children: [
                       ModuleField(
-                        label: 'Card name',
+                        label: l10n.t('cardName'),
                         controller: _name,
-                        hint: 'e.g. Travel card',
-                        textCapitalization: TextCapitalization.words,
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Name this card' : null,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      ModuleField(
-                        label: 'Bank name',
-                        controller: _bank,
-                        hint: 'e.g. HDFC Bank',
-                        textCapitalization: TextCapitalization.words,
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Enter the bank' : null,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      ModuleField(
-                        label: 'Card holder name',
-                        controller: _holder,
-                        hint: 'As printed on the card',
+                        hint: l10n.t('cardNameHint'),
                         textCapitalization: TextCapitalization.words,
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Enter the holder name'
+                            ? l10n.t('nameThisCard')
+                            : null,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      ModuleField(
+                        label: l10n.t('bankName'),
+                        controller: _bank,
+                        hint: l10n.t('bankNameHint'),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? l10n.t('enterTheBank')
+                            : null,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      ModuleField(
+                        label: l10n.t('cardHolderName'),
+                        controller: _holder,
+                        hint: l10n.t('asPrintedOnCard'),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? l10n.t('enterTheHolderName')
                             : null,
                         onChanged: (_) => setState(() {}),
                       ),
@@ -249,8 +258,8 @@ class _CardFormScreenState extends State<CardFormScreen> {
                         children: [
                           Expanded(
                             child: ModulePickerField(
-                              label: 'Card type',
-                              value: _kind.label,
+                              label: l10n.t('cardType'),
+                              value: cardKindLabel(l10n, _kind),
                               icon: Icons.style_rounded,
                               onTap: _pickKind,
                             ),
@@ -258,7 +267,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModulePickerField(
-                              label: 'Network',
+                              label: l10n.t('network'),
                               value: _network.label,
                               icon: Icons.hub_rounded,
                               onTap: _pickNetwork,
@@ -270,7 +279,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Last 4 digits',
+                              label: l10n.t('last4Digits'),
                               controller: _last4,
                               hint: '1234',
                               keyboardType: TextInputType.number,
@@ -281,14 +290,14 @@ class _CardFormScreenState extends State<CardFormScreen> {
                               ],
                               validator: (v) => (v ?? '').trim().length == 4
                                   ? null
-                                  : 'Enter the last 4 digits',
+                                  : l10n.t('enterLast4Digits'),
                               onChanged: (_) => setState(() {}),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModulePickerField(
-                              label: 'Expiry',
+                              label: l10n.t('expiry'),
                               value: _expiryMonth == null || _expiryYear == null
                                   ? null
                                   : '${_expiryMonth.toString().padLeft(2, '0')} / $_expiryYear',
@@ -310,10 +319,10 @@ class _CardFormScreenState extends State<CardFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 100),
                   child: ModuleSection(
-                    title: 'Card colour',
+                    title: l10n.t('cardColour'),
                     icon: Icons.palette_rounded,
                     accent: cardSkinFor(_themeKey).top,
-                    subtitle: 'Make it look like the card in your wallet',
+                    subtitle: l10n.t('cardColourSubtitle'),
                     children: [
                       Wrap(
                         spacing: 10,
@@ -339,14 +348,14 @@ class _CardFormScreenState extends State<CardFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 150),
                   child: ModuleSection(
-                    title: 'Notes',
+                    title: l10n.t('notes'),
                     icon: Icons.sticky_note_2_rounded,
                     accent: const Color(0xFF64748B),
                     children: [
                       ModuleField(
-                        label: 'Notes',
+                        label: l10n.t('notes'),
                         controller: _notes,
-                        hint: 'Limits, reward categories, billing date…',
+                        hint: l10n.t('cardNotesHint'),
                         maxLines: 3,
                       ),
                     ],
@@ -369,7 +378,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
         child: SafeArea(
           top: false,
           child: GradientButton(
-            label: _isEdit ? 'Save changes' : 'Add card',
+            label: l10n.t(_isEdit ? 'saveChanges' : 'addCard'),
             busy: _saving,
             onTap: _save,
           ),
@@ -403,8 +412,7 @@ class _SecurityNote extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'INO never asks for your full card number or CVV. What is saved '
-              'here identifies the card - it can never be used to pay.',
+              AppLocalizations.of(context).t('cardSecurityNote'),
               style: AppText.caption.copyWith(
                 color: palette.textSecondary,
                 height: 1.4,
@@ -486,6 +494,7 @@ class _ExpiryPickerBodyState extends State<_ExpiryPickerBody> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -493,7 +502,7 @@ class _ExpiryPickerBodyState extends State<_ExpiryPickerBody> {
         const InoSheetGrip(),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Card expiry',
+          l10n.t('cardExpiry'),
           style: AppText.title.copyWith(color: palette.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -511,7 +520,7 @@ class _ExpiryPickerBodyState extends State<_ExpiryPickerBody> {
                     return ListTile(
                       dense: true,
                       title: Text(
-                        '${m.toString().padLeft(2, '0')} · ${kMonthNames[i]}',
+                        '${m.toString().padLeft(2, '0')} · ${l10n.monthShort(m)}',
                         style: AppText.body.copyWith(
                           color: palette.textPrimary,
                           fontWeight:
@@ -573,7 +582,8 @@ class _ExpiryPickerBodyState extends State<_ExpiryPickerBody> {
                 ),
               ),
               child: Text(
-                'Done · ${_month.toString().padLeft(2, '0')}/$_year',
+                '${l10n.t('done')} · '
+                '${_month.toString().padLeft(2, '0')}/$_year',
                 style: AppText.subtitle.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,

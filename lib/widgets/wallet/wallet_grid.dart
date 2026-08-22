@@ -98,9 +98,7 @@ class WalletGrid extends StatefulWidget {
     if (builtIns.contains(category.name)) {
       return AppColors.vaultAccentFor(category.name);
     }
-    return category.gradient.isEmpty
-        ? uniformAccent
-        : category.gradient.first;
+    return category.gradient.isEmpty ? uniformAccent : category.gradient.first;
   }
 
   @override
@@ -143,8 +141,7 @@ class _WalletGridState extends State<WalletGrid>
                   offset: 14,
                   child: _WalletCard(
                     category: widget.categories[i],
-                    accent:
-                        WalletGrid.accentForCategory(widget.categories[i]),
+                    accent: WalletGrid.accentForCategory(widget.categories[i]),
                     drift: _drift,
                     phase: i * 0.8,
                     onTap: () => widget.onOpen?.call(widget.categories[i]),
@@ -208,26 +205,25 @@ class _WalletCard extends StatelessWidget {
               child: AnimatedBuilder(
                 animation: drift,
                 builder: (context, _) {
-                  final t = math.sin(drift.value * math.pi * 2 + phase);
+                  // Quantised (~60 steps): the blobs travel ~0.04px/frame, so
+                  // an unsnapped value repainted every card every frame for
+                  // invisible movement. Equal offsets short-circuit layout
+                  // and paint on most ticks (same trick as InoBackground).
+                  final t =
+                      (math.sin(drift.value * math.pi * 2 + phase) * 30)
+                          .roundToDouble() /
+                      30;
                   return Stack(
                     children: [
                       Positioned(
                         top: -24 + t * 5,
                         right: -20,
-                        child: _Blob(
-                          color: accent,
-                          size: 92,
-                          opacity: 0.10,
-                        ),
+                        child: _Blob(color: accent, size: 92, opacity: 0.10),
                       ),
                       Positioned(
                         bottom: -28 - t * 4,
                         left: -22,
-                        child: _Blob(
-                          color: accent,
-                          size: 64,
-                          opacity: 0.06,
-                        ),
+                        child: _Blob(color: accent, size: 64, opacity: 0.06),
                       ),
                     ],
                   );
@@ -442,8 +438,9 @@ class _DashedBorderPainter extends CustomPainter {
     for (final metric in path.computeMetrics()) {
       var distance = 0.0;
       while (distance < metric.length) {
-        final end =
-            distance + dash < metric.length ? distance + dash : metric.length;
+        final end = distance + dash < metric.length
+            ? distance + dash
+            : metric.length;
         canvas.drawPath(metric.extractPath(distance, end), paint);
         distance += dash + gap;
       }

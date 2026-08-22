@@ -3,16 +3,24 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
+import '../l10n/app_localizations.dart';
 
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
 import 'app_settings.dart';
 import 'biometric_service.dart';
+import 'card_store.dart';
 
 /// The category a notification belongs to (drives its icon / colour / filter).
 enum NotificationCategory { reminder, security, backup, asset, document, system }
 
 /// One notification shown in the Notifications page and counted on the bell.
+///
+/// [title] / [body] hold the English text. Notifications generated from app
+/// state also carry [titleKey] / [bodyKey] (plus any [params]) so they can be
+/// rendered in the user's language — resolve them with [resolveTitle] /
+/// [resolveBody] rather than reading the raw fields, and the text follows a
+/// language switch instead of freezing in whatever language it was built in.
 class AppNotification {
   const AppNotification({
     required this.id,
@@ -21,6 +29,9 @@ class AppNotification {
     required this.category,
     required this.at,
     this.read = false,
+    this.titleKey,
+    this.bodyKey,
+    this.params,
   });
 
   final String id; // stable across refreshes so read/dismissed state persists
@@ -30,6 +41,33 @@ class AppNotification {
   final DateTime at;
   final bool read;
 
+  /// Translation keys for [title] / [body]; null for externally-sourced
+  /// notifications that only ever have literal text.
+  final String? titleKey;
+  final String? bodyKey;
+
+  /// Placeholder substitutions, e.g. `{name}` → the document's name.
+  final Map<String, String>? params;
+
+  String _resolve(AppLocalizations l10n, String? key, String fallback) {
+    if (key == null) return fallback;
+    var out = l10n.t(key);
+    final p = params;
+    if (p != null) {
+      for (final e in p.entries) {
+        out = out.replaceAll('{${e.key}}', e.value);
+      }
+    }
+    return out;
+  }
+
+  /// The title in the active language, falling back to the English [title].
+  String resolveTitle(AppLocalizations l10n) =>
+      _resolve(l10n, titleKey, title);
+
+  /// The body in the active language, falling back to the English [body].
+  String resolveBody(AppLocalizations l10n) => _resolve(l10n, bodyKey, body);
+
   AppNotification copyWith({bool? read}) => AppNotification(
         id: id,
         title: title,
@@ -37,6 +75,9 @@ class AppNotification {
         category: category,
         at: at,
         read: read ?? this.read,
+        titleKey: titleKey,
+        bodyKey: bodyKey,
+        params: params,
       );
 }
 
@@ -102,6 +143,24 @@ class NotificationCenter extends ChangeNotifier {
     }
   }
 
+  /// Translation key (and params) for a reminder due in [days] days.
+  ///
+  /// Mirrors `Reminder.localizedDueLabel` so the notification list and the
+  /// reminder cards word the same due state identically. Returns `null` past
+  /// two weeks, where the label is an absolute date rather than a phrase.
+  static (String?, Map<String, String>?) _dueLabelKey(int days) {
+    if (days < 0) {
+      return days == -1
+          ? ('overdueByOneDay', null)
+          : ('overdueByDays', {'n': '${-days}'});
+    }
+    if (days == 0) return ('dueToday', null);
+    if (days == 1) return ('dueTomorrow', null);
+    if (days <= 6) return ('inDays', {'n': '$days'});
+    if (days <= 13) return ('nextWeek', null);
+    return (null, null);
+  }
+
   Future<void> _executeRefresh() async {
     final items = <AppNotification>[];
     final now = DateTime.now();
@@ -113,12 +172,18 @@ class NotificationCenter extends ChangeNotifier {
       for (final r in ReminderStore.instance.active) {
         final days = r.daysFrom(today);
         if (days <= 7) {
+          // `title` is the user's own reminder text, so it is never
+          // translated; only the derived due label is, reusing the same keys
+          // as Reminder.localizedDueLabel.
+          final (dueKey, dueParams) = _dueLabelKey(days);
           items.add(AppNotification(
             id: 'rem-${r.id}',
             title: r.title,
             body: r.dueLabel(today),
             category: NotificationCategory.reminder,
             at: days < 0 ? now : r.date,
+            bodyKey: dueKey,
+            params: dueParams,
           ));
         }
       }
@@ -140,11 +205,46 @@ class NotificationCenter extends ChangeNotifier {
             body: days == 0 ? 'Expires today' : 'Expires in $days days',
             category: NotificationCategory.document,
             at: now,
+            titleKey: 'notifDocExpiresSoon',
+            bodyKey: days == 0 ? 'notifExpiresToday' : 'notifExpiresInDays',
+            params: {'name': d.name, 'days': '$days'},
           ));
         }
       }
     } catch (e) {
       developer.log('notif: documents unavailable: $e', name: 'notif');
+    }
+
+    // Cards at or near their expiry month. Mirrors the `card.expiry` push from
+    // the send-push Edge Function, so the in-app list and the notification tray
+    // agree instead of each knowing about different things.
+    try {
+      await CardStore.instance.ensureLoaded();
+      for (final c in CardStore.instance.needingAttention) {
+        items.add(AppNotification(
+          id: 'card-exp-${c.id}',
+          title: c.isExpired
+              ? '${c.bank} card ending ${c.last4} has expired'
+              : '${c.bank} card ending ${c.last4} expires soon',
+          body: c.isExpired
+              ? 'Replace it to keep this card usable.'
+              : 'Valid through ${c.expiryLabel}. Order a replacement in time.',
+          category: NotificationCategory.asset,
+          at: now,
+          titleKey:
+              c.isExpired ? 'notifCardExpired' : 'notifCardExpiresSoon',
+          bodyKey: c.isExpired
+              ? 'notifCardExpiredBody'
+              : 'notifCardExpiresSoonBody',
+          params: {
+            'bank': c.bank,
+            'last4': c.last4,
+            'expiry': c.expiryLabel,
+          },
+        ));
+      }
+    } catch (e) {
+      developer.log('notif: cards unavailable: $e', name: 'notif');
     }
 
     // Security posture.
@@ -155,6 +255,8 @@ class NotificationCenter extends ChangeNotifier {
         body: 'Protect your vault with Face ID or fingerprint.',
         category: NotificationCategory.security,
         at: now.subtract(const Duration(minutes: 30)),
+        titleKey: 'notifAddBiometricLock',
+        bodyKey: 'notifAddBiometricLockBody',
       ));
     }
     if (!AppSettings.instance.twoFactor.value) {
@@ -164,6 +266,8 @@ class NotificationCenter extends ChangeNotifier {
         body: 'Add a second layer of security to your account.',
         category: NotificationCategory.security,
         at: now.subtract(const Duration(hours: 1)),
+        titleKey: 'notifEnable2fa',
+        bodyKey: 'notifEnable2faBody',
       ));
     }
 
@@ -176,6 +280,8 @@ class NotificationCenter extends ChangeNotifier {
         body: 'Back up your documents so you never lose them.',
         category: NotificationCategory.backup,
         at: now.subtract(const Duration(hours: 2)),
+        titleKey: 'notifSetUpBackup',
+        bodyKey: 'notifSetUpBackupBody',
       ));
     } else if (now.difference(lastBackup).inDays >= 7) {
       items.add(AppNotification(
@@ -184,6 +290,9 @@ class NotificationCenter extends ChangeNotifier {
         body: 'Your last backup was ${now.difference(lastBackup).inDays} days ago.',
         category: NotificationCategory.backup,
         at: now.subtract(const Duration(hours: 2)),
+        titleKey: 'notifBackupStale',
+        bodyKey: 'notifBackupStaleBody',
+        params: {'days': '${now.difference(lastBackup).inDays}'},
       ));
     }
 

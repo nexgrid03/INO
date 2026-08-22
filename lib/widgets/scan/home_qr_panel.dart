@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../repositories/qr_code_repository.dart';
 import '../../screens/scan/qr_scanner_screen.dart';
 import '../../services/qr_crop_service.dart';
@@ -88,6 +89,8 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
 
   Future<void> _pickQr() async {
     if (_busy) return;
+    // Resolved up front — every toast below sits after an async gap.
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       final file = await ImagePicker().pickImage(
@@ -108,7 +111,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
       if (!mounted) return;
       if (cropped == null) {
         setState(() => _busy = false);
-        _toast('That image could not be read. Try another photo.');
+        _toast(l10n.t('qrImageUnreadable'));
         return;
       }
 
@@ -121,7 +124,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
 
       if (!cropped.isCropped) {
         // Saved, but say so plainly rather than implying we found a code.
-        _toast('Saved. No QR was detected, so the full image is used.');
+        _toast(l10n.t('qrSavedNoCodeDetected'));
       }
 
       final saved = await QrCodeRepository.instance.save(
@@ -132,7 +135,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
       );
       if (!mounted) return;
       if (saved == null) {
-        _toast('Saved on this device only - could not reach the server.');
+        _toast(l10n.t('qrSavedLocallyOnly'));
       } else {
         setState(() => _subtitle = saved.subtitle);
       }
@@ -140,8 +143,8 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
       if (!mounted) return;
       setState(() => _busy = false);
       _toast(kIsWeb
-          ? 'Could not open the file picker. Try another browser.'
-          : 'Could not open gallery.');
+          ? l10n.t('couldNotOpenFilePicker')
+          : l10n.t('galleryOpenFailed'));
     }
   }
 
@@ -226,6 +229,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final hasQr = _qrBytes != null;
     final width = MediaQuery.sizeOf(context).width;
     final narrow = width < 380;
@@ -244,8 +248,8 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SectionHeader(
-            title: 'My QR',
-            actionLabel: hasQr ? 'Remove' : null,
+            title: l10n.t('myQr'),
+            actionLabel: hasQr ? l10n.t('remove') : null,
             onAction: hasQr ? _clearQr : null,
           ),
           LiquidGlass(
@@ -261,7 +265,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
               children: [
                 if (!hasQr) ...[
                   Text(
-                    'Save your PhonePe, GPay, or UPI QR here',
+                    l10n.t('saveYourUpiQrHere'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: palette.textSecondary,
@@ -328,7 +332,9 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              narrow ? 'Upload QR' : 'Upload UPI QR',
+                              narrow
+                                  ? l10n.t('uploadQr')
+                                  : l10n.t('uploadUpiQr'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -367,7 +373,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'Scan a QR',
+                      l10n.t('scanAQr'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -382,7 +388,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Scan a payment QR to pay with GPay, PhonePe or any UPI app',
+            l10n.t('scanPaymentQrHint'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.textSecondary.withValues(alpha: 0.75),
@@ -518,7 +524,7 @@ class _ReplaceLink extends StatelessWidget {
                     size: 17, color: palette.textSecondary),
                 const SizedBox(width: 6),
                 Text(
-                  'Replace QR',
+                  AppLocalizations.of(context).t('replaceQr'),
                   style: TextStyle(
                     color: palette.textSecondary,
                     fontSize: 13,

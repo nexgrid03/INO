@@ -422,7 +422,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                           _FloatingGlassButton(
                             icon: Icons.close_rounded,
                             onTap: widget.onClose,
-                            tooltip: 'Close',
+                            tooltip: l10n.t('close'),
                           ),
                           _FloatingGlassButton(
                             icon: _flashIcon,
@@ -807,6 +807,7 @@ class _AutoManualToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       height: 38,
       padding: const EdgeInsets.all(3),
@@ -821,8 +822,14 @@ class _AutoManualToggle extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildOption(label: 'AUTO', active: isAuto, onTap: () => onChanged(true)),
-          _buildOption(label: 'MANUAL', active: !isAuto, onTap: () => onChanged(false)),
+          _buildOption(
+              label: l10n.t('scanModeAuto'),
+              active: isAuto,
+              onTap: () => onChanged(true)),
+          _buildOption(
+              label: l10n.t('scanModeManual'),
+              active: !isAuto,
+              onTap: () => onChanged(false)),
         ],
       ),
     );

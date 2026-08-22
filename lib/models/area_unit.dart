@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 /// The property-area units the converter supports.
 ///
 /// Ordered small → large so pickers and the summary grid read naturally.
@@ -109,6 +111,43 @@ extension AreaUnitX on AreaUnit {
         return 'Acres';
       case AreaUnit.hectares:
         return 'Hectares';
+    }
+  }
+
+  /// [label] in the active language. The Indian regional land measures are
+  /// rendered in the native script of that language rather than translated.
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case AreaUnit.squareFeet:
+        return l10n.t('areaUnitSquareFeet');
+      case AreaUnit.squareYards:
+        return l10n.t('areaUnitSquareYards');
+      case AreaUnit.squareMetres:
+        return l10n.t('areaUnitSquareMetres');
+      case AreaUnit.chatak:
+        return l10n.t('areaUnitChatak');
+      case AreaUnit.ankanam:
+        return l10n.t('areaUnitAnkanam');
+      case AreaUnit.marla:
+        return l10n.t('areaUnitMarla');
+      case AreaUnit.cents:
+        return l10n.t('areaUnitCents');
+      case AreaUnit.katha:
+        return l10n.t('areaUnitKatha');
+      case AreaUnit.are:
+        return l10n.t('areaUnitAre');
+      case AreaUnit.guntas:
+        return l10n.t('areaUnitGuntas');
+      case AreaUnit.grounds:
+        return l10n.t('areaUnitGrounds');
+      case AreaUnit.kanal:
+        return l10n.t('areaUnitKanal');
+      case AreaUnit.bigha:
+        return l10n.t('areaUnitBigha');
+      case AreaUnit.acres:
+        return l10n.t('areaUnitAcres');
+      case AreaUnit.hectares:
+        return l10n.t('areaUnitHectares');
     }
   }
 

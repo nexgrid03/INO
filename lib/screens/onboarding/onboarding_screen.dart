@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -21,6 +22,8 @@ class _OnboardingPage {
   });
 
   final IconData icon;
+
+  /// Localization keys, resolved against [AppLocalizations] at build time.
   final String title;
   final String description;
 }
@@ -70,24 +73,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   static const List<_OnboardingPage> _pages = [
     _OnboardingPage(
       icon: Icons.folder_shared_rounded,
-      title: 'All Your Documents,\nOne Secure Vault',
-      description:
-          'Aadhaar, PAN, Passport and more - encrypted and '
-          'always within reach.',
+      title: 'onboardingTitle1',
+      description: 'onboardingBody1',
     ),
     _OnboardingPage(
       icon: Icons.insights_rounded,
-      title: 'Track Wealth\n& Health',
-      description:
-          'Property, investments and health records, '
-          'organised at a glance.',
+      title: 'onboardingTitle2',
+      description: 'onboardingBody2',
     ),
     _OnboardingPage(
       icon: Icons.qr_code_2_rounded,
-      title: 'Share Instantly\n& Safely',
-      description:
-          'Send documents in seconds with secure QR codes, '
-          'protected by biometrics.',
+      title: 'onboardingTitle3',
+      description: 'onboardingBody3',
     ),
   ];
 
@@ -279,8 +276,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             child: PressableScale(
                               child: _GradientNextButton(
                                 onTap: _onNextPressed,
-                                label:
-                                    _isLastPage ? 'Get Started' : 'Continue',
+                                label: AppLocalizations.of(context).t(
+                                    _isLastPage ? 'getStarted' : 'continue'),
                               ),
                             ),
                           ),
@@ -308,7 +305,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               ),
                             ),
                             child: Text(
-                              'Skip',
+                              AppLocalizations.of(context).t('skip'),
                               style: TextStyle(
                                 color: palette.textSecondary,
                                 fontWeight: FontWeight.w600,
@@ -515,7 +512,7 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
 
   /// Two-tone headline — same size/height as SecuredIntroScreen title.
   Widget _titleText(AppPalette palette) {
-    final title = widget.page.title;
+    final title = AppLocalizations.of(context).t(widget.page.title);
     final int nl = title.indexOf('\n');
     final style = AppText.display.copyWith(
       fontSize: OnboardingLayout.titleSize,
@@ -626,7 +623,8 @@ class _OnboardingSlideState extends State<_OnboardingSlide>
                             child: FadeTransition(
                               opacity: _descFade,
                               child: Text(
-                                widget.page.description,
+                                AppLocalizations.of(context)
+                                    .t(widget.page.description),
                                 textAlign: TextAlign.center,
                                 style: AppText.body.copyWith(
                                   color: palette.textSecondary,

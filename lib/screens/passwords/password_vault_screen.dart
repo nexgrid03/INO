@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/password_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/password_store.dart';
@@ -13,7 +14,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
@@ -83,10 +83,11 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   /// than offering to create a second one, which would strand every secret
   /// sealed under the first.
   Future<void> _unlock() async {
+    final l10n = AppLocalizations.of(context);
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
-      reason: 'Authenticate to open your Password Vault.',
-      title: 'Verify your identity',
+      reason: l10n.t('authOpenPasswordVault'),
+      title: l10n.t('verifyIdentity'),
     );
     if (!mounted) return;
     if (!ok) {
@@ -129,34 +130,41 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       MaterialPageRoute(builder: (_) => const PasswordFormScreen()),
     );
     if (created == null || !mounted) return;
-    await showSuccessBurst(context, 'Saved to your vault');
+    await showSuccessBurst(
+      context,
+      AppLocalizations.of(context).t('savedToYourVault'),
+    );
   }
 
   Future<void> _edit(PasswordEntry entry) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PasswordFormScreen(existing: entry),
-      ),
+      MaterialPageRoute(builder: (_) => PasswordFormScreen(existing: entry)),
     );
   }
 
   Future<void> _delete(PasswordEntry entry) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       context,
-      title: 'Delete password?',
-      message: 'The password saved as "${entry.nickname}" will be removed. '
-          'This cannot be undone.',
+      title: l10n.t('deletePasswordTitle'),
+      message: l10n
+          .t('deletePasswordBody')
+          .replaceAll('{name}', entry.nickname),
     );
     if (!ok || !mounted) return;
     await _store.remove(entry.id);
     if (!mounted) return;
-    showModuleToast(context, 'Password deleted');
+    showModuleToast(context, l10n.t('passwordDeleted'));
   }
 
+  /// [label] must already be localized - it is shown to the user.
   void _copy(String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
     HapticFeedback.selectionClick();
-    showModuleToast(context, '$label copied');
+    showModuleToast(
+      context,
+      AppLocalizations.of(context).t('copiedLabel').replaceAll('{label}', label),
+    );
   }
 
   /// Revealing a password re-checks the biometric session first - a phone left
@@ -166,10 +174,11 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       setState(() => _revealedId = null);
       return;
     }
+    final l10n = AppLocalizations.of(context);
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
-      reason: 'Authenticate to reveal this password.',
-      title: 'Verify your identity',
+      reason: l10n.t('authRevealPassword'),
+      title: l10n.t('verifyIdentity'),
     );
     if (!ok || !mounted) return;
     setState(() => _revealedId = entry.id);
@@ -178,12 +187,13 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   Future<void> _openGenerator() async {
     final generated = await showPasswordGeneratorSheet(context);
     if (generated == null || !mounted) return;
-    _copy('Password', generated);
+    _copy(AppLocalizations.of(context).t('password'), generated);
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
 
     // Nothing renders until the gate passes.
     if (!_unlocked) {
@@ -192,8 +202,10 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
         body: SafeArea(
           child: Center(
             child: _checking
-                ?  CircularProgressIndicator(
-                    strokeWidth: 2.6, color: AppColors.primaryGreen)
+                ? CircularProgressIndicator(
+                    strokeWidth: 2.6,
+                    color: AppColors.primaryGreen,
+                  )
                 : _LockedState(onRetry: _unlock),
           ),
         ),
@@ -214,19 +226,21 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
           child: Column(
             children: [
               ModuleHeader(
-                title: 'Passwords',
+                title: l10n.t('passwordsTitle'),
                 subtitle: hasAny
-                    ? '${_store.count} saved · unlocked'
-                    : 'Locked behind your biometrics',
+                    ? l10n
+                        .t('passwordsSavedUnlocked')
+                        .replaceAll('{n}', '${_store.count}')
+                    : l10n.t('lockedBehindBiometrics'),
                 actions: [
                   ModuleIconButton(
                     icon: Icons.auto_awesome_rounded,
-                    tooltip: 'Password generator',
+                    tooltip: l10n.t('passwordGenerator'),
                     onTap: _openGenerator,
                   ),
                   ModuleIconButton(
                     icon: Icons.add_rounded,
-                    tooltip: 'Add password',
+                    tooltip: l10n.t('addPassword'),
                     onTap: _add,
                   ),
                 ],
@@ -237,78 +251,81 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                     parent: BouncingScrollPhysics(),
                   ),
                   slivers: [
-              if (!_store.isLoaded)
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 72, count: 5),
-                  ),
-                )
-              else if (!hasAny)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ModuleEmptyState(
-                    icon: Icons.lock_rounded,
-                    title: 'Vault is empty',
-                    message:
-                        'Save a password under a nickname only you understand. '
-                        'It is encrypted on this device before it is stored, '
-                        'and stays behind your biometrics.',
-                    actionLabel: 'Add password',
-                    onAction: _add,
-                  ),
-                )
-              else ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 12),
-                    child: FloatingSearchBar(
-                      hint: 'Search nicknames…',
-                      height: 48,
-                      controller: _searchController,
-                      onChanged: (v) => setState(() => _query = v),
-                    ),
-                  ),
-                ),
-                if (visible.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(
-                          'No nickname matches this search.',
-                          style: AppText.body
-                              .copyWith(color: palette.textSecondary),
+                    if (!_store.isLoaded)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: ModuleSkeleton(height: 72, count: 5),
+                        ),
+                      )
+                    else if (!hasAny)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: ModuleEmptyState(
+                          icon: Icons.lock_rounded,
+                          title: l10n.t('vaultIsEmpty'),
+                          message: l10n.t('vaultEmptyMessage'),
+                          actionLabel: l10n.t('addPassword'),
+                          onAction: _add,
+                        ),
+                      )
+                    else ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            AppSpacing.md,
+                            16,
+                            12,
+                          ),
+                          child: FloatingSearchBar(
+                            hint: l10n.t('searchNicknames'),
+                            height: 48,
+                            controller: _searchController,
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList.separated(
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-                      itemBuilder: (context, i) {
-                        final entry = visible[i];
-                        return FadeSlideIn(
-                          delay: Duration(milliseconds: (i * 35).clamp(0, 300)),
-                          offset: 10,
-                          child: PasswordTile(
-                            entry: entry,
-                            revealed: _revealedId == entry.id,
-                            onTap: () => _edit(entry),
-                            onReveal: () => _toggleReveal(entry),
-                            onCopyPassword: () =>
-                                _copy('Password', entry.password),
-                            onDelete: () => _delete(entry),
+                      if (visible.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: Text(
+                                l10n.t('noNicknameMatches'),
+                                style: AppText.body.copyWith(
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
-              ],
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverList.separated(
+                            itemCount: visible.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.md),
+                            // No FadeSlideIn: recycled rows replay the entrance
+                            // every time they scroll back into view.
+                            itemBuilder: (context, i) {
+                              final entry = visible[i];
+                              return PasswordTile(
+                                key: ValueKey(entry.id),
+                                entry: entry,
+                                revealed: _revealedId == entry.id,
+                                onTap: () => _edit(entry),
+                                onReveal: () => _toggleReveal(entry),
+                                onCopyPassword: () =>
+                                    _copy(l10n.t('password'), entry.password),
+                                onDelete: () => _delete(entry),
+                              );
+                            },
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                    ],
                   ],
                 ),
               ),
@@ -318,7 +335,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       ),
       floatingActionButton: hasAny
           ? GradientButton(
-              label: 'Add',
+              label: l10n.t('add'),
               icon: Icons.add_rounded,
               expand: false,
               onTap: _add,
@@ -351,6 +368,7 @@ class PasswordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final color = AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.99,
@@ -411,7 +429,9 @@ class PasswordTile extends StatelessWidget {
                   IconButton(
                     onPressed: onReveal,
                     visualDensity: VisualDensity.compact,
-                    tooltip: revealed ? 'Hide password' : 'Show password',
+                    tooltip: revealed
+                        ? l10n.t('hidePassword')
+                        : l10n.t('showPassword'),
                     icon: Icon(
                       revealed
                           ? Icons.visibility_off_rounded
@@ -420,8 +440,11 @@ class PasswordTile extends StatelessWidget {
                       color: palette.textSecondary,
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 18, color: palette.textFaint),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: palette.textFaint,
+                  ),
                 ],
               ),
               // The revealed state also exposes the quick actions, so the
@@ -437,13 +460,13 @@ class PasswordTile extends StatelessWidget {
                           children: [
                             _QuickAction(
                               icon: Icons.key_rounded,
-                              label: 'Copy password',
+                              label: l10n.t('copyPassword'),
                               onTap: onCopyPassword,
                             ),
                             const SizedBox(width: 8),
                             _QuickAction(
                               icon: Icons.delete_outline_rounded,
-                              label: 'Delete',
+                              label: l10n.t('delete'),
                               onTap: onDelete,
                               danger: true,
                             ),
@@ -527,8 +550,11 @@ class _StrengthDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Tooltip(
-      message: '${strength.label} password',
+      message: l10n
+          .t('strengthPasswordTooltip')
+          .replaceAll('{strength}', passwordStrengthLabel(l10n, strength)),
       child: Container(
         width: 8,
         height: 8,
@@ -555,6 +581,7 @@ class _LockedState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final launcher = divineGlassEnabled(context);
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -562,10 +589,9 @@ class _LockedState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (launcher)
-            const DivineGlassEmptyPanel(
-              title: 'Vault Locked',
-              subtitle:
-                  'Use your biometrics to access your secure credentials.',
+            DivineGlassEmptyPanel(
+              title: l10n.t('vaultLocked'),
+              subtitle: l10n.t('vaultLockedSubtitle'),
               icon: Icons.lock_outline_rounded,
             )
           else ...[
@@ -576,29 +602,37 @@ class _LockedState extends StatelessWidget {
                 color: palette.surface,
                 borderRadius: BorderRadius.circular(AppRadius.large),
                 border: Border.all(
-                    color: AppColors.tealPale.withValues(alpha: 0.6)),
+                  color: AppColors.tealPale.withValues(alpha: 0.6),
+                ),
                 boxShadow: AppShadows.floating,
               ),
-              child:  Icon(Icons.lock_outline_rounded,
-                  color: AppColors.primaryGreen, size: 40),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.primaryGreen,
+                size: 40,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Vault Locked',
-              style: AppText.headline
-                  .copyWith(color: palette.textPrimary, fontSize: 22),
+              l10n.t('vaultLocked'),
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Use your biometrics to access your secure credentials.',
+              l10n.t('vaultLockedSubtitle'),
               textAlign: TextAlign.center,
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
+              style: AppText.body.copyWith(
+                color: palette.textSecondary,
+                height: 1.5,
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
           GradientButton(
-            label: 'Unlock Vault',
+            label: l10n.t('unlockVault'),
             icon: Icons.fingerprint_rounded,
             expand: false,
             onTap: onRetry,

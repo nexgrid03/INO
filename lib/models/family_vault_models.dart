@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// A member's role in a Family Vault, in ascending order of privilege so
@@ -33,6 +34,34 @@ extension VaultRoleX on VaultRole {
         return 'Add and edit documents';
       case VaultRole.viewer:
         return 'View documents only';
+    }
+  }
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case VaultRole.owner:
+        return l10n.t('owner');
+      case VaultRole.admin:
+        return l10n.t('roleAdmin');
+      case VaultRole.editor:
+        return l10n.t('roleEditor');
+      case VaultRole.viewer:
+        return l10n.t('roleViewer');
+    }
+  }
+
+  /// [description] in the active language.
+  String localizedDescription(AppLocalizations l10n) {
+    switch (this) {
+      case VaultRole.owner:
+        return l10n.t('roleDescOwner');
+      case VaultRole.admin:
+        return l10n.t('roleDescAdmin');
+      case VaultRole.editor:
+        return l10n.t('roleDescEditor');
+      case VaultRole.viewer:
+        return l10n.t('roleDescViewer');
     }
   }
 
@@ -153,6 +182,18 @@ class VaultMember {
     return 'Member';
   }
 
+  /// [label] in the active language. Only the "Member" fallback is translated —
+  /// a real name, email or phone is user data and must never be localized.
+  String localizedLabel(AppLocalizations l10n) {
+    final n = displayName?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    final e = email?.trim();
+    if (e != null && e.isNotEmpty) return e;
+    final p = phone?.trim();
+    if (p != null && p.isNotEmpty) return p;
+    return l10n.t('vaultMemberFallback');
+  }
+
   /// A one/two-letter avatar initial from [label].
   String get initial {
     final parts = label.trim().split(RegExp(r'\s+'));
@@ -211,6 +252,22 @@ extension InvitationStatusX on InvitationStatus {
         return 'Cancelled';
       case InvitationStatus.expired:
         return 'Expired';
+    }
+  }
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case InvitationStatus.pending:
+        return l10n.t('pending');
+      case InvitationStatus.accepted:
+        return l10n.t('inviteStatusAccepted');
+      case InvitationStatus.declined:
+        return l10n.t('inviteStatusDeclined');
+      case InvitationStatus.revoked:
+        return l10n.t('inviteStatusCancelled');
+      case InvitationStatus.expired:
+        return l10n.t('expired');
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 
 import '../../data/family_vault_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
@@ -73,6 +74,10 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
 
   bool _loading = true;
   String? _busyVaultId;
+
+  /// Either a localization key or an already-worded message from
+  /// [describeVaultError]; both are safe to pass through [AppLocalizations.t],
+  /// which falls back to the string itself when it is not a known key.
   String? _error;
 
   @override
@@ -85,7 +90,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
     try {
       await _store.ensureLoaded();
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not load your vaults.');
+      if (mounted) setState(() => _error = 'couldNotLoadVaults');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -128,6 +133,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final eligible = _eligible;
 
@@ -161,7 +167,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Share to Family Vault',
+                    l10n.t('shareToFamilyVault'),
                     style: AppText.title.copyWith(color: palette.textPrimary),
                   ),
                 ),
@@ -169,9 +175,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Members of the vault will be able to view and open this '
-              'document. Remove them, or withdraw the document, and their '
-              'access ends immediately.',
+              l10n.t('shareToVaultSubtitle'),
               style: AppText.caption
                   .copyWith(color: palette.textSecondary, height: 1.4),
             ),
@@ -189,11 +193,9 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Text(
-                  _store.vaults.isEmpty
-                      ? 'You are not in any Family Vault yet. Create one from '
-                          'the Family Vault screen to start sharing.'
-                      : 'You are a viewer in your vaults, so you cannot add '
-                          'documents. Ask the owner for editor access.',
+                  l10n.t(_store.vaults.isEmpty
+                      ? 'noFamilyVaultYet'
+                      : 'viewerCannotAddDocuments'),
                   style: AppText.body.copyWith(
                       color: palette.textSecondary, height: 1.45),
                 ),
@@ -239,7 +241,9 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'You are ${v.myRole.label}',
+                                  l10n
+                                      .t('youAreRole')
+                                      .replaceAll('{role}', _roleLabel(l10n, v.myRole)),
                                   style: AppText.caption
                                       .copyWith(color: palette.textSecondary),
                                 ),
@@ -267,7 +271,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
             if (_error != null) ...[
               const SizedBox(height: 10),
               Text(
-                _error!,
+                l10n.t(_error!),
                 style: AppText.caption.copyWith(color: AppColors.critical),
               ),
             ],
@@ -276,4 +280,13 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
       ),
     );
   }
+
+  /// The role name in the active language (the model's own [VaultRoleX.label]
+  /// is English-only).
+  String _roleLabel(AppLocalizations l10n, VaultRole role) => switch (role) {
+        VaultRole.owner => l10n.t('owner'),
+        VaultRole.admin => l10n.t('roleAdmin'),
+        VaultRole.editor => l10n.t('roleEditor'),
+        VaultRole.viewer => l10n.t('roleViewer'),
+      };
 }

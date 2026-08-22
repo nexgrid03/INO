@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/voice_command.dart';
 import '../../services/guest_mode.dart';
 import '../../services/voice_navigation_service.dart';
@@ -27,7 +28,7 @@ class VoiceMicIconButton extends StatelessWidget {
     return PressableScale(
       pressedScale: 0.9,
       child: Tooltip(
-        message: 'Voice assistant',
+        message: AppLocalizations.of(context).t('voiceAssistant'),
         child: Material(
           color: palette.isDark ? palette.bgElevated : Colors.white,
           shape: CircleBorder(side: BorderSide(color: palette.border)),
@@ -171,6 +172,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
   }
 
   Widget _body(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     switch (_service.status) {
       case VoiceStatus.idle:
       case VoiceStatus.initializing:
@@ -187,17 +189,15 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         return _messageView(
           palette,
           icon: Icons.mic_off_rounded,
-          title: 'Voice commands unavailable',
-          message:
-              'Speech recognition isn’t available on this device. You can still '
-              'use the buttons to get around.',
+          title: l10n.t('voiceUnavailableTitle'),
+          message: l10n.t('voiceUnavailableBody'),
         );
       case VoiceStatus.error:
         return _messageView(
           palette,
           icon: Icons.error_outline_rounded,
-          title: 'Something went wrong',
-          message: 'Please try the voice command again.',
+          title: l10n.t('voiceErrorTitle'),
+          message: l10n.t('voiceErrorBody'),
           showRetry: true,
         );
     }
@@ -206,6 +206,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
   // ---- States ---------------------------------------------------------------
 
   Widget _listeningView(AppPalette palette, {required bool warmingUp}) {
+    final l10n = AppLocalizations.of(context);
     final heard = _service.recognizedText.trim();
     final preview = heard.isEmpty ? null : matchVoiceCommand(heard);
     return Column(
@@ -214,22 +215,26 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         _PulsingMic(pulse: _pulse, active: !warmingUp),
         const SizedBox(height: AppSpacing.lg),
         Text(
-          warmingUp ? 'Getting ready…' : 'Listening…',
+          warmingUp ? l10n.t('voiceGettingReady') : l10n.t('voiceListening'),
           style: AppText.title.copyWith(color: palette.textPrimary),
         ),
         const SizedBox(height: AppSpacing.md),
         if (heard.isEmpty)
           Text(
-            'Say a command like “Open Notes”.',
+            l10n.t('voiceSayCommandHint'),
             textAlign: TextAlign.center,
             style: AppText.body.copyWith(color: palette.textSecondary),
           )
         else ...[
-          _LiveField(palette: palette, label: 'RECOGNIZED', value: '“$heard”'),
+          _LiveField(
+            palette: palette,
+            label: l10n.t('voiceRecognizedLabel'),
+            value: '“$heard”',
+          ),
           const SizedBox(height: AppSpacing.sm),
           _LiveField(
             palette: palette,
-            label: 'MATCHED',
+            label: l10n.t('voiceMatchedLabel'),
             value: preview?.route ?? '-',
             accent: preview != null,
           ),
@@ -239,6 +244,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
   }
 
   Widget _matchedView(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final label = _service.match?.spokenLabel ?? '';
     final icon = _service.match?.icon ?? Icons.check_rounded;
     return Column(
@@ -255,7 +261,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(
-          'Opening $label',
+          l10n.t('voiceOpening').replaceAll('{name}', label),
           style: AppText.title.copyWith(color: palette.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -269,7 +275,9 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
             ),
             const SizedBox(width: 6),
             Text(
-              'Matched ${_service.match?.route ?? ''}',
+              l10n
+                  .t('voiceMatchedRoute')
+                  .replaceAll('{route}', _service.match?.route ?? ''),
               style: AppText.caption.copyWith(color: palette.textSecondary),
             ),
           ],
@@ -279,6 +287,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
   }
 
   Widget _noMatchView(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final heard = _service.recognizedText.trim();
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -298,32 +307,35 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          "Didn't catch a command",
+          l10n.t('voiceNoCommandTitle'),
           style: AppText.title.copyWith(color: palette.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           heard.isEmpty
-              ? 'Please try again.'
-              : 'Heard “$heard”. Please try again.',
+              ? l10n.t('pleaseTryAgain')
+              : l10n.t('voiceHeardRetry').replaceAll('{text}', heard),
           textAlign: TextAlign.center,
           style: AppText.body.copyWith(color: palette.textSecondary),
         ),
         const SizedBox(height: AppSpacing.lg),
-        _actions(palette, primaryLabel: 'Try again', onPrimary: _retry),
+        _actions(palette, primaryLabel: l10n.t('tryAgain'), onPrimary: _retry),
       ],
     );
   }
 
   Widget _deniedView(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     return _messageView(
       palette,
       icon: Icons.mic_off_rounded,
-      title: 'Microphone access needed',
+      title: l10n.t('micAccessNeeded'),
       message: _service.permanentlyDenied
-          ? 'Enable microphone access in Settings to use voice commands.'
-          : 'INO needs the microphone to hear your voice commands.',
-      primaryLabel: _service.permanentlyDenied ? 'Open Settings' : 'Try again',
+          ? l10n.t('micEnableInSettings')
+          : l10n.t('micNeededForVoice'),
+      primaryLabel: _service.permanentlyDenied
+          ? l10n.t('openSettings')
+          : l10n.t('tryAgain'),
       onPrimary: _service.permanentlyDenied ? _service.openSettings : _retry,
     );
   }
@@ -360,7 +372,8 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
         const SizedBox(height: AppSpacing.lg),
         _actions(
           palette,
-          primaryLabel: primaryLabel ?? (showRetry ? 'Try again' : null),
+          primaryLabel: primaryLabel ??
+              (showRetry ? AppLocalizations.of(context).t('tryAgain') : null),
           onPrimary: onPrimary ?? (showRetry ? _retry : null),
         ),
       ],
@@ -389,7 +402,7 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet>
                   height: AppSizes.button,
                   child: Center(
                     child: Text(
-                      'Close',
+                      AppLocalizations.of(context).t('close'),
                       style: AppText.subtitle.copyWith(
                         color: palette.textSecondary,
                       ),

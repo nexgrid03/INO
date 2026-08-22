@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/user_profile.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
@@ -28,7 +29,9 @@ class GuestMode {
     return UserProfile(
       id: 'guest',
       authUserId: 'guest',
-      fullName: 'Guest',
+      // Rendered in the shell header, so it follows the app language. This
+      // profile is never persisted, so a translated name is display-only.
+      fullName: AppLocalizations.current.t('guest'),
       email: '',
       preferredLanguage: 'en',
       biometricEnabled: false,
@@ -54,6 +57,7 @@ class GuestMode {
   /// The "sign in to continue" sheet shown when a guest taps a gated feature.
   static Future<void> promptSignIn(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.bgElevated,
@@ -83,14 +87,13 @@ class GuestMode {
             ),
             const SizedBox(height: 18),
             Text(
-              'Sign in to continue',
+              l10n.t('signInToContinue'),
               textAlign: TextAlign.center,
               style: AppText.headline.copyWith(color: palette.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
-              'Create your free INO account to store documents, '
-              'set reminders and keep everything secured.',
+              l10n.t('guestSignInBody'),
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
                 color: palette.textSecondary,
@@ -100,18 +103,18 @@ class GuestMode {
             const SizedBox(height: 22),
             FilledButton(
               onPressed: () => _go(sheetContext, const LoginScreen()),
-              child: const Text('Sign In'),
+              child: Text(l10n.t('signIn')),
             ),
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () => _go(sheetContext, const SignupScreen()),
-              child: const Text('Create Account'),
+              child: Text(l10n.t('createAccount')),
             ),
             const SizedBox(height: 4),
             TextButton(
               onPressed: () => Navigator.of(sheetContext).pop(),
               child: Text(
-                'Not now',
+                l10n.t('notNow'),
                 style: TextStyle(color: palette.textFaint),
               ),
             ),

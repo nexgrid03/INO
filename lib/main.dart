@@ -149,6 +149,10 @@ class _InoAppState extends State<InoApp> {
             return ValueListenableBuilder<String>(
               valueListenable: AppSettings.instance.language,
               builder: (context, langCode, _) {
+                // Mirror the active language to the static accessor so code
+                // without a BuildContext (services, the push sender) can
+                // translate in the language the user is actually seeing.
+                AppLocalizations.activeLanguageCode = langCode;
                 return MaterialApp(
                   title: 'INO',
                   debugShowCheckedModeBanner: false,

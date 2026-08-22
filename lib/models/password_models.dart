@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Models backing the simplified Password Vault.
@@ -19,6 +20,14 @@ extension PasswordStrengthX on PasswordStrength {
         PasswordStrength.fair => 'Fair',
         PasswordStrength.good => 'Good',
         PasswordStrength.strong => 'Strong',
+      };
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        PasswordStrength.weak => l10n.t('strengthWeak'),
+        PasswordStrength.fair => l10n.t('strengthFair'),
+        PasswordStrength.good => l10n.t('strengthGood'),
+        PasswordStrength.strong => l10n.t('strengthStrong'),
       };
 
   Color get color => switch (this) {

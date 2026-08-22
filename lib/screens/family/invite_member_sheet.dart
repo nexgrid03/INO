@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../data/family_vault_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -52,20 +53,24 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
   }
 
   String? _validate() {
+    final l10n = AppLocalizations.of(context);
     final v = _controller.text.trim();
     if (v.isEmpty) {
-      return _by == _By.email ? 'Enter an email address' : 'Enter a phone number';
+      return _by == _By.email
+          ? l10n.t('enterAnEmailAddress')
+          : l10n.t('enterAPhoneNumber');
     }
     if (_by == _By.email && !_emailRe.hasMatch(v)) {
-      return 'Enter a valid email address';
+      return l10n.t('enterValidEmailAddress');
     }
     if (_by == _By.phone && !_phoneRe.hasMatch(v.replaceAll(' ', ''))) {
-      return 'Enter a valid phone number (e.g. +919876543210)';
+      return l10n.t('enterValidPhoneNumber');
     }
     return null;
   }
 
   Future<void> _send() async {
+    final l10n = AppLocalizations.of(context);
     final err = _validate();
     if (err != null) {
       setState(() => _error = err);
@@ -91,7 +96,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Couldn\'t send the invitation. Try again.');
+        setState(() => _error = l10n.t('couldNotSendInvitation'));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -101,6 +106,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg,
           AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom),
@@ -118,17 +124,16 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Invite a member',
+          Text(l10n.t('inviteAMember'),
               style: AppText.title.copyWith(color: palette.textPrimary)),
           const SizedBox(height: AppSpacing.xs),
-          Text('They\'ll join when they accept — even if they sign up later '
-              'with this email or number.',
+          Text(l10n.t('inviteMemberSubtitle'),
               style: AppText.caption.copyWith(color: palette.textSecondary)),
           const SizedBox(height: AppSpacing.md),
 
           // Email / Phone toggle.
           _Segmented(
-            options: const ['Email', 'Phone'],
+            options: [l10n.t('email'), l10n.t('phone')],
             selectedIndex: _by == _By.phone ? 1 : 0,
             onChanged: (i) => setState(() {
               _by = i == 1 ? _By.phone : _By.email;
@@ -167,7 +172,8 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
           ),
           const SizedBox(height: AppSpacing.md),
 
-          Text('Role', style: AppText.label.copyWith(color: palette.textFaint)),
+          Text(l10n.t('role'),
+              style: AppText.label.copyWith(color: palette.textFaint)),
           const SizedBox(height: 6),
           // Owner is never invitable — only these three roles.
           Row(
@@ -184,7 +190,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(_role.description,
+          Text(_role.localizedDescription(l10n),
               style: AppText.caption.copyWith(color: palette.textSecondary)),
           const SizedBox(height: AppSpacing.lg),
 
@@ -207,8 +213,8 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
                               strokeWidth: 2.4,
                               valueColor:
                                   AlwaysStoppedAnimation<Color>(Colors.white)))
-                      : const Text('Send Invitation',
-                          style: TextStyle(
+                      : Text(l10n.t('sendInvitation'),
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               fontSize: 15)),
@@ -264,7 +270,7 @@ class _RoleChip extends StatelessWidget {
                   size: 15,
                   color: selected ? role.color : palette.textSecondary),
               const SizedBox(width: 5),
-              Text(role.label,
+              Text(role.localizedLabel(AppLocalizations.of(context)),
                   style: AppText.caption.copyWith(
                       color: selected ? role.color : palette.textSecondary,
                       fontWeight: FontWeight.w700)),

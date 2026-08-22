@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/responsive/responsive_extensions.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -124,6 +125,7 @@ class DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final v = value?.trim();
     if (v == null || v.isEmpty) return const SizedBox.shrink();
 
@@ -158,7 +160,7 @@ class DetailRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              isUrl ? _shortMapsLabel(v) : v,
+              isUrl ? _shortMapsLabel(v, l10n) : v,
               textAlign: TextAlign.right,
               maxLines: isUrl ? 1 : 3,
               overflow: TextOverflow.ellipsis,
@@ -169,18 +171,25 @@ class DetailRow extends StatelessWidget {
             const SizedBox(width: 6),
             _MiniIconButton(
               icon: Icons.copy_rounded,
-              tooltip: 'Copy',
+              tooltip: l10n.t('copy'),
               onTap: () {
                 Clipboard.setData(ClipboardData(text: v));
                 HapticFeedback.selectionClick();
-                showModuleToast(context, copyMessage ?? '$label copied');
+                showModuleToast(
+                  context,
+                  copyMessage ??
+                      l10n.t('copiedLabel').replaceAll('{label}', label),
+                );
               },
             ),
           ],
           if (onTap != null) ...[
             const SizedBox(width: 2),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: palette.textFaint),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: palette.textFaint,
+            ),
           ],
         ],
       ),
@@ -195,12 +204,12 @@ class DetailRow extends StatelessWidget {
 }
 
 /// Friendly single-line label for Google Maps / generic https links.
-String _shortMapsLabel(String url) {
+String _shortMapsLabel(String url, AppLocalizations l10n) {
   final lower = url.toLowerCase();
   if (lower.contains('maps.app.goo.gl') ||
       lower.contains('google.com/maps') ||
       lower.contains('maps.google')) {
-    return 'Google Maps link';
+    return l10n.t('googleMapsLink');
   }
   // Strip scheme for a cleaner ellipsis.
   return url.replaceFirst(_kScheme, '').replaceFirst(_kWww, '');
@@ -288,8 +297,10 @@ class StatTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppText.caption
-                .copyWith(color: textSecondary, fontSize: 11.5),
+            style: AppText.caption.copyWith(
+              color: textSecondary,
+              fontSize: 11.5,
+            ),
           ),
         ],
       ),
@@ -306,10 +317,7 @@ class StatTile extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.chip + 2),
-          border: Border.all(
-            color: accent.withValues(alpha: 0.28),
-            width: 1.2,
-          ),
+          border: Border.all(color: accent.withValues(alpha: 0.28), width: 1.2),
         ),
         child: inner,
       ),
@@ -380,7 +388,8 @@ class ModuleEmptyState extends StatelessWidget {
                   color: palette.surface,
                   borderRadius: BorderRadius.circular(AppRadius.large),
                   border: Border.all(
-                      color: AppColors.tealPale.withValues(alpha: 0.6)),
+                    color: AppColors.tealPale.withValues(alpha: 0.6),
+                  ),
                   boxShadow: AppShadows.floating,
                 ),
                 child: Icon(icon, color: brand, size: 38),
@@ -390,8 +399,10 @@ class ModuleEmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: AppText.headline
-                  .copyWith(color: palette.textPrimary, fontSize: 20),
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 20,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -464,8 +475,9 @@ class GradientButton extends StatelessWidget {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       ),
                     ]
@@ -511,9 +523,9 @@ InputDecoration moduleFieldDecoration(
   final palette = AppPalette.of(context);
   final ring = accent ?? AppColors.primaryGreen;
   OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        borderSide: BorderSide(color: c, width: w),
-      );
+    borderRadius: BorderRadius.circular(AppRadius.chip),
+    borderSide: BorderSide(color: c, width: w),
+  );
   return InputDecoration(
     hintText: hint,
     hintStyle: AppText.body.copyWith(color: palette.textFaint),
@@ -582,8 +594,10 @@ class ModuleField extends StatelessWidget {
               ),
               if (validator != null) ...[
                 const SizedBox(width: 3),
-                const Text('*',
-                    style: TextStyle(color: AppColors.critical, fontSize: 12)),
+                const Text(
+                  '*',
+                  style: TextStyle(color: AppColors.critical, fontSize: 12),
+                ),
               ],
             ],
           ),
@@ -620,7 +634,7 @@ class ModulePickerField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onTap,
-    this.hint = 'Select',
+    this.hint,
     this.icon,
     this.accent,
     this.trailingIcon = Icons.expand_more_rounded,
@@ -629,7 +643,9 @@ class ModulePickerField extends StatelessWidget {
   final String label;
   final String? value;
   final VoidCallback onTap;
-  final String hint;
+
+  /// Placeholder shown when [value] is empty; defaults to a localized "Select".
+  final String? hint;
   final IconData? icon;
   final Color? accent;
   final IconData trailingIcon;
@@ -643,7 +659,10 @@ class ModulePickerField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppText.label.copyWith(color: palette.textPrimary)),
+          Text(
+            label,
+            style: AppText.label.copyWith(color: palette.textPrimary),
+          ),
           const SizedBox(height: 6),
           PressableScale(
             pressedScale: 0.985,
@@ -661,18 +680,25 @@ class ModulePickerField extends StatelessWidget {
                 child: Row(
                   children: [
                     if (icon != null) ...[
-                      Icon(icon,
-                          size: 18, color: accent ?? palette.textSecondary),
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: accent ?? palette.textSecondary,
+                      ),
                       const SizedBox(width: 10),
                     ],
                     Expanded(
                       child: Text(
-                        filled ? value! : hint,
+                        filled
+                            ? value!
+                            : (hint ??
+                                AppLocalizations.of(context).t('select')),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.body.copyWith(
-                          color:
-                              filled ? palette.textPrimary : palette.textFaint,
+                          color: filled
+                              ? palette.textPrimary
+                              : palette.textFaint,
                         ),
                       ),
                     ),
@@ -727,13 +753,19 @@ class ModuleSwitchField extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style:
-                          AppText.subtitle.copyWith(color: palette.textPrimary)),
+                  Text(
+                    label,
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                    ),
+                  ),
                   if (subtitle != null)
-                    Text(subtitle!,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary)),
+                    Text(
+                      subtitle!,
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -831,10 +863,11 @@ class ModuleChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
+          // Gradient in both states — color↔gradient tweens dip through
+          // transparency and made the deselected chip blink.
           gradient: selected
               ? InoStyle.gradient(context, AppColors.brandGradient)
-              : null,
-          color: selected ? null : palette.surface,
+              : AppColors.solidFillGradient(palette.surface),
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
             color: selected ? Colors.transparent : palette.border,
@@ -854,9 +887,11 @@ class ModuleChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon,
-                  size: 15,
-                  color: selected ? Colors.white : palette.textSecondary),
+              Icon(
+                icon,
+                size: 15,
+                color: selected ? Colors.white : palette.textSecondary,
+              ),
               const SizedBox(width: 6),
             ],
             Text(
@@ -982,8 +1017,9 @@ class ModuleHeader extends StatelessWidget {
                     subtitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary),
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                    ),
                   ),
                 ],
               ],
@@ -1029,11 +1065,7 @@ class ModuleIconButton extends StatelessWidget {
     final iconWidget = Stack(
       alignment: Alignment.center,
       children: [
-        Icon(
-          icon,
-          size: glyph,
-          color: color ?? AppColors.primaryGreen,
-        ),
+        Icon(icon, size: glyph, color: color ?? AppColors.primaryGreen),
         if (badge > 0)
           Positioned(
             top: launcher ? 8 : 9,
@@ -1054,9 +1086,7 @@ class ModuleIconButton extends StatelessWidget {
       color: palette.isDark ? palette.bgElevated : Colors.white,
       shape: CircleBorder(
         side: BorderSide(
-          color: mist
-              ? brand.withValues(alpha: 0.34)
-              : palette.border,
+          color: mist ? brand.withValues(alpha: 0.34) : palette.border,
           width: mist ? 1.35 : 1,
         ),
       ),
@@ -1065,11 +1095,7 @@ class ModuleIconButton extends StatelessWidget {
       shadowColor: Colors.black26,
       child: InkWell(
         onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: iconWidget,
-        ),
+        child: SizedBox(width: size, height: size, child: iconWidget),
       ),
     );
     final button = PressableScale(
@@ -1103,8 +1129,11 @@ class ModuleIconButton extends StatelessWidget {
 }
 
 /// The module toast: floating, brand-tinted, consistent across all four screens.
-void showModuleToast(BuildContext context, String message,
-    {bool error = false}) {
+void showModuleToast(
+  BuildContext context,
+  String message, {
+  bool error = false,
+}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -1124,9 +1153,7 @@ void showModuleToast(BuildContext context, String message,
 Future<void> showSuccessBurst(BuildContext context, String message) async {
   final overlay = Overlay.maybeOf(context);
   if (overlay == null) return;
-  final entry = OverlayEntry(
-    builder: (_) => _SuccessBurst(message: message),
-  );
+  final entry = OverlayEntry(builder: (_) => _SuccessBurst(message: message));
   overlay.insert(entry);
   HapticFeedback.mediumImpact();
   await Future<void>.delayed(const Duration(milliseconds: 1400));
@@ -1233,9 +1260,12 @@ class _ModuleSkeletonState extends State<ModuleSkeleton>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) => Column(
+    // The pills are constant; only their tint breathes. Fading a fixed-colour
+    // column with one FadeTransition replaces the old per-frame rebuild of the
+    // whole N-child column (a fresh Color.lerp + decoration per pill per tick).
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.55, end: 1.0).animate(_c),
+      child: Column(
         children: [
           for (var i = 0; i < widget.count; i++)
             Padding(
@@ -1246,7 +1276,7 @@ class _ModuleSkeletonState extends State<ModuleSkeleton>
                   color: Color.lerp(
                     palette.surfaceVariant,
                     palette.border,
-                    0.25 + 0.35 * _c.value,
+                    0.45,
                   ),
                   borderRadius: BorderRadius.circular(widget.radius),
                 ),
@@ -1299,15 +1329,16 @@ Future<DateTime?> showModuleDatePicker(
       final palette = AppPalette.of(context);
       return Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: (palette.isDark
-                  ? const ColorScheme.dark()
-                  : const ColorScheme.light())
-              .copyWith(
-            primary: AppColors.primaryGreen,
-            onPrimary: Colors.white,
-            surface: palette.surface,
-            onSurface: palette.textPrimary,
-          ),
+          colorScheme:
+              (palette.isDark
+                      ? const ColorScheme.dark()
+                      : const ColorScheme.light())
+                  .copyWith(
+                    primary: AppColors.primaryGreen,
+                    onPrimary: Colors.white,
+                    surface: palette.surface,
+                    onSurface: palette.textPrimary,
+                  ),
         ),
         child: child!,
       );
@@ -1320,9 +1351,10 @@ Future<bool> confirmDestructive(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Delete',
+  String? confirmLabel,
 }) async {
   final palette = AppPalette.of(context);
+  final l10n = AppLocalizations.of(context);
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -1330,21 +1362,29 @@ Future<bool> confirmDestructive(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
       ),
-      title: Text(title,
-          style: AppText.title.copyWith(color: palette.textPrimary)),
-      content: Text(message,
-          style: AppText.body.copyWith(color: palette.textSecondary)),
+      title: Text(
+        title,
+        style: AppText.title.copyWith(color: palette.textPrimary),
+      ),
+      content: Text(
+        message,
+        style: AppText.body.copyWith(color: palette.textSecondary),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text('Cancel',
+          child: Text(l10n.t('cancel'),
               style: TextStyle(color: palette.textSecondary)),
         ),
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(confirmLabel,
-              style: const TextStyle(
-                  color: AppColors.critical, fontWeight: FontWeight.w700)),
+          child: Text(
+            confirmLabel ?? l10n.t('delete'),
+            style: const TextStyle(
+              color: AppColors.critical,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ],
     ),

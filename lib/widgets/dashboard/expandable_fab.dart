@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
+import '../common/liquid_glass.dart' show sharedBlurFilter;
 import '../pressable_scale.dart';
 
 /// Section 14 - the expandable Floating Action Button.
@@ -145,7 +144,9 @@ class _FabMenuOverlay extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: onDismiss,
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v),
+                    // Bucketed + cached: a fresh ImageFilter per frame makes
+                    // the engine rebuild the blur on every animation tick.
+                    filter: sharedBlurFilter(7 * v),
                     child: ColoredBox(
                       color: Colors.black.withValues(alpha: 0.15 * v),
                     ),
@@ -201,8 +202,11 @@ class _MiniAction extends StatelessWidget {
     final start = (index / total) * 0.6;
     final anim = CurvedAnimation(
       parent: controller,
-      curve: Interval(start, (start + 0.5).clamp(0.0, 1.0),
-          curve: Curves.easeOutBack),
+      curve: Interval(
+        start,
+        (start + 0.5).clamp(0.0, 1.0),
+        curve: Curves.easeOutBack,
+      ),
     );
 
     return AnimatedBuilder(
@@ -233,7 +237,9 @@ class _MiniAction extends StatelessWidget {
               ),
               child: Text(
                 localizedQuickActionLabel(
-                    AppLocalizations.of(context), action.label),
+                  AppLocalizations.of(context),
+                  action.label,
+                ),
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,

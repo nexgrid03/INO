@@ -171,6 +171,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _pickLanguage() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    // Endonyms - a language is always offered in its own script, never
+    // translated into the currently active one.
     const options = ['English', 'हिन्दी', 'తెలుగు'];
     final picked = await showInoOptionsSheet<String>(
       context: context,
@@ -206,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Persist locally (instant) and mirror onto the profile row (best effort).
     await AppSettings.instance.setLanguage(code);
     _persistLanguage(code);
-    _toast('Language set to $picked');
+    _toast(l10n.t('languageSetTo').replaceAll('{language}', picked));
   }
 
   void _persistLanguage(String code) {
@@ -226,9 +229,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _toggleNotifications(bool value) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _notifications = value);
     await AppSettings.instance.setNotifications(value);
-    _toast(value ? 'Notifications enabled' : 'Notifications turned off');
+    _toast(value
+        ? l10n.t('notificationsEnabledToast')
+        : l10n.t('notificationsOffToast'));
   }
 
   /// Withdraws (or re-grants) permission for INO to open external payment apps.
@@ -247,11 +253,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _toggleWelcomeSound(bool value) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _welcomeSound = value);
     // Persisting false also stops a greeting that's currently playing -
     // VoiceGreetingService listens to this setting.
     await AppSettings.instance.setWelcomeSound(value);
-    _toast(value ? 'Startup greeting on' : 'Startup greeting muted');
+    _toast(value
+        ? l10n.t('welcomeSoundOnToast')
+        : l10n.t('welcomeSoundMutedToast'));
   }
 
   void _toggleDarkMode() {
@@ -348,7 +357,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Persists + rebuilds the whole app instantly (see ThemeController.style).
     ThemeController.setStyle(picked);
     if (!mounted) return;
-    _toast('Theme set to ${_themeStyleLabel(l10n, picked)}');
+    _toast(
+      l10n.t('themeSetTo').replaceAll('{theme}', _themeStyleLabel(l10n, picked)),
+    );
   }
 
   // ---- Biometric app-lock --------------------------------------------------
@@ -363,7 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       case BiometricSupport.unsupported:
         BiometricUx.errorSnack(
           context,
-          'This device does not support biometric authentication.',
+          AppLocalizations.of(context).t('biometricUnsupportedDevice'),
         );
       case BiometricSupport.notEnrolled:
         final openSettings = await BiometricUx.noBiometricsDialog(context);
@@ -562,7 +573,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       _language = _languageLabel(updated.preferredLanguage);
     });
     widget.onProfileUpdated?.call(updated);
-    _toast('Profile updated');
+    _toast(AppLocalizations.of(context).t('profileUpdated'));
   }
 
   // ---- Accounts (multi-account) --------------------------------------------
@@ -586,6 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// Actions for a saved (non-current) account: switch to it, or forget it.
   Future<void> _accountSheet(SavedAccount account) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final action = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -607,14 +619,14 @@ class _ProfileScreenState extends State<ProfileScreen>
           ListTile(
             leading: Icon(Icons.swap_horiz_rounded,
                 color: AppColors.primaryGreen),
-            title: Text('Switch to this account',
+            title: Text(l10n.t('switchToThisAccount'),
                 style: TextStyle(color: palette.textPrimary)),
             onTap: () => Navigator.of(context).pop('switch'),
           ),
           ListTile(
             leading: const Icon(Icons.person_remove_rounded,
                 color: AppColors.critical),
-            title: Text('Remove from this device',
+            title: Text(l10n.t('removeFromThisDevice'),
                 style: TextStyle(color: palette.textPrimary)),
             onTap: () => Navigator.of(context).pop('remove'),
           ),
@@ -628,18 +640,19 @@ class _ProfileScreenState extends State<ProfileScreen>
       await AccountSwitcher.instance.removeAccount(account.id);
       if (!mounted) return;
       setState(() {});
-      _toast('Account removed from this device');
+      _toast(l10n.t('accountRemovedFromDevice'));
     }
   }
 
   Future<void> _switchAccount(SavedAccount account) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await AccountSwitcher.instance.switchTo(account);
     if (!mounted) return;
     if (!ok) {
       // The stored session was revoked or expired; the dead entry is already
       // removed. The account can be re-added through the normal sign-in.
       setState(() {});
-      _toast('That session has expired - use Add account to sign in again');
+      _toast(l10n.t('savedSessionExpired'));
       return;
     }
     final user = AuthService.instance.currentUser;
@@ -692,7 +705,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           final accounts = AccountSwitcher.instance.accounts;
           final currentId = AccountSwitcher.instance.currentUserId;
           return SettingsGroup(
-            caption: 'Accounts',
+            caption: l10n.t('accounts'),
             children: [
               for (final a in accounts)
                 SettingsRow(
@@ -707,7 +720,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   trailing: a.id == currentId
                       ? Text(
-                          'Current',
+                          l10n.t('currentAccount'),
                           style: AppText.caption.copyWith(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
@@ -718,8 +731,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               SettingsRow(
                 icon: Icons.person_add_alt_1_rounded,
-                title: 'Add account',
-                subtitle: 'Sign in with another account and switch anytime',
+                title: l10n.t('addAccount'),
+                subtitle: l10n.t('addAccountSubtitle'),
                 onTap: _addAccount,
               ),
             ],
@@ -850,7 +863,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       // Destructive actions, lowest visual weight, at the very bottom.
       // Decorative caption from the Stitch design's "SYSTEM" group.
       SettingsGroup(
-        caption: 'System',
+        caption: l10n.t('systemCaption'),
         children: [
           SettingsRow(
             icon: Icons.delete_outline_rounded,
@@ -1077,7 +1090,9 @@ class _ProfileHero extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                fullName.trim().isEmpty ? 'Your Name' : fullName,
+                fullName.trim().isEmpty
+                    ? AppLocalizations.of(context).t('yourNamePlaceholder')
+                    : fullName,
                 maxLines: 1,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
@@ -1152,7 +1167,7 @@ class _HeroBadge extends StatelessWidget {
           Icon(Icons.verified_rounded, size: 13, color: accent),
           const SizedBox(width: 5),
           Text(
-            'VAULT PROTECTED',
+            AppLocalizations.of(context).t('vaultProtectedBadge'),
             style: AppText.label.copyWith(
               color: accent,
               fontSize: 10.5,
@@ -1225,7 +1240,10 @@ class _StorageCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$usedLabel of $totalLabel',
+                      AppLocalizations.of(context)
+                          .t('storageUsedOf')
+                          .replaceAll('{used}', usedLabel)
+                          .replaceAll('{total}', totalLabel),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.caption.copyWith(

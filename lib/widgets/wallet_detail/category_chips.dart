@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -43,7 +44,9 @@ class CategoryChips extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         children: [
           _CategoryChip(
-            label: 'All',
+            // The leading "All" is ours; the rest are the user's own category
+            // names, which stay exactly as they typed them.
+            label: AppLocalizations.of(context).t('all'),
             selected: selected == null,
             onTap: () => onSelected(null),
             accent: tint,
@@ -88,14 +91,17 @@ class _CategoryChip extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 160),
               curve: Curves.easeOut,
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? null : palette.surface,
-                gradient:
-                    selected ? AppColors.vaultFillGradient(accent) : null,
+                // Both states are gradients so the tween lerps colour→colour
+                // at full opacity (color↔gradient dips through transparency
+                // and made the previously selected chip blink).
+                gradient: selected
+                    ? AppColors.vaultFillGradient(accent)
+                    : AppColors.solidFillGradient(palette.surface),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
                   color: selected ? Colors.transparent : palette.border,

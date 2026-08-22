@@ -167,8 +167,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           AdaptiveGlassCard(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Text(
-              'Add properties or investments to build your net worth. '
-              'Totals come from your Property and Investment wallets.',
+              l10n.t('netWorthEmptyHint'),
               style: AppText.caption.copyWith(
                 color: palette.textSecondary,
                 height: 1.45,
@@ -199,7 +198,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
                                 .copyWith(color: palette.textPrimary),
                           ),
                           Text(
-                            'classes',
+                            l10n.t('classesLabel'),
                             style: AppText.label
                                 .copyWith(color: palette.textFaint),
                           ),
@@ -222,8 +221,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Based on your Property and Investment wallets. '
-          'The chart updates from daily snapshots as your holdings change.',
+          l10n.t('netWorthFooterNote'),
           style: AppText.caption.copyWith(
             color: palette.textFaint,
             height: 1.4,
@@ -366,7 +364,7 @@ class _LegendRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  allocation.label,
+                  allocation.localizedLabel(AppLocalizations.of(context)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.subtitle.copyWith(

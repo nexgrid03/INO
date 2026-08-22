@@ -308,6 +308,9 @@ Deno.serve(async (req) => {
     let sent = 0;
     const deadTokens: string[] = [];
     const pushedReminderIds: string[] = [];
+    // Audit rows for public.push_log, so reminders appear in the same history
+    // as every other notification instead of being invisible outside this run.
+    const auditRows: Record<string, unknown>[] = [];
 
     for (const reminder of due as ReminderRow[]) {
       const tokens = byOwner.get(reminder.auth_user_id) ?? [];
@@ -315,6 +318,8 @@ Deno.serve(async (req) => {
 
       const days = daysUntil(reminder.due_date, today);
       let deliveredForThisReminder = false;
+      let deliveredCount = 0;
+      let lastError: string | null = null;
 
       for (const token of tokens) {
         const res = await fetch(endpoint, {
@@ -328,11 +333,13 @@ Deno.serve(async (req) => {
 
         if (res.ok) {
           sent++;
+          deliveredCount++;
           deliveredForThisReminder = true;
           continue;
         }
 
         const errorBody = await res.text();
+        lastError = `${res.status}: ${errorBody.slice(0, 200)}`;
         // 404 UNREGISTERED / 400 INVALID_ARGUMENT mean the app was uninstalled
         // or the token rotated. Collect them for deletion: left in place they
         // accumulate forever and every future run wastes a request on each.
@@ -343,6 +350,19 @@ Deno.serve(async (req) => {
       }
 
       if (deliveredForThisReminder) pushedReminderIds.push(reminder.id);
+
+      auditRows.push({
+        auth_user_id: reminder.auth_user_id,
+        kind: "reminder",
+        title: reminder.title,
+        body: dueLabel(days),
+        devices_targeted: tokens.length,
+        devices_delivered: deliveredCount,
+        // No queued_at: a reminder is found and sent in the same pass, so there
+        // is no queue latency to measure.
+        queued_at: null,
+        error: lastError,
+      });
     }
 
     // Stamp only the reminders that actually reached a device, so one that
@@ -356,6 +376,13 @@ Deno.serve(async (req) => {
 
     if (deadTokens.length > 0) {
       await admin.from("device_tokens").delete().in("token", deadTokens);
+    }
+
+    if (auditRows.length > 0) {
+      // Best-effort — a logging failure must never make a delivered reminder
+      // look undelivered and get re-sent tomorrow.
+      const { error: logErr } = await admin.from("push_log").insert(auditRows);
+      if (logErr) console.error("push_log insert failed:", logErr);
     }
 
     return json({

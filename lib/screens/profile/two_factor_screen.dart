@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/security_alert_service.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -84,6 +86,9 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     try {
       await TwoFactorService.instance
           .confirm(factorId: setup.factorId, code: _code.text);
+      // Warn the user's other devices. Fire-and-forget: a failed alert must
+      // never make a successful 2FA enrolment look like it failed.
+      unawaited(SecurityAlertService.instance.twoFactorChanged(enabled: true));
       if (!mounted) return;
       _code.clear();
       BiometricUx.successSnack(context, l10n.t('twoFactorOn'));
@@ -110,6 +115,9 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     setState(() => _busy = true);
     try {
       await TwoFactorService.instance.disable();
+      // Turning 2FA OFF is the higher-risk direction — it is exactly what an
+      // account thief does first — so this alert matters more than the one above.
+      unawaited(SecurityAlertService.instance.twoFactorChanged(enabled: false));
       if (!mounted) return;
       BiometricUx.successSnack(context, l10n.t('twoFactorDisabled'));
       setState(() => _stage = _Stage.disabled);

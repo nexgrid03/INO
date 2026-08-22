@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Models backing the Investment Wallet - a portfolio register covering every
@@ -46,6 +47,31 @@ extension InvestmentTypeX on InvestmentType {
         InvestmentType.fixedDeposit => 'FD',
         InvestmentType.realEstate => 'Real Estate',
         _ => label,
+      };
+
+  /// [label] in the active language. The financial acronyms (PPF, NPS, SIP,
+  /// ETF) stay acronyms in every language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        InvestmentType.stocks => l10n.t('invTypeStocks'),
+        InvestmentType.mutualFunds => l10n.t('invTypeMutualFunds'),
+        InvestmentType.etf => l10n.t('invTypeEtf'),
+        InvestmentType.bonds => l10n.t('invTypeBonds'),
+        InvestmentType.fixedDeposit => l10n.t('invTypeFixedDeposit'),
+        InvestmentType.gold => l10n.t('assetGold'),
+        InvestmentType.crypto => l10n.t('invTypeCrypto'),
+        InvestmentType.ppf => l10n.t('invTypePpf'),
+        InvestmentType.nps => l10n.t('invTypeNps'),
+        InvestmentType.sip => l10n.t('invTypeSip'),
+        InvestmentType.realEstate => l10n.t('invTypeRealEstate'),
+        InvestmentType.other => l10n.t('custom'),
+      };
+
+  /// [shortLabel] in the active language.
+  String localizedShortLabel(AppLocalizations l10n) => switch (this) {
+        InvestmentType.mutualFunds => l10n.t('invTypeMutualFunds'),
+        InvestmentType.fixedDeposit => l10n.t('invTypeFdShort'),
+        InvestmentType.realEstate => l10n.t('invTypeRealEstate'),
+        _ => localizedLabel(l10n),
       };
 
   IconData get icon => switch (this) {

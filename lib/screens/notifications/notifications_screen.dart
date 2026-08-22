@@ -188,7 +188,7 @@ class _NotificationTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      notification.title,
+                      notification.resolveTitle(l10n),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(
@@ -213,7 +213,7 @@ class _NotificationTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                notification.body,
+                notification.resolveBody(l10n),
                 style: AppText.body.copyWith(
                   color: palette.textSecondary,
                   height: 1.4,

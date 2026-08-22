@@ -46,7 +46,7 @@ class AppSettings {
   /// (see [TwoFactorService]); this just lets the Profile row render instantly.
   final ValueNotifier<bool> twoFactor = ValueNotifier<bool>(false);
 
-  /// Preferred language code: `en` / `hi` / `ta`.
+  /// Preferred language code: `en` / `hi` / `te`.
   final ValueNotifier<String> language = ValueNotifier<String>('en');
 
   /// Preferred currency (ISO 4217 code) for the Property & Finance tools.

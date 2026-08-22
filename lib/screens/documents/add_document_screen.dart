@@ -104,6 +104,11 @@ List<(String, IconData)> get _wallets => [
 /// category" instead of an existing one.
 const String _kCreateCategory = '__create_category__';
 
+/// Sentinel file name used when a scan arrives without a real file name. Kept
+/// language-independent in state and translated at render time so switching
+/// language re-labels it.
+const String _kScannedDocument = '__scanned_document__';
+
 /// Add Document - the fastest path to get a document into the vault.
 ///
 /// Pick a source (scan / image), then fill a short set of details and save.
@@ -173,7 +178,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _source = _DocSource.scan;
       _tempFileName = _localFilePath != null
           ? _localFilePath!.split(RegExp(r'[\\/]')).last
-          : 'Scanned document';
+          : _kScannedDocument;
       if (prefill.documentName.isNotEmpty) {
         _nameController.text = prefill.documentName;
       }
@@ -380,7 +385,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       return;
     }
     if (_localFilePath == null) {
-      _toast('Attach a photo or PDF before saving — needed for Secure Share.',
+      _toast(AppLocalizations.of(context).t('attachFileBeforeSaving'),
           error: true);
       return;
     }
@@ -406,7 +411,14 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     FocusScope.of(context).unfocus();
 
     // The consent gate: nothing is uploaded or stored until the user agrees.
-    if (!await showDataConsentSheet(context, what: 'this document')) return;
+    // Localized: the fragment is spliced into a full sentence inside the
+    // sheet, so an English literal here would produce mixed-language copy.
+    if (!await showDataConsentSheet(
+      context,
+      what: AppLocalizations.of(context).t('thisDocument'),
+    )) {
+      return;
+    }
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -542,6 +554,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -577,7 +590,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                         child: _DetailsForm(
                           formKey: _formKey,
                           source: _source!,
-                          fileName: _tempFileName ?? 'Document',
+                          fileName: switch (_tempFileName) {
+                            null => l10n.t('document'),
+                            _kScannedDocument => l10n.t('scannedDocument'),
+                            final name => name,
+                          },
                           nameController: _nameController,
                           doctorController: _doctorController,
                           tagsController: _tagsController,
@@ -807,7 +824,8 @@ class _UploadOptions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionLabel('CHOOSE METHOD'),
+        _SectionLabel(
+            AppLocalizations.of(context).t('chooseMethod').toUpperCase()),
         const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < _DocSource.values.length; i++) ...[
           if (i > 0) const SizedBox(height: AppSpacing.sm),
@@ -1115,12 +1133,8 @@ class _DetailsForm extends StatelessWidget {
   final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onPickExpiry;
 
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  String _fmt(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
+  String _fmt(AppLocalizations l10n, DateTime d) =>
+      '${d.day} ${l10n.monthShort(d.month)} ${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -1132,7 +1146,7 @@ class _DetailsForm extends StatelessWidget {
         children: [
           _SelectedFile(source: source, fileName: fileName, onRemove: onRemoveFile),
           const SizedBox(height: AppSpacing.lg),
-          const _SectionLabel('DOCUMENT DETAILS'),
+          _SectionLabel(l10n.t('documentDetails').toUpperCase()),
           const SizedBox(height: AppSpacing.sm),
           InoCard(
             radius: AppRadius.large,
@@ -1141,27 +1155,36 @@ class _DetailsForm extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Hospital Name' : l10n.t('documentName'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('hospitalName')
+                      : l10n.t('documentName'),
                   child: TextFormField(
                     controller: nameController,
                     textInputAction: TextInputAction.next,
                     textCapitalization: TextCapitalization.words,
                     validator: (v) => (v == null || v.trim().isEmpty)
-                        ? (wallet == 'Health Wallet' ? 'Please enter hospital name' : l10n.t('enterDocumentName'))
+                        ? (wallet == 'Health Wallet'
+                            ? l10n.t('enterHospitalName')
+                            : l10n.t('enterDocumentName'))
                         : null,
-                    decoration: _decoration(context, wallet == 'Health Wallet' ? 'e.g. Apollo Hospital, Max Healthcare' : l10n.t('hintAddDocName')),
+                    decoration: _decoration(
+                        context,
+                        wallet == 'Health Wallet'
+                            ? l10n.t('hintHospitalName')
+                            : l10n.t('hintAddDocName')),
                   ),
                 ),
                 if (wallet == 'Health Wallet') ...[
                   const SizedBox(height: AppSpacing.internal),
                   _Field(
-                    label: 'Doctor Name',
+                    label: l10n.t('doctorName'),
                     optional: true,
                     child: TextFormField(
                       controller: doctorController,
                       textInputAction: TextInputAction.next,
                       textCapitalization: TextCapitalization.words,
-                      decoration: _decoration(context, 'e.g. Dr. Ashish Gupta'),
+                      decoration:
+                          _decoration(context, l10n.t('hintDoctorName')),
                     ),
                   ),
                 ],
@@ -1179,25 +1202,45 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Document Type' : l10n.t('category'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('documentType')
+                      : l10n.t('category'),
                   child: wallet == 'Health Wallet'
                       ? DropdownButtonFormField<String>(
                           initialValue: (category == null || category!.isEmpty) ? null : category,
-                          decoration: _decoration(context, 'Choose document type').copyWith(
+                          decoration: _decoration(
+                                  context, l10n.t('chooseDocumentType'))
+                              .copyWith(
                             prefixIcon: Icon(Icons.medical_services_rounded, color: AppColors.primaryGreen, size: 19),
                           ),
                           dropdownColor: AppPalette.of(context).isDark ? AppPalette.of(context).surface : Colors.white,
                           style: AppText.body.copyWith(color: AppPalette.of(context).textPrimary),
                           icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.of(context).textFaint),
-                          items: const [
-                            DropdownMenuItem(value: 'X-Ray', child: Text('X-Ray')),
-                            DropdownMenuItem(value: 'Prescription', child: Text('Prescription')),
-                            DropdownMenuItem(value: 'Lab Report', child: Text('Lab Report')),
-                            DropdownMenuItem(value: 'Discharge Summary', child: Text('Discharge Summary')),
-                            DropdownMenuItem(value: 'Vaccine Record', child: Text('Vaccine Record')),
-                            DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          // Values stay English - they are the stored category
+                          // on the row; only the labels are translated.
+                          items: [
+                            DropdownMenuItem(
+                                value: 'X-Ray',
+                                child: Text(l10n.t('docTypeXRay'))),
+                            DropdownMenuItem(
+                                value: 'Prescription',
+                                child: Text(l10n.t('docTypePrescription'))),
+                            DropdownMenuItem(
+                                value: 'Lab Report',
+                                child: Text(l10n.t('docTypeLabReport'))),
+                            DropdownMenuItem(
+                                value: 'Discharge Summary',
+                                child:
+                                    Text(l10n.t('docTypeDischargeSummary'))),
+                            DropdownMenuItem(
+                                value: 'Vaccine Record',
+                                child: Text(l10n.t('docTypeVaccineRecord'))),
+                            DropdownMenuItem(
+                                value: 'Other', child: Text(l10n.t('catOther'))),
                           ],
-                          validator: (v) => (v == null || v.isEmpty) ? 'Please choose document type' : null,
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? l10n.t('pleaseChooseDocumentType')
+                              : null,
                           onChanged: onCategoryChanged,
                         )
                       : _Selector(
@@ -1219,11 +1262,15 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Next Appointment Date' : l10n.t('expiryDate'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('nextAppointmentDate')
+                      : l10n.t('expiryDate'),
                   optional: true,
                   child: _Selector(
-                    value: expiry == null ? null : _fmt(expiry!),
-                    placeholder: wallet == 'Health Wallet' ? 'Select appointment date' : l10n.t('noExpiry'),
+                    value: expiry == null ? null : _fmt(l10n, expiry!),
+                    placeholder: wallet == 'Health Wallet'
+                        ? l10n.t('selectAppointmentDate')
+                        : l10n.t('noExpiry'),
                     leading: Icons.event_rounded,
                     trailing: Icons.calendar_today_rounded,
                     onTap: onPickExpiry,

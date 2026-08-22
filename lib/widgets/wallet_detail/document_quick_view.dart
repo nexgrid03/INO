@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -55,6 +56,7 @@ class _QuickViewSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final extraction = record.extraction;
     final iconAccent =
         documentCardAccent(record, walletAccent: accent.first);
@@ -62,12 +64,15 @@ class _QuickViewSheet extends StatelessWidget {
     final String typeLabel;
     if (isHealth) {
       fields = [
-        (label: 'Hospital Name', value: record.name),
-        (label: 'Document Type', value: record.category),
+        (label: l10n.t('hospitalName'), value: record.name),
+        (label: l10n.t('documentType'), value: record.category),
         if (record.doctorName != null && record.doctorName!.trim().isNotEmpty)
-          (label: 'Doctor Name', value: record.doctorName!),
+          (label: l10n.t('doctorName'), value: record.doctorName!),
         if (record.expiresAt != null)
-          (label: 'Next Appointment Date', value: inoFormatDate(record.expiresAt!)),
+          (
+            label: l10n.t('nextAppointmentDate'),
+            value: inoFormatDate(record.expiresAt!)
+          ),
       ];
       typeLabel = record.category;
     } else {
@@ -138,7 +143,11 @@ class _QuickViewSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               if (fields.isNotEmpty || isHealth) ...[
-                Text(isHealth ? 'HEALTH DETAILS' : 'EXTRACTED INFORMATION',
+                Text(
+                    (isHealth
+                            ? l10n.t('healthDetails')
+                            : l10n.t('extractedInformation'))
+                        .toUpperCase(),
                     style: AppText.label
                         .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
                 const SizedBox(height: AppSpacing.xs),
@@ -146,12 +155,14 @@ class _QuickViewSheet extends StatelessWidget {
                   _QuickRow(label: f.label, value: f.value, copyable: true),
               ] else
                 Text(
-                  'No extracted details for this document.',
+                  l10n.t('noExtractedDetails'),
                   style: AppText.body.copyWith(color: palette.textSecondary),
                 ),
               if (extraction.userNotes.trim().isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
-                _QuickRow(label: 'Notes', value: extraction.userNotes.trim()),
+                _QuickRow(
+                    label: l10n.t('notes'),
+                    value: extraction.userNotes.trim()),
               ],
               const SizedBox(height: AppSpacing.lg),
               PressableScale(
@@ -166,15 +177,15 @@ class _QuickViewSheet extends StatelessWidget {
                       gradient: AppColors.brandGradient,
                       borderRadius: BorderRadius.circular(AppRadius.button),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.open_in_full_rounded,
+                          const Icon(Icons.open_in_full_rounded,
                               color: Colors.white, size: 19),
-                          SizedBox(width: 8),
-                          Text('Open Full Document',
-                              style: TextStyle(
+                          const SizedBox(width: 8),
+                          Text(l10n.t('openFullDocument'),
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14.5)),
@@ -235,7 +246,9 @@ class _QuickRow extends StatelessWidget {
                   ..showSnackBar(SnackBar(
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: AppColors.primaryGreen,
-                    content: Text('$label copied'),
+                    content: Text(AppLocalizations.of(context)
+                        .t('copiedLabel')
+                        .replaceAll('{label}', label)),
                   ));
               },
               child: Padding(

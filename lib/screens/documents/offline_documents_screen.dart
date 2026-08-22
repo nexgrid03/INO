@@ -11,9 +11,9 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_modules/module_kit.dart';
 
 /// The offline library: documents the user saved to view without internet.
@@ -68,8 +68,11 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
       // Storage was cleared underneath us - drop the dead entry honestly.
       await _store.remove(doc.id);
       if (!mounted) return;
-      showModuleToast(context, 'This file is no longer on the device',
-          error: true);
+      showModuleToast(
+        context,
+        AppLocalizations.of(context).t('fileNoLongerOnDevice'),
+        error: true,
+      );
       return;
     }
     if (!mounted) return;
@@ -79,7 +82,7 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
     if (DocumentProtectionStore.instance.isProtected(doc.id)) {
       final unlocked = await VaultGuard.instance.ensureUnlocked(
         context,
-        reason: 'Authenticate to access this protected document.',
+        reason: AppLocalizations.of(context).t('authProtectedDocReason'),
         title: AppLocalizations.of(context).t('verifyIdentity'),
       );
       if (!unlocked || !mounted) return;
@@ -98,24 +101,30 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
     if (result.type != ResultType.done) {
       showModuleToast(
         context,
-        'No app on this device can open .${doc.extension} files',
+        AppLocalizations.of(context)
+            .t('noAppForExtension')
+            .replaceAll('{ext}', doc.extension),
         error: true,
       );
     }
   }
 
   Future<void> _remove(OfflineDoc doc) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       context,
-      title: 'Remove offline copy?',
-      message: '"${doc.name}" will no longer be viewable without internet. '
-          'The original in your ${doc.wallet} is not touched.',
-      confirmLabel: 'Remove',
+      title: l10n.t('removeOfflineCopyTitle'),
+      message: l10n
+          .t('removeOfflineCopyBody')
+          .replaceAll('{name}', doc.name)
+          .replaceAll('{wallet}', localizedWalletName(l10n, doc.wallet)),
+      confirmLabel: l10n.t('remove'),
     );
     if (!ok || !mounted) return;
     await _store.remove(doc.id);
     if (!mounted) return;
-    showModuleToast(context, 'Removed from offline');
+    showModuleToast(
+        context, AppLocalizations.of(context).t('removedFromOffline'));
   }
 
   String _dateLabel(DateTime d) => '${d.day}/${d.month}/${d.year}';
@@ -129,6 +138,7 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final docs = _store.docs;
 
     return Scaffold(
@@ -142,10 +152,12 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
           child: Column(
             children: [
               ModuleHeader(
-                title: 'Offline documents',
+                title: l10n.t('offlineDocuments'),
                 subtitle: docs.isEmpty
-                    ? 'Saved to this device, viewable anytime'
-                    : '${docs.length} saved · no internet needed',
+                    ? l10n.t('offlineDocsEmptySubtitle')
+                    : l10n
+                        .t('offlineDocsCount')
+                        .replaceAll('{n}', '${docs.length}'),
               ),
               Expanded(
                 child: CustomScrollView(
@@ -153,64 +165,62 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                     parent: BouncingScrollPhysics(),
                   ),
                   slivers: [
-              if (!_store.isLoaded)
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    AppSpacing.md,
-                    AppSpacing.screen,
-                    0,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 72, count: 4),
-                  ),
-                )
-              else if (docs.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ModuleEmptyState(
-                    icon: Icons.offline_pin_rounded,
-                    title: 'Nothing saved yet',
-                    message:
-                        'Open any document in your wallets and tap the '
-                        'save-offline button. A copy is kept on this device '
-                        'so you can view it anytime - even with no internet.',
-                    actionLabel: 'Browse wallets',
-                    onAction: () => Navigator.of(context).maybePop(),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    AppSpacing.sm,
-                    AppSpacing.screen,
-                    0,
-                  ),
-                  sliver: SliverList.separated(
-                    itemCount: docs.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) {
-                      final doc = docs[i];
-                      return FadeSlideIn(
-                        delay: Duration(milliseconds: (i * 35).clamp(0, 300)),
-                        offset: 10,
-                        child: _OfflineDocTile(
-                          doc: doc,
-                          icon: _iconFor(doc),
-                          subtitle:
-                              '${doc.wallet} · ${doc.sizeLabel} · saved ${_dateLabel(doc.savedAt)}',
-                          protected: DocumentProtectionStore.instance
-                              .isProtected(doc.id),
-                          onTap: () => _open(doc),
-                          onRemove: () => _remove(doc),
+                    if (!_store.isLoaded)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.screen,
+                          AppSpacing.md,
+                          AppSpacing.screen,
+                          0,
                         ),
-                      );
-                    },
-                  ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                        sliver: SliverToBoxAdapter(
+                          child: ModuleSkeleton(height: 72, count: 4),
+                        ),
+                      )
+                    else if (docs.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: ModuleEmptyState(
+                          icon: Icons.offline_pin_rounded,
+                          title: l10n.t('nothingSavedYet'),
+                          message: l10n.t('offlineDocsEmptyMessage'),
+                          actionLabel: l10n.t('browseWallets'),
+                          onAction: () => Navigator.of(context).maybePop(),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screen,
+                          AppSpacing.sm,
+                          AppSpacing.screen,
+                          0,
+                        ),
+                        sliver: SliverList.separated(
+                          itemCount: docs.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppSpacing.sm),
+                          // No FadeSlideIn: recycled rows replay the entrance
+                          // every time they scroll back into view.
+                          itemBuilder: (context, i) {
+                            final doc = docs[i];
+                            return _OfflineDocTile(
+                              key: ValueKey(doc.id),
+                              doc: doc,
+                              icon: _iconFor(doc),
+                              subtitle:
+                                  '${localizedWalletName(l10n, doc.wallet)} · '
+                                  '${doc.sizeLabel} · '
+                                  '${l10n.t('savedOn').replaceAll('{date}', _dateLabel(doc.savedAt))}',
+                              protected: DocumentProtectionStore.instance
+                                  .isProtected(doc.id),
+                              onTap: () => _open(doc),
+                              onRemove: () => _remove(doc),
+                            );
+                          },
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
                   ],
                 ),
               ),
@@ -224,6 +234,7 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
 
 class _OfflineDocTile extends StatelessWidget {
   const _OfflineDocTile({
+    super.key,
     required this.doc,
     required this.icon,
     required this.subtitle,
@@ -304,8 +315,11 @@ class _OfflineDocTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               if (protected) ...[
-                Icon(Icons.lock_rounded,
-                    size: 16, color: palette.textSecondary),
+                Icon(
+                  Icons.lock_rounded,
+                  size: 16,
+                  color: palette.textSecondary,
+                ),
                 const SizedBox(width: 8),
               ],
               Icon(
@@ -319,7 +333,7 @@ class _OfflineDocTile extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                tooltip: 'Remove offline copy',
+                tooltip: AppLocalizations.of(context).t('removeOfflineCopy'),
                 icon: Icon(
                   Icons.delete_outline_rounded,
                   size: 20,
@@ -359,7 +373,10 @@ class _OfflineImageViewer extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
         ),
       ),
       body: Center(
@@ -368,11 +385,11 @@ class _OfflineImageViewer extends StatelessWidget {
           child: Image.file(
             file,
             fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Padding(
-              padding: EdgeInsets.all(24),
+            errorBuilder: (context, _, _) => Padding(
+              padding: const EdgeInsets.all(24),
               child: Text(
-                'This image could not be displayed.',
-                style: TextStyle(color: Colors.white70),
+                AppLocalizations.of(context).t('imageCouldNotBeDisplayed'),
+                style: const TextStyle(color: Colors.white70),
               ),
             ),
           ),

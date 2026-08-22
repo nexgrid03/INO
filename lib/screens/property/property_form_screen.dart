@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
@@ -182,10 +183,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _pickType() async {
+    final l10n = AppLocalizations.of(context);
     final i = await showModulePicker(
       context,
-      title: 'Property type',
-      labels: [for (final t in PropertyType.values) t.label],
+      title: l10n.t('propertyType'),
+      labels: [for (final t in PropertyType.values) t.localizedLabel(l10n)],
       icons: [for (final t in PropertyType.values) t.icon],
       selectedIndex: PropertyType.values.indexOf(_type),
     );
@@ -194,10 +196,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _pickStatus() async {
+    final l10n = AppLocalizations.of(context);
     final i = await showModulePicker(
       context,
-      title: 'Property status',
-      labels: [for (final s in PropertyStatus.values) s.label],
+      title: l10n.t('propertyStatus'),
+      labels: [for (final s in PropertyStatus.values) s.localizedLabel(l10n)],
       icons: [for (final s in PropertyStatus.values) s.icon],
       colors: [for (final s in PropertyStatus.values) s.color],
       selectedIndex: PropertyStatus.values.indexOf(_status),
@@ -207,10 +210,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _pickAreaUnit() async {
+    final l10n = AppLocalizations.of(context);
     final i = await showModulePicker(
       context,
-      title: 'Area unit',
-      labels: [for (final u in AreaUnit.values) u.label],
+      title: l10n.t('areaUnit'),
+      labels: [for (final u in AreaUnit.values) u.localizedLabel(l10n)],
       selectedIndex: AreaUnit.values.indexOf(_areaUnit),
     );
     if (i == null || !mounted) return;
@@ -245,10 +249,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _addAttachment() async {
+    final l10n = AppLocalizations.of(context);
     final kindIndex = await showModulePicker(
       context,
-      title: 'Attach document',
-      labels: [for (final k in PropertyDocKind.values) k.label],
+      title: l10n.t('attachDocument'),
+      labels: [
+        for (final k in PropertyDocKind.values) k.localizedLabel(l10n),
+      ],
       icons: [for (final k in PropertyDocKind.values) k.icon],
     );
     if (kindIndex == null || !mounted) return;
@@ -271,14 +278,17 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final l10n = AppLocalizations.of(context);
     if (!(_formKey.currentState?.validate() ?? false)) {
-      showModuleToast(context, 'Give the property a name first', error: true);
+      showModuleToast(context, l10n.t('givePropertyNameFirst'), error: true);
       return;
     }
     FocusScope.of(context).unfocus();
 
     // The consent gate: nothing is stored until the user agrees.
-    if (!await showDataConsentSheet(context, what: 'this property')) return;
+    if (!await showDataConsentSheet(context, what: l10n.t('thisProperty'))) {
+      return;
+    }
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -341,7 +351,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     if (_isEdit) {
-      await showSuccessBurst(context, 'Changes saved');
+      await showSuccessBurst(context, l10n.t('changesSaved'));
     }
     if (!mounted) return;
     Navigator.of(context).pop(property);
@@ -352,6 +362,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final glass = divineGlassEnabled(context);
     final symbol = _currency.symbol;
     return Scaffold(
@@ -367,10 +378,12 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
             child: Column(
               children: [
                 ModuleHeader(
-                  title: _isEdit ? 'Edit property' : 'Add property',
+                  title: _isEdit
+                      ? l10n.t('editProperty')
+                      : l10n.t('addProperty'),
                   subtitle: _isEdit
                       ? widget.existing!.name
-                      : 'Only the name is required',
+                      : l10n.t('onlyNameRequired'),
                 ),
                 Expanded(
                   child: ListView(
@@ -391,24 +404,24 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 40),
                   child: ModuleSection(
-                    title: 'Basic information',
+                    title: l10n.t('basicInformation'),
                     icon: Icons.home_work_rounded,
                     children: [
                       ModuleField(
-                        label: 'Property name',
+                        label: l10n.t('propertyName'),
                         controller: _name,
-                        hint: 'e.g. Green Meadows Villa',
+                        hint: l10n.t('propertyNameHint'),
                         textCapitalization: TextCapitalization.words,
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Enter a property name'
+                            ? l10n.t('enterPropertyName')
                             : null,
                       ),
                       Row(
                         children: [
                           Expanded(
                             child: ModulePickerField(
-                              label: 'Type',
-                              value: _type.label,
+                              label: l10n.t('type'),
+                              value: _type.localizedLabel(l10n),
                               icon: _type.icon,
                               onTap: _pickType,
                             ),
@@ -416,8 +429,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModulePickerField(
-                              label: 'Status',
-                              value: _status.label,
+                              label: l10n.t('status'),
+                              value: _status.localizedLabel(l10n),
                               icon: _status.icon,
                               accent: _status.color,
                               onTap: _pickStatus,
@@ -426,11 +439,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         ],
                       ),
                       ModulePickerField(
-                        label: 'Purchase date',
+                        label: l10n.t('purchaseDate'),
                         value: _purchaseDate == null
                             ? null
                             : formatModuleDate(_purchaseDate!),
-                        hint: 'Select a date',
+                        hint: l10n.t('selectADate'),
                         icon: Icons.event_rounded,
                         trailingIcon: Icons.calendar_month_rounded,
                         onTap: () => _pickDate(purchase: true),
@@ -439,7 +452,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Purchase price',
+                              label: l10n.t('purchasePrice'),
                               controller: _purchasePrice,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -450,7 +463,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Current value',
+                              label: l10n.t('currentValue'),
                               controller: _currentValue,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -465,7 +478,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           Expanded(
                             flex: 3,
                             child: ModuleField(
-                              label: 'Area',
+                              label: l10n.t('area'),
                               controller: _area,
                               hint: '0',
                               keyboardType: const TextInputType.numberWithOptions(
@@ -476,7 +489,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           Expanded(
                             flex: 4,
                             child: ModulePickerField(
-                              label: 'Unit',
+                              label: l10n.t('unit'),
                               value: _areaUnit.shortLabel,
                               icon: Icons.square_foot_rounded,
                               onTap: _pickAreaUnit,
@@ -493,21 +506,21 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 80),
                   child: ModuleSection(
-                    title: 'Location',
+                    title: l10n.t('location'),
                     icon: Icons.place_rounded,
                     accent: const Color(0xFF4383EA),
                     children: [
                       ModuleField(
-                        label: 'Full address',
+                        label: l10n.t('fullAddress'),
                         controller: _address,
-                        hint: 'Street, locality, landmark',
+                        hint: l10n.t('fullAddressHint'),
                         maxLines: 2,
                       ),
                       Row(
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'City',
+                              label: l10n.t('city'),
                               controller: _city,
                               textCapitalization: TextCapitalization.words,
                             ),
@@ -515,7 +528,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'State',
+                              label: l10n.t('stateRegion'),
                               controller: _state,
                               textCapitalization: TextCapitalization.words,
                             ),
@@ -526,7 +539,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Country',
+                              label: l10n.t('country'),
                               controller: _country,
                               textCapitalization: TextCapitalization.words,
                             ),
@@ -534,7 +547,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'PIN code',
+                              label: l10n.t('pinCode'),
                               controller: _pin,
                               keyboardType: TextInputType.number,
                               inputFormatters: [
@@ -546,9 +559,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         ],
                       ),
                       ModuleField(
-                        label: 'Google Maps link',
+                        label: l10n.t('googleMapsLink'),
                         controller: _maps,
-                        hint: 'Paste a maps URL or plus code',
+                        hint: l10n.t('googleMapsLinkHint'),
                         keyboardType: TextInputType.url,
                         textCapitalization: TextCapitalization.none,
                       ),
@@ -561,12 +574,12 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 120),
                   child: ModuleSection(
-                    title: 'Ownership',
+                    title: l10n.t('ownership'),
                     icon: Icons.badge_rounded,
                     accent: const Color(0xFF9B6DE0),
                     children: [
                       ModuleField(
-                        label: 'Owner name',
+                        label: l10n.t('ownerName'),
                         controller: _owner,
                         textCapitalization: TextCapitalization.words,
                       ),
@@ -574,7 +587,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Your share',
+                              label: l10n.t('yourShare'),
                               controller: _ownership,
                               hint: '100',
                               suffix: const Padding(
@@ -588,7 +601,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Registration no.',
+                              label: l10n.t('registrationNo'),
                               controller: _regNumber,
                               textCapitalization: TextCapitalization.characters,
                             ),
@@ -596,10 +609,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         ],
                       ),
                       ModulePickerField(
-                        label: 'Registration date',
+                        label: l10n.t('registrationDate'),
                         value:
                             _regDate == null ? null : formatModuleDate(_regDate!),
-                        hint: 'Select a date',
+                        hint: l10n.t('selectADate'),
                         icon: Icons.event_available_rounded,
                         trailingIcon: Icons.calendar_month_rounded,
                         onTap: () => _pickDate(purchase: false),
@@ -620,7 +633,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 160),
                   child: ModuleSection(
-                    title: 'Legal details',
+                    title: l10n.t('legalDetails'),
                     icon: Icons.gavel_rounded,
                     accent: const Color(0xFFF5704A),
                     children: [
@@ -628,7 +641,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Nominee',
+                              label: l10n.t('nominee'),
                               controller: _nominee,
                               textCapitalization: TextCapitalization.words,
                             ),
@@ -636,31 +649,31 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Relationship',
+                              label: l10n.t('relationship'),
                               controller: _nomineeRelation,
-                              hint: 'e.g. Spouse',
+                              hint: l10n.t('relationshipHintSpouse'),
                               textCapitalization: TextCapitalization.words,
                             ),
                           ),
                         ],
                       ),
                       ModuleField(
-                        label: 'Legal heirs',
+                        label: l10n.t('legalHeirs'),
                         controller: _heirs,
-                        hint: 'Comma-separated names',
+                        hint: l10n.t('commaSeparatedNames'),
                         textCapitalization: TextCapitalization.words,
                       ),
                       ModuleField(
-                        label: 'Will details',
+                        label: l10n.t('willDetails'),
                         controller: _will,
-                        hint: 'Where the will is held, executor, clauses',
+                        hint: l10n.t('willDetailsHint'),
                         maxLines: 3,
                       ),
                       Row(
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Property tax ID',
+                              label: l10n.t('propertyTaxId'),
                               controller: _taxId,
                               textCapitalization: TextCapitalization.characters,
                             ),
@@ -668,16 +681,16 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Encumbrance',
+                              label: l10n.t('encumbrance'),
                               controller: _encumbrance,
-                              hint: 'e.g. None',
+                              hint: l10n.t('encumbranceHintNone'),
                             ),
                           ),
                         ],
                       ),
                       ModuleSwitchField(
-                        label: 'Loan against property',
-                        subtitle: 'Track the lender and what is still owed',
+                        label: l10n.t('loanAgainstProperty'),
+                        subtitle: l10n.t('loanAgainstPropertySubtitle'),
                         icon: Icons.account_balance_rounded,
                         value: _hasLoan,
                         onChanged: (v) => setState(() => _hasLoan = v),
@@ -693,7 +706,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                                 children: [
                                   Expanded(
                                     child: ModuleField(
-                                      label: 'Loan provider',
+                                      label: l10n.t('loanProvider'),
                                       controller: _loanProvider,
                                       textCapitalization:
                                           TextCapitalization.words,
@@ -702,7 +715,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                                   const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: ModuleField(
-                                      label: 'Outstanding',
+                                      label: l10n.t('outstanding'),
                                       controller: _outstanding,
                                       hint: '0',
                                       prefixText: '$symbol ',
@@ -724,7 +737,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 200),
                   child: ModuleSection(
-                    title: 'Financial information',
+                    title: l10n.t('financialInformation'),
                     icon: Icons.payments_rounded,
                     accent: AppColors.success,
                     children: [
@@ -732,7 +745,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'EMI / month',
+                              label: l10n.t('emiPerMonth'),
                               controller: _emi,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -743,7 +756,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Rental income / month',
+                              label: l10n.t('rentalIncomePerMonth'),
                               controller: _rent,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -757,7 +770,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Annual property tax',
+                              label: l10n.t('annualPropertyTax'),
                               controller: _annualTax,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -768,7 +781,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Maintenance / year',
+                              label: l10n.t('maintenancePerYear'),
                               controller: _maintenance,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -779,7 +792,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         ],
                       ),
                       ModuleField(
-                        label: 'Other expenses / year',
+                        label: l10n.t('otherExpensesPerYear'),
                         controller: _otherExpenses,
                         hint: '0',
                         prefixText: '$symbol ',
@@ -795,14 +808,14 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 240),
                   child: ModuleSection(
-                    title: 'Documents',
+                    title: l10n.t('documents'),
                     icon: Icons.folder_copy_rounded,
                     accent: const Color(0xFF0891B2),
-                    subtitle: 'Deed, registration, tax receipts, plans',
+                    subtitle: l10n.t('propertyDocumentsSubtitle'),
                     trailing: ModuleIconButton(
                       icon: Icons.add_rounded,
                       size: 34,
-                      tooltip: 'Attach',
+                      tooltip: l10n.t('attach'),
                       onTap: _addAttachment,
                     ),
                     children: [
@@ -810,7 +823,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Text(
-                            'Nothing attached yet.',
+                            l10n.t('nothingAttachedYet'),
                             style: AppText.caption
                                 .copyWith(color: palette.textFaint),
                           ),
@@ -832,20 +845,20 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 280),
                   child: ModuleSection(
-                    title: 'Notes',
+                    title: l10n.t('notes'),
                     icon: Icons.sticky_note_2_rounded,
                     accent: const Color(0xFF64748B),
                     children: [
                       ModuleField(
-                        label: 'Custom notes',
+                        label: l10n.t('customNotes'),
                         controller: _notes,
-                        hint: 'Anything worth remembering about this property',
+                        hint: l10n.t('customNotesHint'),
                         maxLines: 4,
                       ),
                       ModuleField(
-                        label: 'Important reminder',
+                        label: l10n.t('importantReminder'),
                         controller: _reminder,
-                        hint: 'e.g. Property tax due every April',
+                        hint: l10n.t('importantReminderHint'),
                         maxLines: 2,
                       ),
                     ],
@@ -860,7 +873,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         ),
       ),
       bottomNavigationBar: _SaveBar(
-        label: _isEdit ? 'Save changes' : 'Add property',
+        label: _isEdit ? l10n.t('saveChanges') : l10n.t('addProperty'),
         busy: _saving,
         onSave: _save,
       ),
@@ -914,6 +927,7 @@ class _PhotoPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     // Path-only check: `existsSync()` was a blocking disk stat run on the UI
     // thread on every build of this form.
     final has = imagePath != null && imagePath!.isNotEmpty;
@@ -960,11 +974,11 @@ class _PhotoPicker extends StatelessWidget {
                             color: Colors.white, size: 24),
                       ),
                       const SizedBox(height: 10),
-                      Text('Add a property photo',
+                      Text(l10n.t('addPropertyPhoto'),
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary)),
                       const SizedBox(height: 2),
-                      Text('Optional, but it makes the card yours',
+                      Text(l10n.t('propertyPhotoOptional'),
                           style: AppText.caption
                               .copyWith(color: palette.textSecondary)),
                     ],
@@ -977,7 +991,7 @@ class _PhotoPicker extends StatelessWidget {
                   child: ModuleIconButton(
                     icon: Icons.close_rounded,
                     size: 34,
-                    tooltip: 'Remove photo',
+                    tooltip: l10n.t('removePhoto'),
                     onTap: onClear,
                   ),
                 ),
@@ -1004,18 +1018,19 @@ class _CoOwnerList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text('Co-owners',
+            Text(l10n.t('coOwners'),
                 style: AppText.label.copyWith(color: palette.textPrimary)),
             const Spacer(),
             TextButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.person_add_alt_rounded, size: 17),
-              label: const Text('Add'),
+              label: Text(l10n.t('add')),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primaryGreen,
                 visualDensity: VisualDensity.compact,
@@ -1025,7 +1040,7 @@ class _CoOwnerList extends StatelessWidget {
         ),
         if (coOwners.isEmpty)
           Text(
-            'No co-owners recorded.',
+            l10n.t('noCoOwnersRecorded'),
             style: AppText.caption.copyWith(color: palette.textFaint),
           )
         else
@@ -1156,6 +1171,7 @@ class _CoOwnerSheetState extends State<_CoOwnerSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
@@ -1182,11 +1198,11 @@ class _CoOwnerSheetState extends State<_CoOwnerSheet> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Add co-owner',
+              Text(l10n.t('addCoOwner'),
                   style: AppText.title.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.md),
               ModuleField(
-                label: 'Name',
+                label: l10n.t('nameLabel'),
                 controller: _name,
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
@@ -1195,16 +1211,16 @@ class _CoOwnerSheetState extends State<_CoOwnerSheet> {
                 children: [
                   Expanded(
                     child: ModuleField(
-                      label: 'Relationship',
+                      label: l10n.t('relationship'),
                       controller: _relation,
-                      hint: 'e.g. Brother',
+                      hint: l10n.t('relationshipHintBrother'),
                       textCapitalization: TextCapitalization.words,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: ModuleField(
-                      label: 'Share',
+                      label: l10n.t('sharePercentLabel'),
                       controller: _share,
                       hint: '50',
                       keyboardType: TextInputType.number,
@@ -1213,7 +1229,7 @@ class _CoOwnerSheetState extends State<_CoOwnerSheet> {
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
-              GradientButton(label: 'Add co-owner', onTap: _save),
+              GradientButton(label: l10n.t('addCoOwner'), onTap: _save),
             ],
           ),
         ),

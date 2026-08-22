@@ -150,17 +150,17 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                 runSpacing: AppSpacing.xs,
                 children: [
                   _QuickDateChip(
-                    label: 'Today',
+                    label: l10n.t('today'),
                     selected: _date == today,
                     onTap: () => _setDate(today),
                   ),
                   _QuickDateChip(
-                    label: 'Tomorrow',
+                    label: l10n.t('tomorrow'),
                     selected: _date == tomorrow,
                     onTap: () => _setDate(tomorrow),
                   ),
                   _QuickDateChip(
-                    label: 'In 7 days',
+                    label: l10n.t('inDays').replaceAll('{n}', '7'),
                     selected: _date == nextWeek,
                     onTap: () => _setDate(nextWeek),
                   ),

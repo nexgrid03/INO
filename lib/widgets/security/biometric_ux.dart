@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
@@ -47,30 +48,30 @@ class BiometricUx {
 
   /// "No Biometrics Found" - returns true if the user chose Open Device Settings.
   static Future<bool> noBiometricsDialog(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final result = await _dialog(
       context,
       icon: Icons.fingerprint_rounded,
       iconColor: AppColors.warning,
-      title: 'No Biometrics Found',
-      message:
-          "You haven't enrolled any fingerprint or face recognition on this device.",
-      cancelLabel: 'Cancel',
-      confirmLabel: 'Open Device Settings',
+      title: l10n.t('noBiometricsFound'),
+      message: l10n.t('noBiometricsFoundBody'),
+      cancelLabel: l10n.t('cancel'),
+      confirmLabel: l10n.t('openDeviceSettings'),
     );
     return result ?? false;
   }
 
   /// "Disable Biometric Authentication?" - returns true if confirmed.
   static Future<bool> disableBiometricDialog(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final result = await _dialog(
       context,
       icon: Icons.gpp_maybe_rounded,
       iconColor: AppColors.critical,
-      title: 'Disable Biometric Authentication?',
-      message:
-          'You will need to enter your password whenever sensitive actions require verification.',
-      cancelLabel: 'Cancel',
-      confirmLabel: 'Disable',
+      title: l10n.t('disableBiometricTitle'),
+      message: l10n.t('disableBiometricBody'),
+      cancelLabel: l10n.t('cancel'),
+      confirmLabel: l10n.t('disable'),
       danger: true,
     );
     return result ?? false;
@@ -88,7 +89,7 @@ class BiometricUx {
       iconColor: AppColors.critical,
       title: title,
       message: message,
-      confirmLabel: 'OK',
+      confirmLabel: AppLocalizations.of(context).t('ok'),
     );
   }
 

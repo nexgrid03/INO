@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../models/investment_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
@@ -77,8 +78,11 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
 
   List<Investment> get _visible {
     return _store.sorted
-        .where((i) =>
-            (_typeFilter == null || i.type == _typeFilter) && i.matches(_query))
+        .where(
+          (i) =>
+              (_typeFilter == null || i.type == _typeFilter) &&
+              i.matches(_query),
+        )
         .toList();
   }
 
@@ -87,7 +91,12 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
       MaterialPageRoute(builder: (_) => const InvestmentFormScreen()),
     );
     if (created == null || !mounted) return;
-    await showSuccessBurst(context, '${created.name} added');
+    await showSuccessBurst(
+      context,
+      AppLocalizations.of(context)
+          .t('nameAdded')
+          .replaceAll('{name}', created.name),
+    );
   }
 
   Future<void> _edit(Investment investment) async {
@@ -102,12 +111,14 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
 
   Future<void> _actions(Investment i) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -124,10 +135,11 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
             ),
             const SizedBox(height: AppSpacing.xs),
             ListTile(
-              leading:
-                  Icon(Icons.edit_rounded, color: AppColors.primaryGreen),
-              title: Text('Edit holding',
-                  style: TextStyle(color: palette.textPrimary)),
+              leading: Icon(Icons.edit_rounded, color: AppColors.primaryGreen),
+              title: Text(
+                l10n.t('editHolding'),
+                style: TextStyle(color: palette.textPrimary),
+              ),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _edit(i);
@@ -139,7 +151,9 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                 color: AppColors.warning,
               ),
               title: Text(
-                i.isFavorite ? 'Remove from favourites' : 'Add to favourites',
+                l10n.t(
+                  i.isFavorite ? 'removeFromFavourites' : 'addToFavourites',
+                ),
                 style: TextStyle(color: palette.textPrimary),
               ),
               onTap: () {
@@ -148,21 +162,30 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline_rounded,
-                  color: AppColors.critical),
-              title: const Text('Delete holding',
-                  style: TextStyle(color: AppColors.critical)),
+              leading: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.critical,
+              ),
+              title: Text(
+                l10n.t('deleteHolding'),
+                style: const TextStyle(color: AppColors.critical),
+              ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 final ok = await confirmDestructive(
                   context,
-                  title: 'Delete holding?',
-                  message: '"${i.name}" will be removed from your portfolio.',
+                  title: l10n.t('deleteHoldingTitle'),
+                  message: l10n
+                      .t('deleteHoldingMessage')
+                      .replaceAll('{name}', i.name),
                 );
                 if (!ok) return;
                 await _store.remove(i.id);
                 if (!mounted) return;
-                showModuleToast(context, '${i.name} deleted');
+                showModuleToast(
+                  context,
+                  l10n.t('nameDeleted').replaceAll('{name}', i.name),
+                );
               },
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -175,7 +198,11 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final hasAny = _store.items.isNotEmpty;
+    final holdingCount = _store.count == 1
+        ? l10n.t('oneHolding')
+        : l10n.t('nHoldings').replaceAll('{count}', '${_store.count}');
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -188,35 +215,30 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
           child: Column(
             children: [
               ModuleHeader(
-                  title: 'Investments',
-                  subtitle: hasAny
-                      ? '${_store.count} holding${_store.count == 1 ? '' : 's'} · ${moneyWords(_store.totalValue, _currency)}'
-                      : 'Your portfolio',
-                  icon: Icons.trending_up_rounded,
-                  accent: AppColors.primaryGreen,
-                  actions: [
-                    ModuleIconButton(
-                      icon: Icons.folder_shared_rounded,
-                      tooltip: 'Investment documents',
-                      color: AppColors.primaryGreen,
-                      onTap: _openDocuments,
-                    ),
-                    ModuleIconButton(
-                      icon: Icons.add_rounded,
-                      tooltip: 'Add investment',
-                      color: AppColors.primaryGreen,
-                      onTap: _add,
-                    ),
-                  ],
-                ),
+                title: l10n.t('investments'),
+                subtitle: hasAny
+                    ? '$holdingCount · ${moneyWords(_store.totalValue, _currency)}'
+                    : l10n.t('yourPortfolio'),
+                icon: Icons.trending_up_rounded,
+                accent: AppColors.primaryGreen,
+                actions: [
+                  ModuleIconButton(
+                    icon: Icons.folder_shared_rounded,
+                    tooltip: l10n.t('investmentDocuments'),
+                    color: AppColors.primaryGreen,
+                    onTap: _openDocuments,
+                  ),
+                  ModuleIconButton(
+                    icon: Icons.add_rounded,
+                    tooltip: l10n.t('addInvestment'),
+                    color: AppColors.primaryGreen,
+                    onTap: _add,
+                  ),
+                ],
+              ),
               if (hasAny)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    AppSpacing.md,
-                    16,
-                    0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
                   child: _SegmentedTabs(controller: _tabs),
                 ),
               Expanded(
@@ -226,50 +248,47 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                         child: ModuleSkeleton(height: 120, count: 3),
                       )
                     : !hasAny
-                        ? ModuleEmptyState(
-                            icon: Icons.trending_up_rounded,
-                            title: 'No investments yet',
-                            message:
-                                'Add stocks, mutual funds, FDs, gold or anything '
-                                'else you hold to see your portfolio, returns and '
-                                'allocation in one place.',
-                            actionLabel: 'Add investment',
-                            onAction: _add,
-                          )
-                        : TabBarView(
-                            controller: _tabs,
-                            children: [
-                              _OverviewTab(
-                                store: _store,
-                                currency: _currency,
-                                onSeeHoldings: () => _tabs.animateTo(1),
-                                onTapType: (t) {
-                                  setState(() => _typeFilter = t);
-                                  _tabs.animateTo(1);
-                                },
-                              ),
-                              _HoldingsTab(
-                                investments: _visible,
-                                currency: _currency,
-                                searchController: _searchController,
-                                onSearch: (v) => setState(() => _query = v),
-                                typeFilter: _typeFilter,
-                                availableTypes: _store.allocation
-                                    .map((s) => s.type)
-                                    .toList(),
-                                onTypeFilter: (t) =>
-                                    setState(() => _typeFilter = t),
-                                onTap: _edit,
-                                onMore: _actions,
-                                onFavorite: (i) => _store.toggleFavorite(i.id),
-                              ),
-                              _ActivityTab(
-                                investments: _store.items,
-                                currency: _currency,
-                                onTap: _edit,
-                              ),
-                            ],
+                    ? ModuleEmptyState(
+                        icon: Icons.trending_up_rounded,
+                        title: l10n.t('noInvestmentsYet'),
+                        message: l10n.t('noInvestmentsMessage'),
+                        actionLabel: l10n.t('addInvestment'),
+                        onAction: _add,
+                      )
+                    : TabBarView(
+                        controller: _tabs,
+                        children: [
+                          _OverviewTab(
+                            store: _store,
+                            currency: _currency,
+                            onSeeHoldings: () => _tabs.animateTo(1),
+                            onTapType: (t) {
+                              setState(() => _typeFilter = t);
+                              _tabs.animateTo(1);
+                            },
                           ),
+                          _HoldingsTab(
+                            investments: _visible,
+                            currency: _currency,
+                            searchController: _searchController,
+                            onSearch: (v) => setState(() => _query = v),
+                            typeFilter: _typeFilter,
+                            availableTypes: _store.allocation
+                                .map((s) => s.type)
+                                .toList(),
+                            onTypeFilter: (t) =>
+                                setState(() => _typeFilter = t),
+                            onTap: _edit,
+                            onMore: _actions,
+                            onFavorite: (i) => _store.toggleFavorite(i.id),
+                          ),
+                          _ActivityTab(
+                            investments: _store.items,
+                            currency: _currency,
+                            onTap: _edit,
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -277,7 +296,7 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
       ),
       floatingActionButton: hasAny
           ? GradientButton(
-              label: 'Add investment',
+              label: l10n.t('addInvestment'),
               icon: Icons.add_rounded,
               expand: false,
               onTap: _add,
@@ -293,11 +312,13 @@ class _SegmentedTabs extends StatelessWidget {
 
   final TabController controller;
 
-  static const _labels = ['Overview', 'Holdings', 'Activity'];
+  static const _labelKeys = ['overview', 'holdings', 'activity'];
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final labels = [for (final k in _labelKeys) l10n.t(k)];
     return Container(
       height: 44,
       padding: const EdgeInsets.all(4),
@@ -308,7 +329,7 @@ class _SegmentedTabs extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (var i = 0; i < _labels.length; i++)
+          for (var i = 0; i < labels.length; i++)
             Expanded(
               child: GestureDetector(
                 onTap: () {
@@ -330,7 +351,7 @@ class _SegmentedTabs extends StatelessWidget {
                         : null,
                   ),
                   child: Text(
-                    _labels[i],
+                    labels[i],
                     style: AppText.caption.copyWith(
                       color: controller.index == i
                           ? Colors.white
@@ -367,6 +388,7 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final allocation = store.allocation;
     final maturing = store.maturingWithin(60);
     final ret = store.totalReturn;
@@ -381,7 +403,9 @@ class _OverviewTab extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       children: [
         // ---- Total investments hero ----
         FadeSlideIn(
@@ -395,7 +419,7 @@ class _OverviewTab extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Total Portfolio Value',
+                        l10n.t('totalPortfolioValue'),
                         style: AppText.caption.copyWith(
                           color: palette.textSecondary,
                           fontWeight: FontWeight.w600,
@@ -405,7 +429,9 @@ class _OverviewTab extends StatelessWidget {
                     if (ret != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: (up ? AppColors.success : AppColors.critical)
                               .withValues(alpha: 0.12),
@@ -419,15 +445,17 @@ class _OverviewTab extends StatelessWidget {
                                   ? Icons.trending_up_rounded
                                   : Icons.trending_down_rounded,
                               size: 14,
-                              color:
-                                  up ? AppColors.success : AppColors.critical,
+                              color: up
+                                  ? AppColors.success
+                                  : AppColors.critical,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${up ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
                               style: AppText.label.copyWith(
-                                color:
-                                    up ? AppColors.success : AppColors.critical,
+                                color: up
+                                    ? AppColors.success
+                                    : AppColors.critical,
                               ),
                             ),
                           ],
@@ -441,15 +469,19 @@ class _OverviewTab extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     money(store.totalValue, currency),
-                    style: AppText.bigNumber.copyWith(color: palette.textPrimary),
+                    style: AppText.bigNumber.copyWith(
+                      color: palette.textPrimary,
+                    ),
                   ),
                 ),
                 if (ret != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${money(store.totalProfit.abs(), currency)} ${up ? 'overall gain' : 'overall loss'}',
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary),
+                    '${money(store.totalProfit.abs(), currency)} '
+                    '${l10n.t(up ? 'overallGain' : 'overallLoss')}',
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                    ),
                   ),
                 ],
                 if (growth.length >= 2) ...[
@@ -469,7 +501,7 @@ class _OverviewTab extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         value: moneyWords(store.totalInvested, currency),
-                        label: 'Invested',
+                        label: l10n.t('investedLabel'),
                         icon: Icons.savings_rounded,
                         accent: AppColors.primaryGreen,
                       ),
@@ -478,7 +510,7 @@ class _OverviewTab extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         value: moneyWords(store.totalProfit.abs(), currency),
-                        label: store.totalProfit >= 0 ? 'Gain' : 'Loss',
+                        label: l10n.t(store.totalProfit >= 0 ? 'gain' : 'loss'),
                         icon: store.totalProfit >= 0
                             ? Icons.trending_up_rounded
                             : Icons.trending_down_rounded,
@@ -491,7 +523,7 @@ class _OverviewTab extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         value: '${store.count}',
-                        label: 'Holdings',
+                        label: l10n.t('holdings'),
                         icon: Icons.inventory_2_rounded,
                         accent: AppColors.primaryGreen,
                         onTap: onSeeHoldings,
@@ -509,9 +541,9 @@ class _OverviewTab extends StatelessWidget {
         FadeSlideIn(
           delay: const Duration(milliseconds: 60),
           child: ModuleSection(
-            title: 'Asset allocation',
+            title: l10n.t('assetAllocation'),
             icon: Icons.pie_chart_rounded,
-            subtitle: 'Where your money sits',
+            subtitle: l10n.t('whereYourMoneySits'),
             children: [
               const SizedBox(height: 4),
               Row(
@@ -531,9 +563,13 @@ class _OverviewTab extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '+${allocation.length - 6} more',
-                              style: AppText.caption
-                                  .copyWith(color: palette.textFaint),
+                              l10n.t('plusNMore').replaceAll(
+                                    '{count}',
+                                    '${allocation.length - 6}',
+                                  ),
+                              style: AppText.caption.copyWith(
+                                color: palette.textFaint,
+                              ),
                             ),
                           ),
                       ],
@@ -550,7 +586,7 @@ class _OverviewTab extends StatelessWidget {
         FadeSlideIn(
           delay: const Duration(milliseconds: 100),
           child: ModuleSection(
-            title: 'Top holdings',
+            title: l10n.t('topHoldings'),
             icon: Icons.leaderboard_rounded,
             accent: AppColors.primaryGreen,
             trailing: TextButton(
@@ -559,7 +595,7 @@ class _OverviewTab extends StatelessWidget {
                 foregroundColor: AppColors.primaryGreen,
                 visualDensity: VisualDensity.compact,
               ),
-              child: const Text('See all'),
+              child: Text(l10n.t('seeAll')),
             ),
             children: [
               for (final i in store.sorted.take(4))
@@ -574,10 +610,10 @@ class _OverviewTab extends StatelessWidget {
           FadeSlideIn(
             delay: const Duration(milliseconds: 140),
             child: ModuleSection(
-              title: 'Maturing soon',
+              title: l10n.t('maturingSoon'),
               icon: Icons.event_available_rounded,
               accent: AppColors.warning,
-              subtitle: 'Within the next 60 days',
+              subtitle: l10n.t('withinNext60Days'),
               children: [
                 for (final i in maturing)
                   DetailRow(
@@ -605,6 +641,7 @@ class _AllocationRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final top = allocation.isEmpty ? null : allocation.first;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -629,14 +666,16 @@ class _AllocationRing extends StatelessWidget {
               children: [
                 Text(
                   top == null ? '—' : '${(top.share * 100).round()}%',
-                  style: AppText.title
-                      .copyWith(color: palette.textPrimary, fontSize: 18),
+                  style: AppText.title.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 18,
+                  ),
                 ),
                 if (top != null)
                   SizedBox(
                     width: 74,
                     child: Text(
-                      top.type.shortLabel,
+                      investmentTypeShortLabel(l10n, top.type),
                       maxLines: 1,
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
@@ -670,7 +709,10 @@ class _RingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final stroke = size.width * 0.14;
     final radius = (size.width - stroke) / 2;
-    final rect = Rect.fromCircle(center: size.center(Offset.zero), radius: radius);
+    final rect = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: radius,
+    );
 
     // The empty track keeps the ring visible even at a single 100% slice.
     canvas.drawCircle(
@@ -727,6 +769,7 @@ class _LegendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -735,19 +778,19 @@ class _LegendRow extends StatelessWidget {
         child: Row(
           children: [
             AdaptiveListIcon(
-                icon: slice.type.icon,
-                accent: slice.type.color,
-                size: 30,
-                iconSize: 15,
-                radius: 10,
-              ),
+              icon: slice.type.icon,
+              accent: slice.type.color,
+              size: 30,
+              iconSize: 15,
+              radius: 10,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    slice.type.shortLabel,
+                    investmentTypeShortLabel(l10n, slice.type),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.subtitle.copyWith(
@@ -787,6 +830,7 @@ class _TopHoldingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final ret = investment.returnPercent;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -811,7 +855,7 @@ class _TopHoldingRow extends StatelessWidget {
                   style: AppText.subtitle.copyWith(color: palette.textPrimary),
                 ),
                 Text(
-                  investment.type.shortLabel,
+                  investmentTypeShortLabel(l10n, investment.type),
                   style: AppText.caption.copyWith(color: palette.textSecondary),
                 ),
               ],
@@ -828,8 +872,9 @@ class _TopHoldingRow extends StatelessWidget {
                 Text(
                   '${investment.isUp ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
                   style: AppText.caption.copyWith(
-                    color:
-                        investment.isUp ? AppColors.success : AppColors.critical,
+                    color: investment.isUp
+                        ? AppColors.success
+                        : AppColors.critical,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -873,12 +918,18 @@ class _HoldingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, AppSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            AppSpacing.md,
+            16,
+            AppSpacing.sm,
+          ),
           child: FloatingSearchBar(
-            hint: 'Search holdings',
+            hint: l10n.t('searchHoldings'),
             height: 48,
             controller: searchController,
             onChanged: onSearch,
@@ -892,14 +943,14 @@ class _HoldingsTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
             children: [
               ModuleChip(
-                label: 'All',
+                label: l10n.t('all'),
                 selected: typeFilter == null,
                 onTap: () => onTypeFilter(null),
               ),
               for (final t in availableTypes) ...[
                 const SizedBox(width: 8),
                 ModuleChip(
-                  label: t.shortLabel,
+                  label: investmentTypeShortLabel(l10n, t),
                   icon: t.icon,
                   selected: typeFilter == t,
                   accent: t.color,
@@ -916,29 +967,37 @@ class _HoldingsTab extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No holdings match this filter.',
-                      style:
-                          AppText.body.copyWith(color: palette.textSecondary),
+                      l10n.t('noHoldingsMatchFilter'),
+                      style: AppText.body.copyWith(
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    AppSpacing.md,
+                    16,
+                    120,
+                  ),
                   physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics()),
+                    parent: BouncingScrollPhysics(),
+                  ),
                   itemCount: investments.length,
                   separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.md),
-                  itemBuilder: (context, i) => FadeSlideIn(
-                    delay: Duration(milliseconds: (i * 40).clamp(0, 280)),
-                    offset: 12,
-                    child: InvestmentCard(
-                      investment: investments[i],
-                      currency: currency,
-                      onTap: () => onTap(investments[i]),
-                      onMore: () => onMore(investments[i]),
-                      onFavorite: () => onFavorite(investments[i]),
-                    ),
+                  // No FadeSlideIn here: recycled rows replay the entrance
+                  // animation every time they scroll back into view (see the
+                  // note in profile_screen.dart). Keyed so sort / favourite
+                  // changes re-associate each element with its own card.
+                  itemBuilder: (context, i) => InvestmentCard(
+                    key: ValueKey(investments[i].id),
+                    investment: investments[i],
+                    currency: currency,
+                    onTap: () => onTap(investments[i]),
+                    onMore: () => onMore(investments[i]),
+                    onFavorite: () => onFavorite(investments[i]),
                   ),
                 ),
         ),
@@ -967,6 +1026,7 @@ class InvestmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final accent = investment.type.color;
     final ret = investment.returnPercent;
     final up = investment.isUp;
@@ -1009,14 +1069,17 @@ class InvestmentCard extends StatelessWidget {
                               ),
                             ),
                             if (investment.isFavorite)
-                              const Icon(Icons.star_rounded,
-                                  size: 16, color: AppColors.warning),
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 16,
+                                color: AppColors.warning,
+                              ),
                           ],
                         ),
                         const SizedBox(height: 2),
                         Text(
                           [
-                            investment.type.shortLabel,
+                            investmentTypeShortLabel(l10n, investment.type),
                             if ((investment.institution ?? '').isNotEmpty)
                               investment.institution!,
                             if (investment.maskedAccount != null)
@@ -1024,8 +1087,9 @@ class InvestmentCard extends StatelessWidget {
                           ].join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppText.caption
-                              .copyWith(color: palette.textSecondary),
+                          style: AppText.caption.copyWith(
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -1034,14 +1098,17 @@ class InvestmentCard extends StatelessWidget {
                     ModuleIconButton(
                       icon: Icons.more_horiz_rounded,
                       size: 32,
-                      tooltip: 'Actions',
+                      tooltip: l10n.t('actions'),
                       onTap: onMore!,
                     ),
                 ],
               ),
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: palette.surfaceVariant,
                   borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -1049,17 +1116,17 @@ class InvestmentCard extends StatelessWidget {
                 child: Row(
                   children: [
                     _Metric(
-                      label: 'Invested',
+                      label: l10n.t('investedLabel'),
                       value: moneyWords(investment.invested, currency),
                     ),
                     _MetricDivider(color: palette.border),
                     _Metric(
-                      label: 'Current',
+                      label: l10n.t('current'),
                       value: moneyWords(investment.value, currency),
                     ),
                     _MetricDivider(color: palette.border),
                     _Metric(
-                      label: up ? 'Profit' : 'Loss',
+                      label: l10n.t(up ? 'profit' : 'loss'),
                       value: ret == null
                           ? moneyWords(investment.profit.abs(), currency)
                           : '${up ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
@@ -1090,9 +1157,13 @@ class _Metric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: AppText.caption
-                  .copyWith(color: palette.textSecondary, fontSize: 11)),
+          Text(
+            label,
+            style: AppText.caption.copyWith(
+              color: palette.textSecondary,
+              fontSize: 11,
+            ),
+          ),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -1118,11 +1189,11 @@ class _MetricDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 1,
-        height: 26,
-        margin: const EdgeInsets.symmetric(horizontal: 10),
-        color: color,
-      );
+    width: 1,
+    height: 26,
+    margin: const EdgeInsets.symmetric(horizontal: 10),
+    color: color,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1147,6 +1218,7 @@ class _ActivityTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final events = <_ActivityEvent>[
       for (final i in investments) ...[
         _ActivityEvent(i, i.createdAt, added: true),
@@ -1157,72 +1229,76 @@ class _ActivityTab extends StatelessWidget {
 
     if (events.isEmpty) {
       return Center(
-        child: Text('Nothing here yet.',
-            style: AppText.body.copyWith(color: palette.textSecondary)),
+        child: Text(
+          l10n.t('nothingHereYet'),
+          style: AppText.body.copyWith(color: palette.textSecondary),
+        ),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
-      physics:
-          const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       itemCount: events.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, i) {
         final e = events[i];
-        return FadeSlideIn(
-          delay: Duration(milliseconds: (i * 35).clamp(0, 260)),
-          offset: 10,
-          child: InkWell(
-            onTap: () => onTap(e.investment),
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            child: AdaptiveGlassCard(
-              padding: const EdgeInsets.all(13),
-              radius: AppRadius.card,
-              child: Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: (e.added ? AppColors.success : AppColors.lightBlue)
-                          .withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(
-                      e.added
-                          ? Icons.add_circle_outline_rounded
-                          : Icons.edit_rounded,
-                      size: 17,
-                      color: e.added ? AppColors.success : AppColors.lightBlue,
-                    ),
+        // No FadeSlideIn: recycled rows would replay the entrance on scroll.
+        return InkWell(
+          onTap: () => onTap(e.investment),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: AdaptiveGlassCard(
+            padding: const EdgeInsets.all(13),
+            radius: AppRadius.card,
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: (e.added ? AppColors.success : AppColors.lightBlue)
+                        .withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${e.added ? 'Added' : 'Updated'} ${e.investment.name}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.subtitle
-                              .copyWith(color: palette.textPrimary),
+                  child: Icon(
+                    e.added
+                        ? Icons.add_circle_outline_rounded
+                        : Icons.edit_rounded,
+                    size: 17,
+                    color: e.added ? AppColors.success : AppColors.lightBlue,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n
+                            .t(e.added ? 'addedName' : 'updatedName')
+                            .replaceAll('{name}', e.investment.name),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.subtitle.copyWith(
+                          color: palette.textPrimary,
                         ),
-                        Text(
-                          formatModuleDate(e.at),
-                          style: AppText.caption
-                              .copyWith(color: palette.textSecondary),
+                      ),
+                      Text(
+                        formatModuleDate(e.at),
+                        style: AppText.caption.copyWith(
+                          color: palette.textSecondary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    moneyWords(e.investment.value, currency),
-                    style: AppText.subtitle.copyWith(color: palette.textPrimary),
-                  ),
-                ],
-              ),
+                ),
+                Text(
+                  moneyWords(e.investment.value, currency),
+                  style: AppText.subtitle.copyWith(color: palette.textPrimary),
+                ),
+              ],
             ),
           ),
         );

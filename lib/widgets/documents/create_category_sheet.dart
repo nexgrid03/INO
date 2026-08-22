@@ -41,7 +41,10 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
   final _controller = TextEditingController();
   String _iconKey = kCategoryIcons.first.key;
   int _colorValue = kCategoryColorValues.first;
-  String? _error;
+  /// Translation key of the current validation error (null when valid). Stored
+  /// as a key rather than a rendered string so switching language re-translates
+  /// the message that is already on screen.
+  String? _errorKey;
   bool _saving = false;
 
   @override
@@ -54,21 +57,21 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
     if (_saving) return;
     final name = _controller.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Enter a category name');
+      setState(() => _errorKey = 'enterCategoryName');
       return;
     }
     if (name.length < 2) {
-      setState(() => _error = 'Name is too short');
+      setState(() => _errorKey = 'nameTooShort');
       return;
     }
     if (CategoryStore.instance.exists(name)) {
-      setState(() => _error = 'That category already exists');
+      setState(() => _errorKey = 'categoryAlreadyExists');
       return;
     }
 
     setState(() {
       _saving = true;
-      _error = null;
+      _errorKey = null;
     });
     final created = await CategoryStore.instance.add(
       DocumentCategory(name: name, iconKey: _iconKey, colorValue: _colorValue),
@@ -118,7 +121,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                               style: AppText.headline.copyWith(
                                   color: palette.textPrimary, fontSize: 19)),
                           const SizedBox(height: 2),
-                          Text('Organise your documents your way',
+                          Text(l10n.t('newCategorySubtitle'),
                               style: AppText.caption
                                   .copyWith(color: palette.textSecondary)),
                         ],
@@ -128,7 +131,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 // Name field.
-                Text('Category Name',
+                Text(l10n.t('categoryName'),
                     style: AppText.subtitle
                         .copyWith(color: palette.textPrimary, fontSize: 13)),
                 const SizedBox(height: 7),
@@ -138,19 +141,20 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.done,
                   onChanged: (_) {
-                    if (_error != null) setState(() => _error = null);
+                    if (_errorKey != null) setState(() => _errorKey = null);
                   },
                   onSubmitted: (_) => _save(),
-                  decoration: _decoration(context, 'e.g. Education', color),
+                  decoration:
+                      _decoration(context, l10n.t('hintCategoryName'), color),
                 ),
-                if (_error != null) ...[
+                if (_errorKey != null) ...[
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       const Icon(Icons.error_outline_rounded,
                           size: 15, color: AppColors.critical),
                       const SizedBox(width: 5),
-                      Text(_error!,
+                      Text(l10n.t(_errorKey!),
                           style: AppText.label
                               .copyWith(color: AppColors.critical)),
                     ],
@@ -158,7 +162,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 ],
                 const SizedBox(height: AppSpacing.lg),
                 // Icon picker.
-                Text('Icon',
+                Text(l10n.t('icon'),
                     style: AppText.subtitle
                         .copyWith(color: palette.textPrimary, fontSize: 13)),
                 const SizedBox(height: AppSpacing.sm),
@@ -180,7 +184,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 // Colour picker.
-                Text('Colour',
+                Text(l10n.t('colour'),
                     style: AppText.subtitle
                         .copyWith(color: palette.textPrimary, fontSize: 13)),
                 const SizedBox(height: AppSpacing.sm),

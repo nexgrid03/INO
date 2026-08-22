@@ -3,13 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthException, PostgrestException;
 
+import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -37,37 +37,52 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   }
 
   Future<void> _accept(VaultInvitation inv) async {
+    final l10n = AppLocalizations.of(context);
     try {
       await _store.acceptInvitation(inv.id);
-      if (mounted) _toastOk('Joined ${inv.vaultName ?? 'the vault'}');
+      if (mounted) {
+        _toastOk(
+          l10n
+              .t('joinedVault')
+              .replaceAll('{name}', inv.vaultName ?? l10n.t('theVault')),
+        );
+      }
     } catch (e) {
-      if (mounted) _toast('Couldn\'t accept: ${_errorText(e)}');
+      if (mounted) {
+        _toast(l10n.t('couldNotAccept').replaceAll('{error}', _errorText(e)));
+      }
     }
   }
 
   Future<void> _decline(VaultInvitation inv) async {
+    final l10n = AppLocalizations.of(context);
     try {
       await _store.declineInvitation(inv.id);
     } catch (e) {
-      if (mounted) _toast('Couldn\'t decline the invitation.');
+      if (mounted) _toast(l10n.t('couldNotDeclineInvitation'));
     }
   }
 
   void _toastOk(String m) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.primaryGreen,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primaryGreen,
+      ),
+    );
   }
 
   Future<void> _create() async {
+    final l10n = AppLocalizations.of(context);
     final name = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppPalette.of(context).surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (_) => const _CreateVaultSheet(),
     );
@@ -82,7 +97,11 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
       );
     } catch (e) {
       // Surface the ACTUAL backend error instead of a generic message.
-      if (mounted) _toast('Vault creation failed: ${_errorText(e)}');
+      if (mounted) {
+        _toast(
+          l10n.t('vaultCreationFailed').replaceAll('{error}', _errorText(e)),
+        );
+      }
     }
   }
 
@@ -97,16 +116,18 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   }
 
   void _toast(String m) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.critical,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.critical,
+      ),
+    );
   }
 
   Widget _header(AppPalette palette) {
     final glass = divineGlassEnabled(context);
-    final title = 'Family Vault';
+    final title = AppLocalizations.of(context).t('familyVault');
     if (glass) {
       return DivineGlassAppBar(
         title: title,
@@ -150,8 +171,9 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
       backgroundColor: palette.bg,
       floatingActionButton: ListenableBuilder(
         listenable: _store,
-        builder: (context, _) =>
-            _store.isEmpty ? const SizedBox.shrink() : _CreateButton(onTap: _create),
+        builder: (context, _) => _store.isEmpty
+            ? const SizedBox.shrink()
+            : _CreateButton(onTap: _create),
       ),
       body: InoBackground(
         sky: glass,
@@ -190,16 +212,18 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
                       onRefresh: refreshAll,
                       child: failed
                           ? _ErrorState(
-                            message: _store.loadError!, onRetry: _store.reload)
-                        : _store.isEmpty
-                            ? _EmptyState(onCreate: _create)
-                            : _list(palette),
-                  );
-                },
+                              message: _store.loadError!,
+                              onRetry: _store.reload,
+                            )
+                          : _store.isEmpty
+                          ? _EmptyState(onCreate: _create)
+                          : _list(palette),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -208,19 +232,25 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   Widget _list(AppPalette palette) {
     final vaults = _store.vaults;
     return ListView.separated(
-      physics:
-          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl * 2),
+        AppSpacing.screen,
+        AppSpacing.sm,
+        AppSpacing.screen,
+        AppSpacing.xl * 2,
+      ),
       itemCount: vaults.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (context, i) => FadeSlideIn(
-        delay: Duration(milliseconds: (i * 40).clamp(0, 240)),
-        child: _VaultCard(
-          summary: vaults[i],
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+      // No FadeSlideIn: recycled rows replay the entrance every time they
+      // scroll back into view.
+      itemBuilder: (context, i) => _VaultCard(
+        summary: vaults[i],
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
             builder: (_) => VaultDetailScreen(summary: vaults[i]),
-          )),
+          ),
         ),
       ),
     );
@@ -245,7 +275,11 @@ class _PendingInvites extends StatelessWidget {
     if (invites.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.sm),
+        AppSpacing.screen,
+        AppSpacing.xs,
+        AppSpacing.screen,
+        AppSpacing.sm,
+      ),
       child: Column(
         children: [
           for (final inv in invites)
@@ -277,13 +311,22 @@ class _InviteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final by = invite.invitedByName;
+    final details = [
+      invite.vaultName ?? l10n.t('familyVault'),
+      l10n.t('asRoleLabel').replaceAll('{role}', invite.role.localizedLabel(l10n)),
+      if (by != null) l10n.t('byName').replaceAll('{name}', by),
+    ].join(' · ');
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
-            color: AppColors.tealPale.withValues(alpha: 0.9), width: 1.2),
+          color: AppColors.tealPale.withValues(alpha: 0.9),
+          width: 1.2,
+        ),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -298,26 +341,32 @@ class _InviteCard extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: const Icon(Icons.mark_email_unread_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.mark_email_unread_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('You\'ve been invited',
-                        style: AppText.subtitle.copyWith(
-                            color: palette.textPrimary, fontSize: 14.5)),
+                    Text(
+                      l10n.t('youveBeenInvited'),
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 14.5,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
-                      '${invite.vaultName ?? 'Family Vault'} · as '
-                      '${invite.role.label}'
-                      '${invite.invitedByName != null ? ' · by ${invite.invitedByName}' : ''}',
+                      details,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -339,9 +388,13 @@ class _InviteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.button),
                         border: Border.all(color: palette.border),
                       ),
-                      child: Text('Decline',
-                          style: AppText.subtitle.copyWith(
-                              color: palette.textSecondary, fontSize: 14)),
+                      child: Text(
+                        l10n.t('decline'),
+                        style: AppText.subtitle.copyWith(
+                          color: palette.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -358,11 +411,14 @@ class _InviteCard extends StatelessWidget {
                         gradient: AppColors.brandGradient,
                         borderRadius: BorderRadius.circular(AppRadius.button),
                       ),
-                      child: const Text('Accept',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14)),
+                      child: Text(
+                        l10n.t('accept'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -387,7 +443,7 @@ class _VaultCard extends StatelessWidget {
     if (divineGlassEnabled(context)) {
       return DivineGlassListRow(
         title: summary.vault.name,
-        subtitle: summary.myRole.label,
+        subtitle: summary.myRole.localizedLabel(AppLocalizations.of(context)),
         icon: Icons.family_restroom_rounded,
         accent: AppColors.primaryGreen,
         onTap: onTap,
@@ -406,21 +462,29 @@ class _VaultCard extends StatelessWidget {
               color: AppColors.tealMist,
               borderRadius: BorderRadius.circular(AppRadius.chip + 2),
               border: Border.all(
-                  color: AppColors.tealPale.withValues(alpha: 0.7)),
+                color: AppColors.tealPale.withValues(alpha: 0.7),
+              ),
             ),
-            child:  Icon(Icons.family_restroom_rounded,
-                color: AppColors.primaryGreen, size: 26),
+            child: Icon(
+              Icons.family_restroom_rounded,
+              color: AppColors.primaryGreen,
+              size: 26,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(summary.vault.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.subtitle
-                        .copyWith(color: palette.textPrimary, fontSize: 15.5)),
+                Text(
+                  summary.vault.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 15.5,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 _RoleBadge(role: summary.myRole),
               ],
@@ -452,11 +516,14 @@ class _RoleBadge extends StatelessWidget {
         children: [
           Icon(role.icon, size: 12, color: role.color),
           const SizedBox(width: 4),
-          Text(role.label,
-              style: TextStyle(
-                  color: role.color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            role.localizedLabel(AppLocalizations.of(context)),
+            style: TextStyle(
+              color: role.color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -486,7 +553,8 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
   void initState() {
     super.initState();
     _controller.addListener(
-        () => setState(() => _valid = _controller.text.trim().isNotEmpty));
+      () => setState(() => _valid = _controller.text.trim().isNotEmpty),
+    );
   }
 
   @override
@@ -498,9 +566,14 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg,
-          AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -510,16 +583,21 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: palette.border,
-                  borderRadius: BorderRadius.circular(AppRadius.pill)),
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Create Family Vault',
-              style: AppText.title.copyWith(color: palette.textPrimary)),
+          Text(
+            l10n.t('createFamilyVault'),
+            style: AppText.title.copyWith(color: palette.textPrimary),
+          ),
           const SizedBox(height: AppSpacing.xs),
-          Text('You\'ll be the owner. Invite members after it\'s created.',
-              style: AppText.caption.copyWith(color: palette.textSecondary)),
+          Text(
+            l10n.t('createVaultSubtitle'),
+            style: AppText.caption.copyWith(color: palette.textSecondary),
+          ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _controller,
@@ -531,7 +609,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
             },
             style: AppText.body.copyWith(color: palette.textPrimary),
             decoration: InputDecoration(
-              hintText: 'e.g. Sharma Family',
+              hintText: l10n.t('vaultNameHint'),
               hintStyle: AppText.body.copyWith(color: palette.textFaint),
               filled: true,
               fillColor: palette.surfaceVariant,
@@ -545,8 +623,10 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.chip),
-                borderSide:
-                    BorderSide(color: AppColors.primaryGreen, width: 1.6),
+                borderSide: BorderSide(
+                  color: AppColors.primaryGreen,
+                  width: 1.6,
+                ),
               ),
             ),
           ),
@@ -568,12 +648,15 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     boxShadow: AppShadows.glow(AppColors.primaryGreen),
                   ),
-                  child: const Center(
-                    child: Text('Create Vault',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15)),
+                  child: Center(
+                    child: Text(
+                      l10n.t('createVault'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -593,6 +676,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -611,22 +695,29 @@ class _EmptyState extends StatelessWidget {
                       color: palette.surface,
                       borderRadius: BorderRadius.circular(AppRadius.large),
                       border: Border.all(
-                          color: AppColors.tealPale.withValues(alpha: 0.6)),
+                        color: AppColors.tealPale.withValues(alpha: 0.6),
+                      ),
                       boxShadow: AppShadows.floating,
                     ),
-                    child:  Icon(Icons.family_restroom_rounded,
-                        color: AppColors.primaryGreen, size: 52),
+                    child: Icon(
+                      Icons.family_restroom_rounded,
+                      color: AppColors.primaryGreen,
+                      size: 52,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('No Family Vaults Yet',
-                      style: AppText.title.copyWith(color: palette.textPrimary)),
+                  Text(
+                    l10n.t('noFamilyVaultsYet'),
+                    style: AppText.title.copyWith(color: palette.textPrimary),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Create a shared vault for your family, then invite members '
-                    'to view and manage documents together.',
+                    l10n.t('noFamilyVaultsBody'),
                     textAlign: TextAlign.center,
-                    style: AppText.body
-                        .copyWith(color: palette.textSecondary, height: 1.5),
+                    style: AppText.body.copyWith(
+                      color: palette.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   PressableScale(
@@ -634,23 +725,31 @@ class _EmptyState extends StatelessWidget {
                       onTap: onCreate,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg, vertical: 14),
+                          horizontal: AppSpacing.lg,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                           boxShadow: AppShadows.glow(AppColors.primaryGreen),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded,
-                                color: Colors.white, size: 20),
-                            SizedBox(width: 8),
-                            Text('Create Family Vault',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15)),
+                            const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.t('createFamilyVault'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -686,38 +785,55 @@ class _ErrorState extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.cloud_off_rounded,
-                      size: 56, color: palette.textFaint),
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 56,
+                    color: palette.textFaint,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Couldn\'t load vaults',
-                      style: AppText.title.copyWith(color: palette.textPrimary)),
+                  Text(
+                    AppLocalizations.of(context).t('couldNotLoadVaults'),
+                    style: AppText.title.copyWith(color: palette.textPrimary),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(message,
-                      textAlign: TextAlign.center,
-                      style: AppText.body
-                          .copyWith(color: palette.textSecondary, height: 1.5)),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: AppText.body.copyWith(
+                      color: palette.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   PressableScale(
                     child: GestureDetector(
                       onTap: onRetry,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg, vertical: 12),
+                          horizontal: AppSpacing.lg,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.refresh_rounded,
-                                color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('Try Again',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              AppLocalizations.of(context).t('tryAgain'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -745,7 +861,9 @@ class _CreateButton extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg, vertical: 15),
+            horizontal: AppSpacing.lg,
+            vertical: 15,
+          ),
           decoration: BoxDecoration(
             gradient: AppColors.brandGradient,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -757,16 +875,19 @@ class _CreateButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: Colors.white, size: 22),
-              SizedBox(width: 6),
-              Text('New Vault',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15)),
+              const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 6),
+              Text(
+                AppLocalizations.of(context).t('newVault'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ],
           ),
         ),

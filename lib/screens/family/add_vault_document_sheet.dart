@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../data/family_vault_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/document.dart';
 import '../../repositories/document_repository.dart';
 import '../../theme/app_dimens.dart';
@@ -91,7 +92,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not load your documents.';
+        _error = AppLocalizations.of(context).t('couldNotLoadYourDocuments');
         _loading = false;
       });
     }
@@ -174,6 +175,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final visible = _visible;
     final busy = _uploading || _busyDocId != null;
 
@@ -204,14 +206,15 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Add to ${widget.vaultName}',
+                  Text(
+                      l10n
+                          .t('addToVault')
+                          .replaceAll('{name}', widget.vaultName),
                       style:
                           AppText.title.copyWith(color: palette.textPrimary)),
                   const SizedBox(height: 4),
                   Text(
-                    'Everyone in this vault will be able to view and open what '
-                    'you add. Remove them, or withdraw the document, and their '
-                    'access ends immediately.',
+                    l10n.t('addToVaultSubtitle'),
                     style: AppText.caption
                         .copyWith(color: palette.textSecondary, height: 1.4),
                   ),
@@ -233,8 +236,8 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                             )
                           : const Icon(Icons.upload_file_rounded, size: 20),
                       label: Text(_uploading
-                          ? 'Uploading…'
-                          : 'Upload from this device'),
+                          ? l10n.t('uploading')
+                          : l10n.t('uploadFromThisDevice')),
                     ),
                   ),
 
@@ -246,7 +249,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                   ],
 
                   const SizedBox(height: AppSpacing.lg),
-                  Text('Or choose from your documents',
+                  Text(l10n.t('orChooseFromYourDocuments'),
                       style: AppText.subtitle
                           .copyWith(color: palette.textPrimary, fontSize: 14)),
                   const SizedBox(height: AppSpacing.sm),
@@ -255,7 +258,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                       onChanged: (v) => setState(() => _query = v),
                       decoration: InputDecoration(
                         isDense: true,
-                        hintText: 'Search your documents',
+                        hintText: l10n.t('searchYourDocuments'),
                         prefixIcon: const Icon(Icons.search_rounded, size: 20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.card),
@@ -278,10 +281,8 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                             padding: const EdgeInsets.all(24),
                             child: Text(
                               _all.isEmpty
-                                  ? 'None of your documents have a stored file '
-                                      'yet. Upload one above, or add documents '
-                                      'to a wallet first.'
-                                  : 'No documents match that search.',
+                                  ? l10n.t('noStoredFilesYet')
+                                  : l10n.t('noDocumentsMatchSearch'),
                               textAlign: TextAlign.center,
                               style: AppText.body.copyWith(
                                   color: palette.textSecondary, height: 1.45),

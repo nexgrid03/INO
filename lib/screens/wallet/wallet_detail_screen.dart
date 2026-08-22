@@ -96,9 +96,15 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     _future = _loadFuture();
   }
 
+  /// Last successfully loaded payload. Shown while a reload is in flight so
+  /// the list never blanks back to the skeleton after a scan / upload / back
+  /// navigation — only the very first load shows the skeleton.
+  WalletDetailData? _lastData;
+
   Future<WalletDetailData> _loadFuture() {
     return WalletDetailRepository.instance.load(widget.category).then((data) {
       _records = data.records;
+      _lastData = data;
       return data;
     });
   }
@@ -138,11 +144,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       return;
     }
     // Upload / health-record actions go straight to Add Document.
-    const uploadActions = {
-      'Upload PDF',
-      'Import Image',
-      'Add Health Record',
-    };
+    const uploadActions = {'Upload PDF', 'Import Image', 'Add Health Record'};
     if (uploadActions.contains(action.label)) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -168,7 +170,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final created = await showCreateCategorySheet(context);
     if (created == null || !mounted) return;
     setState(() => _category = created.name);
-    _toast('Category “${created.name}” created');
+    _toast(AppLocalizations.of(context)
+        .t('categoryCreated')
+        .replaceAll('{name}', created.name));
   }
 
   // ---- Derived data --------------------------------------------------------
@@ -289,12 +293,15 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 
   String _bannerMessage(DocumentRecord r) {
+    final l10n = AppLocalizations.of(context);
+    String named(String key) => l10n.t(key).replaceAll('{name}', r.name);
     final exp = r.expiresAt;
-    if (exp == null) return '${r.name} needs your attention';
+    if (exp == null) return named('needsYourAttentionName');
     final days = exp.difference(DateTime.now()).inDays;
-    if (days < 0) return '${r.name} has expired';
-    if (days == 0) return '${r.name} expires today';
-    return '${r.name} expires in $days day${days == 1 ? '' : 's'}';
+    if (days < 0) return named('hasExpiredName');
+    if (days == 0) return named('expiresTodayName');
+    if (days == 1) return named('expiresInOneDayName');
+    return named('expiresInDaysName').replaceAll('{n}', '$days');
   }
 
   // ---- Mutations -----------------------------------------------------------
@@ -320,13 +327,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         _records = [..._records]..[i] = updated;
       }
     });
-    _toast('${r.name} archived');
+    _toast(AppLocalizations.of(context)
+        .t('archivedName')
+        .replaceAll('{name}', r.name));
   }
 
   void _delete(DocumentRecord r) {
     WalletDetailRepository.instance.deleteRecord(widget.category.name, r.id);
     setState(() => _records = _records.where((e) => e.id != r.id).toList());
-    _toast('${r.name} deleted');
+    _toast(AppLocalizations.of(context)
+        .t('deletedName')
+        .replaceAll('{name}', r.name));
   }
 
   // ---- Multi-select & Share via QR ----------------------------------------
@@ -428,8 +439,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final byId = <String, Document>{};
 
     try {
-      final freshList = await DocumentRepository.instance
-          .listForWallet(wallet, forceRefresh: true);
+      final freshList = await DocumentRepository.instance.listForWallet(
+        wallet,
+        forceRefresh: true,
+      );
       for (final d in freshList) {
         byId[d.id] = d;
       }
@@ -447,8 +460,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       }
 
       if (path == null || path.isEmpty) {
-        final fresh = await DocumentRepository.instance
-            .getById(doc.id, wallet: wallet);
+        final fresh = await DocumentRepository.instance.getById(
+          doc.id,
+          wallet: wallet,
+        );
         if (fresh != null && fresh.hasUploadedFile) {
           path = fresh.filePath!.trim();
         }
@@ -491,7 +506,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     if (isProtected) {
       final unlocked = await VaultGuard.instance.ensureUnlocked(
         context,
-        reason: 'Authenticate to access this protected document.',
+        reason: AppLocalizations.of(context).t('authProtectedDocReason'),
         title: AppLocalizations.of(context).t('verifyIdentity'),
       );
       if (!unlocked || !mounted) return;
@@ -538,22 +553,23 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// Toggles per-document biometric protection. Changing a security setting is
   /// itself sensitive, so it requires a successful prompt first.
   Future<void> _toggleProtection(DocumentRecord r) async {
+    final l10n = AppLocalizations.of(context);
     final isProtected = DocumentProtectionStore.instance.isProtected(r.id);
     final unlocked = await VaultGuard.instance.ensureUnlocked(
       context,
       reason: isProtected
-          ? 'Authenticate to remove protection from this document.'
-          : 'Authenticate to protect this document.',
-      title: 'Verify your identity',
+          ? l10n.t('authRemoveProtectionReason')
+          : l10n.t('authProtectDocReason'),
+      title: l10n.t('verifyIdentity'),
     );
     if (!unlocked || !mounted) return;
     await DocumentProtectionStore.instance.setProtected(r.id, !isProtected);
     if (!mounted) return;
     setState(() {}); // refresh the lock badge
     _toast(
-      isProtected
-          ? '${r.name} is no longer protected'
-          : '${r.name} is now protected',
+      AppLocalizations.of(context)
+          .t(isProtected ? 'noLongerProtected' : 'nowProtectedName')
+          .replaceAll('{name}', r.name),
     );
   }
 
@@ -563,19 +579,20 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _toggleOffline(DocumentRecord r) async {
     final store = OfflineDocumentStore.instance;
     await store.ensureLoaded();
+    if (!mounted) return;
     if (store.isSaved(r.id)) {
       await store.remove(r.id);
       if (!mounted) return;
       setState(() {});
-      _toast('Removed from offline');
+      _toast(AppLocalizations.of(context).t('removedFromOffline'));
       return;
     }
     final path = r.filePath;
     if (path == null || path.trim().isEmpty) {
-      _toast('This record has no file to save offline.');
+      _toast(AppLocalizations.of(context).t('noFileToSaveOffline'));
       return;
     }
-    _toast('Saving for offline…');
+    _toast(AppLocalizations.of(context).t('savingForOffline'));
     final saved = await store.save(
       docId: r.id,
       name: r.name,
@@ -587,8 +604,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     setState(() {});
     _toast(
       saved != null
-          ? '"${r.name}" saved - view it offline anytime from Home'
-          : 'Could not save for offline. Check your connection and try again.',
+          ? AppLocalizations.of(context)
+              .t('savedForOfflineName')
+              .replaceAll('{name}', r.name)
+          : AppLocalizations.of(context).t('couldNotSaveOffline'),
     );
   }
 
@@ -596,6 +615,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _openActions(DocumentRecord r) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
@@ -662,7 +682,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Document',
+                            l10n.t('document'),
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
@@ -685,7 +705,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               ),
               _action(
                 Icons.open_in_full_rounded,
-                'Open',
+                l10n.t('open'),
                 () => _openDocument(r),
               ),
               _action(
@@ -693,13 +713,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     ? Icons.offline_pin_rounded
                     : Icons.download_for_offline_outlined,
                 OfflineDocumentStore.instance.isSaved(r.id)
-                    ? 'Remove offline copy'
-                    : 'Save to app · view offline',
+                    ? l10n.t('removeOfflineCopy')
+                    : l10n.t('saveToAppOffline'),
                 () => _toggleOffline(r),
               ),
               _action(
                 Icons.qr_code_2_rounded,
-                'Share via QR',
+                l10n.t('shareViaQr'),
                 () => _shareSingle(r),
               ),
               _action(
@@ -707,19 +727,20 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     ? Icons.lock_open_rounded
                     : Icons.lock_rounded,
                 DocumentProtectionStore.instance.isProtected(r.id)
-                    ? 'Remove protection'
-                    : 'Protect with Biometrics',
+                    ? l10n.t('removeProtection')
+                    : l10n.t('protectWithBiometrics'),
                 () => _toggleProtection(r),
               ),
               _action(
                 r.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-                r.isFavorite ? 'Remove favorite' : 'Favorite',
+                r.isFavorite ? l10n.t('unfavorite') : l10n.t('favorite'),
                 () => _toggleFavorite(r),
               ),
-              _action(Icons.archive_rounded, 'Archive', () => _archive(r)),
+              _action(
+                  Icons.archive_rounded, l10n.t('archive'), () => _archive(r)),
               _action(
                 Icons.delete_outline_rounded,
-                'Delete',
+                l10n.t('delete'),
                 () => _delete(r),
                 danger: true,
               ),
@@ -787,10 +808,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   ),
                 ),
                 trailing: s == _sort
-                    ?  Icon(
-                        Icons.check_rounded,
-                        color: AppColors.primaryGreen,
-                      )
+                    ? Icon(Icons.check_rounded, color: AppColors.primaryGreen)
                     : null,
                 onTap: () {
                   setState(() => _sort = s);
@@ -829,14 +847,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       child: Scaffold(
         backgroundColor: palette.bg,
         extendBody: true,
-      body: InoBackground(
-        showDots: false,
-        sky: divineGlassEnabled(context),
-        child: SafeArea(
-          // Launcher frosted header paints under the status bar itself.
-          top: !divineGlassEnabled(context),
-          bottom: false,
-          child: Stack(
+        body: InoBackground(
+          showDots: false,
+          sky: divineGlassEnabled(context),
+          child: SafeArea(
+            // Launcher frosted header paints under the status bar itself.
+            top: !divineGlassEnabled(context),
+            bottom: false,
+            child: Stack(
               children: [
                 Column(
                   children: [
@@ -874,7 +892,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       child: FutureBuilder<WalletDetailData>(
                         future: _future,
                         builder: (context, snapshot) {
-                          final data = snapshot.data;
+                          // Fall back to the previous data mid-reload — no
+                          // skeleton blink after every FAB action.
+                          final data = snapshot.data ?? _lastData;
                           return CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(
                               parent: ClampingScrollPhysics(),
@@ -955,17 +975,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// Brand-new / emptied wallet: skip search/summary/filters so the empty
   /// template can fill the viewport (same pattern as Property / Cards).
   Widget _emptyWalletSliver() {
+    final l10n = AppLocalizations.of(context);
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
         child: WalletEmptyState(
           title: _isHealthWallet
-              ? 'No health records yet'
-              : AppLocalizations.of(context).t('noDocumentsYet'),
+              ? l10n.t('noHealthRecordsYet')
+              : l10n.t('noDocumentsYet'),
           subtitle: _isHealthWallet
-              ? 'Add prescriptions, lab reports and medical records to your private vault.'
-              : 'Scan, upload or create a document to start filling this wallet.',
+              ? l10n.t('healthEmptySubtitle')
+              : l10n.t('walletEmptySubtitle'),
           accent: _vaultAccent,
           onScan: () => _onFabAction(_fabActionsForWallet.first),
           onUpload: () => _onFabAction(_fabActionsForWallet[1]),
@@ -977,6 +998,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   List<Widget> _loadedSlivers(WalletDetailData data) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final attention = _attentionRecord;
     final showBanner = attention != null && !_bannerDismissed;
     final expiring = _records
@@ -995,7 +1017,12 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       // 2. Search (+ filter button under Launcher / Figma Identity).
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, AppSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            AppSpacing.md,
+            16,
+            AppSpacing.sm,
+          ),
           child: maybeAnimate(
             divineGlassEnabled(context)
                 ? Row(
@@ -1045,7 +1072,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 message: _bannerMessage(attention),
                 icon: Icons.warning_amber_rounded,
                 accent: AppColors.warning,
-                actionLabel: 'Open',
+                actionLabel: l10n.t('open'),
                 onAction: () {
                   setState(() => _bannerDismissed = true);
                   _openDocument(attention);
@@ -1087,9 +1114,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           child: Row(
             children: [
               Text(
-                _isHealthWallet
-                    ? AppLocalizations.of(context).t('records')
-                    : AppLocalizations.of(context).t('documents'),
+                _isHealthWallet ? l10n.t('records') : l10n.t('documents'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -1098,7 +1123,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                '${_visible.length} of ${_records.length}',
+                l10n
+                    .t('countOfTotal')
+                    .replaceAll('{n}', '${_visible.length}')
+                    .replaceAll('{total}', '${_records.length}'),
                 style: TextStyle(fontSize: 12, color: palette.textFaint),
               ),
               const Spacer(),
@@ -1120,6 +1148,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
     if (visible.isEmpty) {
       final emptyAll = _records.isEmpty;
+      final l10n = AppLocalizations.of(context);
       return SliverFillRemaining(
         hasScrollBody: false,
         child: Padding(
@@ -1127,14 +1156,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           child: WalletEmptyState(
             title: emptyAll
                 ? (_isHealthWallet
-                    ? 'No health records yet'
-                    : AppLocalizations.of(context).t('noDocumentsYet'))
-                : 'No matching documents',
+                      ? l10n.t('noHealthRecordsYet')
+                      : l10n.t('noDocumentsYet'))
+                : l10n.t('noMatchingDocuments'),
             subtitle: emptyAll
                 ? (_isHealthWallet
-                    ? 'Add prescriptions, lab reports and medical records to your private vault.'
-                    : 'Start building your digital vault.')
-                : 'Try a different filter or search term.',
+                      ? l10n.t('healthEmptySubtitle')
+                      : l10n.t('startBuildingVault'))
+                : l10n.t('tryDifferentFilter'),
             accent: _vaultAccent,
             onScan: () => _onFabAction(_fabActionsForWallet.first),
             onUpload: () => _onFabAction(_fabActionsForWallet[1]),
@@ -1192,7 +1221,7 @@ class _ViewRecentsButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'View recents',
+              AppLocalizations.of(context).t('viewRecents'),
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
@@ -1200,11 +1229,7 @@ class _ViewRecentsButton extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 3),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: 15,
-              color: tint,
-            ),
+            Icon(Icons.arrow_forward_rounded, size: 15, color: tint),
           ],
         ),
       ),

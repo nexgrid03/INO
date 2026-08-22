@@ -131,13 +131,23 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Live market quotes refreshed after first paint (same card, fresher numbers).
   List<MarketQuote>? _marketOverride;
 
+  /// The locale the current [_future] was built for - reloading when it changes
+  /// is what makes the localized pending-action copy follow a language switch.
+  Locale? _loadedLocale;
+
   @override
-  void initState() {
-    super.initState();
-    _future = _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (_loadedLocale != locale) {
+      _loadedLocale = locale;
+      _future = _load();
+    }
   }
 
-  Future<_HomeData> _load() => PerfTracer.traceQuery('HomeScreen._load', () async {
+  Future<_HomeData> _load() {
+    final l10n = AppLocalizations.of(context);
+    return PerfTracer.traceQuery('HomeScreen._load', () async {
     // 1) Fetch user documents ONCE upfront (cached defensively in DocumentRepository)
     final docs = await DocumentRepository.instance.listAll().catchError((_) => <Document>[]);
 
@@ -204,10 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
         pendingItems.add(
           LauncherPendingItem(
             title: r.title,
-            status: d < 0
-                ? 'Overdue'
-                : (d <= 3 ? 'Due Soon' : 'On Track'),
-            subtitle: 'Review now to stay on track',
+            status: l10n.t(
+                d < 0 ? 'overdue' : (d <= 3 ? 'dueSoon' : 'onTrack')),
+            subtitle: l10n.t('reviewToStayOnTrack'),
             icon: Icons.shield_rounded,
             accent: reminderUrgencyColor(r, today),
           ),
@@ -225,10 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
           0,
           LauncherPendingItem(
             title: expiringDocuments == 1
-                ? '1 document expiring soon'
-                : '$expiringDocuments documents expiring soon',
-            status: 'Due Soon',
-            subtitle: 'Review now to stay on track',
+                ? l10n.t('oneDocumentExpiringSoon')
+                : l10n
+                    .t('documentsExpiringSoon')
+                    .replaceAll('{n}', '$expiringDocuments'),
+            status: l10n.t('dueSoon'),
+            subtitle: l10n.t('reviewToStayOnTrack'),
             icon: Icons.shield_rounded,
             accent: AppColors.primaryGreen,
           ),
@@ -291,7 +302,8 @@ class _HomeScreenState extends State<HomeScreen> {
       cardsCount: cardsCount,
       pendingItems: pendingItems,
     );
-  });
+    });
+  }
 
   Future<void> _refresh() async {
     final data = _load();
@@ -686,6 +698,7 @@ class _ExpiryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LiquidGlass(
       borderRadius: BorderRadius.circular(18),
       enableBlur: false,
@@ -713,8 +726,10 @@ class _ExpiryBanner extends StatelessWidget {
               children: [
                 Text(
                   count == 1
-                      ? '1 document expiring soon'
-                      : '$count documents expiring soon',
+                      ? l10n.t('oneDocumentExpiringSoon')
+                      : l10n
+                          .t('documentsExpiringSoon')
+                          .replaceAll('{n}', '$count'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -725,7 +740,7 @@ class _ExpiryBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Review now to stay on track',
+                  l10n.t('reviewToStayOnTrack'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -748,19 +763,19 @@ class _ExpiryBanner extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Review',
-                      style: TextStyle(
+                      l10n.t('review'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_rounded,
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_rounded,
                         size: 13, color: Colors.white),
                   ],
                 ),
@@ -851,7 +866,7 @@ class _QuickActionsRow extends StatelessWidget {
       QuickActionButton(
         icon: useSvg ? null : Icons.offline_pin_rounded,
         svgAsset: useSvg ? InoHomeIcons.offline : null,
-        label: 'Offline',
+        label: l10n.t('offline'),
         color: AppColors.accentCyan,
         onTap: onOffline,
       ),

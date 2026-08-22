@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
@@ -41,34 +42,34 @@ class PropertyWalletScreen extends StatefulWidget {
 enum _PropertyFilter { all, owned, rented, construction, sold }
 
 extension _PropertyFilterX on _PropertyFilter {
-  String get label => switch (this) {
-        _PropertyFilter.all => 'All',
-        _PropertyFilter.owned => 'Owned',
-        _PropertyFilter.rented => 'Rented',
-        _PropertyFilter.construction => 'Building',
-        _PropertyFilter.sold => 'Sold',
-      };
+  String label(AppLocalizations l10n) => switch (this) {
+    _PropertyFilter.all => l10n.t('all'),
+    _PropertyFilter.owned => l10n.t('filterOwned'),
+    _PropertyFilter.rented => l10n.t('filterRented'),
+    _PropertyFilter.construction => l10n.t('filterBuilding'),
+    _PropertyFilter.sold => l10n.t('filterSold'),
+  };
 
   bool accepts(Property p) => switch (this) {
-        _PropertyFilter.all => true,
-        _PropertyFilter.owned => p.status == PropertyStatus.owned,
-        _PropertyFilter.rented =>
-          p.status == PropertyStatus.rented || p.status == PropertyStatus.leased,
-        _PropertyFilter.construction =>
-          p.status == PropertyStatus.underConstruction,
-        _PropertyFilter.sold => p.status == PropertyStatus.sold,
-      };
+    _PropertyFilter.all => true,
+    _PropertyFilter.owned => p.status == PropertyStatus.owned,
+    _PropertyFilter.rented =>
+      p.status == PropertyStatus.rented || p.status == PropertyStatus.leased,
+    _PropertyFilter.construction =>
+      p.status == PropertyStatus.underConstruction,
+    _PropertyFilter.sold => p.status == PropertyStatus.sold,
+  };
 }
 
 enum _PropertySort { recent, valueHigh, valueLow, name }
 
 extension _PropertySortX on _PropertySort {
-  String get label => switch (this) {
-        _PropertySort.recent => 'Recently updated',
-        _PropertySort.valueHigh => 'Value (high → low)',
-        _PropertySort.valueLow => 'Value (low → high)',
-        _PropertySort.name => 'Name (A–Z)',
-      };
+  String label(AppLocalizations l10n) => switch (this) {
+    _PropertySort.recent => l10n.t('sortRecentlyUpdated'),
+    _PropertySort.valueHigh => l10n.t('sortValueHighLow'),
+    _PropertySort.valueLow => l10n.t('sortValueLowHigh'),
+    _PropertySort.name => l10n.t('sortNameAZ'),
+  };
 }
 
 class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
@@ -113,11 +114,13 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
         list.sort((a, b) => a.portfolioValue.compareTo(b.portfolioValue));
       case _PropertySort.name:
         list.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
     }
     // Favourites always lead, whatever the sort.
-    list.sort((a, b) =>
-        a.isFavorite == b.isFavorite ? 0 : (a.isFavorite ? -1 : 1));
+    list.sort(
+      (a, b) => a.isFavorite == b.isFavorite ? 0 : (a.isFavorite ? -1 : 1),
+    );
     return list;
   }
 
@@ -126,7 +129,12 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
       MaterialPageRoute(builder: (_) => const PropertyFormScreen()),
     );
     if (created == null || !mounted) return;
-    await showSuccessBurst(context, '${created.name} added');
+    await showSuccessBurst(
+      context,
+      AppLocalizations.of(context)
+          .t('propertyAddedToast')
+          .replaceAll('{name}', created.name),
+    );
   }
 
   Future<void> _openProperty(Property property) async {
@@ -141,10 +149,11 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
   void _openDocuments() => openWalletDocuments(context, widget.category);
 
   Future<void> _openSort() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showModulePicker(
       context,
-      title: 'Sort properties',
-      labels: [for (final s in _PropertySort.values) s.label],
+      title: l10n.t('sortProperties'),
+      labels: [for (final s in _PropertySort.values) s.label(l10n)],
       selectedIndex: _PropertySort.values.indexOf(_sort),
     );
     if (picked == null || !mounted) return;
@@ -154,6 +163,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final visible = _visible;
     final hasAny = _store.items.isNotEmpty;
 
@@ -168,22 +178,22 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
           child: Column(
             children: [
               ModuleHeader(
-                title: 'Property Wallet',
+                title: l10n.t('propertyWallet'),
                 subtitle: hasAny
-                    ? '${_store.count} ${_store.count == 1 ? 'property' : 'properties'} · ${moneyWords(_store.totalValue, _currency)}'
-                    : 'Your property register',
+                    ? '${(_store.count == 1 ? l10n.t('propertyCountOne') : l10n.t('propertyCountOther')).replaceAll('{n}', '${_store.count}')} · ${moneyWords(_store.totalValue, _currency)}'
+                    : l10n.t('yourPropertyRegister'),
                 icon: Icons.home_work_rounded,
                 accent: AppColors.primaryGreen,
                 actions: [
                   ModuleIconButton(
                     icon: Icons.folder_shared_rounded,
-                    tooltip: 'Property documents',
+                    tooltip: l10n.t('propertyDocuments'),
                     color: AppColors.primaryGreen,
                     onTap: _openDocuments,
                   ),
                   ModuleIconButton(
                     icon: Icons.add_rounded,
-                    tooltip: 'Add property',
+                    tooltip: l10n.t('addProperty'),
                     color: AppColors.primaryGreen,
                     onTap: _addProperty,
                   ),
@@ -193,117 +203,128 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                 child: CustomScrollView(
                   physics: const ClampingScrollPhysics(),
                   slivers: [
-              if (!_store.isLoaded)
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 132, count: 3),
-                  ),
-                )
-              else if (!hasAny)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ModuleEmptyState(
-                    icon: Icons.home_work_rounded,
-                    title: 'No properties yet',
-                    message:
-                        'Add a house, plot or commercial space to track its value, '
-                        'ownership, legal details and documents in one place.',
-                    actionLabel: 'Add property',
-                    onAction: _addProperty,
-                  ),
-                )
-              else ...[
-                // Portfolio hero.
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                    child: FadeSlideIn(
-                      child: _PortfolioCard(
-                        total: _store.totalValue,
-                        appreciation: _store.totalAppreciation,
-                        currency: _currency,
-                        count: _store.count,
-                        rentedCount: _store.countOf(PropertyStatus.rented) +
-                            _store.countOf(PropertyStatus.leased),
-                        monthlyRent: _store.monthlyRent,
-                        loan: _store.totalLoan,
-                      ),
-                    ),
-                  ),
-                ),
-                // Search + sort — shared translucent launcher bar.
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                    child: FadeSlideIn(
-                      delay: const Duration(milliseconds: 60),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: FloatingSearchBar(
-                              hint: 'Search properties',
-                              height: 48,
-                              controller: _searchController,
-                              onChanged: (v) => setState(() => _query = v),
+                    if (!_store.isLoaded)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: ModuleSkeleton(height: 132, count: 3),
+                        ),
+                      )
+                    else if (!hasAny)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: ModuleEmptyState(
+                          icon: Icons.home_work_rounded,
+                          title: l10n.t('noPropertiesYet'),
+                          message: l10n.t('noPropertiesYetMessage'),
+                          actionLabel: l10n.t('addProperty'),
+                          onAction: _addProperty,
+                        ),
+                      )
+                    else ...[
+                      // Portfolio hero.
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            AppSpacing.md,
+                            16,
+                            0,
+                          ),
+                          child: FadeSlideIn(
+                            child: _PortfolioCard(
+                              l10n: l10n,
+                              total: _store.totalValue,
+                              appreciation: _store.totalAppreciation,
+                              currency: _currency,
+                              count: _store.count,
+                              rentedCount:
+                                  _store.countOf(PropertyStatus.rented) +
+                                  _store.countOf(PropertyStatus.leased),
+                              monthlyRent: _store.monthlyRent,
+                              loan: _store.totalLoan,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          _SortButton(onTap: _openSort),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                SliverToBoxAdapter(
-                  child: ModuleChipRow(
-                    labels: [for (final f in _PropertyFilter.values) f.label],
-                    counts: [
-                      for (final f in _PropertyFilter.values)
-                        _store.items.where(f.accepts).length,
-                    ],
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    selectedIndex: _PropertyFilter.values.indexOf(_filter),
-                    onSelect: (i) =>
-                        setState(() => _filter = _PropertyFilter.values[i]),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                if (visible.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _NoMatches(
-                      onClear: () {
-                        _searchController.clear();
-                        setState(() {
-                          _query = '';
-                          _filter = _PropertyFilter.all;
-                        });
-                      },
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList.separated(
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: 14),
-                      itemBuilder: (context, i) => FadeSlideIn(
-                        delay: Duration(milliseconds: (i * 45).clamp(0, 300)),
-                        offset: 12,
-                        child: PropertyCard(
-                          property: visible[i],
-                          currency: _currency,
-                          onTap: () => _openProperty(visible[i]),
-                          onFavorite: () =>
-                              _store.toggleFavorite(visible[i].id),
                         ),
                       ),
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 110)),
-              ],
+                      // Search + sort — shared translucent launcher bar.
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                          child: FadeSlideIn(
+                            delay: const Duration(milliseconds: 60),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: FloatingSearchBar(
+                                    hint: l10n.t('searchProperties'),
+                                    height: 48,
+                                    controller: _searchController,
+                                    onChanged: (v) =>
+                                        setState(() => _query = v),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                _SortButton(onTap: _openSort),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                      SliverToBoxAdapter(
+                        child: ModuleChipRow(
+                          labels: [
+                            for (final f in _PropertyFilter.values)
+                              f.label(l10n),
+                          ],
+                          counts: [
+                            for (final f in _PropertyFilter.values)
+                              _store.items.where(f.accepts).length,
+                          ],
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          selectedIndex: _PropertyFilter.values.indexOf(
+                            _filter,
+                          ),
+                          onSelect: (i) => setState(
+                            () => _filter = _PropertyFilter.values[i],
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                      if (visible.isEmpty)
+                        SliverToBoxAdapter(
+                          child: _NoMatches(
+                            onClear: () {
+                              _searchController.clear();
+                              setState(() {
+                                _query = '';
+                                _filter = _PropertyFilter.all;
+                              });
+                            },
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverList.separated(
+                            itemCount: visible.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 14),
+                            // No FadeSlideIn: recycled rows replay the entrance
+                            // every time they scroll back into view.
+                            itemBuilder: (context, i) => PropertyCard(
+                              key: ValueKey(visible[i].id),
+                              property: visible[i],
+                              currency: _currency,
+                              onTap: () => _openProperty(visible[i]),
+                              onFavorite: () =>
+                                  _store.toggleFavorite(visible[i].id),
+                            ),
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                    ],
                   ],
                 ),
               ),
@@ -315,7 +336,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
       // control on the screen that isn't part of the design system.
       floatingActionButton: hasAny
           ? GradientButton(
-              label: 'Add property',
+              label: l10n.t('addProperty'),
               icon: Icons.add_rounded,
               expand: false,
               onTap: _addProperty,
@@ -329,6 +350,7 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
 /// actually matter across a property portfolio.
 class _PortfolioCard extends StatelessWidget {
   const _PortfolioCard({
+    required this.l10n,
     required this.total,
     required this.appreciation,
     required this.currency,
@@ -338,6 +360,7 @@ class _PortfolioCard extends StatelessWidget {
     required this.loan,
   });
 
+  final AppLocalizations l10n;
   final double total;
   final double? appreciation;
   final Currency currency;
@@ -360,7 +383,7 @@ class _PortfolioCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Total portfolio value',
+                l10n.t('totalPortfolioValue'),
                 style: AppText.caption.copyWith(
                   color: palette.textSecondary,
                   letterSpacing: 0.3,
@@ -369,8 +392,10 @@ class _PortfolioCard extends StatelessWidget {
               const Spacer(),
               if (appreciation != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: trendColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -416,7 +441,7 @@ class _PortfolioCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _MiniStat(
-                    label: 'Properties',
+                    label: l10n.t('propertiesLabel'),
                     value: '$count',
                     icon: Icons.home_work_rounded,
                     color: AppColors.primaryGreen,
@@ -425,7 +450,7 @@ class _PortfolioCard extends StatelessWidget {
                 _Divider(palette: palette),
                 Expanded(
                   child: _MiniStat(
-                    label: 'Rented',
+                    label: l10n.t('filterRented'),
                     value: '$rentedCount',
                     icon: Icons.key_rounded,
                     color: AppColors.primaryGreen,
@@ -434,7 +459,7 @@ class _PortfolioCard extends StatelessWidget {
                 _Divider(palette: palette),
                 Expanded(
                   child: _MiniStat(
-                    label: 'Rent / mo',
+                    label: l10n.t('rentPerMo'),
                     value: monthlyRent > 0
                         ? moneyWords(monthlyRent, currency)
                         : '—',
@@ -445,7 +470,7 @@ class _PortfolioCard extends StatelessWidget {
                 _Divider(palette: palette),
                 Expanded(
                   child: _MiniStat(
-                    label: 'Loan',
+                    label: l10n.t('loan'),
                     value: loan > 0 ? moneyWords(loan, currency) : '—',
                     icon: Icons.account_balance_rounded,
                     color: loan > 0 ? AppColors.warning : palette.textFaint,
@@ -495,8 +520,10 @@ class _MiniStat extends StatelessWidget {
           fit: BoxFit.scaleDown,
           child: Text(
             value,
-            style: AppText.subtitle
-                .copyWith(color: palette.textPrimary, fontSize: 13),
+            style: AppText.subtitle.copyWith(
+              color: palette.textPrimary,
+              fontSize: 13,
+            ),
           ),
         ),
         const SizedBox(height: 1),
@@ -504,8 +531,10 @@ class _MiniStat extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: AppText.caption
-              .copyWith(color: palette.textSecondary, fontSize: 10.5),
+          style: AppText.caption.copyWith(
+            color: palette.textSecondary,
+            fontSize: 10.5,
+          ),
         ),
       ],
     );
@@ -563,14 +592,15 @@ class PropertyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     // List icon uses brand teal (same as Document Wallet cards) — not status
     // blue — so Property reads as one system with Identity / Investments.
     final iconAccent = AppColors.primaryGreen;
     final appreciation = property.appreciation;
     final hasValue = property.portfolioValue > 0;
     final typeLine = property.locationLine.isEmpty
-        ? property.type.label
-        : '${property.type.label} · ${property.locationLine}';
+        ? property.type.localizedLabel(l10n)
+        : '${property.type.localizedLabel(l10n)} · ${property.locationLine}';
 
     return PressableScale(
       pressedScale: 0.98,
@@ -638,8 +668,11 @@ class PropertyCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Icon(property.type.icon,
-                                size: 13, color: palette.textFaint),
+                            Icon(
+                              property.type.icon,
+                              size: 13,
+                              color: palette.textFaint,
+                            ),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -664,11 +697,14 @@ class PropertyCard extends StatelessWidget {
 
               // Value + status partition (same inset band as investment cards)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: palette.surfaceVariant
-                      .withValues(alpha: palette.isDark ? 0.55 : 0.92),
+                  color: palette.surfaceVariant.withValues(
+                    alpha: palette.isDark ? 0.55 : 0.92,
+                  ),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                   border: Border.all(color: palette.border),
                 ),
@@ -681,7 +717,7 @@ class PropertyCard extends StatelessWidget {
                           Text(
                             hasValue
                                 ? money(property.portfolioValue, currency)
-                                : 'Value not set',
+                                : l10n.t('valueNotSet'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppText.title.copyWith(
@@ -695,7 +731,7 @@ class PropertyCard extends StatelessWidget {
                           if (appreciation != null) ...[
                             const SizedBox(height: 2),
                             Text(
-                              '${appreciation >= 0 ? '▲' : '▼'} ${(appreciation.abs() * 100).toStringAsFixed(1)}% since purchase',
+                              '${appreciation >= 0 ? '▲' : '▼'} ${l10n.t('percentSincePurchase').replaceAll('{pct}', (appreciation.abs() * 100).toStringAsFixed(1))}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppText.caption.copyWith(
@@ -798,7 +834,7 @@ class _StatusPill extends StatelessWidget {
           Icon(status.icon, size: 11, color: color),
           const SizedBox(width: 4),
           Text(
-            status.label,
+            status.localizedLabel(AppLocalizations.of(context)),
             style: AppText.label.copyWith(color: color, fontSize: 10.5),
           ),
         ],
@@ -815,22 +851,25 @@ class _NoMatches extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
       child: Column(
         children: [
           Icon(Icons.search_off_rounded, size: 34, color: palette.textFaint),
           const SizedBox(height: 10),
-          Text('No matching properties',
-              style: AppText.title.copyWith(color: palette.textPrimary)),
+          Text(
+            l10n.t('noMatchingProperties'),
+            style: AppText.title.copyWith(color: palette.textPrimary),
+          ),
           const SizedBox(height: 4),
           Text(
-            'Try a different search term or filter.',
+            l10n.t('tryDifferentSearchOrFilter'),
             textAlign: TextAlign.center,
             style: AppText.caption.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextButton(onPressed: onClear, child: const Text('Clear filters')),
+          TextButton(onPressed: onClear, child: Text(l10n.t('clearFilters'))),
         ],
       ),
     );

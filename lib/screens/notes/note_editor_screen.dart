@@ -1,12 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/note_models.dart';
 import '../../services/notes_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+
+/// A note category's name in the active language.
+///
+/// The enum itself stays the storage key - only the word shown changes.
+String noteCategoryLabel(AppLocalizations l10n, NoteCategory c) => switch (c) {
+      NoteCategory.personal => l10n.t('noteCatPersonal'),
+      NoteCategory.financial => l10n.t('noteCatFinancial'),
+      NoteCategory.tax => l10n.t('tax'),
+      NoteCategory.property => l10n.t('property'),
+      NoteCategory.health => l10n.t('health'),
+      NoteCategory.insurance => l10n.t('insurance'),
+      NoteCategory.banking => l10n.t('noteCatBanking'),
+      NoteCategory.investments => l10n.t('investments'),
+      NoteCategory.business => l10n.t('catBusiness'),
+      NoteCategory.other => l10n.t('catOther'),
+    };
 
 /// Create or edit a single note. Pass [existing] to edit; omit it to create.
 class NoteEditorScreen extends StatefulWidget {
@@ -63,9 +80,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final l10n = AppLocalizations.of(context);
     final title = _title.text.trim();
     if (title.isEmpty) {
-      _toast('Give your note a title', error: true);
+      _toast(l10n.t('noteTitleRequired'), error: true);
       return;
     }
     FocusScope.of(context).unfocus();
@@ -94,12 +112,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ));
       }
       if (mounted) {
-        _toast(existing == null ? 'Note saved' : 'Changes saved');
+        _toast(existing == null
+            ? l10n.t('noteSaved')
+            : l10n.t('noteChangesSaved'));
         Navigator.of(context).maybePop();
       }
     } catch (e) {
       if (mounted) {
-        _toast('Couldn\'t save the note. Check your connection.', error: true);
+        _toast(l10n.t('noteSaveFailed'), error: true);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -108,24 +128,27 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Future<void> _delete() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.isDark ? palette.surface : Colors.white,
-        title: Text('Delete note?',
+        title: Text(l10n.t('deleteNoteTitle'),
             style: TextStyle(color: palette.textPrimary)),
         content: Text(
-            '“${widget.existing!.title}” will be permanently removed.',
+            l10n
+                .t('deleteNoteBody')
+                .replaceAll('{name}', widget.existing!.title),
             style: TextStyle(color: palette.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel',
+              child: Text(l10n.t('cancel'),
                   style: TextStyle(color: palette.textSecondary))),
           TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppColors.critical))),
+              child: Text(l10n.t('delete'),
+                  style: const TextStyle(color: AppColors.critical))),
         ],
       ),
     );
@@ -133,19 +156,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     try {
       await _store.remove(widget.existing!.id);
       if (mounted) {
-        _toast('Note deleted');
+        _toast(l10n.t('noteDeleted'));
         Navigator.of(context).maybePop();
       }
     } catch (e) {
       if (mounted) {
-        _toast('Couldn\'t delete the note. Check your connection.',
-            error: true);
+        _toast(l10n.t('noteDeleteFailed'), error: true);
       }
     }
   }
 
   Future<void> _pickCategory() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final sheetBg = palette.isDark ? palette.surface : Colors.white;
     final picked = await showModalBottomSheet<NoteCategory>(
       context: context,
@@ -166,7 +189,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     color: palette.border,
                     borderRadius: BorderRadius.circular(AppRadius.pill))),
             const SizedBox(height: AppSpacing.sm),
-            Text('Category',
+            Text(l10n.t('category'),
                 style: AppText.title.copyWith(color: palette.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             Flexible(
@@ -190,7 +213,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         child: Icon(c.icon,
                             color: AppColors.primaryGreen, size: 21),
                       ),
-                      title: Text(c.label,
+                      title: Text(noteCategoryLabel(l10n, c),
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary)),
                       trailing: c == _category
@@ -220,15 +243,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return SettingsScaffold(
-      title: _isEditing ? 'Edit Note' : 'New Note',
+      title: _isEditing ? l10n.t('editNote') : l10n.t('newNote'),
       actions: [
         IconButton(
           onPressed: () {
             HapticFeedback.selectionClick();
             setState(() => _isFavorite = !_isFavorite);
           },
-          tooltip: 'Favorite',
+          tooltip: l10n.t('favorite'),
           icon: Icon(
             _isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
             color: _isFavorite ? AppColors.warning : palette.textPrimary,
@@ -239,7 +263,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             HapticFeedback.selectionClick();
             setState(() => _isPinned = !_isPinned);
           },
-          tooltip: 'Pin',
+          tooltip: l10n.t('pin'),
           icon: Icon(
             _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
             color: _isPinned ? AppColors.primaryGreen : palette.textPrimary,
@@ -261,14 +285,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               PopupMenuItem(
                 value: 'archive',
                 child: Text(
-                  _isArchived ? 'Unarchive' : 'Archive',
+                  _isArchived ? l10n.t('unarchive') : l10n.t('archive'),
                   style: TextStyle(color: palette.textPrimary),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
-                child: Text('Delete',
-                    style: TextStyle(color: AppColors.critical)),
+                child: Text(l10n.t('delete'),
+                    style: const TextStyle(color: AppColors.critical)),
               ),
             ],
           ),
@@ -293,7 +317,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         style: AppText.headline
                             .copyWith(color: palette.textPrimary, fontSize: 22),
                         decoration: _borderlessFieldDecoration(
-                          hintText: 'Title',
+                          hintText: l10n.t('reminderTitle'),
                           hintStyle: AppText.headline
                               .copyWith(color: palette.textFaint, fontSize: 22),
                         ),
@@ -309,7 +333,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         style: AppText.body
                             .copyWith(color: palette.textPrimary, height: 1.5),
                         decoration: InputDecoration(
-                          hintText: 'Write your note…',
+                          hintText: l10n.t('writeYourNote'),
                           hintStyle:
                               AppText.body.copyWith(color: palette.textFaint),
                           filled: false,
@@ -353,7 +377,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           style:
                               AppText.body.copyWith(color: palette.textPrimary),
                           decoration: _borderlessFieldDecoration(
-                            hintText: 'Tags (comma separated)',
+                            hintText: l10n.t('tagsCommaSeparated'),
                             hintStyle: AppText.body
                                 .copyWith(color: palette.textFaint),
                           ),
@@ -365,7 +389,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               ],
             ),
           ),
-          _saveBar(palette),
+          _saveBar(palette, l10n),
         ],
       ),
     );
@@ -392,7 +416,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
-  Widget _saveBar(AppPalette palette) {
+  Widget _saveBar(AppPalette palette, AppLocalizations l10n) {
     return Container(
       decoration: BoxDecoration(
         color: palette.isDark ? palette.bg : Colors.white.withValues(alpha: 0.92),
@@ -428,7 +452,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                               strokeWidth: 2.4,
                               valueColor:
                                   AlwaysStoppedAnimation<Color>(Colors.white)))
-                      : Text(_isEditing ? 'Save Changes' : 'Save Note',
+                      : Text(
+                          _isEditing
+                              ? l10n.t('saveChanges')
+                              : l10n.t('saveNote'),
                           style: AppText.subtitle.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w700)),
@@ -468,7 +495,7 @@ class _CategoryChip extends StatelessWidget {
               Icon(category.icon, size: 16, color: AppColors.primaryGreen),
               const SizedBox(width: 6),
               Text(
-                category.label,
+                noteCategoryLabel(AppLocalizations.of(context), category),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight: FontWeight.w700,

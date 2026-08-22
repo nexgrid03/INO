@@ -335,7 +335,9 @@ class HeroResultCard extends StatelessWidget {
                 onTap: () => copyToClipboard(
                   context,
                   copyText!,
-                  message: '$label copied',
+                  message: AppLocalizations.of(context)
+                      .t('copiedLabel')
+                      .replaceAll('{label}', label),
                 ),
               ),
           ],

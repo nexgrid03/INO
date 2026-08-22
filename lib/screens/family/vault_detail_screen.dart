@@ -66,8 +66,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Timer? _debounce;
 
   String get _vaultId => widget.summary.vault.id;
-  String? get _currentUid =>
-      Supabase.instance.client.auth.currentUser?.id;
+  String? get _currentUid => Supabase.instance.client.auth.currentUser?.id;
 
   @override
   void initState() {
@@ -112,16 +111,17 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
   /// Total size of vault documents for the hero subtitle (no fake GB).
   String get _storageLabel {
-    final total =
-        _documents.fold<int>(0, (sum, d) => sum + (d.sizeBytes ?? 0));
+    final total = _documents.fold<int>(0, (sum, d) => sum + (d.sizeBytes ?? 0));
     if (total <= 0) return '';
+    final l10n = AppLocalizations.of(context);
+    String used(String size) => l10n.t('storageUsed').replaceAll('{size}', size);
     if (total >= 1024 * 1024 * 1024) {
-      return '${(total / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB used';
+      return used('${(total / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB');
     }
     if (total >= 1024 * 1024) {
-      return '${(total / (1024 * 1024)).toStringAsFixed(1)} MB used';
+      return used('${(total / (1024 * 1024)).toStringAsFixed(1)} MB');
     }
-    return '${(total / 1024).round()} KB used';
+    return used('${(total / 1024).round()} KB');
   }
 
   void _openProfile() {
@@ -140,7 +140,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     if (!mounted || !added) return;
     await _loadDocuments();
     if (!mounted) return;
-    _toast('Added to $_vaultName');
+    _toast(
+      AppLocalizations.of(
+        context,
+      ).t('addedToVault').replaceAll('{name}', _vaultName),
+    );
   }
 
   /// Opens a shared document in the device's default app.
@@ -150,7 +154,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   /// gets a clean failure here rather than a stale copy — the revocation is
   /// enforced server-side, not by hiding a button.
   Future<void> _openDocument(VaultDocument doc) async {
-    _toast('Opening ${doc.name}…');
+    final l10n = AppLocalizations.of(context);
+    _toast(l10n.t('openingFile').replaceAll('{name}', doc.name));
     try {
       final dir = await getTemporaryDirectory();
       var safe = doc.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
@@ -168,34 +173,37 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       final result = await OpenFilex.open(file.path);
       if (!mounted) return;
       if (result.type != ResultType.done) {
-        _toast('No app on this device can open this file', error: true);
+        _toast(l10n.t('noAppToOpenFile'), error: true);
       }
     } catch (e) {
       debugPrint('[FamilyVault] openDocument failed: $e');
       if (!mounted) return;
       // The most likely cause of a denial here is exactly the intended one.
-      _toast('You no longer have access to this document', error: true);
+      _toast(l10n.t('noLongerHaveAccessToDoc'), error: true);
       await _loadDocuments();
     }
   }
 
   Future<void> _removeDocument(VaultDocument doc) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove from vault?'),
+        title: Text(l10n.t('removeFromVaultTitle')),
         content: Text(
-          '"${doc.name}" will no longer be visible to members of this vault. '
-          'Your own copy is not deleted.',
+          l10n.t('removeFromVaultBody').replaceAll('{name}', doc.name),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove',
-                style: TextStyle(color: AppColors.critical)),
+            child: Text(
+              l10n.t('remove'),
+              style: const TextStyle(color: AppColors.critical),
+            ),
           ),
         ],
       ),
@@ -204,13 +212,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     try {
       await _repo.removeDocument(doc.id);
       if (!mounted) return;
-      setState(() =>
-          _documents = _documents.where((d) => d.id != doc.id).toList());
-      _toast('Removed from vault');
+      setState(
+        () => _documents = _documents.where((d) => d.id != doc.id).toList(),
+      );
+      _toast(l10n.t('removedFromVault'));
     } catch (e) {
       debugPrint('[FamilyVault] removeDocument failed: $e');
       if (!mounted) return;
-      _toast('Could not remove that document', error: true);
+      _toast(l10n.t('couldNotRemoveDocument'), error: true);
     }
   }
 
@@ -260,7 +269,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Couldn\'t load members. Check your connection.';
+        _error = AppLocalizations.of(context).t('couldNotLoadMembers');
         _loading = false;
       });
     }
@@ -280,17 +289,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   }
 
   void _toast(String m, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
+      ),
+    );
   }
 
   Future<void> _invite() async {
     final sent = await showInviteMemberSheet(context, _vaultId);
     if (sent == true && mounted) {
-      _toast('Invitation sent');
+      _toast(AppLocalizations.of(context).t('invitationSent'));
       await _loadInvitations();
       await _loadAudit();
     }
@@ -307,11 +318,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     if (!canManage && !canTransfer && !canLeave) return;
 
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -319,29 +333,35 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (canManage) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Change role',
-                      style: AppText.label.copyWith(color: palette.textFaint)),
+                  child: Text(
+                    l10n.t('changeRole'),
+                    style: AppText.label.copyWith(color: palette.textFaint),
+                  ),
                 ),
               ),
               for (final role in VaultRoleX.assignable)
                 ListTile(
                   leading: Icon(role.icon, color: role.color),
-                  title: Text(role.label),
-                  subtitle: Text(role.description),
+                  title: Text(role.localizedLabel(l10n)),
+                  subtitle: Text(role.localizedDescription(l10n)),
                   trailing: member.role == role
-                      ?  Icon(Icons.check_circle_rounded,
-                          color: AppColors.primaryGreen)
+                      ? Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primaryGreen,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop('role:${role.name}'),
                 ),
@@ -349,29 +369,39 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             if (canTransfer) ...[
               Divider(height: 1, color: palette.border),
               ListTile(
-                leading:  Icon(Icons.workspace_premium_rounded,
-                    color: AppColors.primaryGreen),
-                title: const Text('Make owner'),
-                subtitle: const Text('Transfer ownership — you become Admin'),
+                leading: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: AppColors.primaryGreen,
+                ),
+                title: Text(l10n.t('makeOwner')),
+                subtitle: Text(l10n.t('transferOwnershipSubtitle')),
                 onTap: () => Navigator.of(context).pop('transfer'),
               ),
             ],
             if (canManage) ...[
               Divider(height: 1, color: palette.border),
               ListTile(
-                leading: const Icon(Icons.person_remove_rounded,
-                    color: AppColors.critical),
-                title: const Text('Remove from vault',
-                    style: TextStyle(color: AppColors.critical)),
+                leading: const Icon(
+                  Icons.person_remove_rounded,
+                  color: AppColors.critical,
+                ),
+                title: Text(
+                  l10n.t('removeFromVault'),
+                  style: const TextStyle(color: AppColors.critical),
+                ),
                 onTap: () => Navigator.of(context).pop('remove'),
               ),
             ],
             if (canLeave)
               ListTile(
-                leading: const Icon(Icons.logout_rounded,
-                    color: AppColors.critical),
-                title: const Text('Leave vault',
-                    style: TextStyle(color: AppColors.critical)),
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.critical,
+                ),
+                title: Text(
+                  l10n.t('leaveVault'),
+                  style: const TextStyle(color: AppColors.critical),
+                ),
                 onTap: () => Navigator.of(context).pop('leave'),
               ),
             const SizedBox(height: AppSpacing.sm),
@@ -392,40 +422,55 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     try {
       if (action == 'remove') {
         await _repo.removeMember(member.id);
-        _toast('${member.label} removed');
+        _toast(
+          l10n
+              .t('memberRemovedNamed')
+              .replaceAll('{name}', member.localizedLabel(l10n)),
+        );
       } else if (action.startsWith('role:')) {
         final role = VaultRoleX.fromName(action.substring(5));
         if (role == member.role) return;
         await _repo.updateMemberRole(member.id, role);
-        _toast('${member.label} is now ${role.label}');
+        _toast(
+          l10n
+              .t('memberRoleChanged')
+              .replaceAll('{name}', member.localizedLabel(l10n))
+              .replaceAll('{role}', role.localizedLabel(l10n)),
+        );
       }
       await _loadMembers();
       await _loadAudit();
     } catch (e) {
-      if (mounted) _toast('Couldn\'t update the member.', error: true);
+      if (mounted) _toast(l10n.t('couldNotUpdateMember'), error: true);
     }
   }
 
   Future<void> _transferOwnership(VaultMember member) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Transfer ownership?'),
+        title: Text(l10n.t('transferOwnershipTitle')),
         content: Text(
-          'Make ${member.label} the owner of "$_vaultName"? You will become an '
-          'Admin. Only the owner can transfer ownership or delete the vault.',
+          l10n
+              .t('transferOwnershipBody')
+              .replaceAll('{name}', member.localizedLabel(l10n))
+              .replaceAll('{vault}', _vaultName),
           style: TextStyle(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child:  Text('Transfer',
-                style: TextStyle(color: AppColors.primaryGreen)),
+            child: Text(
+              l10n.t('transfer'),
+              style: TextStyle(color: AppColors.primaryGreen),
+            ),
           ),
         ],
       ),
@@ -433,35 +478,43 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     if (ok != true || !mounted) return;
     try {
       await _repo.transferOwnership(_vaultId, member.authUserId);
-      _toast('${member.label} is now the owner');
+      _toast(
+        l10n
+            .t('memberIsNowOwner')
+            .replaceAll('{name}', member.localizedLabel(l10n)),
+      );
       await _loadMembers();
       await _loadAudit();
       await _store.reload(); // list roles changed
     } catch (e) {
-      if (mounted) _toast('Couldn\'t transfer ownership.', error: true);
+      if (mounted) _toast(l10n.t('couldNotTransferOwnership'), error: true);
     }
   }
 
   Future<void> _leave(VaultMember me) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Leave vault?'),
+        title: Text(l10n.t('leaveVaultTitle')),
         content: Text(
-          'You\'ll lose access to "$_vaultName". An owner or admin can invite '
-          'you again later.',
+          l10n.t('leaveVaultBody').replaceAll('{name}', _vaultName),
           style: TextStyle(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Leave',
-                  style: TextStyle(color: AppColors.critical))),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              l10n.t('leave'),
+              style: const TextStyle(color: AppColors.critical),
+            ),
+          ),
         ],
       ),
     );
@@ -471,7 +524,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       await _store.reload();
       if (mounted) Navigator.of(context).maybePop();
     } catch (e) {
-      if (mounted) _toast('Couldn\'t leave the vault.', error: true);
+      if (mounted) _toast(l10n.t('couldNotLeaveVault'), error: true);
     }
   }
 
@@ -480,11 +533,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Future<void> _inviteActions(VaultInvitation inv) async {
     if (!_myRole.canManageMembers) return;
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -492,45 +548,59 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (inv.isPending) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Change role',
-                      style: AppText.label.copyWith(color: palette.textFaint)),
+                  child: Text(
+                    l10n.t('changeRole'),
+                    style: AppText.label.copyWith(color: palette.textFaint),
+                  ),
                 ),
               ),
               for (final role in VaultRoleX.assignable)
                 ListTile(
                   leading: Icon(role.icon, color: role.color),
-                  title: Text(role.label),
+                  title: Text(role.localizedLabel(l10n)),
                   trailing: inv.role == role
-                      ?  Icon(Icons.check_circle_rounded,
-                          color: AppColors.primaryGreen)
+                      ? Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primaryGreen,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop('role:${role.name}'),
                 ),
               Divider(height: 1, color: palette.border),
               ListTile(
-                leading: const Icon(Icons.cancel_rounded,
-                    color: AppColors.critical),
-                title: const Text('Cancel invitation',
-                    style: TextStyle(color: AppColors.critical)),
+                leading: const Icon(
+                  Icons.cancel_rounded,
+                  color: AppColors.critical,
+                ),
+                title: Text(
+                  l10n.t('cancelInvitation'),
+                  style: const TextStyle(color: AppColors.critical),
+                ),
                 onTap: () => Navigator.of(context).pop('cancel'),
               ),
             ] else
               ListTile(
-                leading:  Icon(Icons.refresh_rounded,
-                    color: AppColors.primaryGreen),
-                title: const Text('Resend invitation'),
-                subtitle: Text('Re-send to ${inv.target}'),
+                leading: Icon(
+                  Icons.refresh_rounded,
+                  color: AppColors.primaryGreen,
+                ),
+                title: Text(l10n.t('resendInvitation')),
+                subtitle: Text(
+                  l10n.t('resendInvitationTo').replaceAll('{target}', inv.target),
+                ),
                 onTap: () => Navigator.of(context).pop('resend'),
               ),
             const SizedBox(height: AppSpacing.sm),
@@ -542,19 +612,23 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     try {
       if (action == 'cancel') {
         await _repo.cancelInvitation(inv.id);
-        _toast('Invitation cancelled');
+        _toast(l10n.t('invitationCancelled'));
       } else if (action == 'resend') {
         await _repo.resendInvitation(inv.id);
-        _toast('Invitation resent');
+        _toast(l10n.t('invitationResent'));
       } else if (action.startsWith('role:')) {
         final role = VaultRoleX.fromName(action.substring(5));
         await _repo.resendInvitation(inv.id, role: role);
-        _toast('Invitation role updated to ${role.label}');
+        _toast(
+          l10n
+              .t('invitationRoleUpdated')
+              .replaceAll('{role}', role.localizedLabel(l10n)),
+        );
       }
       await _loadInvitations();
       await _loadAudit();
     } catch (e) {
-      if (mounted) _toast('Couldn\'t update the invitation.', error: true);
+      if (mounted) _toast(l10n.t('couldNotUpdateInvitation'), error: true);
     }
   }
 
@@ -563,25 +637,29 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Future<void> _renameVault() async {
     final controller = TextEditingController(text: _vaultName);
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Rename vault'),
+        title: Text(l10n.t('renameVault')),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(hintText: 'Vault name'),
+          decoration: InputDecoration(hintText: l10n.t('vaultName')),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.t('cancel')),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child:  Text('Save',
-                style: TextStyle(color: AppColors.primaryGreen)),
+            child: Text(
+              l10n.t('save'),
+              style: TextStyle(color: AppColors.primaryGreen),
+            ),
           ),
         ],
       ),
@@ -592,30 +670,34 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       if (mounted) setState(() => _vaultName = name);
       await _loadAudit();
     } catch (e) {
-      if (mounted) _toast('Couldn\'t rename the vault.', error: true);
+      if (mounted) _toast(l10n.t('couldNotRenameVault'), error: true);
     }
   }
 
   Future<void> _deleteVault() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Delete vault?'),
+        title: Text(l10n.t('deleteVaultTitle')),
         content: Text(
-          'This permanently deletes "$_vaultName" and removes all members. This '
-          'cannot be undone.',
+          l10n.t('deleteVaultBody').replaceAll('{name}', _vaultName),
           style: TextStyle(color: palette.textSecondary),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppColors.critical))),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              l10n.t('delete'),
+              style: const TextStyle(color: AppColors.critical),
+            ),
+          ),
         ],
       ),
     );
@@ -624,7 +706,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       await _store.delete(_vaultId);
       if (mounted) Navigator.of(context).maybePop();
     } catch (e) {
-      if (mounted) _toast('Couldn\'t delete the vault.', error: true);
+      if (mounted) _toast(l10n.t('couldNotDeleteVault'), error: true);
     }
   }
 
@@ -652,8 +734,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
                       : _error != null
-                          ? _errorBody(palette)
-                          : _body(palette),
+                      ? _errorBody(palette)
+                      : _body(palette),
                 ),
               ),
             ],
@@ -664,20 +746,22 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   }
 
   Widget _errorBody(AppPalette palette) => ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
+    physics: const AlwaysScrollableScrollPhysics(
+      parent: ClampingScrollPhysics(),
+    ),
+    children: [
+      const SizedBox(height: 120),
+      Icon(Icons.cloud_off_rounded, size: 48, color: palette.textFaint),
+      const SizedBox(height: AppSpacing.sm),
+      Center(
+        child: Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: AppText.body.copyWith(color: palette.textSecondary),
         ),
-        children: [
-          const SizedBox(height: 120),
-          Icon(Icons.cloud_off_rounded, size: 48, color: palette.textFaint),
-          const SizedBox(height: AppSpacing.sm),
-          Center(
-            child: Text(_error!,
-                textAlign: TextAlign.center,
-                style: AppText.body.copyWith(color: palette.textSecondary)),
-          ),
-        ],
-      );
+      ),
+    ],
+  );
 
   Widget _body(AppPalette palette) {
     final l10n = AppLocalizations.of(context);
@@ -686,7 +770,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     final invitations = _invitations.where((i) => i.matches(_query)).toList();
     final storage = _storageLabel;
     final subtitle = [
-      'Shared with ${_members.length} member${_members.length == 1 ? '' : 's'}',
+      _members.length == 1
+          ? l10n.t('sharedWithOneMember')
+          : l10n
+                .t('sharedWithMembers')
+                .replaceAll('{count}', '${_members.length}'),
       if (storage.isNotEmpty) storage,
     ].join(' · ');
 
@@ -695,11 +783,15 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         parent: ClampingScrollPhysics(),
       ),
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.xl * 2),
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        AppSpacing.xl * 2,
+      ),
       children: [
         if (_showSearch) ...[
           _SearchField(
-            hint: 'Search members or invitations',
+            hint: l10n.t('searchMembersOrInvitations'),
             onChanged: (v) => setState(() => _query = v),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -718,8 +810,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   color: AppColors.primaryGreen,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.folder_shared_rounded,
-                    color: Colors.white, size: 28),
+                child: const Icon(
+                  Icons.folder_shared_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(height: 14),
               Text(
@@ -746,7 +841,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                       Expanded(
                         child: _HeroFilledButton(
                           icon: Icons.add_rounded,
-                          label: 'Upload',
+                          label: l10n.t('upload'),
                           onTap: _addDocument,
                         ),
                       ),
@@ -756,7 +851,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                       Expanded(
                         child: _HeroOutlineButton(
                           icon: Icons.ios_share_rounded,
-                          label: 'Share',
+                          label: l10n.t('share'),
                           onTap: _invite,
                         ),
                       ),
@@ -770,8 +865,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         // Vault Members.
         Row(
           children: [
-            Text('Vault Members',
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              l10n.t('vaultMembers'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const Spacer(),
             if (_myRole.canManageMembers)
               PressableScale(
@@ -780,7 +877,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   onTap: _invite,
                   behavior: HitTestBehavior.opaque,
                   child: Text(
-                    'Manage',
+                    l10n.t('manage'),
                     style: AppText.subtitle.copyWith(
                       color: AppColors.primaryGreen,
                       fontSize: 14,
@@ -793,11 +890,13 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (members.isEmpty)
-          _NoMatches(palette: palette, what: 'members')
+          _NoMatches(palette: palette, message: l10n.t('noMembersMatchSearch'))
         else
           AdaptiveGlassCard(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
             radius: AppRadius.card,
             child: Column(
               children: [
@@ -819,21 +918,30 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
-              Text('Invitations',
-                  style: AppText.title.copyWith(color: palette.textPrimary)),
+              Text(
+                l10n.t('invitations'),
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
               if (pendingCount > 0) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryGreen.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  child: Text('$pendingCount pending',
-                      style: AppText.label.copyWith(
-                          color: AppColors.darkGreen,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    l10n
+                        .t('pendingCount')
+                        .replaceAll('{count}', '$pendingCount'),
+                    style: AppText.label.copyWith(
+                      color: AppColors.darkGreen,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -850,16 +958,23 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               radius: AppRadius.card,
               child: Row(
                 children: [
-                  Icon(Icons.mail_outline_rounded,
-                      size: 20, color: palette.textFaint),
+                  Icon(
+                    Icons.mail_outline_rounded,
+                    size: 20,
+                    color: palette.textFaint,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                        _query.isEmpty
-                            ? 'No invitations yet. Tap Share to add family.'
-                            : 'No invitations match "$_query".',
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary)),
+                      _query.isEmpty
+                          ? l10n.t('noInvitationsYet')
+                          : l10n
+                                .t('noInvitationsMatch')
+                                .replaceAll('{query}', _query),
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -867,7 +982,9 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           else
             AdaptiveGlassCard(
               padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
               radius: AppRadius.card,
               child: Column(
                 children: [
@@ -887,15 +1004,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
-            Text('Shared documents',
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              l10n.t('sharedDocuments'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const Spacer(),
             if (_docsLoading)
-               SizedBox(
+              SizedBox(
                 width: 14,
                 height: 14,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryGreen),
+                  strokeWidth: 2,
+                  color: AppColors.primaryGreen,
+                ),
               ),
           ],
         ),
@@ -906,16 +1027,20 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             radius: AppRadius.card,
             child: Text(
               _myRole.canEditDocuments
-                  ? 'Nothing shared yet. Tap Upload to add a document.'
-                  : 'Nothing has been shared with you yet.',
-              style: AppText.caption
-                  .copyWith(color: palette.textSecondary, height: 1.4),
+                  ? l10n.t('nothingSharedYetEditor')
+                  : l10n.t('nothingSharedWithYou'),
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                height: 1.4,
+              ),
             ),
           )
         else if (_documents.isNotEmpty)
           AdaptiveGlassCard(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
             radius: AppRadius.card,
             child: Column(
               children: [
@@ -923,8 +1048,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   if (i > 0) Divider(height: 1, color: palette.border),
                   _VaultDocRow(
                     doc: _documents[i],
-                    canRemove: _documents[i]
-                        .canBeRemovedBy(_currentUid, _myRole),
+                    canRemove: _documents[i].canBeRemovedBy(
+                      _currentUid,
+                      _myRole,
+                    ),
                     onOpen: () => _openDocument(_documents[i]),
                     onRemove: () => _removeDocument(_documents[i]),
                   ),
@@ -935,8 +1062,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
 
         // Recent Activity timeline.
         const SizedBox(height: AppSpacing.lg),
-        Text('Recent Activity',
-            style: AppText.title.copyWith(color: palette.textPrimary)),
+        Text(
+          l10n.t('recentActivity'),
+          style: AppText.title.copyWith(color: palette.textPrimary),
+        ),
         const SizedBox(height: AppSpacing.sm),
         if (_auditLoading && _audit.isEmpty)
           const Padding(
@@ -949,13 +1078,15 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             radius: AppRadius.card,
             child: Row(
               children: [
-                Icon(Icons.history_rounded,
-                    size: 20, color: palette.textFaint),
+                Icon(Icons.history_rounded, size: 20, color: palette.textFaint),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text('No activity yet.',
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary)),
+                  child: Text(
+                    l10n.t('noActivityYet'),
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -967,8 +1098,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.verified_user_rounded,
-                size: 14, color: AppColors.primaryGreen.withValues(alpha: 0.85)),
+            Icon(
+              Icons.verified_user_rounded,
+              size: 14,
+              color: AppColors.primaryGreen.withValues(alpha: 0.85),
+            ),
             const SizedBox(width: 6),
             Text(
               l10n.t('aesEncryptionActive'),
@@ -1000,7 +1134,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     final glass = divineGlassEnabled(context);
     final l10n = AppLocalizations.of(context);
     final user = AuthService.instance.currentUser;
-    final photo = (user?.userMetadata?['profile_photo'] as String?) ??
+    final photo =
+        (user?.userMetadata?['profile_photo'] as String?) ??
         (user?.userMetadata?['avatar_url'] as String?);
 
     final avatar = GestureDetector(
@@ -1008,11 +1143,17 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       child: CircleAvatar(
         radius: 16,
         backgroundColor: AppColors.tealMist,
-        backgroundImage:
-            photo != null && photo.isNotEmpty ? NetworkImage(photo) : null,
+        // ResizeImage: a full-resolution profile photo decoded for a 32px
+        // circle evicts far cheaper entries from the image cache.
+        backgroundImage: photo != null && photo.isNotEmpty
+            ? ResizeImage(NetworkImage(photo), width: 96)
+            : null,
         child: photo == null || photo.isEmpty
-            ? Icon(Icons.person_rounded,
-                size: 18, color: AppColors.primaryGreen)
+            ? Icon(
+                Icons.person_rounded,
+                size: 18,
+                color: AppColors.primaryGreen,
+              )
             : null,
       ),
     );
@@ -1022,7 +1163,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       children: [
         DivineGlassHeaderAction(
           icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
-          tooltip: 'Search',
+          tooltip: l10n.t('search'),
           onTap: () => setState(() {
             _showSearch = !_showSearch;
             if (!_showSearch) _query = '';
@@ -1031,19 +1172,25 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         if (canOwn) ...[
           const SizedBox(width: 4),
           PopupMenuButton<String>(
-            tooltip: 'More',
+            tooltip: l10n.t('more'),
             padding: EdgeInsets.zero,
             offset: const Offset(0, 40),
             onSelected: (v) {
               if (v == 'rename') _renameVault();
               if (v == 'delete') _deleteVault();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'rename', child: Text('Rename vault')),
+            itemBuilder: (context) => [
               PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Delete vault',
-                      style: TextStyle(color: AppColors.critical))),
+                value: 'rename',
+                child: Text(l10n.t('renameVault')),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Text(
+                  l10n.t('deleteVault'),
+                  style: const TextStyle(color: AppColors.critical),
+                ),
+              ),
             ],
             child: LiquidGlass(
               circle: true,
@@ -1104,7 +1251,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Search',
+            tooltip: l10n.t('search'),
             onPressed: () => setState(() {
               _showSearch = !_showSearch;
               if (!_showSearch) _query = '';
@@ -1121,12 +1268,18 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 if (v == 'rename') _renameVault();
                 if (v == 'delete') _deleteVault();
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'rename', child: Text('Rename vault')),
+              itemBuilder: (context) => [
                 PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete vault',
-                        style: TextStyle(color: AppColors.critical))),
+                  value: 'rename',
+                  child: Text(l10n.t('renameVault')),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(
+                    l10n.t('deleteVault'),
+                    style: const TextStyle(color: AppColors.critical),
+                  ),
+                ),
               ],
             ),
           avatar,
@@ -1135,6 +1288,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     );
   }
 }
+
 class _HeroFilledButton extends StatelessWidget {
   const _HeroFilledButton({
     required this.icon,
@@ -1214,7 +1368,7 @@ class _HeroOutlineButton extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style:  TextStyle(
+                style: TextStyle(
                   color: AppColors.primaryGreen,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -1233,44 +1387,52 @@ class _ActivityTimeline extends StatelessWidget {
 
   final List<VaultAuditEntry> entries;
 
-  static String _ago(DateTime t) {
+  static String _ago(AppLocalizations l10n, DateTime t) {
     final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'just now';
-    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours < 24) return '${d.inHours}h ago';
-    if (d.inDays == 1) return 'Yesterday';
-    if (d.inDays < 7) return '${d.inDays}d ago';
-    return '${d.inDays ~/ 7}w ago';
+    if (d.inMinutes < 1) return l10n.t('justNow');
+    if (d.inMinutes < 60) return '${d.inMinutes} ${l10n.t('minutesAgo')}';
+    if (d.inHours < 24) return '${d.inHours} ${l10n.t('hoursAgo')}';
+    if (d.inDays == 1) return l10n.t('yesterday');
+    if (d.inDays < 7) return '${d.inDays} ${l10n.t('daysAgo')}';
+    return '${d.inDays ~/ 7} ${l10n.t('weeksAgo')}';
   }
 
-  static String _title(VaultAuditEntry e) {
+  static String _title(AppLocalizations l10n, VaultAuditEntry e) {
     final what = e.targetLabel?.trim() ?? '';
+    String named(String key) => l10n.t(key).replaceAll('{name}', what);
     switch (e.action) {
       case 'invite_sent':
       case 'invite_resent':
-        return 'New member added';
+        return l10n.t('auditNewMemberAdded');
       case 'invite_accepted':
-        return what.isEmpty ? 'Invitation accepted' : '$what joined';
+        return what.isEmpty
+            ? l10n.t('auditInvitationAccepted')
+            : named('auditJoined');
       case 'role_changed':
-        return what.isEmpty ? 'Role updated' : '$what role changed';
+        return what.isEmpty
+            ? l10n.t('auditRoleUpdated')
+            : named('auditRoleChangedNamed');
       case 'member_removed':
-        return what.isEmpty ? 'Member removed' : '$what removed';
+        return what.isEmpty
+            ? l10n.t('auditMemberRemoved')
+            : named('auditRemovedNamed');
       case 'member_left':
-        return what.isEmpty ? 'Member left' : '$what left';
+        return what.isEmpty
+            ? l10n.t('auditMemberLeft')
+            : named('auditLeftNamed');
       case 'ownership_transferred':
-        return 'Ownership transferred';
+        return l10n.t('auditOwnershipTransferred');
       case 'vault_renamed':
-        return 'Vault renamed';
+        return l10n.t('auditVaultRenamed');
       default:
-        return what.isNotEmpty
-            ? what
-            : e.action.replaceAll('_', ' ');
+        return what.isNotEmpty ? what : e.action.replaceAll('_', ' ');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         for (var i = 0; i < entries.length; i++) ...[
@@ -1290,16 +1452,20 @@ class _ActivityTimeline extends StatelessWidget {
                           color: AppColors.primaryGreen.withValues(alpha: 0.14),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(entries[i].icon,
-                            size: 14, color: AppColors.primaryGreen),
+                        child: Icon(
+                          entries[i].icon,
+                          size: 14,
+                          color: AppColors.primaryGreen,
+                        ),
                       ),
                       if (i < entries.length - 1)
                         Expanded(
                           child: Container(
                             width: 2,
                             margin: const EdgeInsets.symmetric(vertical: 4),
-                            color:
-                                AppColors.primaryGreen.withValues(alpha: 0.25),
+                            color: AppColors.primaryGreen.withValues(
+                              alpha: 0.25,
+                            ),
                           ),
                         ),
                     ],
@@ -1309,7 +1475,8 @@ class _ActivityTimeline extends StatelessWidget {
                 Expanded(
                   child: Container(
                     margin: EdgeInsets.only(
-                        bottom: i < entries.length - 1 ? 10 : 0),
+                      bottom: i < entries.length - 1 ? 10 : 0,
+                    ),
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     decoration: BoxDecoration(
                       color: AppColors.primaryGreen.withValues(alpha: 0.06),
@@ -1322,7 +1489,7 @@ class _ActivityTimeline extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                _title(entries[i]),
+                                _title(l10n, entries[i]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppText.subtitle.copyWith(
@@ -1333,7 +1500,7 @@ class _ActivityTimeline extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              _ago(entries[i].createdAt),
+                              _ago(l10n, entries[i].createdAt),
                               style: AppText.caption.copyWith(
                                 color: palette.textFaint,
                                 fontSize: 11,
@@ -1393,11 +1560,14 @@ class _MemberRow extends StatelessWidget {
                 color: member.role.color.withValues(alpha: 0.14),
                 shape: BoxShape.circle,
               ),
-              child: Text(member.initial,
-                  style: TextStyle(
-                      color: member.role.color,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14)),
+              child: Text(
+                member.initial,
+                style: TextStyle(
+                  color: member.role.color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -1407,18 +1577,27 @@ class _MemberRow extends StatelessWidget {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(member.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.subtitle.copyWith(
-                                color: palette.textPrimary, fontSize: 14.5)),
+                        child: Text(
+                          member.localizedLabel(
+                            AppLocalizations.of(context),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.subtitle.copyWith(
+                            color: palette.textPrimary,
+                            fontSize: 14.5,
+                          ),
+                        ),
                       ),
                       if (isMe)
                         Padding(
                           padding: const EdgeInsets.only(left: 6),
-                          child: Text('(you)',
-                              style: AppText.caption
-                                  .copyWith(color: palette.textFaint)),
+                          child: Text(
+                            AppLocalizations.of(context).t('youParen'),
+                            style: AppText.caption.copyWith(
+                              color: palette.textFaint,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -1431,8 +1610,10 @@ class _MemberRow extends StatelessWidget {
                           : member.phone!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption
-                          .copyWith(color: palette.textFaint, fontSize: 11.5),
+                      style: AppText.caption.copyWith(
+                        color: palette.textFaint,
+                        fontSize: 11.5,
+                      ),
                     ),
                   ],
                 ],
@@ -1443,8 +1624,11 @@ class _MemberRow extends StatelessWidget {
             if (actionable)
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: Icon(Icons.more_horiz_rounded,
-                    size: 18, color: palette.textFaint),
+                child: Icon(
+                  Icons.more_horiz_rounded,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
               ),
           ],
         ),
@@ -1469,25 +1653,35 @@ class _InvitationRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-                invite.email != null
-                    ? Icons.email_rounded
-                    : Icons.phone_rounded,
-                size: 18,
-                color: palette.textFaint),
+              invite.email != null ? Icons.email_rounded : Icons.phone_rounded,
+              size: 18,
+              color: palette.textFaint,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(invite.target,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                          color: palette.textPrimary, fontSize: 14)),
+                  Text(
+                    invite.target,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Invited as ${invite.role.label}',
-                      style: AppText.caption
-                          .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                  Text(
+                    AppLocalizations.of(context).t('invitedAs').replaceAll(
+                      '{role}',
+                      invite.role.localizedLabel(AppLocalizations.of(context)),
+                    ),
+                    style: AppText.caption.copyWith(
+                      color: palette.textFaint,
+                      fontSize: 11.5,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1495,8 +1689,11 @@ class _InvitationRow extends StatelessWidget {
             _StatusChip(status: invite.status),
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Icon(Icons.more_horiz_rounded,
-                  size: 18, color: palette.textFaint),
+              child: Icon(
+                Icons.more_horiz_rounded,
+                size: 18,
+                color: palette.textFaint,
+              ),
             ),
           ],
         ),
@@ -1518,11 +1715,14 @@ class _StatusChip extends StatelessWidget {
         color: status.color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Text(status.label,
-          style: TextStyle(
-              color: status.color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700)),
+      child: Text(
+        status.localizedLabel(AppLocalizations.of(context)),
+        style: TextStyle(
+          color: status.color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -1558,14 +1758,23 @@ class _SearchFieldState extends State<_SearchField> {
       decoration: InputDecoration(
         isDense: true,
         hintText: widget.hint,
-        hintStyle: AppText.body.copyWith(color: palette.textFaint, fontSize: 14),
-        prefixIcon:
-            Icon(Icons.search_rounded, size: 20, color: palette.textFaint),
+        hintStyle: AppText.body.copyWith(
+          color: palette.textFaint,
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          size: 20,
+          color: palette.textFaint,
+        ),
         suffixIcon: _controller.text.isEmpty
             ? null
             : IconButton(
-                icon: Icon(Icons.close_rounded,
-                    size: 18, color: palette.textFaint),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
                 onPressed: () {
                   _controller.clear();
                   widget.onChanged('');
@@ -1574,8 +1783,10 @@ class _SearchFieldState extends State<_SearchField> {
               ),
         filled: true,
         fillColor: palette.surfaceVariant,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.chip),
           borderSide: BorderSide(color: palette.border),
@@ -1586,8 +1797,7 @@ class _SearchFieldState extends State<_SearchField> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.chip),
-          borderSide:
-              BorderSide(color: AppColors.primaryGreen, width: 1.4),
+          borderSide: BorderSide(color: AppColors.primaryGreen, width: 1.4),
         ),
       ),
     );
@@ -1596,10 +1806,10 @@ class _SearchFieldState extends State<_SearchField> {
 
 /// Shown when a search filters every row out of a list.
 class _NoMatches extends StatelessWidget {
-  const _NoMatches({required this.palette, required this.what});
+  const _NoMatches({required this.palette, required this.message});
 
   final AppPalette palette;
-  final String what;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -1611,8 +1821,10 @@ class _NoMatches extends StatelessWidget {
           Icon(Icons.search_off_rounded, size: 20, color: palette.textFaint),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text('No $what match your search.',
-                style: AppText.caption.copyWith(color: palette.textSecondary)),
+            child: Text(
+              message,
+              style: AppText.caption.copyWith(color: palette.textSecondary),
+            ),
           ),
         ],
       ),
@@ -1680,7 +1892,9 @@ class _VaultDocRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(
-                          color: palette.textPrimary, fontSize: 14.5),
+                        color: palette.textPrimary,
+                        fontSize: 14.5,
+                      ),
                     ),
                     if (meta.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -1688,8 +1902,9 @@ class _VaultDocRow extends StatelessWidget {
                         meta,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary),
+                        style: AppText.caption.copyWith(
+                          color: palette.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -1699,13 +1914,19 @@ class _VaultDocRow extends StatelessWidget {
                 IconButton(
                   onPressed: onRemove,
                   visualDensity: VisualDensity.compact,
-                  tooltip: 'Remove from vault',
-                  icon: Icon(Icons.remove_circle_outline_rounded,
-                      size: 19, color: palette.textSecondary),
+                  tooltip: AppLocalizations.of(context).t('removeFromVault'),
+                  icon: Icon(
+                    Icons.remove_circle_outline_rounded,
+                    size: 19,
+                    color: palette.textSecondary,
+                  ),
                 )
               else
-                Icon(Icons.chevron_right_rounded,
-                    size: 20, color: palette.textFaint),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: palette.textFaint,
+                ),
             ],
           ),
         ),

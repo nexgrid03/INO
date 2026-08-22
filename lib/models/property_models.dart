@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'area_unit.dart';
 
@@ -28,6 +29,18 @@ extension PropertyTypeX on PropertyType {
         PropertyType.other => 'Other',
       };
 
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        PropertyType.house => l10n.t('propTypeHouse'),
+        PropertyType.apartment => l10n.t('propTypeApartment'),
+        PropertyType.villa => l10n.t('propTypeVilla'),
+        PropertyType.plot => l10n.t('propTypePlot'),
+        PropertyType.land => l10n.t('propTypeLand'),
+        PropertyType.commercial => l10n.t('propTypeCommercial'),
+        PropertyType.farmland => l10n.t('propTypeFarmland'),
+        PropertyType.other => l10n.t('catOther'),
+      };
+
   IconData get icon => switch (this) {
         PropertyType.house => Icons.home_rounded,
         PropertyType.apartment => Icons.apartment_rounded,
@@ -54,6 +67,16 @@ extension PropertyStatusX on PropertyStatus {
         PropertyStatus.rented => 'Rented Out',
         PropertyStatus.leased => 'Leased',
         PropertyStatus.sold => 'Sold',
+      };
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        PropertyStatus.owned => l10n.t('filterOwned'),
+        PropertyStatus.underConstruction =>
+          l10n.t('propStatusUnderConstruction'),
+        PropertyStatus.rented => l10n.t('propStatusRented'),
+        PropertyStatus.leased => l10n.t('propStatusLeased'),
+        PropertyStatus.sold => l10n.t('filterSold'),
       };
 
   Color get color => switch (this) {
@@ -101,6 +124,18 @@ extension PropertyDocKindX on PropertyDocKind {
         PropertyDocKind.insurance => 'Property Insurance',
         PropertyDocKind.ownershipCertificate => 'Ownership Certificate',
         PropertyDocKind.custom => 'Other Document',
+      };
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        PropertyDocKind.saleDeed => l10n.t('propDocSaleDeed'),
+        PropertyDocKind.registration => l10n.t('propDocRegistration'),
+        PropertyDocKind.taxReceipt => l10n.t('propDocTaxReceipt'),
+        PropertyDocKind.buildingPlan => l10n.t('propDocBuildingPlan'),
+        PropertyDocKind.insurance => l10n.t('propDocInsurance'),
+        PropertyDocKind.ownershipCertificate =>
+          l10n.t('propDocOwnershipCertificate'),
+        PropertyDocKind.custom => l10n.t('propDocOther'),
       };
 
   IconData get icon => switch (this) {

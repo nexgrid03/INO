@@ -11,11 +11,17 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/reminder_store.dart';
+import '../data/wallet_repository.dart';
 import '../firebase_options.dart';
 import '../models/reminder_models.dart';
+import '../screens/family/family_vault_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
+import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/reminders/all_reminders_screen.dart';
+import '../screens/wallet/wallet_detail_screen.dart';
 import '../widgets/reminders/reminder_detail_sheet.dart';
 import 'notification_center.dart';
+import 'security_alert_service.dart';
 
 /// Reminder push notifications, delivered over Firebase Cloud Messaging.
 ///
@@ -49,6 +55,14 @@ class PushService {
   /// in AndroidManifest.xml. Android 8+ silently DROPS a notification posted to
   /// a channel that does not exist, so the two must never drift apart.
   static const String channelId = 'ino_reminders';
+
+  /// A SEPARATE channel for security alerts (new sign-in, password change, 2FA).
+  ///
+  /// Deliberately its own channel so a user who mutes renewal reminders does not
+  /// also silence "your password was changed" — Android lets people disable
+  /// channels individually, and bundling these together would mean the least
+  /// important notification could switch off the most important one.
+  static const String securityChannelId = 'ino_security';
 
   static const String _table = 'device_tokens';
 
@@ -130,7 +144,7 @@ class PushService {
         if (payload == null || payload.isEmpty) return;
         try {
           final data = (jsonDecode(payload) as Map).cast<String, dynamic>();
-          _routeToReminder(data['reminder_id'] as String?);
+          _route(data);
         } catch (e) {
           developer.log('bad local payload: $e', name: 'push');
         }
@@ -146,10 +160,20 @@ class PushService {
       description: 'Alerts for documents, renewals and due dates.',
       importance: Importance.high,
     );
-    await _local
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    // Security alerts get `max` importance: these are the ones worth
+    // interrupting for, and a channel's importance is fixed at creation.
+    const securityChannel = AndroidNotificationChannel(
+      securityChannelId,
+      'Security alerts',
+      description:
+          'Sign-ins, password changes and two-factor updates on your account.',
+      importance: Importance.max,
+    );
+
+    final android = _local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(channel);
+    await android?.createNotificationChannel(securityChannel);
   }
 
   /// Raises the OS permission prompt (Android 13+ / iOS) once.
@@ -215,6 +239,13 @@ class PushService {
         if (state.event == AuthChangeEvent.signedIn ||
             state.event == AuthChangeEvent.initialSession) {
           unawaited(registerToken());
+        }
+        // Only a REAL sign-in raises the security alert. `initialSession` fires
+        // on every cold start with a restored session — alerting on that would
+        // tell users "your account was signed in" every time they opened the
+        // app, which trains them to ignore the one alert that matters.
+        if (state.event == AuthChangeEvent.signedIn) {
+          unawaited(SecurityAlertService.instance.signedIn());
         }
       },
       onError: (Object e) =>
@@ -322,7 +353,67 @@ class PushService {
   void _onNotificationTapped(RemoteMessage message) {
     developer.log('tapped ${message.messageId} data=${message.data}',
         name: 'push');
-    _routeToReminder(message.data['reminder_id'] as String?);
+    _route(message.data);
+  }
+
+  /// Sends a tapped notification to the screen it is about.
+  ///
+  /// Keyed on `data.kind`, which every sender sets (see the `send-push` Edge
+  /// Function and `notification_outbox.kind`). Reminders predate `kind` and
+  /// carry `reminder_id` instead, so their absence of a kind is the fallback
+  /// rather than an error — an old notification sitting in the tray from before
+  /// this shipped still routes correctly.
+  void _route(Map<String, dynamic> data) {
+    final kind = (data['kind'] as String?) ?? '';
+
+    if (kind.startsWith('security.')) {
+      _routeToScreen(const TrustedDevicesScreen());
+      return;
+    }
+    if (kind == 'vault.invite') {
+      _routeToScreen(const FamilyVaultScreen());
+      return;
+    }
+    if (kind == 'card.expiry') {
+      _routeToWallet('Cards Wallet');
+      return;
+    }
+    if (kind == 'doc.expiry') {
+      _routeToWallet(data['wallet'] as String?);
+      return;
+    }
+    _routeToReminder(data['reminder_id'] as String?);
+  }
+
+  /// Opens a wallet by its canonical name, falling back to the notifications
+  /// list when the name is unknown (a wallet renamed or deleted since the
+  /// notification was sent).
+  void _routeToWallet(String? walletName) {
+    final category = walletName == null
+        ? null
+        : SupabaseWalletRepository.categoryFor(walletName);
+    _routeToScreen(category == null
+        ? const NotificationsScreen()
+        : WalletDetailScreen(category: category));
+  }
+
+  /// Pushes [screen] once the navigator exists. Cold start hands us a tap
+  /// before the tree is attached, so this waits the same bounded way
+  /// [_routeToReminder] does rather than dropping the tap.
+  Future<void> _routeToScreen(Widget screen, {int attempt = 0}) async {
+    final nav = _navigatorKey?.currentState;
+    if (nav == null) {
+      if (attempt >= 20) {
+        developer.log('route: navigator never became ready', name: 'push');
+        return;
+      }
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        () => _routeToScreen(screen, attempt: attempt + 1),
+      );
+      return;
+    }
+    await nav.push(MaterialPageRoute(builder: (_) => screen));
   }
 
   // ---------------------------------------------------------------------------

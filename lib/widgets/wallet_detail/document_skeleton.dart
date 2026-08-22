@@ -24,6 +24,14 @@ class _DocumentSkeletonState extends State<DocumentSkeleton>
     duration: const Duration(milliseconds: 1100),
   )..repeat(reverse: true);
 
+  // 0.45 → 1.0 opacity breathing. One FadeTransition around the whole stack:
+  // the old per-tile Opacity rebuilt the column and allocated a saveLayer per
+  // tile on every frame of the loop.
+  late final Animation<double> _fade = Tween<double>(
+    begin: 0.45,
+    end: 1.0,
+  ).animate(_c);
+
   @override
   void dispose() {
     _c.dispose();
@@ -32,21 +40,17 @@ class _DocumentSkeletonState extends State<DocumentSkeleton>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        // 0.45 → 1.0 opacity breathing.
-        final t = 0.45 + (_c.value * 0.55);
-        return Column(
-          children: [
-            for (var i = 0; i < widget.count; i++)
-              Padding(
-                padding: EdgeInsets.only(bottom: i == widget.count - 1 ? 0 : 10),
-                child: Opacity(opacity: t, child: const _SkeletonTile()),
-              ),
-          ],
-        );
-      },
+    return FadeTransition(
+      opacity: _fade,
+      child: Column(
+        children: [
+          for (var i = 0; i < widget.count; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == widget.count - 1 ? 0 : 10),
+              child: const _SkeletonTile(),
+            ),
+        ],
+      ),
     );
   }
 }

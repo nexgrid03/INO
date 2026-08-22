@@ -127,7 +127,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
             onTap: widget.onProfile,
             behavior: HitTestBehavior.opaque,
             child: Tooltip(
-              message: 'Profile',
+              message: AppLocalizations.of(context).t('profile'),
               child: AnimatedBuilder(
                 animation: _pulse,
                 builder: (context, child) {

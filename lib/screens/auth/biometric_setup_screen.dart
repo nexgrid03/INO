@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/biometric_service.dart';
@@ -55,21 +56,22 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
   }
 
   Future<void> _enable() async {
+    // Resolved before the first await so no BuildContext crosses an async gap.
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       final available = await BiometricService.instance.isAvailable();
       if (!mounted) return;
       if (!available) {
-        _showMessage(
-          'No biometrics are set up on this device. You can enable this later '
-          'in Settings.',
-          isError: false,
-        );
+        _showMessage(l10n.t('noBiometricsEnrolled'), isError: false);
         _finish();
         return;
       }
       final ok = await BiometricService.instance.authenticate(
-        reason: 'Enable ${_kind.noun} to unlock INO',
+        reason: l10n.t('enableBiometricToUnlock').replaceAll(
+              '{kind}',
+              _kind.noun,
+            ),
       );
       if (!mounted) return;
       if (ok) {
@@ -87,10 +89,14 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
         if (!mounted) return;
         _finish();
       } else {
-        _showMessage('${_kind.noun} setup was cancelled.');
+        _showMessage(
+          l10n.t('biometricSetupCancelled').replaceAll('{kind}', _kind.noun),
+        );
       }
     } catch (_) {
-      _showMessage('Could not enable ${_kind.noun}. You can set it up later.');
+      _showMessage(
+        l10n.t('couldNotEnableBiometric').replaceAll('{kind}', _kind.noun),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -100,6 +106,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     // Divine Glass layout: glass frame illustration, title + copy, two glass
     // feature tiles, then the pill CTA / skip / trust badge. Scrolls (fixed
     // gaps instead of Spacers) so the richer content fits every screen size.
@@ -112,7 +119,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
           const SizedBox(height: 28),
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),
-            child: AuthPageTitle('Secure Your Vault'),
+            child: AuthPageTitle(l10n.t('secureYourVault')),
           ),
           const SizedBox(height: 12),
           FadeSlideIn(
@@ -120,9 +127,12 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
-                'Enable ${_kind == BiometricKind.faceId ? 'Face ID' : 'fingerprint or Face ID'} '
-                'for faster, safer access to your documents - no password '
-                'needed each time.',
+                l10n.t('biometricSetupBody').replaceAll(
+                      '{kind}',
+                      _kind == BiometricKind.faceId
+                          ? 'Face ID'
+                          : l10n.t('fingerprintOrFaceId'),
+                    ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14.5,
@@ -135,19 +145,19 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
           const SizedBox(height: 26),
           FadeSlideIn(
             delay: const Duration(milliseconds: 150),
-            child: const _FeatureTile(
+            child: _FeatureTile(
               icon: Icons.lock_open_rounded,
-              title: 'Quick Access',
-              subtitle: 'Unlock in less than a second',
+              title: l10n.t('quickAccess'),
+              subtitle: l10n.t('quickAccessDesc'),
             ),
           ),
           const SizedBox(height: 12),
           FadeSlideIn(
             delay: const Duration(milliseconds: 170),
-            child: const _FeatureTile(
+            child: _FeatureTile(
               icon: Icons.shield_rounded,
-              title: 'Enhanced Privacy',
-              subtitle: 'Your biometric data stays on your device',
+              title: l10n.t('enhancedPrivacy'),
+              subtitle: l10n.t('enhancedPrivacyDesc'),
             ),
           ),
           const SizedBox(height: 32),
@@ -171,9 +181,9 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                 minimumSize: const Size.fromHeight(48),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: const Text(
-                'Skip for now',
-                style: TextStyle(
+              child: Text(
+                l10n.t('skipForNow'),
+                style: const TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -374,7 +384,7 @@ class _EncryptionBadge extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              'MILITARY-GRADE AES ENCRYPTION',
+              AppLocalizations.of(context).t('militaryGradeEncryption'),
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,

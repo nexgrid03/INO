@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/vault_crypto.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -59,25 +60,25 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
   Future<void> _submit() async {
     final value = _passphrase.text;
+    final l10n = AppLocalizations.of(context);
 
     if (widget.isFirstTime) {
       if (value.length < _minLength) {
-        setState(() => _error =
-            'Use at least $_minLength characters - this is the only thing '
-            'protecting your credentials.');
+        setState(() => _error = l10n
+            .t('vaultPassphraseTooShort')
+            .replaceAll('{n}', '$_minLength'));
         return;
       }
       if (value != _confirm.text) {
-        setState(() => _error = 'The two entries do not match.');
+        setState(() => _error = l10n.t('vaultPassphraseMismatch'));
         return;
       }
       if (!_acknowledged) {
-        setState(() =>
-            _error = 'Please confirm you understand it cannot be recovered.');
+        setState(() => _error = l10n.t('vaultPassphraseAckRequired'));
         return;
       }
     } else if (value.isEmpty) {
-      setState(() => _error = 'Enter your vault passphrase.');
+      setState(() => _error = l10n.t('vaultPassphraseRequired'));
       return;
     }
 
@@ -99,14 +100,15 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
     setState(() {
       _busy = false;
       _error = widget.isFirstTime
-          ? 'Could not set up the vault. Check your connection and try again.'
-          : 'That passphrase is not right.';
+          ? l10n.t('vaultSetupFailed')
+          : l10n.t('vaultPassphraseIncorrect');
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final insets = MediaQuery.viewInsetsOf(context).bottom;
 
     return Padding(
@@ -152,8 +154,8 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   Expanded(
                     child: Text(
                       widget.isFirstTime
-                          ? 'Set a vault passphrase'
-                          : 'Unlock your vault',
+                          ? l10n.t('setVaultPassphrase')
+                          : l10n.t('unlockYourVault'),
                       style: AppText.title.copyWith(color: palette.textPrimary),
                     ),
                   ),
@@ -162,10 +164,8 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
               const SizedBox(height: 10),
               Text(
                 widget.isFirstTime
-                    ? 'Your passwords are encrypted on this device before they '
-                        'are saved, so nobody else - not even we - can read '
-                        'them. This passphrase is the key.'
-                    : 'Enter your passphrase to decrypt your saved passwords.',
+                    ? l10n.t('vaultSetupIntro')
+                    : l10n.t('vaultUnlockIntro'),
                 style: AppText.body.copyWith(
                   color: palette.textSecondary,
                   height: 1.4,
@@ -183,7 +183,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                 onSubmitted: widget.isFirstTime ? null : (_) => _submit(),
                 style: AppText.body.copyWith(color: palette.textPrimary),
                 decoration: InputDecoration(
-                  labelText: 'Vault passphrase',
+                  labelText: l10n.t('vaultPassphraseLabel'),
                   prefixIcon: const Icon(Icons.key_rounded, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure
@@ -202,9 +202,9 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
                   style: AppText.body.copyWith(color: palette.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm passphrase',
-                    prefixIcon: Icon(Icons.key_rounded, size: 20),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('confirmPassphrase'),
+                    prefixIcon: const Icon(Icons.key_rounded, size: 20),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -238,9 +238,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                           child: Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: Text(
-                              'I understand that if I forget this passphrase, '
-                              'my saved passwords cannot be recovered by '
-                              'anyone.',
+                              l10n.t('vaultPassphraseAck'),
                               style: AppText.caption.copyWith(
                                 color: palette.textSecondary,
                                 height: 1.35,
@@ -290,8 +288,8 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                           ),
                         )
                       : Text(widget.isFirstTime
-                          ? 'Create vault'
-                          : 'Unlock vault'),
+                          ? l10n.t('createVault')
+                          : l10n.t('unlockVault')),
                 ),
               ),
               if (!widget.isFirstTime) ...[
@@ -299,7 +297,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                 TextButton(
                   onPressed:
                       _busy ? null : () => Navigator.of(context).pop(false),
-                  child: const Text('Not now'),
+                  child: Text(l10n.t('notNow')),
                 ),
               ],
             ],
