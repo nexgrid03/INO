@@ -13,10 +13,10 @@ import '../pressable_scale.dart';
 /// Opens the "New Reminder" bottom sheet. Returns the created [Reminder] (also
 /// already added to the [ReminderStore]) or null if dismissed.
 ///
-/// Nothing is created until the form is complete: a title, a date AND a time
-/// are all required, and the moment must be in the future. The sheet stays
-/// open with inline errors until every field is valid and the server has
-/// actually accepted the row.
+/// Nothing is created until the form is complete: a date AND a time are
+/// required and the moment must be in the future (the title is optional and
+/// falls back to the category name). The sheet stays open with inline errors
+/// until every field is valid and the server has actually accepted the row.
 Future<Reminder?> showAddReminderSheet(
   BuildContext context, {
   ReminderCategory? initialCategory,
@@ -59,20 +59,9 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
   bool _showCalendar = false;
   bool _saving = false;
 
-  String? _titleError;
   String? _dateError;
   String? _timeError;
   String? _saveError;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController.addListener(() {
-      if (_titleError != null && _titleController.text.trim().isNotEmpty) {
-        setState(() => _titleError = null);
-      }
-    });
-  }
 
   @override
   void dispose() {
@@ -113,11 +102,8 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
 
   /// Fills the inline errors; true when the form is complete and valid.
   bool _validate(AppLocalizations l10n) {
-    final title = _titleController.text.trim();
-    String? titleError;
     String? dateError;
     String? timeError;
-    if (title.isEmpty) titleError = l10n.t('reminderTitleRequired');
     if (_date == null) dateError = l10n.t('reminderDateRequired');
     if (_time == null) timeError = l10n.t('reminderTimeRequired');
     final moment = _moment;
@@ -126,12 +112,11 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       timeError = l10n.t('reminderTimeInPast');
     }
     setState(() {
-      _titleError = titleError;
       _dateError = dateError;
       _timeError = timeError;
       _saveError = null;
     });
-    return titleError == null && dateError == null && timeError == null;
+    return dateError == null && timeError == null;
   }
 
   Future<void> _create() async {
@@ -144,9 +129,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
 
+    // No title → the category name stands in, so the card never reads blank.
+    var title = _titleController.text.trim();
+    if (title.isEmpty) title = _category.localizedLabel(l10n);
     final reminder = Reminder(
       id: 'u${DateTime.now().microsecondsSinceEpoch}',
-      title: _titleController.text.trim(),
+      title: title,
       subtitle: _category.localizedLabel(l10n),
       category: _category,
       priority: _priority,
@@ -209,7 +197,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                       AppText.headline.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.md),
 
-              _FieldLabel(l10n.t('reminderTitle')),
+              _FieldLabel('${l10n.t('reminderTitle')} (${l10n.t('optional')})'),
               const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: _titleController,
@@ -220,8 +208,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                 style: AppText.body.copyWith(color: palette.textPrimary),
                 decoration: _inputDecoration(
                   palette,
-                  l10n.t('reminderTitleHint'),
-                  error: _titleError,
+                  '${l10n.t('reminderTitleHint')} (${l10n.t('optional')})',
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
