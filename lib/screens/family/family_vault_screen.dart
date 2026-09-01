@@ -13,10 +13,17 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import 'join_family_sheet.dart';
 import 'vault_detail_screen.dart';
 
-/// The Family Vault home: the vaults the user belongs to, with a Create action.
-/// A vault is a shared space owned by one member; tapping one opens its members.
+/// The Family Vault home.
+///
+/// Two ways in, both offered up front: **Create a family** (you become the
+/// owner and immediately invite people by phone / name / email) or **Join a
+/// family** (look one up by name and ask its owner to let you in). Above the
+/// vault list the screen surfaces everything waiting on the user: invitations
+/// addressed to them, join requests they must approve (as an owner/admin),
+/// and their own outgoing requests.
 class FamilyVaultScreen extends StatefulWidget {
   const FamilyVaultScreen({super.key});
 
@@ -31,10 +38,12 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   void initState() {
     super.initState();
     _store.ensureLoaded();
-    // Surface any pending invitations addressed to this user (badge + cards).
+    // Surface any pending invitations / join requests addressed to this user.
     _store.refreshPendingInvitations();
     _store.startRealtime();
   }
+
+  // ---- Invitations ---------------------------------------------------------
 
   Future<void> _accept(VaultInvitation inv) async {
     final l10n = AppLocalizations.of(context);
@@ -63,14 +72,159 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     }
   }
 
-  void _toastOk(String m) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(m),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
+  // ---- Join requests (incoming: I decide) ----------------------------------
+
+  Future<void> _approve(VaultJoinRequest req) async {
+    final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    // The approver picks what the newcomer may do.
+    final role = await showModalBottomSheet<VaultRole>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.t('role'),
+                  style: AppText.label.copyWith(color: palette.textFaint),
+                ),
+              ),
+            ),
+            for (final r in VaultRoleX.assignable)
+              ListTile(
+                leading: Icon(r.icon, color: r.color),
+                title: Text(r.localizedLabel(l10n)),
+                subtitle: Text(r.localizedDescription(l10n)),
+                onTap: () => Navigator.of(context).pop(r),
+              ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
       ),
     );
+    if (role == null || !mounted) return;
+    try {
+      await _store.approveJoinRequest(req.id, role);
+      if (mounted) {
+        _toastOk(
+          l10n
+              .t('joinRequestApproved')
+              .replaceAll('{name}', req.requesterLabel),
+        );
+      }
+    } catch (e) {
+      if (mounted) _toast(l10n.t('couldNotApproveRequest'));
+    }
+  }
+
+  Future<void> _declineRequest(VaultJoinRequest req) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      await _store.declineJoinRequest(req.id);
+    } catch (e) {
+      if (mounted) _toast(l10n.t('couldNotDeclineRequest'));
+    }
+  }
+
+  Future<void> _cancelRequest(VaultJoinRequest req) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      await _store.cancelJoinRequest(req.id);
+    } catch (e) {
+      if (mounted) _toast(l10n.t('couldNotCancelRequest'));
+    }
+  }
+
+  // ---- Create / join -------------------------------------------------------
+
+  /// The two-option chooser behind the "+" button and the empty state.
+  Future<void> _chooseAction() async {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                l10n.t('familyVaultChoose'),
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _ChoiceCard(
+                icon: Icons.add_home_rounded,
+                title: l10n.t('createAFamily'),
+                subtitle: l10n.t('createAFamilyDesc'),
+                onTap: () => Navigator.of(context).pop('create'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _ChoiceCard(
+                icon: Icons.group_add_rounded,
+                title: l10n.t('joinAFamily'),
+                subtitle: l10n.t('joinAFamilyDesc'),
+                onTap: () => Navigator.of(context).pop('join'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'create') await _create();
+    if (action == 'join') await _join();
+  }
+
+  Future<void> _join() async {
+    final l10n = AppLocalizations.of(context);
+    final req = await showJoinFamilySheet(context);
+    if (req == null || !mounted) return;
+    _toastOk(l10n.t('joinRequestSent'));
   }
 
   Future<void> _create() async {
@@ -90,10 +244,15 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     try {
       final vault = await _store.create(name.trim());
       if (!mounted) return;
-      // Drop straight into the new vault so the owner can start inviting.
+      // Straight into the new vault, with the invite sheet already open: the
+      // whole point of creating a family is to put people in it.
       final summary = VaultSummary(vault: vault, myRole: VaultRole.owner);
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => VaultDetailScreen(summary: summary)),
+      final nav = Navigator.of(context);
+      await nav.push(
+        MaterialPageRoute(
+          builder: (_) =>
+              VaultDetailScreen(summary: summary, openInviteOnStart: true),
+        ),
       );
     } catch (e) {
       // Surface the ACTUAL backend error instead of a generic message.
@@ -102,6 +261,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
           l10n.t('vaultCreationFailed').replaceAll('{error}', _errorText(e)),
         );
       }
+      return;
     }
   }
 
@@ -113,6 +273,16 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     }
     if (e is AuthException) return e.message;
     return e.toString();
+  }
+
+  void _toastOk(String m) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primaryGreen,
+      ),
+    );
   }
 
   void _toast(String m) {
@@ -173,7 +343,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
         listenable: _store,
         builder: (context, _) => _store.isEmpty
             ? const SizedBox.shrink()
-            : _CreateButton(onTap: _create),
+            : _AddButton(onTap: _chooseAction),
       ),
       body: InoBackground(
         sky: glass,
@@ -183,16 +353,6 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
             children: [
               _header(palette),
               const SizedBox(height: AppSpacing.md),
-              // Pending invitations addressed to this user — shown above the
-              // vault list (and even when the user has no vaults yet).
-              ListenableBuilder(
-                listenable: _store,
-                builder: (context, _) => _PendingInvites(
-                  invites: _store.pendingInvites,
-                  onAccept: _accept,
-                  onDecline: _decline,
-                ),
-              ),
               Expanded(
                 child: ListenableBuilder(
                   listenable: _store,
@@ -215,8 +375,6 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
                               message: _store.loadError!,
                               onRetry: _store.reload,
                             )
-                          : _store.isEmpty
-                          ? _EmptyState(onCreate: _create)
                           : _list(palette),
                     );
                   },
@@ -229,27 +387,163 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     );
   }
 
+  /// Pending cards (invites, requests) + the vault list, or the two-option
+  /// empty state when the user is in no family yet.
   Widget _list(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final vaults = _store.vaults;
+    final invites = _store.pendingInvites;
+    final incoming = _store.incomingJoinRequests;
+    final outgoing = _store.myJoinRequests;
+
+    final pending = <Widget>[
+      for (final inv in invites)
+        _InviteCard(
+          invite: inv,
+          onAccept: () => _accept(inv),
+          onDecline: () => _decline(inv),
+        ),
+      for (final req in incoming)
+        _JoinRequestCard(
+          request: req,
+          onApprove: () => _approve(req),
+          onDecline: () => _declineRequest(req),
+        ),
+      for (final req in outgoing)
+        _OutgoingRequestCard(
+          request: req,
+          onCancel: () => _cancelRequest(req),
+        ),
+    ];
+
+    if (vaults.isEmpty) {
+      return ListView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          AppSpacing.xs,
+          AppSpacing.screen,
+          AppSpacing.xl * 2,
+        ),
+        children: [
+          for (final w in pending)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: w,
+            ),
+          _EmptyState(onCreate: _create, onJoin: _join),
+        ],
+      );
+    }
+
     return ListView.separated(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
-        AppSpacing.sm,
+        AppSpacing.xs,
         AppSpacing.screen,
         AppSpacing.xl * 2,
       ),
-      itemCount: vaults.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+      itemCount: pending.length + (pending.isEmpty ? 0 : 1) + vaults.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       // No FadeSlideIn: recycled rows replay the entrance every time they
       // scroll back into view.
-      itemBuilder: (context, i) => _VaultCard(
-        summary: vaults[i],
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => VaultDetailScreen(summary: vaults[i]),
+      itemBuilder: (context, i) {
+        if (i < pending.length) return pending[i];
+        if (pending.isNotEmpty && i == pending.length) {
+          return Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              l10n.t('yourFamilies'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
+          );
+        }
+        final v = vaults[i - pending.length - (pending.isEmpty ? 0 : 1)];
+        return _VaultCard(
+          summary: v,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => VaultDetailScreen(summary: v)),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One of the two entry options (create / join).
+class _ChoiceCard extends StatelessWidget {
+  const _ChoiceCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return PressableScale(
+      pressedScale: 0.98,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: palette.border),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: AppSizes.iconContainer,
+                height: AppSizes.iconContainer,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: BorderRadius.circular(AppRadius.chip + 2),
+                ),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 15.5,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: AppText.caption.copyWith(
+                        color: palette.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: palette.textFaint),
+            ],
           ),
         ),
       ),
@@ -257,67 +551,29 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   }
 }
 
-/// The "you've been invited" cards shown at the top of the Family Vault screen.
-/// Renders nothing when there are no pending invitations.
-class _PendingInvites extends StatelessWidget {
-  const _PendingInvites({
-    required this.invites,
-    required this.onAccept,
-    required this.onDecline,
+/// A pending card frame shared by invitations and join requests.
+class _PendingCard extends StatelessWidget {
+  const _PendingCard({
+    required this.icon,
+    required this.title,
+    required this.details,
+    required this.primaryLabel,
+    required this.onPrimary,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
-  final List<VaultInvitation> invites;
-  final ValueChanged<VaultInvitation> onAccept;
-  final ValueChanged<VaultInvitation> onDecline;
-
-  @override
-  Widget build(BuildContext context) {
-    if (invites.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.xs,
-        AppSpacing.screen,
-        AppSpacing.sm,
-      ),
-      child: Column(
-        children: [
-          for (final inv in invites)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _InviteCard(
-                invite: inv,
-                onAccept: () => onAccept(inv),
-                onDecline: () => onDecline(inv),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InviteCard extends StatelessWidget {
-  const _InviteCard({
-    required this.invite,
-    required this.onAccept,
-    required this.onDecline,
-  });
-
-  final VaultInvitation invite;
-  final VoidCallback onAccept;
-  final VoidCallback onDecline;
+  final IconData icon;
+  final String title;
+  final String details;
+  final String primaryLabel;
+  final VoidCallback onPrimary;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
-    final by = invite.invitedByName;
-    final details = [
-      invite.vaultName ?? l10n.t('familyVault'),
-      l10n.t('asRoleLabel').replaceAll('{role}', invite.role.localizedLabel(l10n)),
-      if (by != null) l10n.t('byName').replaceAll('{name}', by),
-    ].join(' · ');
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -341,11 +597,7 @@ class _InviteCard extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: const Icon(
-                  Icons.mark_email_unread_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: Icon(icon, color: Colors.white, size: 20),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -353,7 +605,7 @@ class _InviteCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.t('youveBeenInvited'),
+                      title,
                       style: AppText.subtitle.copyWith(
                         color: palette.textPrimary,
                         fontSize: 14.5,
@@ -376,34 +628,36 @@ class _InviteCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Expanded(
-                child: PressableScale(
-                  child: GestureDetector(
-                    onTap: onDecline,
-                    child: Container(
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: palette.surfaceVariant,
-                        borderRadius: BorderRadius.circular(AppRadius.button),
-                        border: Border.all(color: palette.border),
-                      ),
-                      child: Text(
-                        l10n.t('decline'),
-                        style: AppText.subtitle.copyWith(
-                          color: palette.textSecondary,
-                          fontSize: 14,
+              if (secondaryLabel != null) ...[
+                Expanded(
+                  child: PressableScale(
+                    child: GestureDetector(
+                      onTap: onSecondary,
+                      child: Container(
+                        height: 42,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: palette.surfaceVariant,
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          border: Border.all(color: palette.border),
+                        ),
+                        child: Text(
+                          secondaryLabel!,
+                          style: AppText.subtitle.copyWith(
+                            color: palette.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
+              ],
               Expanded(
                 child: PressableScale(
                   child: GestureDetector(
-                    onTap: onAccept,
+                    onTap: onPrimary,
                     child: Container(
                       height: 42,
                       alignment: Alignment.center,
@@ -412,7 +666,7 @@ class _InviteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.button),
                       ),
                       child: Text(
-                        l10n.t('accept'),
+                        primaryLabel,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -427,6 +681,97 @@ class _InviteCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _InviteCard extends StatelessWidget {
+  const _InviteCard({
+    required this.invite,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final VaultInvitation invite;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final by = invite.invitedByName;
+    final details = [
+      invite.vaultName ?? l10n.t('familyVault'),
+      l10n.t('asRoleLabel').replaceAll('{role}', invite.role.localizedLabel(l10n)),
+      if (by != null) l10n.t('byName').replaceAll('{name}', by),
+    ].join(' · ');
+    return _PendingCard(
+      icon: Icons.mark_email_unread_rounded,
+      title: l10n.t('youveBeenInvited'),
+      details: details,
+      primaryLabel: l10n.t('accept'),
+      onPrimary: onAccept,
+      secondaryLabel: l10n.t('decline'),
+      onSecondary: onDecline,
+    );
+  }
+}
+
+/// Someone asked to join a family this user owns/administers.
+class _JoinRequestCard extends StatelessWidget {
+  const _JoinRequestCard({
+    required this.request,
+    required this.onApprove,
+    required this.onDecline,
+  });
+
+  final VaultJoinRequest request;
+  final VoidCallback onApprove;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final contact = [
+      if ((request.requesterEmail ?? '').isNotEmpty) request.requesterEmail!,
+      if ((request.requesterPhone ?? '').isNotEmpty) request.requesterPhone!,
+    ].join(' · ');
+    return _PendingCard(
+      icon: Icons.person_add_alt_1_rounded,
+      title: l10n
+          .t('wantsToJoin')
+          .replaceAll('{name}', request.requesterLabel)
+          .replaceAll('{vault}', request.vaultName ?? l10n.t('familyVault')),
+      details: contact.isEmpty ? l10n.t('joinRequests') : contact,
+      primaryLabel: l10n.t('approve'),
+      onPrimary: onApprove,
+      secondaryLabel: l10n.t('decline'),
+      onSecondary: onDecline,
+    );
+  }
+}
+
+/// This user's own request, still waiting on the family's owner.
+class _OutgoingRequestCard extends StatelessWidget {
+  const _OutgoingRequestCard({
+    required this.request,
+    required this.onCancel,
+  });
+
+  final VaultJoinRequest request;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return _PendingCard(
+      icon: Icons.hourglass_top_rounded,
+      title: request.vaultName ?? l10n.t('familyVault'),
+      details: l10n
+          .t('waitingForOwner')
+          .replaceAll('{name}', request.vaultName ?? l10n.t('theVault')),
+      primaryLabel: l10n.t('cancelRequest'),
+      onPrimary: onCancel,
     );
   }
 }
@@ -590,7 +935,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            l10n.t('createFamilyVault'),
+            l10n.t('createAFamily'),
             style: AppText.title.copyWith(color: palette.textPrimary),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -668,98 +1013,67 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
   }
 }
 
+/// No family yet: the two ways in, side by side.
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreate});
+  const _EmptyState({required this.onCreate, required this.onJoin});
 
   final VoidCallback onCreate;
+  final VoidCallback onJoin;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height: constraints.maxHeight,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 104,
-                    height: 104,
-                    decoration: BoxDecoration(
-                      color: palette.surface,
-                      borderRadius: BorderRadius.circular(AppRadius.large),
-                      border: Border.all(
-                        color: AppColors.tealPale.withValues(alpha: 0.6),
-                      ),
-                      boxShadow: AppShadows.floating,
-                    ),
-                    child: Icon(
-                      Icons.family_restroom_rounded,
-                      color: AppColors.primaryGreen,
-                      size: 52,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    l10n.t('noFamilyVaultsYet'),
-                    style: AppText.title.copyWith(color: palette.textPrimary),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    l10n.t('noFamilyVaultsBody'),
-                    textAlign: TextAlign.center,
-                    style: AppText.body.copyWith(
-                      color: palette.textSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  PressableScale(
-                    child: GestureDetector(
-                      onTap: onCreate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.brandGradient,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          boxShadow: AppShadows.glow(AppColors.primaryGreen),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.add_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.t('createFamilyVault'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(
+                color: AppColors.tealPale.withValues(alpha: 0.6),
               ),
+              boxShadow: AppShadows.floating,
+            ),
+            child: Icon(
+              Icons.family_restroom_rounded,
+              color: AppColors.primaryGreen,
+              size: 52,
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            l10n.t('noFamilyVaultsYet'),
+            style: AppText.title.copyWith(color: palette.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            l10n.t('noFamilyVaultsBody'),
+            textAlign: TextAlign.center,
+            style: AppText.body.copyWith(
+              color: palette.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _ChoiceCard(
+            icon: Icons.add_home_rounded,
+            title: l10n.t('createAFamily'),
+            subtitle: l10n.t('createAFamilyDesc'),
+            onTap: onCreate,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ChoiceCard(
+            icon: Icons.group_add_rounded,
+            title: l10n.t('joinAFamily'),
+            subtitle: l10n.t('joinAFamilyDesc'),
+            onTap: onJoin,
+          ),
+        ],
       ),
     );
   }
@@ -849,8 +1163,8 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-class _CreateButton extends StatelessWidget {
-  const _CreateButton({required this.onTap});
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -881,7 +1195,7 @@ class _CreateButton extends StatelessWidget {
               const Icon(Icons.add_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 6),
               Text(
-                AppLocalizations.of(context).t('newVault'),
+                AppLocalizations.of(context).t('createOrJoin'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,

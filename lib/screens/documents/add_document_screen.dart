@@ -481,16 +481,28 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       // If the document has an expiry date, also create a reminder for it so it
       // shows up on the Reminders page (persisted to Supabase).
       if (_expiry != null) {
-        ReminderStore.instance.add(
+        final e = _expiry!;
+        unawaited(ReminderStore.instance.add(
           Reminder(
             id: 'doc-${doc.id}',
             title: name,
             subtitle: '$_wallet · Expiry',
             category: _reminderCategoryForWallet(_wallet!),
             priority: ReminderPriority.important,
-            date: _expiry!,
+            // Document expiries carry no time of day; ring at 09:00 local.
+            date: DateTime(e.year, e.month, e.day, 9),
           ),
-        );
+        ).catchError((Object err) {
+          debugPrint('expiry reminder not saved: $err');
+          return Reminder(
+            id: 'doc-${doc.id}',
+            title: name,
+            subtitle: '',
+            category: ReminderCategory.custom,
+            priority: ReminderPriority.normal,
+            date: e,
+          );
+        }));
       }
 
       if (!mounted) return;

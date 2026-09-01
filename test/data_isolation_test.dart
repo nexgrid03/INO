@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/data/reminder_repository.dart';
 import 'package:inoapp/data/reminder_store.dart';
 import 'package:inoapp/models/reminder_models.dart';
 import 'package:inoapp/services/app_settings.dart';
@@ -25,20 +26,50 @@ Reminder _reminder(String id, String title) => Reminder(
       date: dateOnly(DateTime.now()),
     );
 
+/// Accepts every insert so the store's (now awaited, rollback-on-failure)
+/// add() succeeds without a live Supabase.
+class _AcceptAllReminderRepository implements ReminderRepository {
+  @override
+  Future<ReminderData> load() async => ReminderData(
+        today: dateOnly(DateTime.now()),
+        reminders: const [],
+        completed: const [],
+        summary: const ReminderSummary(
+          dueToday: 0,
+          upcomingThisWeek: 0,
+          expiringSoon: 0,
+          completedThisMonth: 0,
+        ),
+      );
+
+  @override
+  Future<Reminder> add(Reminder reminder) async => reminder;
+
+  @override
+  Future<void> setCompleted(String id, bool completed) async {}
+
+  @override
+  Future<void> remove(String id) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  final realRepo = ReminderRepository.instance;
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    ReminderRepository.instance = _AcceptAllReminderRepository();
     ReminderStore.instance.reset();
   });
+  tearDown(() => ReminderRepository.instance = realRepo);
 
   group('ReminderStore.clear (account switch)', () {
     test('drops all reminders and the loaded flag', () async {
       // Simulate "User A" having loaded and created reminders.
       await ReminderStore.instance.ensureLoaded(); // marks the store loaded
-      ReminderStore.instance.add(_reminder('a1', 'User A · Passport'));
-      ReminderStore.instance.add(_reminder('a2', 'User A · Insurance'));
+      await ReminderStore.instance.add(_reminder('a1', 'User A · Passport'));
+      await ReminderStore.instance.add(_reminder('a2', 'User A · Insurance'));
       expect(ReminderStore.instance.active, isNotEmpty);
       expect(ReminderStore.instance.isLoaded, isTrue);
 

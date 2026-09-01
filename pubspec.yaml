@@ -46,6 +46,7 @@ dependencies:
   cryptography: ^2.9.0
   google_fonts: ^6.2.1
   flutter_svg: ^2.3.0
+  timezone: ^0.11.1
 
 dependency_overrides:
   # AGP 9 + path_provider_android 2.3.x/jni break; pin pre-jni until fixed.

@@ -69,6 +69,28 @@ class PushService {
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
 
+  /// Completes once the local-notification plugin is initialised and the
+  /// channels exist. [ReminderScheduler] awaits this before scheduling, since
+  /// [init] is deferred past the first frame and a reminder can be created (or
+  /// the store hydrated) before it has run.
+  final Completer<void> _localReady = Completer<void>();
+  Future<void> get localReady => _localReady.future;
+
+  /// How a reminder notification looks, shared by the foreground bridge, the
+  /// exact-time local schedule and the background data-message handler so the
+  /// three are indistinguishable to the user.
+  static const NotificationDetails reminderDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      channelId,
+      'Reminders',
+      channelDescription: 'Alerts for documents, renewals and due dates.',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@drawable/ic_notification',
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
   GlobalKey<NavigatorState>? _navigatorKey;
   bool _initialised = false;
   String? _token;
@@ -90,6 +112,11 @@ class PushService {
     if (_initialised) return;
 
     try {
+      // Local notifications first: the exact-time reminder schedule depends
+      // only on this, so a Firebase failure (missing google-services, no Play
+      // services) must not take local reminders down with it.
+      await _initLocalNotifications();
+
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
@@ -99,7 +126,6 @@ class PushService {
       // a top-level function and cannot touch any state from this isolate.
       FirebaseMessaging.onBackgroundMessage(inoFirebaseBackgroundHandler);
 
-      await _initLocalNotifications();
       await _requestPermission();
       await _initToken();
       _listenForSignIn();
@@ -121,6 +147,10 @@ class PushService {
       developer.log('push initialised', name: 'push');
     } catch (e, st) {
       developer.log('init failed: $e', name: 'push', error: e, stackTrace: st);
+    } finally {
+      // Unblock anyone waiting on the local plugin even if Firebase failed:
+      // exact-time local reminders do not need Firebase at all.
+      if (!_localReady.isCompleted) _localReady.complete();
     }
   }
 
@@ -174,6 +204,7 @@ class PushService {
         AndroidFlutterLocalNotificationsPlugin>();
     await android?.createNotificationChannel(channel);
     await android?.createNotificationChannel(securityChannel);
+    if (!_localReady.isCompleted) _localReady.complete();
   }
 
   /// Raises the OS permission prompt (Android 13+ / iOS) once.
@@ -313,26 +344,49 @@ class PushService {
       await _local.show(
         // A stable id per reminder, so a re-send REPLACES the banner instead of
         // stacking a second identical one.
-        id: (message.data['reminder_id'] ?? message.messageId ?? '').hashCode,
+        id: reminderNotificationId(message.data, message.messageId),
         title: notification.title,
         body: notification.body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            'Reminders',
-            channelDescription:
-                'Alerts for documents, renewals and due dates.',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@drawable/ic_notification',
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        notificationDetails: reminderDetails,
         payload: jsonEncode(message.data),
       );
+    } else if (isDueReminderMessage(message.data)) {
+      // Data-only "reminder is due now" push. Shown under the SAME id the local
+      // exact-time schedule used, so a device that already rang gets the banner
+      // refreshed, never a second copy.
+      await showDueReminder(_local, message.data);
     }
 
     await refreshFeed();
+  }
+
+  /// True for the per-minute server push that says "this reminder is due".
+  static bool isDueReminderMessage(Map<String, dynamic> data) =>
+      data['kind'] == 'reminder.due' &&
+      ((data['reminder_id'] as String?) ?? '').isNotEmpty;
+
+  /// The notification id for a reminder message - the same value
+  /// `ReminderScheduler.idFor` produces for the local schedule.
+  static int reminderNotificationId(
+      Map<String, dynamic> data, String? fallback) {
+    final rid = data['reminder_id'] as String?;
+    if (rid != null && rid.isNotEmpty) return rid.hashCode & 0x7fffffff;
+    return (fallback ?? '').hashCode & 0x7fffffff;
+  }
+
+  /// Displays a data-only due-reminder message through [plugin]. Static so the
+  /// background isolate (which has none of this singleton's state) can reuse it.
+  static Future<void> showDueReminder(
+    FlutterLocalNotificationsPlugin plugin,
+    Map<String, dynamic> data,
+  ) async {
+    await plugin.show(
+      id: reminderNotificationId(data, null),
+      title: (data['title'] as String?) ?? 'Reminder',
+      body: (data['body'] as String?) ?? '',
+      notificationDetails: reminderDetails,
+      payload: jsonEncode(data),
+    );
   }
 
   /// Re-hydrates reminders and the in-app notification feed so the bell badge
@@ -370,7 +424,9 @@ class PushService {
       _routeToScreen(const TrustedDevicesScreen());
       return;
     }
-    if (kind == 'vault.invite') {
+    // Every family-vault event (invite, join request, approval, role change)
+    // lands on the Family Vault home, which surfaces the pending cards.
+    if (kind.startsWith('vault.')) {
       _routeToScreen(const FamilyVaultScreen());
       return;
     }
@@ -491,10 +547,32 @@ class PushService {
 /// being tree-shaken out of release builds - without it, push works in debug
 /// and mysteriously dies in release.
 ///
-/// There is deliberately nothing to do here: the message carries a
-/// `notification` payload, so the system has already drawn the tray entry. The
-/// in-app feed is refreshed when the app next comes to the foreground.
+/// For a message with a `notification` payload there is nothing to do: the
+/// system has already drawn the tray entry. A data-only "reminder.due" push is
+/// the exception - the system draws nothing for those, so it is displayed here
+/// through a plugin instance initialised inside this isolate. The in-app feed
+/// is refreshed when the app next comes to the foreground.
 @pragma('vm:entry-point')
 Future<void> inoFirebaseBackgroundHandler(RemoteMessage message) async {
   developer.log('background message ${message.messageId}', name: 'push');
+  if (message.notification != null ||
+      !PushService.isDueReminderMessage(message.data)) {
+    return;
+  }
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+    );
+    await PushService.showDueReminder(plugin, message.data);
+  } catch (e) {
+    developer.log('background reminder display failed: $e', name: 'push');
+  }
 }

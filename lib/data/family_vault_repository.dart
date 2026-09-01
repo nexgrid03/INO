@@ -69,6 +69,42 @@ abstract class FamilyVaultRepository {
   /// Re-arms a declined/expired/revoked invitation, optionally with a new role.
   Future<void> resendInvitation(String invitationId, {VaultRole? role});
 
+  /// Invites an existing INO user by phone number, name or email. The server
+  /// resolves [query] against the users table; a [VaultUserNotFound] means
+  /// nobody has an INO account under that identifier, [VaultUserAmbiguous]
+  /// means several users share that name.
+  Future<VaultInvitation> inviteUser(String vaultId, VaultRole role, String query);
+
+  // ---- Join requests -------------------------------------------------------
+
+  /// Families whose name matches [name] exactly (case-insensitive).
+  Future<List<FamilyMatch>> searchFamilies(String name);
+
+  /// Asks to join [vaultId]; every owner/admin of that family is notified.
+  Future<VaultJoinRequest> requestToJoin(String vaultId);
+
+  /// Pending requests addressed to families the caller can manage.
+  Future<List<VaultJoinRequest>> incomingJoinRequests();
+
+  /// The caller's own pending requests.
+  Future<List<VaultJoinRequest>> myJoinRequests();
+
+  /// Approves a request (owner/admin), adding the requester with [role].
+  Future<void> approveJoinRequest(String requestId, VaultRole role);
+
+  /// Declines a request (owner/admin).
+  Future<void> declineJoinRequest(String requestId);
+
+  /// Withdraws the caller's own pending request.
+  Future<void> cancelJoinRequest(String requestId);
+
+  // ---- Co-owners -----------------------------------------------------------
+
+  /// Makes [memberId] an owner too (caller must be an owner). Co-owners can
+  /// invite, approve joins, add documents and rename; only the primary owner
+  /// can delete or transfer.
+  Future<void> promoteToOwner(String memberId);
+
   // ---- Shared documents ----------------------------------------------------
 
   /// Every document shared into [vaultId], newest first.
@@ -389,6 +425,123 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     }).timeout(NetGuard.mutation);
   }
 
+  @override
+  Future<VaultInvitation> inviteUser(
+      String vaultId, VaultRole role, String query) async {
+    debugPrint('[FamilyVault] inviteUser vault=$vaultId role=${role.name}');
+    try {
+      final res = await _client.rpc('invite_ino_user_to_vault', params: {
+        'p_vault': vaultId,
+        'p_role': role.name,
+        'p_query': query.trim(),
+      }).timeout(NetGuard.mutation);
+      final row = (res is List)
+          ? Map<String, dynamic>.from(res.first as Map)
+          : Map<String, dynamic>.from(res as Map);
+      return VaultInvitation.fromRow(row);
+    } on PostgrestException catch (e) {
+      // The RPC signals the two "who is this?" outcomes with specific codes
+      // + hints so the sheet can word them properly.
+      if (e.code == 'P0002' || e.hint == 'USER_NOT_FOUND') {
+        throw VaultUserNotFound(query.trim(), e.message);
+      }
+      if (e.code == 'P0003' || e.hint == 'MULTIPLE_USERS') {
+        throw VaultUserAmbiguous(query.trim(), e.message);
+      }
+      rethrow;
+    }
+  }
+
+  // ---- Join requests -------------------------------------------------------
+
+  static const String _joinRequests = 'vault_join_requests';
+
+  @override
+  Future<List<FamilyMatch>> searchFamilies(String name) async {
+    final res = await _client
+        .rpc('search_families', params: {'p_name': name.trim()})
+        .timeout(NetGuard.query);
+    final rows = (res as List?) ?? const [];
+    return [
+      for (final r in rows)
+        FamilyMatch.fromRow(Map<String, dynamic>.from(r as Map))
+    ];
+  }
+
+  @override
+  Future<VaultJoinRequest> requestToJoin(String vaultId) async {
+    final res = await _client.rpc('request_to_join_family', params: {
+      'p_vault': vaultId,
+    }).timeout(NetGuard.mutation);
+    final row = (res is List)
+        ? Map<String, dynamic>.from(res.first as Map)
+        : Map<String, dynamic>.from(res as Map);
+    return VaultJoinRequest.fromRow(row);
+  }
+
+  @override
+  Future<List<VaultJoinRequest>> incomingJoinRequests() async {
+    final uid = _uid;
+    if (uid == null) return const [];
+    // RLS returns rows for vaults the caller administers plus their own
+    // requests; drop the latter so these are strictly "for me to decide".
+    final rows = await _client
+        .from(_joinRequests)
+        .select()
+        .eq('status', 'pending')
+        .neq('requester_auth_user_id', uid)
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
+    return [for (final r in rows) VaultJoinRequest.fromRow(r)];
+  }
+
+  @override
+  Future<List<VaultJoinRequest>> myJoinRequests() async {
+    final uid = _uid;
+    if (uid == null) return const [];
+    final rows = await _client
+        .from(_joinRequests)
+        .select()
+        .eq('status', 'pending')
+        .eq('requester_auth_user_id', uid)
+        .order('created_at', ascending: false)
+        .limit(NetGuard.maxRows)
+        .timeout(NetGuard.query);
+    return [for (final r in rows) VaultJoinRequest.fromRow(r)];
+  }
+
+  @override
+  Future<void> approveJoinRequest(String requestId, VaultRole role) async {
+    await _client.rpc('approve_join_request', params: {
+      'p_request': requestId,
+      'p_role': role.name,
+    }).timeout(NetGuard.mutation);
+  }
+
+  @override
+  Future<void> declineJoinRequest(String requestId) async {
+    await _client
+        .rpc('decline_join_request', params: {'p_request': requestId})
+        .timeout(NetGuard.mutation);
+  }
+
+  @override
+  Future<void> cancelJoinRequest(String requestId) async {
+    await _client
+        .rpc('cancel_join_request', params: {'p_request': requestId})
+        .timeout(NetGuard.mutation);
+  }
+
+  // ---- Co-owners -----------------------------------------------------------
+
+  @override
+  Future<void> promoteToOwner(String memberId) async {
+    await _client.rpc('promote_vault_member_to_owner', params: {
+      'p_member_id': memberId,
+    }).timeout(NetGuard.mutation);
+  }
+
   // ---- Shared documents ----------------------------------------------------
 
   static const String _documents = 'vault_documents';
@@ -514,7 +667,11 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         ),
         callback: (_) => onChange(),
       );
-      for (final table in const ['vault_invitations', 'family_vaults']) {
+      for (final table in const [
+        'vault_invitations',
+        'family_vaults',
+        'vault_join_requests',
+      ]) {
         channel.onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -634,4 +791,25 @@ String describeVaultError(Object e) {
     return 'No connection. Check your internet and try again.';
   }
   return 'Could not share: $text';
+}
+
+/// The identifier given to [FamilyVaultRepository.inviteUser] matches no INO
+/// account. The person has to install the app and sign up before they can be
+/// invited.
+class VaultUserNotFound implements Exception {
+  const VaultUserNotFound(this.query, this.message);
+  final String query;
+  final String message;
+  @override
+  String toString() => message;
+}
+
+/// Several INO users share the name given to [FamilyVaultRepository.inviteUser];
+/// the inviter should use a phone number or email instead.
+class VaultUserAmbiguous implements Exception {
+  const VaultUserAmbiguous(this.query, this.message);
+  final String query;
+  final String message;
+  @override
+  String toString() => message;
 }

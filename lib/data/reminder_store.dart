@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/perf/perf_tracer.dart';
 import '../l10n/app_localizations.dart';
 import '../models/reminder_models.dart';
+import '../services/reminder_scheduler.dart';
 import 'reminder_repository.dart';
 
 /// A single, notify-on-change source of truth shared across the Reminders
@@ -12,8 +13,8 @@ import 'reminder_repository.dart';
 ///
 /// Holding the reminders here - rather than in each screen's [State] - means a
 /// create/complete/delete on any surface is reflected everywhere immediately.
-/// It hydrates once from [ReminderRepository] (sample data today) and can be
-/// swapped for a Supabase-backed repository without touching a widget.
+/// It hydrates once from [ReminderRepository] (Supabase) and keeps the
+/// device's local exact-time notifications in step via [ReminderScheduler].
 class ReminderStore extends ChangeNotifier {
   ReminderStore._();
 
@@ -22,6 +23,13 @@ class ReminderStore extends ChangeNotifier {
   bool _loading = false;
   bool _loaded = false;
   bool get isLoaded => _loaded;
+  bool get isLoading => _loading;
+
+  /// Why the last load failed, or null when it succeeded. Kept separate from
+  /// "no reminders" so the UI can say "couldn't load" instead of showing an
+  /// empty state that looks like the user has nothing due.
+  String? _loadError;
+  String? get loadError => _loadError;
 
   DateTime _today = dateOnly(DateTime.now());
   DateTime get today => _today;
@@ -41,15 +49,25 @@ class ReminderStore extends ChangeNotifier {
   Future<void> ensureLoaded() => PerfTracer.traceQuery('ReminderStore.ensureLoaded', () async {
     if (_loaded || _loading) return;
     _loading = true;
-    final data = await ReminderRepository.instance.load();
-    _today = data.today;
-    _active
-      ..clear()
-      ..addAll(data.reminders);
-    _completed
-      ..clear()
-      ..addAll(data.completed);
-    _sort();
+    notifyListeners();
+    try {
+      final data = await ReminderRepository.instance.load();
+      _today = data.today;
+      _active
+        ..clear()
+        ..addAll(data.reminders);
+      _completed
+        ..clear()
+        ..addAll(data.completed);
+      _sort();
+      _loadError = null;
+      // Re-arm the device's exact-time notifications from the fresh server
+      // state (covers reminders created on another device, and a reinstall).
+      unawaited(ReminderScheduler.instance.sync(_active));
+    } catch (e) {
+      debugPrint('Reminders load failed: $e');
+      _loadError = e.toString();
+    }
     _loaded = true;
     _loading = false;
     notifyListeners();
@@ -136,6 +154,8 @@ class ReminderStore extends ChangeNotifier {
     _completed.insert(
         0, r.copyWith(completed: true, completedLabel: 'Just now'));
     notifyListeners();
+    // A done reminder must not ring later.
+    unawaited(ReminderScheduler.instance.cancel(r.id));
     // Persist (fire-and-forget; UI already updated optimistically).
     unawaited(ReminderRepository.instance.setCompleted(r.id, true).catchError(
         (Object e) {
@@ -145,37 +165,53 @@ class ReminderStore extends ChangeNotifier {
 
   void restore(Reminder r) {
     _completed.removeWhere((e) => e.id == r.id);
-    _active.add(r.copyWith(completed: false, completedLabel: null));
+    final restored = r.copyWith(completed: false, completedLabel: null);
+    _active.add(restored);
     _sort();
     notifyListeners();
+    unawaited(ReminderScheduler.instance.schedule(restored));
     unawaited(ReminderRepository.instance.setCompleted(r.id, false).catchError(
         (Object e) {
       debugPrint('Reminder restore failed: $e');
     }));
   }
 
-  void add(Reminder r) {
-    // Optimistically show it, then insert to Supabase and swap in the real id.
+  /// Creates [r]: shows it immediately, persists it, then swaps in the saved
+  /// row (real id) and arms its exact-time notification.
+  ///
+  /// THROWS if the insert fails, and the optimistic entry is rolled back - so
+  /// a reminder the server never accepted cannot linger on screen looking
+  /// saved. Callers show the error and keep the sheet open.
+  Future<Reminder> add(Reminder r) async {
     _active.add(r);
     _sort();
     notifyListeners();
-    unawaited(ReminderRepository.instance.add(r).then((saved) {
+    try {
+      final saved = await ReminderRepository.instance.add(r);
       final i = _active.indexWhere((e) => e.id == r.id);
-      if (i != -1) {
-        _active[i] = saved;
-        _sort();
-        notifyListeners();
+      if (i == -1) {
+        // Completed/removed while the insert was in flight - nothing to swap.
+        return saved;
       }
+      _active[i] = saved;
+      _sort();
+      notifyListeners();
       debugPrint('Reminder saved: ${saved.id}');
-    }).catchError((Object e) {
+      unawaited(ReminderScheduler.instance.schedule(saved));
+      return saved;
+    } catch (e) {
       debugPrint('Reminder save failed: $e');
-    }));
+      _active.removeWhere((e) => e.id == r.id);
+      notifyListeners();
+      rethrow;
+    }
   }
 
   void remove(Reminder r) {
     _active.removeWhere((e) => e.id == r.id);
     _completed.removeWhere((e) => e.id == r.id);
     notifyListeners();
+    unawaited(ReminderScheduler.instance.cancel(r.id));
     unawaited(ReminderRepository.instance.remove(r.id).catchError((Object e) {
       debugPrint('Reminder delete failed: $e');
     }));
@@ -188,12 +224,17 @@ class ReminderStore extends ChangeNotifier {
   /// process-wide singleton keeps the previous user's reminders and the
   /// `_loaded` guard makes the next user's [ensureLoaded] a no-op - i.e. the
   /// next account would see the previous account's reminders.
+  ///
+  /// The device's scheduled notifications are cleared too: a signed-out phone
+  /// must not keep ringing for the previous account's reminders.
   void clear() {
     _active.clear();
     _completed.clear();
     _loaded = false;
     _loading = false;
+    _loadError = null;
     _today = dateOnly(DateTime.now());
+    unawaited(ReminderScheduler.instance.cancelAll());
     notifyListeners();
   }
 

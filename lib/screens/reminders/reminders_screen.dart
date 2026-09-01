@@ -157,6 +157,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
                                 ),
                               ),
                             )
+                          else if (_store.loadError != null && _store.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _LoadFailed(onRetry: _refresh),
+                            )
                           else if (_store.isEmpty)
                             SliverFillRemaining(
                               hasScrollBody: false,
@@ -391,6 +396,60 @@ class _RemindersScreenState extends State<RemindersScreen> {
 }
 
 // ---------------------------------------------------------------------------
+
+/// Shown when the reminders could not be fetched at all - distinct from "you
+/// have none", which used to be the only thing an offline user ever saw.
+class _LoadFailed extends StatelessWidget {
+  const _LoadFailed({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 52, color: palette.textFaint),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              l10n.t('remindersLoadFailed'),
+              textAlign: TextAlign.center,
+              style: AppText.body
+                  .copyWith(color: palette.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            PressableScale(
+              child: GestureDetector(
+                onTap: onRetry,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    l10n.t('tryAgain'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _CaughtUpNote extends StatelessWidget {
   const _CaughtUpNote();

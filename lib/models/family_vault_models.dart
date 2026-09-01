@@ -431,6 +431,14 @@ class VaultAuditEntry {
         return '$what left the vault';
       case 'ownership_transferred':
         return '$who transferred ownership to $what';
+      case 'owner_added':
+        return '$who made $what an owner';
+      case 'join_requested':
+        return '$what asked to join the vault';
+      case 'join_approved':
+        return '$who approved $what\'s request to join$_roleSuffix';
+      case 'join_declined':
+        return '$who declined $what\'s request to join';
       case 'vault_renamed':
         final to = metadata['to'];
         return '$who renamed the vault${to != null ? ' to "$to"' : ''}';
@@ -461,7 +469,14 @@ class VaultAuditEntry {
       case 'member_left':
         return Icons.person_remove_rounded;
       case 'ownership_transferred':
+      case 'owner_added':
         return Icons.workspace_premium_rounded;
+      case 'join_requested':
+        return Icons.person_add_alt_1_rounded;
+      case 'join_approved':
+        return Icons.how_to_reg_rounded;
+      case 'join_declined':
+        return Icons.person_off_rounded;
       case 'vault_renamed':
         return Icons.drive_file_rename_outline_rounded;
       default:
@@ -564,5 +579,96 @@ class VaultDocument {
         createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
                 ?.toLocal() ??
             DateTime.now(),
+      );
+}
+
+/// One family found by [FamilyVaultRepository.searchFamilies] - just enough for
+/// a would-be member to pick the right one and ask to join.
+class FamilyMatch {
+  const FamilyMatch({
+    required this.id,
+    required this.name,
+    this.ownerName,
+    required this.memberCount,
+    required this.alreadyMember,
+    required this.requestPending,
+  });
+
+  final String id;
+  final String name;
+  final String? ownerName;
+  final int memberCount;
+  final bool alreadyMember;
+  final bool requestPending;
+
+  factory FamilyMatch.fromRow(Map<String, dynamic> row) => FamilyMatch(
+        id: row['id'].toString(),
+        name: (row['name'] as String?)?.trim().isNotEmpty == true
+            ? (row['name'] as String).trim()
+            : 'Family Vault',
+        ownerName: row['owner_name'] as String?,
+        memberCount: (row['member_count'] as num?)?.toInt() ?? 0,
+        alreadyMember: (row['already_member'] as bool?) ?? false,
+        requestPending: (row['request_pending'] as bool?) ?? false,
+      );
+}
+
+/// Lifecycle of a join request (`public.vault_join_requests.status`).
+enum JoinRequestStatus { pending, approved, declined, cancelled }
+
+/// A user asking to join a family they looked up by name
+/// (`public.vault_join_requests`). Owners/admins of that family see it as an
+/// incoming request; the requester sees it as an outgoing one.
+class VaultJoinRequest {
+  const VaultJoinRequest({
+    required this.id,
+    required this.vaultId,
+    required this.requesterAuthUserId,
+    this.requesterName,
+    this.requesterEmail,
+    this.requesterPhone,
+    this.vaultName,
+    this.message,
+    required this.status,
+    this.createdAt,
+  });
+
+  final String id;
+  final String vaultId;
+  final String requesterAuthUserId;
+  final String? requesterName;
+  final String? requesterEmail;
+  final String? requesterPhone;
+  final String? vaultName;
+  final String? message;
+  final JoinRequestStatus status;
+  final DateTime? createdAt;
+
+  bool get isPending => status == JoinRequestStatus.pending;
+
+  /// Never-empty label for the requester (name → email → phone).
+  String get requesterLabel {
+    for (final v in [requesterName, requesterEmail, requesterPhone]) {
+      final t = v?.trim();
+      if (t != null && t.isNotEmpty) return t;
+    }
+    return 'Member';
+  }
+
+  factory VaultJoinRequest.fromRow(Map<String, dynamic> row) => VaultJoinRequest(
+        id: row['id'].toString(),
+        vaultId: row['vault_id'].toString(),
+        requesterAuthUserId: (row['requester_auth_user_id'] as String?) ?? '',
+        requesterName: row['requester_name'] as String?,
+        requesterEmail: row['requester_email'] as String?,
+        requesterPhone: row['requester_phone'] as String?,
+        vaultName: row['vault_name'] as String?,
+        message: row['message'] as String?,
+        status: JoinRequestStatus.values.firstWhere(
+          (s) => s.name == row['status'],
+          orElse: () => JoinRequestStatus.pending,
+        ),
+        createdAt:
+            DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal(),
       );
 }

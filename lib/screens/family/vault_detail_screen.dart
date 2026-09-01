@@ -32,9 +32,17 @@ import 'invite_member_sheet.dart';
 /// Any non-owner member can leave. Every mutation is enforced server-side by
 /// the RPCs (see the 20260731 migration); the UI only gates what it shows.
 class VaultDetailScreen extends StatefulWidget {
-  const VaultDetailScreen({super.key, required this.summary});
+  const VaultDetailScreen({
+    super.key,
+    required this.summary,
+    this.openInviteOnStart = false,
+  });
 
   final VaultSummary summary;
+
+  /// Opens the invite sheet as soon as the screen is up - used right after
+  /// creating a family, whose whole point is to put people in it.
+  final bool openInviteOnStart;
 
   @override
   State<VaultDetailScreen> createState() => _VaultDetailScreenState();
@@ -68,12 +76,23 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   String get _vaultId => widget.summary.vault.id;
   String? get _currentUid => Supabase.instance.client.auth.currentUser?.id;
 
+  /// The PRIMARY owner (family_vaults.owner_auth_user_id). Several members can
+  /// hold the owner role, but only this one may delete the vault or hand the
+  /// primary role on, and nobody can strip their owner role.
+  late String _primaryOwnerId = widget.summary.vault.ownerAuthUserId;
+  bool get _isPrimaryOwner => _currentUid == _primaryOwnerId;
+
   @override
   void initState() {
     super.initState();
     _myRole = widget.summary.myRole;
     _refresh();
     _startRealtime();
+    if (widget.openInviteOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _invite();
+      });
+    }
   }
 
   @override
@@ -312,10 +331,18 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   Future<void> _memberActions(VaultMember member) async {
     final isMe = member.authUserId == _currentUid;
     final isOwnerRow = member.role == VaultRole.owner;
+    final isPrimaryRow = member.authUserId == _primaryOwnerId;
+    final iAmOwner = _myRole == VaultRole.owner;
     final canManage = _myRole.canManageMembers && !isOwnerRow && !isMe;
-    final canTransfer = _myRole == VaultRole.owner && !isOwnerRow;
-    final canLeave = isMe && !isOwnerRow;
-    if (!canManage && !canTransfer && !canLeave) return;
+    // Any owner may add a co-owner; only an owner may demote a NON-primary
+    // co-owner; only the primary owner may hand the primary role on.
+    final canPromote = iAmOwner && !isOwnerRow && !isMe;
+    final canDemote = iAmOwner && isOwnerRow && !isMe && !isPrimaryRow;
+    final canTransfer = _isPrimaryOwner && !isMe;
+    final canLeave = isMe && !isPrimaryRow;
+    if (!canManage && !canPromote && !canDemote && !canTransfer && !canLeave) {
+      return;
+    }
 
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
@@ -366,14 +393,38 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   onTap: () => Navigator.of(context).pop('role:${role.name}'),
                 ),
             ],
-            if (canTransfer) ...[
+            if (canPromote) ...[
               Divider(height: 1, color: palette.border),
               ListTile(
                 leading: Icon(
                   Icons.workspace_premium_rounded,
                   color: AppColors.primaryGreen,
                 ),
-                title: Text(l10n.t('makeOwner')),
+                title: Text(l10n.t('makeCoOwner')),
+                subtitle: Text(l10n.t('makeCoOwnerSubtitle')),
+                onTap: () => Navigator.of(context).pop('promote'),
+              ),
+            ],
+            if (canDemote) ...[
+              Divider(height: 1, color: palette.border),
+              ListTile(
+                leading: const Icon(
+                  Icons.remove_moderator_rounded,
+                  color: AppColors.warning,
+                ),
+                title: Text(l10n.t('removeOwnerRole')),
+                subtitle: Text(l10n.t('removeOwnerRoleSubtitle')),
+                onTap: () => Navigator.of(context).pop('demote'),
+              ),
+            ],
+            if (canTransfer) ...[
+              Divider(height: 1, color: palette.border),
+              ListTile(
+                leading: Icon(
+                  Icons.swap_horiz_rounded,
+                  color: AppColors.primaryGreen,
+                ),
+                title: Text(l10n.t('transferPrimaryOwnership')),
                 subtitle: Text(l10n.t('transferOwnershipSubtitle')),
                 onTap: () => Navigator.of(context).pop('transfer'),
               ),
@@ -417,6 +468,29 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     }
     if (action == 'leave') {
       await _leave(member);
+      return;
+    }
+    if (action == 'promote' || action == 'demote') {
+      try {
+        if (action == 'promote') {
+          await _repo.promoteToOwner(member.id);
+          _toast(l10n
+              .t('memberIsNowCoOwner')
+              .replaceAll('{name}', member.localizedLabel(l10n)));
+        } else {
+          await _repo.updateMemberRole(member.id, VaultRole.admin);
+          _toast(l10n
+              .t('memberRoleChanged')
+              .replaceAll('{name}', member.localizedLabel(l10n))
+              .replaceAll('{role}', VaultRole.admin.localizedLabel(l10n)));
+        }
+        await _loadMembers();
+        await _loadAudit();
+        await _store.reload();
+      } catch (e) {
+        debugPrint('[FamilyVault] owner role change failed: $e');
+        if (mounted) _toast(l10n.t('couldNotUpdateOwnerRole'), error: true);
+      }
       return;
     }
     try {
@@ -478,6 +552,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     if (ok != true || !mounted) return;
     try {
       await _repo.transferOwnership(_vaultId, member.authUserId);
+      _primaryOwnerId = member.authUserId;
       _toast(
         l10n
             .t('memberIsNowOwner')
@@ -1123,10 +1198,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   bool _canActOn(VaultMember member) {
     final isMe = member.authUserId == _currentUid;
     final isOwnerRow = member.role == VaultRole.owner;
+    final isPrimaryRow = member.authUserId == _primaryOwnerId;
+    final iAmOwner = _myRole == VaultRole.owner;
     final canManage = _myRole.canManageMembers && !isOwnerRow && !isMe;
-    final canTransfer = _myRole == VaultRole.owner && !isOwnerRow;
-    final canLeave = isMe && !isOwnerRow;
-    return canManage || canTransfer || canLeave;
+    final canPromote = iAmOwner && !isOwnerRow && !isMe;
+    final canDemote = iAmOwner && isOwnerRow && !isMe && !isPrimaryRow;
+    final canTransfer = _isPrimaryOwner && !isMe;
+    final canLeave = isMe && !isPrimaryRow;
+    return canManage || canPromote || canDemote || canTransfer || canLeave;
   }
 
   Widget _header(AppPalette palette) {
@@ -1184,13 +1263,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 value: 'rename',
                 child: Text(l10n.t('renameVault')),
               ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text(
-                  l10n.t('deleteVault'),
-                  style: const TextStyle(color: AppColors.critical),
+              if (_isPrimaryOwner)
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(
+                    l10n.t('deleteVault'),
+                    style: const TextStyle(color: AppColors.critical),
+                  ),
                 ),
-              ),
             ],
             child: LiquidGlass(
               circle: true,
@@ -1273,13 +1353,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   value: 'rename',
                   child: Text(l10n.t('renameVault')),
                 ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text(
-                    l10n.t('deleteVault'),
-                    style: const TextStyle(color: AppColors.critical),
+                if (_isPrimaryOwner)
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      l10n.t('deleteVault'),
+                      style: const TextStyle(color: AppColors.critical),
+                    ),
                   ),
-                ),
               ],
             ),
           avatar,
@@ -1422,6 +1503,14 @@ class _ActivityTimeline extends StatelessWidget {
             : named('auditLeftNamed');
       case 'ownership_transferred':
         return l10n.t('auditOwnershipTransferred');
+      case 'owner_added':
+        return l10n.t('auditOwnerAdded');
+      case 'join_requested':
+        return l10n.t('auditJoinRequested');
+      case 'join_approved':
+        return l10n.t('auditJoinApproved');
+      case 'join_declined':
+        return l10n.t('auditJoinDeclined');
       case 'vault_renamed':
         return l10n.t('auditVaultRenamed');
       default:

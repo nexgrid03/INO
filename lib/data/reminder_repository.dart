@@ -11,6 +11,10 @@ import '../models/reminder_models.dart';
 /// place that talks to the reminders table (same pattern as DocumentRepository).
 abstract class ReminderRepository {
   /// Loads all of the signed-in user's reminders (active + completed).
+  ///
+  /// Returns empty data when nobody is signed in. THROWS on a network / query
+  /// failure so the store can tell "you have no reminders" apart from "the
+  /// list could not be fetched" - the two used to look identical on screen.
   Future<ReminderData> load();
 
   /// Inserts a new reminder and returns it with its real DB id.
@@ -37,39 +41,33 @@ class SupabaseReminderRepository implements ReminderRepository {
   Future<ReminderData> load() async {
     final today = dateOnly(DateTime.now());
 
-    List<Reminder> all;
-    try {
-      // `_uid` reads the Supabase client; resolving it inside the try keeps
-      // load() from throwing when Supabase isn't initialised (e.g. in tests).
-      final uid = _uid;
-      if (uid == null) {
-        // Not signed in → no reminders to load (screens show the placeholder).
-        return _emptyData(today);
-      }
-      // Defense-in-depth: RLS already scopes rows to the owner, but we ALSO
-      // filter by auth_user_id explicitly so a missing/misconfigured RLS policy
-      // can never leak another user's reminders into this client.
-      // Paged rather than capped: reminders accumulate over years, and a
-      // silently truncated list here means a missed due date, not just a short
-      // screen. `id` keeps page windows stable when due dates tie.
-      final rows = await fetchAllPaged(
-        (from, to) => _client
-            .from(_table)
-            .select()
-            .eq('auth_user_id', uid)
-            .order('due_date')
-            .order('id')
-            .range(from, to)
-            .timeout(NetGuard.query),
-        label: 'reminders',
-      );
-      all = [for (final r in rows) Reminder.fromMap(r)];
-      debugPrint('Reminders loaded from Supabase: ${all.length}');
-    } catch (e) {
-      // Offline / not initialised / query error → start empty.
-      debugPrint('Reminders load failed: $e');
-      all = const [];
+    // `_uid` reads the Supabase client, which throws when Supabase isn't
+    // initialised (tests, or a very early call). That is a genuine "could not
+    // load" and is allowed to propagate; only a signed-out user is "empty".
+    final uid = _uid;
+    if (uid == null) {
+      // Not signed in → no reminders to load (screens show the placeholder).
+      return _emptyData(today);
     }
+    // Defense-in-depth: RLS already scopes rows to the owner, but we ALSO
+    // filter by auth_user_id explicitly so a missing/misconfigured RLS policy
+    // can never leak another user's reminders into this client.
+    // Paged rather than capped: reminders accumulate over years, and a
+    // silently truncated list here means a missed due date, not just a short
+    // screen. `id` keeps page windows stable when due dates tie.
+    final rows = await fetchAllPaged(
+      (from, to) => _client
+          .from(_table)
+          .select()
+          .eq('auth_user_id', uid)
+          .order('due_date')
+          .order('id')
+          .range(from, to)
+          .timeout(NetGuard.query),
+      label: 'reminders',
+    );
+    final all = [for (final r in rows) Reminder.fromMap(r)];
+    debugPrint('Reminders loaded from Supabase: ${all.length}');
 
     final active = all.where((r) => !r.completed).toList();
     final completed = all.where((r) => r.completed).toList();
