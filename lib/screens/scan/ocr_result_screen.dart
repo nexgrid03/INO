@@ -263,6 +263,15 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       delay: const Duration(milliseconds: 120),
                       children: [
                         OcrField(
+                          label: l10n.t('category'),
+                          child: OcrSelector(
+                            value: _category,
+                            placeholder: l10n.t('chooseCategory'),
+                            leading: Icons.label_rounded,
+                            onTap: _pickCategory,
+                          ),
+                        ),
+                        OcrField(
                           label: l10n.t('documentName'),
                           child: OcrTextField(
                             controller: _name,
@@ -316,15 +325,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       icon: Icons.folder_rounded,
                       delay: const Duration(milliseconds: 180),
                       children: [
-                        OcrField(
-                          label: l10n.t('category'),
-                          child: OcrSelector(
-                            value: _category,
-                            placeholder: l10n.t('chooseCategory'),
-                            leading: Icons.label_rounded,
-                            onTap: _pickCategory,
-                          ),
-                        ),
                         OcrField(
                           label: l10n.t('tags'),
                           optional: true,

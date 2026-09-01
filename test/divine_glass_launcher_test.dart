@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:inoapp/core/responsive/responsive.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/profile/profile_screen.dart';
@@ -12,6 +13,9 @@ import 'package:inoapp/widgets/profile/settings_group.dart';
 import 'package:inoapp/widgets/profile/settings_scaffold.dart';
 
 void main() {
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
   final profile = UserProfile(
     id: '1',
     authUserId: 'a',
@@ -23,7 +27,7 @@ void main() {
     updatedAt: DateTime(2026, 1, 1),
   );
 
-  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.classic}) {
+  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.aqua}) {
     return MaterialApp(
       theme: AppTheme.light,
       home: InoStyleScope(
@@ -34,10 +38,10 @@ void main() {
   }
 
   setUp(() {
-    ThemeController.style.value = ThemeStyle.classic;
+    ThemeController.style.value = ThemeStyle.aqua;
   });
 
-  testWidgets('Classic Profile uses glassy settings groups (LiquidGlass)',
+  testWidgets('Aqua Profile uses glassy settings groups (LiquidGlass)',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 6000);
     tester.view.devicePixelRatio = 3.0;
@@ -103,19 +107,20 @@ void main() {
     expect(find.byType(LiquidGlass), findsOneWidget);
   });
 
-  testWidgets('Classic AdaptiveGlassCard uses LiquidGlass', (tester) async {
+  testWidgets('AquaMist AdaptiveGlassCard uses LiquidGlass', (tester) async {
     await tester.pumpWidget(
       wrap(
         const Scaffold(
           body: AdaptiveGlassCard(
-            child: Text('Classic body'),
+            child: Text('AquaMist body'),
           ),
         ),
+        style: ThemeStyle.aquaMist,
       ),
     );
     await tester.pump();
 
-    expect(find.text('Classic body'), findsOneWidget);
+    expect(find.text('AquaMist body'), findsOneWidget);
     expect(find.byType(LiquidGlass), findsOneWidget);
   });
 
@@ -137,7 +142,7 @@ void main() {
     expect(find.byType(LiquidGlass), findsWidgets);
   });
 
-  testWidgets('Classic SettingsScaffold keeps transparent AppBar',
+  testWidgets('Aqua SettingsScaffold uses DivineGlassAppBar',
       (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -145,11 +150,12 @@ void main() {
           title: 'About',
           child: SizedBox.shrink(),
         ),
+        style: ThemeStyle.aqua,
       ),
     );
     await tester.pump();
 
     expect(find.text('About'), findsOneWidget);
-    expect(find.byType(DivineGlassAppBar), findsNothing);
+    expect(find.byType(DivineGlassAppBar), findsOneWidget);
   });
 }

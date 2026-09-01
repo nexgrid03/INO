@@ -62,7 +62,7 @@ class AppColors {
   static const Color skyBrandFoam = _skyFoam;
 
   /// When true, legacy brand getters resolve to the Aqua teal ladder
-  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaLight] / [ThemeStyle.aquaMist]).
+  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaMist]).
   static bool _aquaActive = false;
 
   /// Sync brand getters with the picked [ThemeStyle]. Called from
@@ -540,14 +540,8 @@ class AppPalette {
     switch (style) {
       case ThemeStyle.aqua:
         return lightAqua;
-      case ThemeStyle.aquaLight:
-        return lightAquaLight;
       case ThemeStyle.aquaMist:
         return lightAquaMist;
-      case ThemeStyle.clay:
-        // Clay shares Aqua's teal palette; only Home icons differ (3D).
-        return lightAqua;
-      case ThemeStyle.classic:
       case ThemeStyle.launcher:
         return light;
     }
@@ -593,7 +587,7 @@ class AppTheme {
   static ThemeData get dark => _build(Brightness.dark);
 
   /// Style-aware variants - the scaffold wash, borders and shadows shift with
-  /// the picked [ThemeStyle] (classic / bold / soft).
+  /// the picked [ThemeStyle] (launcher / aqua / aquaMist).
   static ThemeData lightFor(ThemeStyle style) =>
       _build(Brightness.light, style: style);
   static ThemeData darkFor(ThemeStyle style) =>
@@ -601,7 +595,7 @@ class AppTheme {
 
   static ThemeData _build(
     Brightness brightness, {
-    ThemeStyle style = ThemeStyle.classic,
+    ThemeStyle style = ThemeStyle.aqua,
   }) {
     final isDark = brightness == Brightness.dark;
     final palette = AppPalette.resolve(brightness: brightness, style: style);

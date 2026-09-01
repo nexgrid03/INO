@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:inoapp/core/responsive/responsive.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/models/wallet_detail_models.dart';
@@ -15,6 +16,9 @@ import 'package:inoapp/widgets/wallet_detail/document_card.dart';
 import 'package:inoapp/widgets/wallet_detail/empty_state.dart';
 
 void main() {
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
   final profile = UserProfile(
     id: '1',
     authUserId: 'a',
@@ -35,7 +39,7 @@ void main() {
     gradient: const [Color(0xFF0EA5E9), Color(0xFF0EA5E9)],
   );
 
-  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.classic}) {
+  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.aqua}) {
     return MaterialApp(
       theme: AppTheme.light,
       home: InoStyleScope(
@@ -46,7 +50,7 @@ void main() {
   }
 
   setUp(() {
-    ThemeController.style.value = ThemeStyle.classic;
+    ThemeController.style.value = ThemeStyle.aqua;
   });
 
   testWidgets('Launcher DocumentCard uses DivineGlassDocumentCard',
@@ -82,7 +86,7 @@ void main() {
     expect(find.text('VALID'), findsOneWidget);
   });
 
-  testWidgets('Classic DocumentCard does not use DivineGlassDocumentCard',
+  testWidgets('Aqua DocumentCard uses DivineGlassDocumentCard',
       (tester) async {
     final record = DocumentRecord(
       id: '1',
@@ -104,12 +108,13 @@ void main() {
             onMore: () {},
           ),
         ),
+        style: ThemeStyle.aqua,
       ),
     );
     await tester.pump();
 
-    expect(find.byType(DivineGlassDocumentCard), findsNothing);
-    expect(find.text('VALID'), findsNothing);
+    expect(find.byType(DivineGlassDocumentCard), findsOneWidget);
+    expect(find.byType(LiquidGlass), findsWidgets);
   });
 
   testWidgets('Launcher WalletEmptyState uses DivineGlassEmptyPanel',
@@ -152,7 +157,7 @@ void main() {
     expect(find.byType(LiquidGlass), findsWidgets);
   });
 
-  testWidgets('Classic WalletDetailScreen builds without DivineGlass filter',
+  testWidgets('Aqua WalletDetailScreen builds with glassy cards',
       (tester) async {
     tester.view.physicalSize = const Size(1600, 4000);
     tester.view.devicePixelRatio = 2.0;
@@ -162,11 +167,10 @@ void main() {
     });
 
     await tester.pumpWidget(
-      wrap(WalletDetailScreen(category: identity)),
+      wrap(WalletDetailScreen(category: identity), style: ThemeStyle.aqua),
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.byType(DivineGlassFilterButton), findsNothing);
-    expect(find.byType(DivineGlassDocumentCard), findsNothing);
+    expect(find.byType(LiquidGlass), findsWidgets);
   });
 }

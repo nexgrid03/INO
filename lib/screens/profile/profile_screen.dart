@@ -274,37 +274,23 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   String _themeStyleLabel(AppLocalizations l10n, ThemeStyle style) {
     switch (style) {
-      case ThemeStyle.classic:
-        return l10n.t('themeClassic');
-
       case ThemeStyle.launcher:
         return l10n.t('themeLauncher');
       case ThemeStyle.aqua:
         return l10n.t('themeAqua');
-      case ThemeStyle.aquaLight:
-        return l10n.t('themeAquaLight');
       case ThemeStyle.aquaMist:
         return l10n.t('themeAquaMist');
-      case ThemeStyle.clay:
-        return l10n.t('themeClay');
     }
   }
 
   String _themeStyleDesc(AppLocalizations l10n, ThemeStyle style) {
     switch (style) {
-      case ThemeStyle.classic:
-        return l10n.t('themeClassicDesc');
-
       case ThemeStyle.launcher:
         return l10n.t('themeLauncherDesc');
       case ThemeStyle.aqua:
         return l10n.t('themeAquaDesc');
-      case ThemeStyle.aquaLight:
-        return l10n.t('themeAquaLightDesc');
       case ThemeStyle.aquaMist:
         return l10n.t('themeAquaMistDesc');
-      case ThemeStyle.clay:
-        return l10n.t('themeClayDesc');
     }
   }
 
@@ -1308,19 +1294,6 @@ class _ThemeSwatch extends StatelessWidget {
     final Color edge;
     final Widget glyph;
     switch (style) {
-      case ThemeStyle.classic:
-        fill = Colors.white;
-        edge = accent;
-        glyph = Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            color: accent,
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: const Icon(Icons.star_rounded, color: Colors.white, size: 12),
-        );
-
       case ThemeStyle.launcher:
         fill = Colors.white;
         edge = accent;
@@ -1333,27 +1306,11 @@ class _ThemeSwatch extends StatelessWidget {
           color: AppColors.aquaPrimary,
           size: 18,
         );
-      case ThemeStyle.aquaLight:
-        fill = const Color(0xFFF3F9F9);
-        edge = AppColors.aquaPrimary;
-        glyph = const Icon(
-          Icons.water_drop_outlined,
-          color: AppColors.aquaPrimary,
-          size: 18,
-        );
       case ThemeStyle.aquaMist:
         fill = AppColors.aquaMist;
         edge = AppColors.aquaPrimary;
         glyph = const Icon(
           Icons.blur_on_rounded,
-          color: AppColors.aquaPrimary,
-          size: 18,
-        );
-      case ThemeStyle.clay:
-        fill = AppColors.aquaFoam;
-        edge = AppColors.aquaPrimary;
-        glyph = const Icon(
-          Icons.view_in_ar_rounded,
           color: AppColors.aquaPrimary,
           size: 18,
         );

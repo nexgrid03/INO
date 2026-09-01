@@ -6,10 +6,7 @@ import '../../theme/theme_style.dart';
 import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
-/// My Vaults: same glass box for every vault.
-///
-/// [ThemeStyle.clay] uses soft-3D glyphs; aqua / launcher / aquaLight use
-/// tinted SVGs (pre-3D asset set).
+/// Horizontally scrollable row of personal vaults for the Divine Glass Home.
 class MyVaultsRow extends StatelessWidget {
   const MyVaultsRow({
     super.key,

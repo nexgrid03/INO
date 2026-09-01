@@ -86,18 +86,12 @@ class ThemeController {
     switch (name) {
       case 'launcher':
         return ThemeStyle.launcher;
-      case 'classic':
-        return ThemeStyle.classic;
       case 'aqua':
         return ThemeStyle.aqua;
-      case 'aquaLight':
-        return ThemeStyle.aquaLight;
       case 'aquaMist':
         return ThemeStyle.aquaMist;
-      case 'clay':
-        return ThemeStyle.clay;
       default:
-        // First launch (no pref yet) → Aqua.
+        // First launch (no pref yet) or legacy removed theme -> Aqua.
         return ThemeStyle.aqua;
     }
   }

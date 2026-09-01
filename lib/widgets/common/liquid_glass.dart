@@ -87,8 +87,11 @@ class _GlassScrollListenerState extends State<GlassScrollListener> {
   }
 
   void _onScrollEnd() {
+
     _settle?.cancel();
-    // A beat of quiet before restoring blur, so back-to-back flicks don't
+    // A beat of quiet before restoring blur, so back-to-back flicks don't\
+
+
     // thrash the layer tree between them.
     _settle = Timer(const Duration(milliseconds: 250), () {
       if (!mounted || _allowBlur) return;

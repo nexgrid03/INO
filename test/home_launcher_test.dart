@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:inoapp/core/responsive/responsive.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/home/home_screen.dart';
@@ -9,6 +10,9 @@ import 'package:inoapp/theme/theme_style.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
   final profile = UserProfile(
     id: '1',
     authUserId: 'a',
@@ -20,7 +24,7 @@ void main() {
     updatedAt: DateTime(2026, 1, 1),
   );
 
-  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.classic}) {
+  Widget wrap(Widget child, {ThemeStyle style = ThemeStyle.aqua}) {
     return MaterialApp(
       theme: AppTheme.light,
       home: InoStyleScope(
@@ -32,10 +36,10 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    ThemeController.style.value = ThemeStyle.classic;
+    ThemeController.style.value = ThemeStyle.aqua;
   });
 
-  testWidgets('Classic Home keeps original sections without My Vaults',
+  testWidgets('Aqua Home renders launcher layout with My Vaults',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 6000);
     tester.view.devicePixelRatio = 3.0;
@@ -58,9 +62,8 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Quick Actions'), findsOneWidget);
-    expect(find.text('Reminders'), findsOneWidget);
-    expect(find.text('My Vaults'), findsNothing);
-    expect(find.text('Needs attention'), findsNothing);
+    expect(find.text('My Vaults'), findsOneWidget);
+    expect(find.text('Needs attention'), findsOneWidget);
     expect(find.text('Pending Actions'), findsNothing);
   });
 

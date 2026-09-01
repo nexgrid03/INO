@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
+import '../../services/biometric_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -9,6 +10,7 @@ import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
+import '../security/biometric_ux.dart';
 import 'launcher_glass_icon_tile.dart';
 
 /// The Home hero block, replicating the reference vault layout:
@@ -355,7 +357,7 @@ class _ClayVaultHero extends StatelessWidget {
                 // Keep copy + art on one row (same as other themes) —
                 // shrink art / title instead of stacking on narrow widths.
                 final titleSize = constraints.maxWidth < 300 ? 17.0 : 21.0;
-                final artW = (constraints.maxWidth * 0.42).clamp(108.0, 188.0);
+                final artW = (constraints.maxWidth * 0.44).clamp(115.0, 195.0);
                 final copy = _copy(
                   palette: palette,
                   titleSize: titleSize,
@@ -446,8 +448,109 @@ class _ClayVaultHero extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        _HeroCta(onTap: onCta, label: ctaLabel),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: _HeroCta(onTap: onCta, label: ctaLabel)),
+            const SizedBox(width: 10),
+            _FingerprintOption(palette: palette),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+/// Fingerprint biometric option button located at the bottom of the hero card.
+class _FingerprintOption extends StatelessWidget {
+  const _FingerprintOption({required this.palette});
+
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: BiometricService.instance.lockEnabled,
+      builder: (context, enabled, _) {
+        return Tooltip(
+          message: enabled
+              ? l10n.t('biometricProtected')
+              : l10n.t('enableBiometricLock'),
+          child: PressableScale(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                if (!enabled) {
+                  final support = await BiometricService.instance.support();
+                  if (support == BiometricSupport.unsupported) {
+                    if (context.mounted) {
+                      BiometricUx.errorSnack(
+                        context,
+                        l10n.t('biometricUnsupportedDevice'),
+                      );
+                    }
+                    return;
+                  }
+                  if (support == BiometricSupport.notEnrolled) {
+                    if (context.mounted) {
+                      final openSettings =
+                          await BiometricUx.noBiometricsDialog(context);
+                      if (openSettings) {
+                        await BiometricService.instance
+                            .openEnrollmentSettings();
+                      }
+                    }
+                    return;
+                  }
+                  final outcome =
+                      await BiometricService.instance.authenticateDetailed(
+                    reason: l10n.t('confirmIdentityEnable'),
+                  );
+                  if (outcome.ok) {
+                    await BiometricService.instance.setLockEnabled(true);
+                    if (context.mounted) {
+                      BiometricUx.successSnack(
+                        context,
+                        l10n.t('biometricEnabledMsg'),
+                      );
+                    }
+                  }
+                } else {
+                  if (context.mounted) {
+                    BiometricUx.successSnack(
+                      context,
+                      l10n.t('biometricProtected'),
+                    );
+                  }
+                }
+              },
+              child: Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.fingerprint_rounded,
+                    size: 21,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
