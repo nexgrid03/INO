@@ -177,44 +177,31 @@ class _OtpBoxState extends State<_OtpBox> {
     final filled = widget.controller.text.isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      // Width comes from the SizedBox the parent sizes to fit the screen; only
-      // the height is fixed here.
-      height: 58,
+      height: 56,
       decoration: BoxDecoration(
-        // Translucent glass box over the sky wash, pale-sky hairline at rest.
-        color: Colors.white.withValues(alpha: 0.85),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _focused || filled
+          color: _focused
               ? AppColors.primaryGreen
-              : AppColors.tealPale,
+              : (filled ? AppColors.primaryGreen.withValues(alpha: 0.7) : AppColors.tealPale),
           width: _focused ? 1.8 : 1.2,
         ),
-        boxShadow: _focused
-            ? [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.18),
-                  blurRadius: 14,
-                  spreadRadius: 1,
-                ),
-              ]
-            : const [],
       ),
       alignment: Alignment.center,
-      child: KeyboardListener(
-        focusNode: FocusNode(skipTraversal: true),
-        onKeyEvent: (event) => widget.onKey(event),
+      child: Focus(
+        onKeyEvent: (_, event) => widget.onKey(event),
         child: TextField(
           controller: widget.controller,
           focusNode: widget.node,
           enabled: widget.enabled,
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
+          cursorColor: AppColors.primaryGreen,
           // Allow a longer buffer so a full pasted code reaches onChanged.
           maxLength: 6,
           showCursor: true,
-          style:  TextStyle(
-            // Divine Glass mockup renders the entered digits in brand blue.
+          style: TextStyle(
             color: AppColors.primaryGreen,
             fontSize: 22,
             fontWeight: FontWeight.w700,
@@ -222,7 +209,12 @@ class _OtpBoxState extends State<_OtpBox> {
           decoration: const InputDecoration(
             counterText: '',
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
+            isDense: true,
           ),
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: (v) {

@@ -7,7 +7,6 @@ import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
-import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import 'auth_flow.dart';
 import 'otp_verification_screen.dart';
@@ -139,8 +138,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               authUserId: user.id,
               fullName: (user.userMetadata?['full_name'] as String?) ??
                   (user.userMetadata?['name'] as String?) ??
-                  'INO User',
+                  '',
               email: user.email ?? '',
+              phone: phone,
             );
           },
         ),
@@ -164,6 +164,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
     return AuthScaffold(
       showBack: true,
       child: Form(
@@ -172,54 +173,61 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             FadeSlideIn(child: const _PhoneBadge()),
-            const SizedBox(height: 26),
+            const SizedBox(height: 18),
             FadeSlideIn(
               delay: const Duration(milliseconds: 60),
               child: AuthPageTitle(l10n.t('signInWithPhone')),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             FadeSlideIn(
               delay: const Duration(milliseconds: 110),
               child: Text(
                 l10n.t('phoneOtpSubtitle'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 14,
                   color: AppColors.textMuted,
-                  height: 1.5,
+                  height: 1.4,
                 ),
               ),
             ),
-            const SizedBox(height: 34),
+            const SizedBox(height: 22),
             FadeSlideIn(
               delay: const Duration(milliseconds: 160),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _CountrySelector(country: _country, onTap: _pickCountry),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AuthTextField(
-                      controller: _phoneController,
-                      label: l10n.t('mobileNumber'),
-                      hint: '98765 43210',
-                      icon: Icons.smartphone_rounded,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.done,
-                      autofillHints: const [AutofillHints.telephoneNumber],
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9 \-]')),
-                      ],
-                      validator: _validatePhone,
-                      onSubmitted: (_) => _sendOtp(),
+                  Text(
+                    l10n.t('mobileNumber'),
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _CountrySelector(country: _country, onTap: _pickCountry),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _PhoneInputField(
+                          controller: _phoneController,
+                          hint: '98765 43210',
+                          validator: _validatePhone,
+                          onSubmitted: _sendOtp,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
             FadeSlideIn(
               delay: const Duration(milliseconds: 210),
               child: AuthPrimaryButton(
@@ -228,7 +236,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 onPressed: _busy ? null : _sendOtp,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             FadeSlideIn(
               delay: const Duration(milliseconds: 250),
               child: Text(
@@ -240,7 +248,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -256,20 +264,20 @@ class _PhoneBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 84,
-        height: 84,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           gradient: AppColors.brandGradient,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
               color: AppColors.primaryGreen.withValues(alpha: 0.35),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: const Icon(Icons.smartphone_rounded, color: Colors.white, size: 38),
+        child: const Icon(Icons.smartphone_rounded, color: Colors.white, size: 32),
       ),
     );
   }
@@ -284,32 +292,134 @@ class _CountrySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final fill = palette.isDark ? palette.surfaceVariant : Colors.white;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 58,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          // Matches the glass text field beside it.
-          color: Colors.white.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.tealPale, width: 1.2),
+          color: fill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: palette.border, width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(country.flag, style: const TextStyle(fontSize: 20)),
+            Text(country.flag, style: const TextStyle(fontSize: 18)),
             const SizedBox(width: 6),
             Text(
               country.dialCode,
-              style: const TextStyle(
-                color: AppColors.textDark,
-                fontSize: 15,
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textMuted),
+            Icon(Icons.arrow_drop_down_rounded, color: palette.textSecondary, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhoneInputField extends StatefulWidget {
+  const _PhoneInputField({
+    required this.controller,
+    required this.hint,
+    required this.validator,
+    required this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final String? Function(String?) validator;
+  final VoidCallback onSubmitted;
+
+  @override
+  State<_PhoneInputField> createState() => _PhoneInputFieldState();
+}
+
+class _PhoneInputFieldState extends State<_PhoneInputField> {
+  final FocusNode _node = FocusNode();
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _node.addListener(() {
+      if (_node.hasFocus != _focused) {
+        setState(() => _focused = _node.hasFocus);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final fill = palette.isDark ? palette.surfaceVariant : Colors.white;
+
+    return TextFormField(
+      controller: widget.controller,
+      focusNode: _node,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.done,
+      autofillHints: const [AutofillHints.telephoneNumber],
+      cursorColor: AppColors.primaryGreen,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9 \-]')),
+      ],
+      validator: widget.validator,
+      onFieldSubmitted: (_) => widget.onSubmitted(),
+      style: TextStyle(
+        color: palette.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        isDense: true,
+        filled: true,
+        fillColor: fill,
+        hintStyle: TextStyle(
+          color: palette.textFaint,
+          fontSize: 14.5,
+          fontWeight: FontWeight.w400,
+        ),
+        prefixIcon: Icon(
+          Icons.smartphone_rounded,
+          color: _focused ? AppColors.primaryGreen : palette.textSecondary,
+          size: 20,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: palette.border, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: palette.border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: AppColors.primaryGreen, width: 1.6),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.critical, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.critical, width: 1.6),
         ),
       ),
     );

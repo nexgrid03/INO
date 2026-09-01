@@ -32,6 +32,7 @@ Future<void> routeAfterAuth({
   required String authUserId,
   required String fullName,
   required String email,
+  String? phone,
   bool mfaSatisfied = false,
 }) async {
   if (_routingAfterAuth) {
@@ -82,12 +83,15 @@ Future<void> routeAfterAuth({
         'routeAfterAuth → CompleteProfile (existing=${existing != null})',
         name: 'auth',
       );
+      final effectiveName = existing?.fullName ?? (fullName == 'INO User' ? '' : fullName);
+      final effectivePhone = existing?.phone ?? phone;
       Navigator.of(navContext).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => CompleteProfileScreen(
             authUserId: authUserId,
-            fullName: existing?.fullName ?? fullName,
+            fullName: effectiveName,
             email: existing?.email ?? email,
+            phone: effectivePhone,
             existingProfile: existing,
           ),
         ),
