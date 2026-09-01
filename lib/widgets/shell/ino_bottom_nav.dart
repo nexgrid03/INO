@@ -305,25 +305,28 @@ class _InoBottomNavState extends State<InoBottomNav>
         // (Flutter web has no BackdropFilter). Light keeps the airy glass look.
         child: Material(
           color: dark
-              ? palette.surface.withValues(alpha: 0.92)
-              : Colors.transparent,
-          elevation: 0,
+              ? palette.surface.withValues(alpha: 0.95)
+              : Colors.white.withValues(alpha: 0.96),
+          elevation: 4,
+          shadowColor: Colors.black.withValues(alpha: dark ? 0.4 : 0.08),
           borderRadius: BorderRadius.circular(28),
           clipBehavior: Clip.antiAlias,
-          child: LiquidGlass(
-            borderRadius: BorderRadius.circular(28),
-            blur: 24,
-            frost: dark ? 1.85 : 1.7,
-            tint: dark ? palette.surface : Colors.white,
-            shadow: true,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: dark ? palette.border : AppColors.tealPale.withValues(alpha: 0.6),
+                width: 1.0,
+              ),
+            ),
             child: SizedBox(
-              height: context.horizontalCardHeight(64),
+              height: context.horizontalCardHeight(66),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // Soft selected pill behind the active tab (not the +).
+                    // Mountain-shaped curved bump behind the active tab (WhatsApp style).
                     if (widget.index != 2)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -331,24 +334,32 @@ class _InoBottomNavState extends State<InoBottomNav>
                             builder: (context, constraints) {
                               final slot = constraints.maxWidth /
                                   InoBottomNav.tabs.length;
+                              final mountainWidth = math.min(slot + 38, 110.0);
+                              final mountainColor = dark
+                                  ? AppColors.primaryGreen.withValues(alpha: 0.22)
+                                  : (InoStyle.isAqua(context)
+                                      ? AppColors.aquaMist.withValues(alpha: 0.85)
+                                      : const Color(0xFFE0F2FE));
+                              final mountainBorder = dark
+                                  ? AppColors.primaryGreen.withValues(alpha: 0.28)
+                                  : const Color(0xFFBAE6FD);
+
                               return Stack(
                                 children: [
                                   AnimatedPositioned(
+                                    key: const ValueKey('mountain_indicator'),
                                     duration:
-                                        const Duration(milliseconds: 280),
-                                    curve: Curves.easeOutCubic,
-                                    left: slot * widget.index + 4,
-                                    top: 8,
-                                    bottom: 8,
-                                    width: slot - 8,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryGreen
-                                            .withValues(
-                                          alpha: dark ? 0.22 : 0.12,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(18),
+                                        const Duration(milliseconds: 250),
+                                    curve: Curves.easeInOutCubic,
+                                    left: slot * widget.index +
+                                        (slot - mountainWidth) / 2,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: mountainWidth,
+                                    child: CustomPaint(
+                                      painter: MountainShapePainter(
+                                        color: mountainColor,
+                                        borderColor: mountainBorder,
                                       ),
                                     ),
                                   ),
@@ -358,36 +369,6 @@ class _InoBottomNavState extends State<InoBottomNav>
                           ),
                         ),
                       ),
-                    // Slim active underline.
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final slot = constraints.maxWidth /
-                                InoBottomNav.tabs.length;
-                            return Stack(
-                              children: [
-                                AnimatedPositioned(
-                                  duration: const Duration(milliseconds: 320),
-                                  curve: Curves.easeOutCubic,
-                                  left: slot * widget.index +
-                                      (slot - _indicatorWidth) / 2,
-                                  bottom: 6,
-                                  child: Container(
-                                    width: _indicatorWidth,
-                                    height: 3,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryGreen,
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
                     Row(
                       children: [
                         for (var i = 0; i < InoBottomNav.tabs.length; i++)
@@ -423,9 +404,6 @@ class _InoBottomNavState extends State<InoBottomNav>
     );
   }
 
-  /// Width of the active-indicator line.
-  static const double _indicatorWidth = 22;
-
   static _TabKind _kindFor(int i) => switch (i) {
         0 => _TabKind.home,
         1 => _TabKind.wallet,
@@ -434,11 +412,103 @@ class _InoBottomNavState extends State<InoBottomNav>
       };
 }
 
+/// Custom painter that draws a soft mountain-like curved bump (WhatsApp style).
+class MountainShapePainter extends CustomPainter {
+  const MountainShapePainter({
+    required this.color,
+    this.borderColor,
+  });
+
+  final Color color;
+  final Color? borderColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final peakX = w / 2;
+    const topY = 4.0;
+    final bottomY = h;
+
+    final path = Path();
+    path.moveTo(0, bottomY);
+
+    // Left flare: wide smooth horizontal entrance blending from baseline to flank
+    path.cubicTo(
+      w * 0.30, bottomY,
+      peakX - 32, bottomY * 0.44,
+      peakX - 22, bottomY * 0.24,
+    );
+
+    // Wide, rounded dome crest (WhatsApp style)
+    path.cubicTo(
+      peakX - 12, topY,
+      peakX + 12, topY,
+      peakX + 22, bottomY * 0.24,
+    );
+
+    // Right flare: wide smooth descent blending back to baseline
+    path.cubicTo(
+      peakX + 32, bottomY * 0.44,
+      w * 0.70, bottomY,
+      w, bottomY,
+    );
+
+    path.close();
+
+    // Soft blended fill gradient
+    final gradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        color,
+        color.withValues(alpha: color.a * 0.75),
+      ],
+    );
+
+    final fillPaint = Paint()
+      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, w, h))
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, fillPaint);
+
+    if (borderColor != null) {
+      final borderPaint = Paint()
+        ..color = borderColor!.withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8;
+
+      final strokePath = Path();
+      strokePath.moveTo(0, bottomY);
+      strokePath.cubicTo(
+        w * 0.30, bottomY,
+        peakX - 32, bottomY * 0.44,
+        peakX - 22, bottomY * 0.24,
+      );
+      strokePath.cubicTo(
+        peakX - 12, topY,
+        peakX + 12, topY,
+        peakX + 22, bottomY * 0.24,
+      );
+      strokePath.cubicTo(
+        peakX + 32, bottomY * 0.44,
+        w * 0.70, bottomY,
+        w, bottomY,
+      );
+      canvas.drawPath(strokePath, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant MountainShapePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.borderColor != borderColor;
+}
+
 /// The bespoke micro-interaction each side tab plays when it becomes active.
 enum _TabKind { home, wallet, notifications, profile }
 
-/// A single side tab: constant 26px glyph that fades grey⇄primary, pops
-/// (1 → 1.15 → 1) on selection, and layers its signature motion on top.
+/// A single side tab: icon and label that fade grey⇄primary, pop
+/// on selection, and layer their signature motion on top.
 class _TabButton extends StatefulWidget {
   const _TabButton({
     required this.item,
@@ -458,8 +528,6 @@ class _TabButton extends StatefulWidget {
 
 class _TabButtonState extends State<_TabButton>
     with SingleTickerProviderStateMixin {
-  // One-shot 250ms controller: fires each time the tab becomes active, then
-  // rests - every transform below returns to zero at t=1 so nothing sticks.
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 250),
@@ -480,18 +548,17 @@ class _TabButtonState extends State<_TabButton>
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
       child: SizedBox(
-        height: 50,
+        height: 56,
         child: Center(
           child: AnimatedBuilder(
             animation: _c,
             builder: (context, _) {
               final t = _c.value;
-              // Sustained colour fade lives in its own implicit tween so it
-              // stays smooth independent of the one-shot motion controller.
               final icon = TweenAnimationBuilder<double>(
                 tween: Tween(end: widget.selected ? 1.0 : 0.0),
                 duration: const Duration(milliseconds: 240),
@@ -504,12 +571,37 @@ class _TabButtonState extends State<_TabButton>
                     widget.selected
                         ? widget.item.active
                         : widget.item.inactive,
-                    size: 26,
+                    size: 24,
                     color: Color.lerp(idle, AppColors.primaryGreen, sel),
                   );
                 },
               );
-              return _decorate(icon, t);
+
+              final content = Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  icon,
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.item.label(l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight:
+                          widget.selected ? FontWeight.w700 : FontWeight.w500,
+                      color: widget.selected
+                          ? AppColors.primaryGreen
+                          : (palette.isDark
+                              ? palette.textPrimary.withValues(alpha: 0.6)
+                              : palette.textSecondary),
+                    ),
+                  ),
+                ],
+              );
+
+              return _decorate(content, t);
             },
           ),
         ),

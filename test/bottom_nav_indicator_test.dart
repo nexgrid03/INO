@@ -39,14 +39,11 @@ void main() {
         final iconCentre =
             tester.getCenter(find.byIcon(InoBottomNav.tabs[index].active));
 
-        // The indicator is the only 22×3 box in the tree.
-        final line = find.byWidgetPredicate((w) =>
-            w is Container &&
-            w.constraints?.maxWidth == 22 &&
-            w.constraints?.maxHeight == 3);
-        expect(line, findsOneWidget);
+        // The mountain indicator sits behind the active tab.
+        final indicator = find.byKey(const ValueKey('mountain_indicator'));
+        expect(indicator, findsOneWidget);
 
-        final offset = tester.getCenter(line).dx - iconCentre.dx;
+        final offset = tester.getCenter(indicator).dx - iconCentre.dx;
         expect(
           offset.abs(),
           lessThan(0.5),
