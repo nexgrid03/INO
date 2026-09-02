@@ -30,7 +30,6 @@ import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/dashboard_card.dart';
 import '../../widgets/home/empty_state.dart';
-import '../../widgets/home/market_card.dart';
 import '../../widgets/home/my_vaults_row.dart';
 import '../../widgets/home/pending_actions_row.dart';
 import '../../widgets/home/quick_action_button.dart';
@@ -43,7 +42,6 @@ import '../../widgets/scan/home_qr_panel.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../home/pending_actions_screen.dart';
-import '../markets/markets_screen.dart';
 import '../notes/notes_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/help_center_screen.dart';
@@ -316,9 +314,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await data;
   }
 
-  List<MarketQuote> _marketsFor(_HomeData data) =>
-      _marketOverride ?? data.market;
-
   // ---- Navigation ----------------------------------------------------------
 
   // Tab switches are gated for guests inside MainShell._onTabChanged, so this
@@ -542,17 +537,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: const _SixFinanceTools(),
       ),
-      _Section(
-        header: SectionHeader(
-          title: l10n.t('marketSnapshot'),
-          actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-        child: MarketCard(
-          quotes: _marketsFor(data),
-          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-      ),
     ];
   }
 
@@ -663,19 +647,6 @@ class _HomeScreenState extends State<HomeScreen> {
       LauncherHubShortcuts(
         onExpenses: () => _push(const ExpenseDashboardScreen()),
         onNetWorth: () => _push(const NetWorthAnalyticsScreen()),
-      ),
-
-      // 7. Market Snapshot
-      _Section(
-        header: SectionHeader(
-          title: l10n.t('marketSnapshot'),
-          actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-        child: MarketCard(
-          quotes: _marketsFor(data),
-          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
       ),
     ];
   }

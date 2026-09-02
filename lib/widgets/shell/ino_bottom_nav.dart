@@ -77,6 +77,33 @@ class InoBottomNav extends StatefulWidget {
     NavItem('profile', Icons.person_rounded, Icons.person_outline_rounded),
   ];
 
+  /// Global notifier indicating whether the FAB quick menu is currently open.
+  static final ValueNotifier<bool> isMenuOpenNotifier = ValueNotifier<bool>(false);
+
+  /// Helper getter to check if the FAB quick menu is currently open.
+  static bool get isMenuOpen {
+    final state = _activeState;
+    if (state != null) {
+      return state._open || state._wheelOpen || isMenuOpenNotifier.value;
+    }
+    return isMenuOpenNotifier.value;
+  }
+
+  static _InoBottomNavState? _activeState;
+
+  /// Closes the active FAB menu if open. Returns `true` if a menu was closed.
+  static bool closeActiveMenu() {
+    final state = _activeState;
+    if (state != null && (state._open || state._wheelOpen || isMenuOpenNotifier.value)) {
+      debugPrint('[FAB Menu] Executing closeActiveMenu() on active nav state.');
+      state._closeMenu();
+      state._onHoldCancel();
+      isMenuOpenNotifier.value = false;
+      return true;
+    }
+    return false;
+  }
+
   @override
   State<InoBottomNav> createState() => _InoBottomNavState();
 }
@@ -106,7 +133,16 @@ class _InoBottomNavState extends State<InoBottomNav>
   bool get _wheelOpen => _wheelEntry != null;
 
   @override
+  void initState() {
+    super.initState();
+    InoBottomNav._activeState = this;
+  }
+
+  @override
   void dispose() {
+    if (InoBottomNav._activeState == this) {
+      InoBottomNav._activeState = null;
+    }
     _entry?.remove();
     _wheelEntry?.remove();
     _highlight.dispose();
@@ -176,6 +212,8 @@ class _InoBottomNavState extends State<InoBottomNav>
       ),
     );
     Overlay.of(context).insert(_entry!);
+    InoBottomNav.isMenuOpenNotifier.value = true;
+    debugPrint('[FAB Menu] FAB menu opened (current tab: ${widget.index})');
     setState(() {}); // repaint the morphing "+"
     _menu.forward(from: 0);
   }
@@ -183,6 +221,8 @@ class _InoBottomNavState extends State<InoBottomNav>
   Future<void> _closeMenu() async {
     if (!_open) return;
     HapticFeedback.lightImpact();
+    InoBottomNav.isMenuOpenNotifier.value = false;
+    debugPrint('[FAB Menu] FAB menu closed (current tab: ${widget.index})');
     await _menu.reverse();
     _entry?.remove();
     _entry = null;
@@ -219,9 +259,12 @@ class _InoBottomNavState extends State<InoBottomNav>
         center: _wheelCenter,
         actions: _wheelActions,
         highlight: _highlight,
+        onDismiss: _onHoldCancel,
       ),
     );
     Overlay.of(context).insert(_wheelEntry!);
+    InoBottomNav.isMenuOpenNotifier.value = true;
+    debugPrint('[FAB Menu] FAB hold-wheel opened (current tab: ${widget.index})');
     setState(() {}); // morph + → ×
     _menu.forward(from: 0);
     _trackPointer(details.globalPosition);
@@ -239,6 +282,8 @@ class _InoBottomNavState extends State<InoBottomNav>
         : null;
     if (action != null) HapticFeedback.mediumImpact();
 
+    InoBottomNav.isMenuOpenNotifier.value = false;
+    debugPrint('[FAB Menu] FAB hold-wheel closed (current tab: ${widget.index})');
     await _menu.reverse();
     _wheelEntry?.remove();
     _wheelEntry = null;
@@ -250,6 +295,8 @@ class _InoBottomNavState extends State<InoBottomNav>
 
   void _onHoldCancel() {
     if (!_wheelOpen) return;
+    InoBottomNav.isMenuOpenNotifier.value = false;
+    debugPrint('[FAB Menu] FAB hold-wheel cancelled (current tab: ${widget.index})');
     _menu.reverse().whenComplete(() {
       _wheelEntry?.remove();
       _wheelEntry = null;
@@ -773,8 +820,14 @@ class _ScanMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        onDismiss();
+      },
+      child: AnimatedBuilder(
+        animation: animation,
       builder: (context, _) {
         final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
         final angles = _InoBottomNavState.arcAngles(actions.length);
@@ -814,7 +867,8 @@ class _ScanMenu extends StatelessWidget {
           ),
         );
       },
-    );
+    ),
+  );
   }
 
   Widget _positioned(
@@ -1029,17 +1083,25 @@ class _QuickWheel extends StatelessWidget {
     required this.center,
     required this.actions,
     required this.highlight,
+    this.onDismiss,
   });
 
   final Animation<double> animation;
   final Offset center;
   final List<QuickMenuAction> actions;
   final ValueListenable<int?> highlight;
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        onDismiss?.call();
+      },
+      child: AnimatedBuilder(
+        animation: animation,
       builder: (context, _) {
         final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
         final angles = _InoBottomNavState.arcAngles(actions.length);
@@ -1076,7 +1138,8 @@ class _QuickWheel extends StatelessWidget {
           ),
         );
       },
-    );
+    ),
+  );
   }
 
   Widget _hint(BuildContext context, double v) {

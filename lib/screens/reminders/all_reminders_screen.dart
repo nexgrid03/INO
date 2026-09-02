@@ -211,7 +211,7 @@ class _ReminderRows extends StatelessWidget {
           AppSpacing.screen, 0, AppSpacing.screen, 120),
       physics: const BouncingScrollPhysics(),
       // Extra build-ahead so a fast fling doesn't outrun the builder.
-      cacheExtent: 600,
+      cacheExtent: 600.0,
       itemCount: rows.length,
       itemBuilder: (context, i) {
         final row = rows[i];

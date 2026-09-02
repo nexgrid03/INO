@@ -27,6 +27,27 @@ class ExpandableFab extends StatefulWidget {
   /// Optional vault accent for the main FAB glow (defaults to brand teal).
   final Color? accent;
 
+  static final ValueNotifier<bool> isMenuOpenNotifier = ValueNotifier<bool>(false);
+  static bool get isMenuOpen {
+    final state = _activeState;
+    if (state != null) {
+      return state._isOpen || isMenuOpenNotifier.value;
+    }
+    return isMenuOpenNotifier.value;
+  }
+  static _ExpandableFabState? _activeState;
+
+  static bool closeActiveMenu() {
+    final state = _activeState;
+    if (state != null && (state._isOpen || isMenuOpenNotifier.value)) {
+      debugPrint('[ExpandableFab] Executing closeActiveMenu()');
+      state._closeMenu();
+      isMenuOpenNotifier.value = false;
+      return true;
+    }
+    return false;
+  }
+
   @override
   State<ExpandableFab> createState() => _ExpandableFabState();
 }
@@ -70,12 +91,16 @@ class _ExpandableFabState extends State<ExpandableFab>
       ),
     );
     overlay.insert(_entry!);
+    ExpandableFab.isMenuOpenNotifier.value = true;
+    debugPrint('[ExpandableFab] Menu opened');
     setState(() => _open = true);
     _c.forward(from: 0);
   }
 
   Future<void> _closeMenu() async {
     if (!_isOpen) return;
+    ExpandableFab.isMenuOpenNotifier.value = false;
+    debugPrint('[ExpandableFab] Menu closed');
     await _c.reverse();
     _entry?.remove();
     _entry = null;
@@ -89,7 +114,16 @@ class _ExpandableFabState extends State<ExpandableFab>
   }
 
   @override
+  void initState() {
+    super.initState();
+    ExpandableFab._activeState = this;
+  }
+
+  @override
   void dispose() {
+    if (ExpandableFab._activeState == this) {
+      ExpandableFab._activeState = null;
+    }
     _entry?.remove();
     _entry = null;
     _c.dispose();
@@ -131,7 +165,13 @@ class _FabMenuOverlay extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final count = actions.length;
 
-    return AnimatedBuilder(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        onDismiss();
+      },
+      child: AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
         final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
@@ -176,7 +216,8 @@ class _FabMenuOverlay extends StatelessWidget {
           ),
         );
       },
-    );
+    ),
+  );
   }
 }
 

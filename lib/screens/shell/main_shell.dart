@@ -141,11 +141,24 @@ class _MainShellState extends State<MainShell>
   /// System back at the shell root: step back through the visited tabs; only
   /// exit the app once there's no tab history left.
   void _handleBack() {
+    final routeName = ModalRoute.of(context)?.settings.name ?? 'MainShell';
+    final isFabOpen = InoBottomNav.isMenuOpen;
+    debugPrint('[Navigation] Android back pressed -> route: $routeName, currentTab: $_index, isFabMenuOpen: $isFabOpen');
+
+    // IF fabMenuExpanded == true -> collapse FAB menu and consume back event.
+    if (isFabOpen) {
+      debugPrint('[FAB Menu] Intercepted Android back -> closing FAB menu (currentTab: $_index)');
+      InoBottomNav.closeActiveMenu();
+      return; // DO NOT call Navigator.pop(), DO NOT change tabs, DO NOT change route!
+    }
+
     if (_tabHistory.isEmpty) {
+      debugPrint('[Navigation] No tab history left -> exiting app via SystemNavigator.pop()');
       SystemNavigator.pop();
       return;
     }
     final previous = _tabHistory.removeLast();
+    debugPrint('[Navigation] Retracing tab history -> moving to tab: $previous');
     // Set `_index` first so `_onTabChanged` sees no change and doesn't push
     // this hop back onto the history.
     setState(() => _index = previous);

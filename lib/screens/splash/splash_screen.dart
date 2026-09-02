@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Calm pacing (~1.5s) so the mark reads clearly without feeling slow.
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
     )..addStatusListener(_onStatusChanged);
 
     _float = AnimationController(
@@ -70,7 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _exit = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 180),
     );
     _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _exit, curve: Curves.easeInCubic),
@@ -133,8 +133,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _onStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      // Let the finished mark sit briefly so it registers.
-      Future<void>.delayed(const Duration(milliseconds: 200), _beginExit);
+      _beginExit();
     }
   }
 
@@ -185,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Route<void> _fadeRoute(Widget page) {
     return PageRouteBuilder<void>(
-      transitionDuration: const Duration(milliseconds: 900),
+      transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (_, _, _) => page,
       transitionsBuilder: (_, animation, _, child) {
         return FadeTransition(

@@ -839,9 +839,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return PopScope(
-      // While selecting, the system back gesture first exits selection mode.
-      canPop: !_selecting,
+      // Prevent pop when either document selection or FAB menu is active.
+      canPop: !_selecting && !InoBottomNav.isMenuOpen,
       onPopInvokedWithResult: (didPop, _) {
+        final routeName = ModalRoute.of(context)?.settings.name ?? 'WalletDetailScreen';
+        final isFabOpen = InoBottomNav.isMenuOpen;
+        debugPrint('[Navigation] Android back pressed in WalletDetailScreen -> route: $routeName, isFabOpen: $isFabOpen, selecting: $_selecting');
+        if (isFabOpen) {
+          debugPrint('[FAB Menu] Intercepted Android back in WalletDetailScreen -> closing FAB menu');
+          InoBottomNav.closeActiveMenu();
+          return;
+        }
         if (!didPop && _selecting) _exitSelection();
       },
       child: Scaffold(
@@ -905,7 +913,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             // the default left visible gaps at the leading edge.
                             // Cards are cheap now that thumbnails decode small
                             // and `extraction` no longer re-parses JSON.
-                            cacheExtent: 600,
+                            cacheExtent: 600.0,
                             slivers: [
                               if (data == null)
                                 _loadingSliver()
