@@ -116,11 +116,11 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
   }
 
   Future<void> _pickDate({required bool issue}) async {
-    final base = DateTime(2026, 7, 1);
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: (issue ? _issueDate : _expiryDate) ?? base,
-      firstDate: DateTime(1990),
+      initialDate: (issue ? _issueDate : _expiryDate) ?? now,
+      firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
     if (picked != null) {

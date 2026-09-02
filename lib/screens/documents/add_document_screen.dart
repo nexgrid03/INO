@@ -14,6 +14,7 @@ import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/reminder_scheduler.dart';
 
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
@@ -146,6 +147,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _wallet;
   String? _category;
   DateTime? _expiry;
+  TimeOfDay? _expiryTime;
 
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
@@ -374,7 +376,25 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       firstDate: now,
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _expiry = picked);
+    if (picked != null) {
+      setState(() {
+        _expiry = picked;
+        _expiryTime ??= const TimeOfDay(hour: 9, minute: 0);
+      });
+    }
+  }
+
+  Future<void> _pickExpiryTime() async {
+    final now = TimeOfDay.now();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _expiryTime ??
+          TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
+      helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
+    );
+    if (picked != null) {
+      setState(() => _expiryTime = picked);
+    }
   }
 
   Future<void> _save() async {
@@ -430,6 +450,17 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         filePath = await DocumentRepository.instance.uploadFile(_localFilePath!);
       }
 
+      DateTime? finalExpiry = _expiry;
+      if (finalExpiry != null && _expiryTime != null) {
+        finalExpiry = DateTime(
+          finalExpiry.year,
+          finalExpiry.month,
+          finalExpiry.day,
+          _expiryTime!.hour,
+          _expiryTime!.minute,
+        );
+      }
+
       // 2) Persist to Supabase (the `documents` table). RLS ties the row to the
       //    signed-in user automatically.
       final doc = await DocumentRepository.instance.create(
@@ -439,7 +470,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         recordNumber: _recordNumber,
         tags: tags,
         notes: storedNotes,
-        expiresAt: _expiry,
+        expiresAt: finalExpiry,
         filePath: filePath,
         doctorName: _wallet == 'Health Wallet' ? _doctorController.text.trim() : null,
       );
@@ -481,7 +512,10 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       // If the document has an expiry date, also create a reminder for it so it
       // shows up on the Reminders page (persisted to Supabase).
       if (_expiry != null) {
-        final e = _expiry!;
+        final e = finalExpiry ?? _expiry!;
+        try {
+          await ReminderScheduler.instance.ensureExactPermission();
+        } catch (_) {}
         unawaited(ReminderStore.instance.add(
           Reminder(
             id: 'doc-${doc.id}',
@@ -489,8 +523,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             subtitle: '$_wallet · Expiry',
             category: _reminderCategoryForWallet(_wallet!),
             priority: ReminderPriority.important,
-            // Document expiries carry no time of day; ring at 09:00 local.
-            date: DateTime(e.year, e.month, e.day, 9),
+            date: e,
           ),
         ).catchError((Object err) {
           debugPrint('expiry reminder not saved: $err');
@@ -614,11 +647,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           wallet: _wallet,
                           category: _category,
                           expiry: _expiry,
+                          expiryTime: _expiryTime,
                           onRemoveFile: _removeFile,
                           onPickWallet: _chooseWallet,
                           onPickCategory: _chooseCategory,
                           onCategoryChanged: (v) => setState(() => _category = v),
                           onPickExpiry: _pickExpiry,
+                          onPickExpiryTime: _pickExpiryTime,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -1122,11 +1157,13 @@ class _DetailsForm extends StatelessWidget {
     required this.wallet,
     required this.category,
     required this.expiry,
+    required this.expiryTime,
     required this.onRemoveFile,
     required this.onPickWallet,
     required this.onPickCategory,
     required this.onCategoryChanged,
     required this.onPickExpiry,
+    required this.onPickExpiryTime,
   });
 
   final GlobalKey<FormState> formKey;
@@ -1139,11 +1176,13 @@ class _DetailsForm extends StatelessWidget {
   final String? wallet;
   final String? category;
   final DateTime? expiry;
+  final TimeOfDay? expiryTime;
   final VoidCallback onRemoveFile;
   final VoidCallback onPickWallet;
   final VoidCallback onPickCategory;
   final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onPickExpiry;
+  final VoidCallback onPickExpiryTime;
 
   String _fmt(AppLocalizations l10n, DateTime d) =>
       '${d.day} ${l10n.monthShort(d.month)} ${d.year}';
@@ -1288,6 +1327,23 @@ class _DetailsForm extends StatelessWidget {
                     onTap: onPickExpiry,
                   ),
                 ),
+                if (expiry != null) ...[
+                  const SizedBox(height: AppSpacing.internal),
+                  _Field(
+                    label: l10n.t('dueTime'),
+                    optional: true,
+                    child: _Selector(
+                      value: expiryTime == null
+                          ? l10n.t('pickTime')
+                          : reminderTimeLabel(DateTime(
+                              2000, 1, 1, expiryTime!.hour, expiryTime!.minute)),
+                      placeholder: l10n.t('pickTime'),
+                      leading: Icons.access_time_rounded,
+                      trailing: Icons.schedule_rounded,
+                      onTap: onPickExpiryTime,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
                   label: l10n.t('notes'),

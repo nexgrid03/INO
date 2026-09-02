@@ -15,6 +15,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../shell/shell_controller.dart';
 
 /// The offline library: documents the user saved to view without internet.
 ///
@@ -185,7 +186,10 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                           title: l10n.t('nothingSavedYet'),
                           message: l10n.t('offlineDocsEmptyMessage'),
                           actionLabel: l10n.t('browseWallets'),
-                          onAction: () => Navigator.of(context).maybePop(),
+                          onAction: () {
+                            ShellController.tab.value = 1;
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          },
                         ),
                       )
                     else

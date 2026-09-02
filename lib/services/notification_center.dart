@@ -32,6 +32,8 @@ class AppNotification {
     this.titleKey,
     this.bodyKey,
     this.params,
+    this.targetId,
+    this.targetWallet,
   });
 
   final String id; // stable across refreshes so read/dismissed state persists
@@ -48,6 +50,12 @@ class AppNotification {
 
   /// Placeholder substitutions, e.g. `{name}` → the document's name.
   final Map<String, String>? params;
+
+  /// Specific entity ID related to this notification (e.g., reminder ID, document ID, card ID).
+  final String? targetId;
+
+  /// Specific wallet name related to this notification (e.g., "Personal Documents", "Banking Wallet").
+  final String? targetWallet;
 
   String _resolve(AppLocalizations l10n, String? key, String fallback) {
     if (key == null) return fallback;
@@ -78,6 +86,8 @@ class AppNotification {
         titleKey: titleKey,
         bodyKey: bodyKey,
         params: params,
+        targetId: targetId,
+        targetWallet: targetWallet,
       );
 }
 
@@ -184,6 +194,7 @@ class NotificationCenter extends ChangeNotifier {
             at: days < 0 ? now : r.date,
             bodyKey: dueKey,
             params: dueParams,
+            targetId: r.id,
           ));
         }
       }
@@ -208,6 +219,8 @@ class NotificationCenter extends ChangeNotifier {
             titleKey: 'notifDocExpiresSoon',
             bodyKey: days == 0 ? 'notifExpiresToday' : 'notifExpiresInDays',
             params: {'name': d.name, 'days': '$days'},
+            targetId: d.id,
+            targetWallet: d.wallet,
           ));
         }
       }
@@ -241,6 +254,8 @@ class NotificationCenter extends ChangeNotifier {
             'last4': c.last4,
             'expiry': c.expiryLabel,
           },
+          targetId: c.id,
+          targetWallet: 'Banking Wallet',
         ));
       }
     } catch (e) {
