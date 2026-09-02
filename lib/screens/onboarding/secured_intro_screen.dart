@@ -15,6 +15,7 @@ import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
 import '../auth/signup_screen.dart';
 import 'onboarding_layout.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The "your documents are secured" moment between onboarding and signup.
 ///
@@ -660,14 +661,7 @@ class _GetStartedButton extends StatelessWidget {
           onTap: busy ? null : onTap,
           child: Center(
             child: busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
+                ? const InoLoader(size: 22, color: Colors.white)
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

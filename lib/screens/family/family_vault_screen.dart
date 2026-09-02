@@ -15,6 +15,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'join_family_sheet.dart';
 import 'vault_detail_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The Family Vault home.
 ///
@@ -360,7 +361,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
                     final loading = _store.isLoading && !_store.isLoaded;
                     final failed = _store.loadError != null && _store.isEmpty;
                     if (loading) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: InoLoader());
                     }
                     Future<void> refreshAll() async {
                       await _store.reload();
@@ -418,9 +419,6 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
 
     if (vaults.isEmpty) {
       return ListView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen,
           AppSpacing.xs,
@@ -439,9 +437,6 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     }
 
     return ListView.separated(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.xs,
@@ -1090,7 +1085,6 @@ class _ErrorState extends StatelessWidget {
     final palette = AppPalette.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(

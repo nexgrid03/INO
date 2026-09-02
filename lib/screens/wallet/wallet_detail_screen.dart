@@ -39,6 +39,7 @@ import '../share/manage_shares_screen.dart';
 import '../share/share_settings_screen.dart';
 import '../shell/shell_controller.dart';
 import 'document_viewer_screen.dart';
+import '../../widgets/common/ino_busy_overlay.dart';
 
 /// The reusable Wallet Detail screen - a premium *document manager*, not a
 /// dashboard.
@@ -394,21 +395,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _startShare(List<DocumentRecord> docs) async {
     if (docs.isEmpty) return;
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-        child: CircularProgressIndicator(color: AppColors.primaryGreen),
-      ),
-    );
-
+    // A root-overlay wait rather than a barrier dialog: it needs no matching
+    // `Navigator.pop`, so it cannot pop this screen's own route if the widget
+    // is disposed while the files are still being hydrated.
     List<DocumentRecord> hydrated;
     try {
-      hydrated = await _hydrateShareDocs(docs);
+      hydrated = await InoBusyOverlay.run(
+        context,
+        () => _hydrateShareDocs(docs),
+        message: AppLocalizations.of(context).t('preparingDocuments'),
+      );
     } catch (_) {
       hydrated = docs;
-    } finally {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
     }
     if (!mounted) return;
 
@@ -904,9 +902,6 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                           // skeleton blink after every FAB action.
                           final data = snapshot.data ?? _lastData;
                           return CustomScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(
-                              parent: ClampingScrollPhysics(),
-                            ),
                             // Build ~5 cards of runway beyond the viewport
                             // instead of the 250px default (~2). A hard fling
                             // pulls rows in faster than they can be built, and

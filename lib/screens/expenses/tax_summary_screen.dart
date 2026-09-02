@@ -14,9 +14,10 @@ import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Locks Tax Summary: no scrolling and no overscroll stretch/bounce.
-class _TaxSummaryScrollBehavior extends InoNoStretchScrollBehavior {
+class _TaxSummaryScrollBehavior extends InoScrollBehavior {
   const _TaxSummaryScrollBehavior();
 
   @override
@@ -316,14 +317,7 @@ class _ExportButton extends StatelessWidget {
           ),
           child: Center(
             child: busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
+                ? const InoLoader(size: 22, color: Colors.white)
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

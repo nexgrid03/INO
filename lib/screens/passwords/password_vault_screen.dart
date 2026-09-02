@@ -19,6 +19,32 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import 'password_form_screen.dart';
 import 'vault_passphrase_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
+
+/// Why the Password Vault is closed — or [open], meaning it is not.
+///
+/// Only [open] renders the entry list. Everything else keeps the vault shut
+/// and tells the user which specific door is in the way.
+enum _VaultGate {
+  /// Biometrics passed AND the encryption key is in memory.
+  open,
+
+  /// The device-owner check has not passed (or was cancelled).
+  biometrics,
+
+  /// A vault passphrase exists and has not been entered this session. The
+  /// saved passwords are ciphertext until it is.
+  passphrase,
+
+  /// No vault passphrase has ever been set. One must be created before
+  /// anything can be sealed, so the vault cannot be used until it is.
+  setup,
+
+  /// Could not reach the server to find out whether a passphrase exists.
+  /// Deliberately NOT treated as "set one up": creating a second passphrase
+  /// would overwrite the salt and strand every secret sealed under the first.
+  offline,
+}
 
 /// The Password Vault, simplified: a list of NICKNAMES, nothing else.
 ///
@@ -45,7 +71,11 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   /// Only one password is ever revealed at a time.
   String? _revealedId;
 
-  bool _unlocked = false;
+  /// Why the vault is currently closed — which decides what the locked screen
+  /// offers, and (crucially) that it stays closed until that reason is
+  /// actually resolved. Starts at [_VaultGate.biometrics] because nothing has
+  /// been proven yet.
+  _VaultGate _gate = _VaultGate.biometrics;
   bool _checking = true;
 
   @override
@@ -67,7 +97,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Two gates, in order.
+  /// Two gates, in order, and **both** must pass before a single entry is
+  /// built.
   ///
   /// 1. **Biometric** - proves it is the device owner. A cancelled prompt
   ///    leaves the vault closed and pops back, so the list is never built and
@@ -77,13 +108,16 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   ///    is not a second lock over the same door: it is the only thing that
   ///    makes the contents legible at all.
   ///
-  /// The passphrase step is skipped when the key is already in memory for this
-  /// session, and degrades gracefully offline: if we cannot tell whether a
-  /// passphrase exists, the vault opens read-only from the local cache rather
-  /// than offering to create a second one, which would strand every secret
-  /// sealed under the first.
+  /// The passphrase step is skipped only when the key is already in memory for
+  /// this session. Dismissing the passphrase sheet does **not** open the
+  /// vault - it lands on the locked screen for whichever reason applies, which
+  /// is the whole point: a vault that opens when you swipe its passphrase
+  /// prompt away is not locked. The device-local cache still holds decrypted
+  /// entries from an earlier session, so "open the list anyway" would have
+  /// shown real passwords to someone who never entered the passphrase.
   Future<void> _unlock() async {
     final l10n = AppLocalizations.of(context);
+    setState(() => _checking = true);
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
       reason: l10n.t('authOpenPasswordVault'),
@@ -92,40 +126,67 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     if (!mounted) return;
     if (!ok) {
       setState(() {
-        _unlocked = false;
+        _gate = _VaultGate.biometrics;
         _checking = false;
       });
       Navigator.of(context).maybePop();
       return;
     }
 
-    await _ensureVaultKey();
+    final gate = await _openVaultKey();
     if (!mounted) return;
     setState(() {
-      _unlocked = true;
+      _gate = gate;
       _checking = false;
     });
-    // Now that the key is available, pull the encrypted entries down.
-    unawaited(_store.reload());
+    // Only now that the key is in hand can the encrypted entries be pulled
+    // down and decrypted.
+    if (gate == _VaultGate.open) unawaited(_store.reload());
   }
 
-  /// Obtains the encryption key, prompting for the passphrase if needed.
-  Future<void> _ensureVaultKey() async {
-    if (VaultCrypto.instance.isUnlocked) return;
+  /// Obtains the encryption key, prompting for the passphrase if needed, and
+  /// reports what stands in the way when it could not.
+  ///
+  /// Offline is deliberately its own outcome rather than "create a passphrase":
+  /// we cannot tell whether one already exists, and creating a second would
+  /// overwrite the salt and strand every secret sealed under the first.
+  Future<_VaultGate> _openVaultKey() async {
+    if (VaultCrypto.instance.isUnlocked) return _VaultGate.open;
 
     final exists = await VaultCrypto.instance.hasPassphrase();
-    if (!mounted) return;
+    if (!mounted || exists == null) return _VaultGate.offline;
 
-    // Unknown (offline / signed out) - do NOT offer to create one.
-    if (exists == null) return;
+    final unlocked = await showVaultPassphraseSheet(
+      context,
+      isFirstTime: !exists,
+    );
+    if (unlocked) return _VaultGate.open;
+    // Dismissed or wrong passphrase - stay shut, and say which door it is.
+    return exists ? _VaultGate.passphrase : _VaultGate.setup;
+  }
 
-    await showVaultPassphraseSheet(context, isFirstTime: !exists);
+  /// The write-side guard: no password is created or edited without a key.
+  ///
+  /// The list is only reachable while unlocked, so this is a second line of
+  /// defence rather than the first - but a necessary one, because the key can
+  /// be dropped mid-session (sign-out, [SessionReset], the app lock). Saving
+  /// without it would write a password to `shared_preferences` in the clear
+  /// that could never sync, which is exactly the outcome the vault exists to
+  /// prevent. Re-prompts rather than just refusing, so the user's next step is
+  /// obvious.
+  Future<bool> _requireVaultKey() async {
+    if (VaultCrypto.instance.isUnlocked) return true;
+    final gate = await _openVaultKey();
+    if (!mounted) return false;
+    setState(() => _gate = gate);
+    return gate == _VaultGate.open;
   }
 
   List<PasswordEntry> get _visible =>
       _store.sorted.where((e) => e.matches(_query)).toList();
 
   Future<void> _add() async {
+    if (!await _requireVaultKey() || !mounted) return;
     final created = await Navigator.of(context).push<PasswordEntry>(
       MaterialPageRoute(builder: (_) => const PasswordFormScreen()),
     );
@@ -137,6 +198,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   }
 
   Future<void> _edit(PasswordEntry entry) async {
+    if (!await _requireVaultKey() || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PasswordFormScreen(existing: entry)),
     );
@@ -195,18 +257,17 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    // Nothing renders until the gate passes.
-    if (!_unlocked) {
+    // Nothing renders until BOTH gates pass. `_gate` says which one is shut,
+    // so the locked screen can name the real obstacle instead of always
+    // offering a fingerprint the user has already given.
+    if (_gate != _VaultGate.open) {
       return Scaffold(
         backgroundColor: palette.bg,
         body: SafeArea(
           child: Center(
             child: _checking
-                ? CircularProgressIndicator(
-                    strokeWidth: 2.6,
-                    color: AppColors.primaryGreen,
-                  )
-                : _LockedState(onRetry: _unlock),
+                ? InoLoader(color: AppColors.primaryGreen)
+                : _LockedState(gate: _gate, onRetry: _unlock),
           ),
         ),
       );
@@ -247,9 +308,6 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
               ),
               Expanded(
                 child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
                   slivers: [
                     if (!_store.isLoaded)
                       const SliverPadding(
@@ -574,8 +632,9 @@ class _StrengthDot extends StatelessWidget {
 }
 
 class _LockedState extends StatelessWidget {
-  const _LockedState({required this.onRetry});
+  const _LockedState({required this.gate, required this.onRetry});
 
+  final _VaultGate gate;
   final VoidCallback onRetry;
 
   @override
@@ -583,6 +642,40 @@ class _LockedState extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final launcher = divineGlassEnabled(context);
+
+    // Each closed gate names its own obstacle and its own next step. Showing
+    // "Unlock Vault" + a fingerprint for a missing passphrase would send the
+    // user back through biometrics they have already passed.
+    final (String title, String subtitle, String action, IconData icon) =
+        switch (gate) {
+      _VaultGate.open ||
+      _VaultGate.biometrics =>
+        (
+          l10n.t('vaultLocked'),
+          l10n.t('vaultLockedSubtitle'),
+          l10n.t('unlockVault'),
+          Icons.fingerprint_rounded,
+        ),
+      _VaultGate.passphrase => (
+          l10n.t('vaultPassphraseTitle'),
+          l10n.t('vaultPassphraseGateSubtitle'),
+          l10n.t('enterPassphrase'),
+          Icons.key_rounded,
+        ),
+      _VaultGate.setup => (
+          l10n.t('vaultSetupTitle'),
+          l10n.t('vaultSetupGateSubtitle'),
+          l10n.t('setUpVault'),
+          Icons.shield_moon_rounded,
+        ),
+      _VaultGate.offline => (
+          l10n.t('vaultOfflineTitle'),
+          l10n.t('vaultOfflineSubtitle'),
+          l10n.t('tryAgain'),
+          Icons.cloud_off_rounded,
+        ),
+    };
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -590,8 +683,8 @@ class _LockedState extends StatelessWidget {
         children: [
           if (launcher)
             DivineGlassEmptyPanel(
-              title: l10n.t('vaultLocked'),
-              subtitle: l10n.t('vaultLockedSubtitle'),
+              title: title,
+              subtitle: subtitle,
               icon: Icons.lock_outline_rounded,
             )
           else ...[
@@ -614,7 +707,8 @@ class _LockedState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              l10n.t('vaultLocked'),
+              title,
+              textAlign: TextAlign.center,
               style: AppText.headline.copyWith(
                 color: palette.textPrimary,
                 fontSize: 22,
@@ -622,7 +716,7 @@ class _LockedState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              l10n.t('vaultLockedSubtitle'),
+              subtitle,
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
                 color: palette.textSecondary,
@@ -632,8 +726,8 @@ class _LockedState extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.lg),
           GradientButton(
-            label: l10n.t('unlockVault'),
-            icon: Icons.fingerprint_rounded,
+            label: action,
+            icon: icon,
             expand: false,
             onTap: onRetry,
           ),

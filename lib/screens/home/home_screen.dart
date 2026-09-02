@@ -379,11 +379,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           snapshot.connectionState == ConnectionState.done &&
                               snapshot.hasError;
                       return CustomScrollView(
-                        physics: AlwaysScrollableScrollPhysics(
-                          parent: InoStyle.usesDivineGlass(context)
-                              ? const ClampingScrollPhysics()
-                              : const BouncingScrollPhysics(),
-                        ),
                         slivers: [
                           if (hasError)
                             SliverFillRemaining(

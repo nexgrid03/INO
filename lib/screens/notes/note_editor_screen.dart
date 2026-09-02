@@ -8,6 +8,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A note category's name in the active language.
 ///
@@ -301,7 +302,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         children: [
           Expanded(
             child: ListView(
-              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
                   AppSpacing.screen, AppSpacing.xl),
               children: [
@@ -445,13 +445,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
                 child: Center(
                   child: _saving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white)))
+                      ? const InoLoader(size: 22, color: Colors.white)
                       : Text(
                           _isEditing
                               ? l10n.t('saveChanges')

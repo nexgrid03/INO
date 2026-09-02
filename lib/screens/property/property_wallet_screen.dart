@@ -201,7 +201,6 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
               ),
               Expanded(
                 child: CustomScrollView(
-                  physics: const ClampingScrollPhysics(),
                   slivers: [
                     if (!_store.isLoaded)
                       const SliverPadding(

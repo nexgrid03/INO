@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/net_worth_chart.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Net Worth Analytics — live totals from Property + Investment wallets,
 /// history-backed chart, and allocation from real holdings only.
@@ -56,7 +57,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
     return SettingsScaffold(
       title: l10n.t('netWorth'),
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: InoLoader())
           : _body(palette, l10n),
     );
   }
@@ -70,7 +71,6 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
     final yearChange = _percentChange(yearSeries);
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.sm,

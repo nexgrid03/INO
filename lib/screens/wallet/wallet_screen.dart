@@ -3,6 +3,7 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../services/app_preload.dart';
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -18,6 +19,7 @@ import '../../widgets/wallet/create_wallet_sheet.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../notifications/notifications_screen.dart';
 import 'document_search_delegate.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The INO Wallet Hub - a premium, fast-access vault launcher.
 ///
@@ -56,6 +58,12 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
+    // The splash already computed this hub (see [AppPreload]). Taking it here
+    // means the grid paints fully-formed on the FIRST frame - a FutureBuilder
+    // always shows its null branch for a frame or two, even when the future is
+    // resolved from a warm cache, which is exactly the skeleton flash the
+    // warm-up exists to remove.
+    _lastData = AppPreload.instance.seedWalletHub();
     _future = _load();
   }
 
@@ -217,7 +225,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -665,14 +672,7 @@ class _LoadingState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: EdgeInsets.only(top: 80),
-        child: SizedBox(
-          width: 30,
-          height: 30,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.6,
-            color: AppColors.primaryGreen,
-          ),
-        ),
+        child: InoLoader(size: 30, color: AppColors.primaryGreen),
       ),
     );
   }

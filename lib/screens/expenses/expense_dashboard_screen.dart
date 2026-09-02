@@ -17,6 +17,7 @@ import 'add_expense_screen.dart';
 import 'tax_records_screen.dart';
 import 'tax_summary_screen.dart';
 import 'transaction_details_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// ITR-ready Transaction Vault - records + receipts organised by financial year,
 /// with a tax-document vault and a tax summary. Starts completely empty.
@@ -356,7 +357,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     ),
                   Expanded(
                     child: loading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: InoLoader())
                         : RefreshIndicator(
                             color: AppColors.primaryGreen,
                             onRefresh: _store.reload,
@@ -418,9 +419,6 @@ class _List extends StatelessWidget {
         ),
         Expanded(
           child: ListView.separated(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screen,
               2,
@@ -453,7 +451,6 @@ class _ErrorState extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -538,7 +535,6 @@ class _EmptyState extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         // Always scrollable so pull-to-refresh works on the empty state too.
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -997,7 +993,6 @@ class _MonthlyBreakdown extends StatelessWidget {
           height: 108,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.screen - 4,
             ),

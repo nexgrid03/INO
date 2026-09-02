@@ -224,7 +224,6 @@ class _LockScreen extends StatelessWidget {
                               // for the hero + title (avoids RenderFlex overflow).
                               if (mid.maxHeight < heroSize + gapTitleHero + 48) {
                                 return SingleChildScrollView(
-                                  physics: const BouncingScrollPhysics(),
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
                                       minHeight: mid.maxHeight,

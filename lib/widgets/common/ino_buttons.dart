@@ -4,6 +4,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../pressable_scale.dart';
+import 'ino_loader.dart';
 
 /// The primary CTA of the design system: a 56dp, radius-18 pill filled with the
 /// brand teal→cyan gradient, white semibold label, soft brand glow, optional
@@ -44,14 +45,7 @@ class PrimaryButton extends StatelessWidget {
         opacity: enabled || busy ? 1 : 0.55,
         child: Center(
           child: busy
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
+              ? const InoLoader(size: 22, color: Colors.white)
               : Row(
                   mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,

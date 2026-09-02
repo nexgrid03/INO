@@ -8,6 +8,7 @@ import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../common/ino_loader.dart';
 
 /// Lets the user share the open document into one of their Family Vaults.
 ///
@@ -185,8 +186,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
                Padding(
                 padding: EdgeInsets.symmetric(vertical: 28),
                 child: Center(
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2.4, color: AppColors.primaryGreen),
+                  child: InoLoader(color: AppColors.primaryGreen),
                 ),
               )
             else if (eligible.isEmpty)
@@ -251,13 +251,7 @@ class _ShareToVaultSheetState extends State<_ShareToVaultSheet> {
                             ),
                           ),
                           if (busy)
-                             SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primaryGreen),
-                            )
+                             InoLoader(size: 18, color: AppColors.primaryGreen)
                           else
                             Icon(Icons.chevron_right_rounded,
                                 size: 20, color: palette.textFaint),

@@ -9,6 +9,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
 import 'payment_app_consent_dialog.dart';
+import '../common/ino_loader.dart';
 
 /// Bottom sheet shown after a **payment** QR is scanned: what is being paid, to
 /// whom, and which installed app should handle it.
@@ -167,7 +168,7 @@ class _PaymentAppSheetState extends State<_PaymentAppSheet> {
               if (apps == null)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: InoLoader()),
                 )
               else if (apps.isEmpty)
                 _NoAppsFound(onOther: _payWithOther)

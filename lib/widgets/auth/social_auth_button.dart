@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// A quiet, outlined "Continue with …" button for federated sign-in
 /// (Google / Phone / Apple).
@@ -58,14 +59,7 @@ class SocialAuthButton extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: busy
-              ? SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: palette.textSecondary,
-                  ),
-                )
+              ? InoLoader(size: 20, color: palette.textSecondary)
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -159,14 +153,7 @@ class SocialAuthIconButton extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: busy
-                  ? SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: palette.textSecondary,
-                      ),
-                    )
+                  ? InoLoader(size: 22, color: palette.textSecondary)
                   : brand,
             ),
           ),

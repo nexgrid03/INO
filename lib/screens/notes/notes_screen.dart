@@ -11,6 +11,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import 'note_editor_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 enum _NotesFilter { all, pinned, favorites, archived }
 
@@ -208,7 +209,7 @@ class _NotesScreenState extends State<NotesScreen> {
           final notes = _visible();
 
           if (loading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: InoLoader());
           }
 
           return Stack(
@@ -284,7 +285,6 @@ class _NotesScreenState extends State<NotesScreen> {
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         children: [
           for (final f in _NotesFilter.values) ...[
@@ -303,7 +303,6 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget _noMatches(AppPalette palette, AppLocalizations l10n) {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -325,9 +324,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _listView(List<Note> notes) {
     return ListView.separated(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         0,
@@ -350,9 +346,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _gridView(List<Note> notes) {
     return GridView.builder(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
       padding: EdgeInsets.fromLTRB(
         context.responsivePadding,
         0,
@@ -626,7 +619,6 @@ class _ErrorState extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -710,7 +702,6 @@ class _EmptyState extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Center(
       child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,

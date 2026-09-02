@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
+import '../../widgets/common/ino_loader.dart';
 
 enum _Stage { loading, disabled, enrolling, enabled }
 
@@ -168,7 +169,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
       title: AppLocalizations.of(context).t('twoFactorAuthTitle'),
       child: switch (_stage) {
         _Stage.loading =>
-          const Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
+          const Center(child: InoLoader()),
         _Stage.disabled => _buildDisabled(),
         _Stage.enrolling => _buildEnrolling(),
         _Stage.enabled => _buildEnabled(),
@@ -180,7 +181,6 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
           AppSpacing.screen, AppSpacing.xl),
       children: [
@@ -216,7 +216,6 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     final l10n = AppLocalizations.of(context);
     final setup = _setup!;
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
           AppSpacing.screen, AppSpacing.xl),
       children: [
@@ -264,7 +263,6 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
           AppSpacing.screen, AppSpacing.xl),
       children: [

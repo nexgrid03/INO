@@ -30,6 +30,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_detail/document_card.dart' show documentCardAccent;
 import '../../widgets/wallet_detail/share_to_vault_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// What changed while viewing a document, returned to the wallet list on pop.
 class DocumentViewerResult {
@@ -1172,8 +1173,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Widget _body(AppPalette palette) {
     if (_loading) {
       return  Center(
-        child: CircularProgressIndicator(
-            strokeWidth: 2.6, color: AppColors.primaryGreen),
+        child: InoLoader(color: AppColors.primaryGreen),
       );
     }
     if (_error != _LoadError.none) {
@@ -1302,14 +1302,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.6,
-                          color: AppColors.primaryGreen,
-                          value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!
-                              : null,
-                        ),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     },
                     errorBuilder: (context, error, stack) {
@@ -1326,8 +1319,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                         });
                       }
                       return  Center(
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2.6, color: AppColors.primaryGreen),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     },
                   ),

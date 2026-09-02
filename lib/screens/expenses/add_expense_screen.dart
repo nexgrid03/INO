@@ -17,6 +17,7 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/direction_toggle.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Add / edit an ITR-ready transaction. Attaching a photo receipt runs OCR and
 /// pre-fills amount / date / vendor automatically.
@@ -535,7 +536,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               const SizedBox(height: AppSpacing.md),
               Expanded(
                 child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                       AppSpacing.screen, AppSpacing.lg),
                   child: Column(
@@ -910,11 +910,7 @@ class _UploadProof extends StatelessWidget {
               child: busy
                   ? Row(
                       children: [
-                        const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2.4)),
+                        const InoLoader(size: 22),
                         const SizedBox(width: AppSpacing.sm),
                         Text(l10n.t(scanning ? 'scanning' : 'attaching'),
                             style: AppText.body

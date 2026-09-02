@@ -7,6 +7,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// Opens the Create Wallet sheet and returns the created [CustomWallet], or
 /// null if the user dismissed it. The wallet is already persisted to
@@ -338,16 +339,7 @@ class _CreateWalletSheetState extends State<CreateWalletSheet> {
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: Center(
                           child: _saving
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.4,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
+                              ? const InoLoader(size: 22, color: Colors.white)
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [

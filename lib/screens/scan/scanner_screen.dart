@@ -11,6 +11,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
 import '../../widgets/scan/scan_controls.dart';
 import 'scan_theme.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Screen 1 - the production document scanner.
 ///
@@ -582,14 +583,7 @@ class _CenterStatus extends StatelessWidget {
           Icon(icon, color: ScanColors.textSecondary, size: 46),
           const SizedBox(height: 16),
           if (spinner) ...[
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(ScanColors.accent),
-              ),
-            ),
+            InoLoader(size: 22, color: ScanColors.accent),
             const SizedBox(height: 14),
           ],
           Text(

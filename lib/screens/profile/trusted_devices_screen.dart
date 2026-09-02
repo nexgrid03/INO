@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Trusted Devices - the devices this install has recorded, with their last
 /// active time and a "forget" action for anything but the current device.
@@ -61,13 +62,11 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
         ),
       ],
       child: devices == null
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+          ? const Center(child: InoLoader())
           : RefreshIndicator(
               onRefresh: _load,
               color: AppColors.primaryGreen,
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics()),
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
                     AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
                 children: [

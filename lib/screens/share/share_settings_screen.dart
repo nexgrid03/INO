@@ -22,6 +22,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// How the selected documents are handed over.
 enum ShareMode {
@@ -287,7 +288,6 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
               ),
               Expanded(
                 child: ListView(
-                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screen, 4, AppSpacing.screen, AppSpacing.lg),
                   children: [
@@ -1001,15 +1001,7 @@ class _ActionBar extends StatelessWidget {
                     ),
                     child: Center(
                       child: busy
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
-                              ),
-                            )
+                          ? const InoLoader(size: 22, color: Colors.white)
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

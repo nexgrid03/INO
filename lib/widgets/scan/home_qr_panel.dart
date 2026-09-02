@@ -15,6 +15,7 @@ import '../common/scroll_zoom_in.dart';
 import '../dashboard/section_header.dart';
 import '../pressable_scale.dart';
 import 'qr_scan_frame.dart';
+import '../common/ino_loader.dart';
 
 /// "My QR" block at the bottom of the Home feed.
 ///
@@ -409,11 +410,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
       return SizedBox(
         height: size,
         child: const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.4),
-          ),
+          child: InoLoader(size: 22),
         ),
       );
     }
@@ -432,7 +429,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                 alignment: Alignment.center,
                 children: [
                   if (_busy)
-                    const CircularProgressIndicator(strokeWidth: 2.4)
+                    const InoLoader()
                   else
                     Icon(
                       Icons.qr_code_2_rounded,
@@ -482,7 +479,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
                 ),
                 child: _busy
                     ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2.4))
+                        child: InoLoader())
                     : Image(
                         image: _qrProvider!,
                         fit: BoxFit.contain,

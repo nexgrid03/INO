@@ -12,6 +12,7 @@ import '../common/liquid_glass.dart';
 import '../common/success_tick_mark.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// The shared building blocks of the four data-driven wallet modules (Property,
 /// Investment, Banking, Password Vault).
@@ -470,16 +471,7 @@ class GradientButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: busy
                   ? const [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      ),
+                      InoLoader(size: 20, color: Colors.white),
                     ]
                   : [
                       if (icon != null) ...[
@@ -587,10 +579,19 @@ class ModuleField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            // Long labels ("Type a name by which you can remember this
+            // password") are wider than a narrow phone, and an unbounded Text
+            // in a Row cannot wrap - it overflowed by a few pixels and painted
+            // the yellow-and-black stripe over the field. Flexible gives the
+            // label the row's remaining width so it wraps instead, with the
+            // required-marker staying glued to the last line.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: AppText.label.copyWith(color: palette.textPrimary),
+              Flexible(
+                child: Text(
+                  label,
+                  style: AppText.label.copyWith(color: palette.textPrimary),
+                ),
               ),
               if (validator != null) ...[
                 const SizedBox(width: 3),

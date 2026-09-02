@@ -881,9 +881,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: ListView.separated(
                   // Clamping + no M3 stretch (see InoNoStretchScrollBehavior)
                   // keeps type and glass groups at a stable size while scrolling.
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics(),
-                  ),
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     AppSpacing.md,

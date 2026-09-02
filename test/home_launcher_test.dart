@@ -140,7 +140,8 @@ void main() {
     expect(toolsY, lessThan(expensesY));
 
     expect(find.text('Property & Finance Tools'), findsOneWidget);
-    expect(find.text('Market Snapshot'), findsOneWidget);
+    // Market Snapshot was removed from Home in 629f0a2 — assert it stays gone.
+    expect(find.text('Market Snapshot'), findsNothing);
 
     // Old Today/Tomorrow/Completed summary removed.
     expect(find.text('Today'), findsNothing);

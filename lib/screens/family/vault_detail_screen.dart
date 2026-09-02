@@ -24,6 +24,7 @@ import '../shell/shell_controller.dart';
 import 'add_vault_document_sheet.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
 import 'invite_member_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// One Family Vault: members, their roles, and (for owners/admins) invitations.
 ///
@@ -807,7 +808,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   color: AppColors.primaryGreen,
                   onRefresh: _refresh,
                   child: _loading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(child: InoLoader())
                       : _error != null
                       ? _errorBody(palette)
                       : _body(palette),
@@ -821,9 +822,6 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   }
 
   Widget _errorBody(AppPalette palette) => ListView(
-    physics: const AlwaysScrollableScrollPhysics(
-      parent: ClampingScrollPhysics(),
-    ),
     children: [
       const SizedBox(height: 120),
       Icon(Icons.cloud_off_rounded, size: 48, color: palette.textFaint),
@@ -854,9 +852,6 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     ].join(' · ');
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: ClampingScrollPhysics(),
-      ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         0,
@@ -1025,7 +1020,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           if (_invitesLoading && _invitations.isEmpty)
             const Padding(
               padding: EdgeInsets.all(AppSpacing.md),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: InoLoader()),
             )
           else if (invitations.isEmpty)
             AdaptiveGlassCard(
@@ -1085,14 +1080,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ),
             const Spacer(),
             if (_docsLoading)
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primaryGreen,
-                ),
-              ),
+              InoLoader(size: 14, color: AppColors.primaryGreen),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -1145,7 +1133,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         if (_auditLoading && _audit.isEmpty)
           const Padding(
             padding: EdgeInsets.all(AppSpacing.md),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: InoLoader()),
           )
         else if (_audit.isEmpty)
           AdaptiveGlassCard(

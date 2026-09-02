@@ -36,7 +36,9 @@ class ResponsiveHList extends StatelessWidget {
       height: height,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        physics: physics ?? const BouncingScrollPhysics(),
+        // Null inherits the app-wide InoScrollBehavior, so a horizontal rail
+        // scrolls with exactly the same spring as the page behind it.
+        physics: physics,
         padding: padding,
         itemCount: itemCount,
         separatorBuilder: (_, _) => SizedBox(width: separatorWidth),

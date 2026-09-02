@@ -9,6 +9,7 @@ import '../../models/document.dart';
 import '../../repositories/document_repository.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Adds a document to a Family Vault, from inside the vault itself.
 ///
@@ -227,13 +228,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : _uploadAndShare,
                       icon: _uploading
-                          ?  SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primaryGreen),
-                            )
+                          ? InoLoader(size: 16, color: AppColors.primaryGreen)
                           : const Icon(Icons.upload_file_rounded, size: 20),
                       label: Text(_uploading
                           ? l10n.t('uploading')
@@ -272,8 +267,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
             Expanded(
               child: _loading
                   ?  Center(
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.4, color: AppColors.primaryGreen),
+                      child: InoLoader(color: AppColors.primaryGreen),
                     )
                   : visible.isEmpty
                       ? Center(
@@ -354,13 +348,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                                       ),
                                     ),
                                     if (isBusy)
-                                       SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.primaryGreen),
-                                      )
+                                       InoLoader(size: 18, color: AppColors.primaryGreen)
                                     else
                                       Icon(Icons.add_circle_outline_rounded,
                                           size: 20, color: palette.textFaint),

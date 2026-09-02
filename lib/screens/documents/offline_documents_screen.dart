@@ -162,9 +162,6 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
               ),
               Expanded(
                 child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
                   slivers: [
                     if (!_store.isLoaded)
                       const SliverPadding(

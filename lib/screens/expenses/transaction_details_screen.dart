@@ -187,7 +187,6 @@ class TransactionDetailsScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Expanded(
                   child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                         AppSpacing.screen, AppSpacing.xl),
                     child: Column(

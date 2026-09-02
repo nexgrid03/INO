@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/vault_crypto.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Sets up or unlocks the Password Vault's encryption passphrase.
 ///
@@ -18,11 +19,16 @@ Future<bool> showVaultPassphraseSheet(
   BuildContext context, {
   required bool isFirstTime,
 }) async {
+  // Dismissible in both modes. First-time setup used to trap the user here,
+  // which the Android back button defeated anyway — and it is no longer needed:
+  // the caller keeps the vault shut on anything but `true` (see _VaultGate),
+  // so backing out lands on the locked screen rather than sneaking past the
+  // gate. A modal you cannot close is worse than one that simply changes
+  // nothing.
   final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    isDismissible: !isFirstTime,
     builder: (_) => _VaultPassphraseSheet(isFirstTime: isFirstTime),
   );
   return result ?? false;
@@ -278,15 +284,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                     shape: const StadiumBorder(),
                   ),
                   child: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
+                      ? const InoLoader(size: 20, color: Colors.white)
                       : Text(widget.isFirstTime
                           ? l10n.t('createVault')
                           : l10n.t('unlockVault')),

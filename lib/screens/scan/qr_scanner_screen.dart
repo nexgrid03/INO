@@ -22,6 +22,7 @@ import '../../widgets/scan/payment_app_sheet.dart';
 import '../../widgets/scan/qr_scan_frame.dart';
 import '../share/shared_documents_screen.dart';
 import '../share/view_once_viewer_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Live QR scanner.
 ///
@@ -645,14 +646,7 @@ class _UploadQrButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (busy)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
-                )
+                const InoLoader(size: 18, color: Colors.white)
               else
                 const Icon(Icons.photo_library_rounded,
                     size: 18, color: Colors.white),
@@ -737,9 +731,7 @@ class _StatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     if (phase == _Phase.initializing) {
-      return const CircularProgressIndicator(
-        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-      );
+      return const InoLoader(color: Colors.white);
     }
     final permission = phase == _Phase.denied ||
         phase == _Phase.permanentlyDenied;

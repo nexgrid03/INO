@@ -30,6 +30,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../scan/scanner_screen.dart';
 import 'document_upload_success_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The source a user picks to add a document.
 enum _DocSource { scan, pdf, image }
@@ -610,7 +611,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             const _Header(),
             Expanded(
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                     AppSpacing.screen, AppSpacing.lg),
                 child: Column(
@@ -1053,15 +1053,7 @@ class _EmptyState extends StatelessWidget {
                   ),
                   child: busy
                       ?  Center(
-                          child: SizedBox(
-                            width: 34,
-                            height: 34,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primaryGreen),
-                            ),
-                          ),
+                          child: InoLoader(size: 34, color: AppColors.primaryGreen),
                         )
                       :  Icon(Icons.cloud_upload_rounded,
                           color: AppColors.primaryGreen, size: 44),
@@ -1733,15 +1725,7 @@ class _SaveBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppRadius.button),
                     child: Center(
                       child: saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
+                          ? const InoLoader(size: 22, color: Colors.white)
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

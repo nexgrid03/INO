@@ -192,7 +192,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     0,

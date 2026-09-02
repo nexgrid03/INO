@@ -210,9 +210,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: AppColors.primaryGreen,
             onRefresh: _center.refresh,
             child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen,
                 AppSpacing.sm,

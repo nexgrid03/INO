@@ -14,6 +14,7 @@ import 'ocr_result_screen.dart';
 import 'scan_review_screen.dart';
 import 'scan_wallet_screen.dart';
 import 'scanner_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The outcome handed back to whoever launched the scan flow.
 class ScanFlowResult {
@@ -276,9 +277,7 @@ class _NativeScannerBackdrop extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppPalette.dark.bg,
       body:  Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-        ),
+        child: InoLoader(color: AppColors.primaryGreen),
       ),
     );
   }
@@ -297,9 +296,7 @@ class _BuildingPdf extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-            ),
+            InoLoader(color: AppColors.primaryGreen),
             const SizedBox(height: 16),
             Text(
               'Preparing PDF…',

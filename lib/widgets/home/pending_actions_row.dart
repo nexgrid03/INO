@@ -90,7 +90,6 @@ class _PendingActionsRowState extends State<PendingActionsRow> {
               )
             : ListView.separated(
                 scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 itemCount: visible.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),

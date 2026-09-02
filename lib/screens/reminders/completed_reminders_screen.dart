@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/reminders/completed_reminder_tile.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The reminder history - everything that's been marked done. A quiet, read-only
 /// log kept off the home screen so "what needs attention" stays front and
@@ -39,10 +40,7 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
         builder: (context, _) {
           if (!_store.isLoaded) {
             return Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2.6,
-                color: AppColors.primaryGreen,
-              ),
+              child: InoLoader(color: AppColors.primaryGreen),
             );
           }
           final items = _store.completed;
@@ -52,7 +50,6 @@ class _CompletedRemindersScreenState extends State<CompletedRemindersScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen, AppSpacing.md, AppSpacing.screen, 40),
-            physics: const BouncingScrollPhysics(),
             children: [
               InoCard(
                 radius: AppRadius.card,

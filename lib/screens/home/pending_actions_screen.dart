@@ -14,6 +14,7 @@ import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../navigation/wallet_module_router.dart';
 import '../shell/shell_controller.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A pending item - either a due reminder or an expiring document.
 class _Pending {
@@ -151,7 +152,7 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
       child: _error
           ? ErrorRetry(onRetry: _load)
           : items == null
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+              ? const Center(child: InoLoader())
               : items.isEmpty
                   ? EmptyState(
                       icon: Icons.task_alt_rounded,
@@ -162,8 +163,6 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
                       color: AppColors.primaryGreen,
                       onRefresh: _load,
                       child: ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(
-                            parent: BouncingScrollPhysics()),
                         padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
                             AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
                         itemCount: items.length,

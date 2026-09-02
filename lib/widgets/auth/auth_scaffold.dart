@@ -129,7 +129,6 @@ class _AuthScaffoldState extends State<AuthScaffold>
         builder: (context, constraints) {
           return SingleChildScrollView(
             padding: widget.padding,
-            physics: const BouncingScrollPhysics(),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight: constraints.maxHeight,

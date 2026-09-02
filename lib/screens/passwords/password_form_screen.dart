@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/password_models.dart';
 import '../../services/password_store.dart';
+import '../../services/vault_crypto.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -69,6 +70,17 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
+
+    // No key, no save. The vault screen already refuses to open this form
+    // while locked, so reaching here means the key was dropped mid-edit
+    // (sign-out, SessionReset, the app lock). Writing anyway would put the
+    // password into `shared_preferences` in the clear with no way to ever sync
+    // it - the exact outcome an encrypted vault exists to prevent.
+    final l10n = AppLocalizations.of(context);
+    if (!VaultCrypto.instance.isUnlocked) {
+      showModuleToast(context, l10n.t('vaultSetupRequired'));
+      return;
+    }
 
     // The consent gate. Declining leaves the form exactly as it was - nothing
     // is stored anywhere until this returns true.

@@ -11,6 +11,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Manage Shares - every QR/link the user has created, so they can review
 /// analytics (views / downloads) and revoke access at any time, long after the
@@ -77,10 +78,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.6,
-                          color: AppColors.primaryGreen,
-                        ),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     }
                     final shares = snapshot.data ?? const <DocumentShare>[];
@@ -245,9 +243,6 @@ class _SharesList extends StatelessWidget {
     // history costs nothing until scrolled to. No FadeSlideIn — recycled rows
     // replay the entrance every time they scroll back into view.
     return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
       // Clear gap under the frosted app bar so stats never kiss the header.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,

@@ -51,7 +51,6 @@ class CalculatorScaffold extends StatelessWidget {
     final launcher = divineGlassEnabled(context);
 
     final scrollBody = SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.md,
@@ -81,7 +80,6 @@ class CalculatorScaffold extends StatelessWidget {
         body: InoBackground(
           sky: true,
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               AppSpacing.screen,
               barH + AppSpacing.md,

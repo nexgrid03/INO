@@ -111,7 +111,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: ListView(
-              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
               children: [

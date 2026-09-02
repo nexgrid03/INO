@@ -111,7 +111,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         child: ListView(
-          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm,
               AppSpacing.screen, AppSpacing.xl),
           children: [

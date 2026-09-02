@@ -184,11 +184,12 @@ class _InoAppState extends State<InoApp> with WidgetsBindingObserver {
                   theme: AppTheme.lightFor(style),
                   darkTheme: AppTheme.darkFor(style),
                   themeMode: mode,
-                  // Launcher / Aqua: no M3 stretch overscroll (it scales the
-                  // page and makes text look like it shrinks while scrolling).
-                  scrollBehavior: InoStyle.usesDivineGlassStyle(style)
-                      ? const InoNoStretchScrollBehavior()
-                      : const MaterialScrollBehavior(),
+                  // ONE scroll feel for the entire app - iOS-style spring
+                  // physics on every platform, no M3 stretch overscroll (it
+                  // scales the page and makes text look like it shrinks while
+                  // scrolling). Screens inherit this; none should pass
+                  // `physics:` of their own. See [InoScrollBehavior].
+                  scrollBehavior: const InoScrollBehavior(),
                   locale: _localeForCode(langCode),
                   supportedLocales: AppLocalizations.supportedLocales,
                   localizationsDelegates: const [

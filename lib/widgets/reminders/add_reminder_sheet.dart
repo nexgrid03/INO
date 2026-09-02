@@ -9,6 +9,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// Opens the "New Reminder" bottom sheet. Returns the created [Reminder] (also
 /// already added to the [ReminderStore]) or null if dismissed.
@@ -657,14 +658,7 @@ class _CreateButton extends StatelessWidget {
               height: 52,
               alignment: Alignment.center,
               child: busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
+                  ? const InoLoader(size: 22, color: Colors.white)
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

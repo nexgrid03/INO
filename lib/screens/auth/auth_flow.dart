@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/app_preload.dart';
 import '../../services/guest_mode.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/theme_controller.dart';
@@ -120,6 +122,12 @@ bool _isIncomplete(UserProfile profile) =>
 void goToShell(BuildContext context, UserProfile profile) {
   // A real sign-in always ends guest explore mode.
   GuestMode.active = false;
+  // Warm this account's data on the way in. The splash's own warm-up either
+  // never ran (signed out at launch) or belongs to whoever was signed in
+  // before, so it is reset first. Fire-and-forget: the shell opens now and the
+  // tabs pick up warm caches as they land.
+  AppPreload.instance.reset();
+  unawaited(AppPreload.instance.warmUp(context: context));
   Navigator.of(context).pushAndRemoveUntil(
     MaterialPageRoute(
       builder: (_) => MainShell(

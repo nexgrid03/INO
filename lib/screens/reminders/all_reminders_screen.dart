@@ -12,6 +12,7 @@ import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
 import '../../widgets/reminders/reminder_filter_chips.dart';
 import 'reminder_calendar_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The full reminders list - everything the compact home screen defers to.
 ///
@@ -103,10 +104,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             builder: (context, _) {
               if (!_store.isLoaded) {
                 return Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.6,
-                    color: AppColors.primaryGreen,
-                  ),
+                  child: InoLoader(color: AppColors.primaryGreen),
                 );
               }
               final scoped =
@@ -209,7 +207,6 @@ class _ReminderRows extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, 0, AppSpacing.screen, 120),
-      physics: const BouncingScrollPhysics(),
       // Extra build-ahead so a fast fling doesn't outrun the builder.
       cacheExtent: 600.0,
       itemCount: rows.length,

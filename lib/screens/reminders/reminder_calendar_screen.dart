@@ -9,6 +9,7 @@ import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/reminders/month_calendar.dart';
 import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A dedicated month calendar. Days with reminders are dotted; tapping a date
 /// lists that day's reminders below. Moved off the home screen so the daily
@@ -53,10 +54,7 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
         builder: (context, _) {
           if (!_store.isLoaded) {
             return Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2.6,
-                color: AppColors.primaryGreen,
-              ),
+              child: InoLoader(color: AppColors.primaryGreen),
             );
           }
           final selected = _selectedDay == null
@@ -69,7 +67,6 @@ class _ReminderCalendarScreenState extends State<ReminderCalendarScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 40),
-            physics: const BouncingScrollPhysics(),
             children: [
               MonthCalendar(
                 month: _month,

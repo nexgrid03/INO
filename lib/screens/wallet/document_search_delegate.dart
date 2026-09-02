@@ -6,6 +6,7 @@ import '../../models/document_extraction.dart';
 import '../../repositories/document_repository.dart';
 import '../../theme/app_theme.dart';
 import 'wallet_detail_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A real global search across every document in the vault.
 ///
@@ -88,7 +89,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return  Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: InoLoader(color: AppColors.primaryGreen),
           );
         }
         if (snap.hasError || !snap.hasData) {

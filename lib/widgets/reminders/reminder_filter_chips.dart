@@ -27,7 +27,6 @@ class ReminderFilterChips extends StatelessWidget {
       height: context.horizontalCardHeight(44),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.screen,

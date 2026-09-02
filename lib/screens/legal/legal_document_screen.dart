@@ -65,7 +65,6 @@ class LegalDocumentScreen extends StatelessWidget {
     return SettingsScaffold(
       title: l10n.t(title),
       child: ListView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl),
         children: [

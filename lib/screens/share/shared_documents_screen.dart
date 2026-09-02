@@ -17,6 +17,7 @@ import '../../utils/share_password.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Brand tokens from [INO-Share-Web](https://github.com/nexgrid03/INO-Share-Web)
 /// (`tailwind.config.ts` — ino.green + ino.blue). Kept local so the recipient
@@ -419,14 +420,7 @@ class _PasswordGate extends StatelessWidget {
                     backgroundColor: _ShareWeb.green600,
                   ),
                   child: busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const InoLoader(size: 20, color: Colors.white)
                       : Text(l10n.t('sharePasswordUnlock')),
                 ),
               ),
@@ -471,7 +465,6 @@ class _ActiveShareBody extends StatelessWidget {
         remaining.inHours < 1;
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       children: [
         // Header: logo + Secure share pill
@@ -849,14 +842,7 @@ class _ShareDocRow extends StatelessWidget {
                 ),
               ),
               if (busy)
-                const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: _ShareWeb.green600,
-                  ),
-                ),
+                InoLoader(size: 22, color: _ShareWeb.green600),
             ],
           ),
           const SizedBox(height: 12),
@@ -976,14 +962,7 @@ class _LoadingState extends StatelessWidget {
         children: [
           const _InoLogoMark(large: true),
           const SizedBox(height: 20),
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.6,
-              color: _ShareWeb.green600,
-            ),
-          ),
+          InoLoader(size: 28, color: _ShareWeb.green600),
           const SizedBox(height: 14),
           Text(
             AppLocalizations.of(context).t('loadingSecureShare'),

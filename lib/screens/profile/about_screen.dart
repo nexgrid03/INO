@@ -55,7 +55,6 @@ class _AboutScreenState extends State<AboutScreen> {
     return SettingsScaffold(
       title: l10n.t('aboutIno'),
       child: ListView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.lg, AppSpacing.screen, AppSpacing.xl),
         children: [

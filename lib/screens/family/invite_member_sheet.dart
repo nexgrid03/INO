@@ -8,6 +8,7 @@ import '../../models/family_vault_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Bottom sheet for inviting a member by **phone number, name or email**.
 ///
@@ -259,13 +260,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
                   ),
                   child: Center(
                     child: _sending
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white)))
+                        ? const InoLoader(size: 22, color: Colors.white)
                         : Text(l10n.t('sendInvitation'),
                             style: const TextStyle(
                                 color: Colors.white,

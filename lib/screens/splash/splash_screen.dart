@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/app_preload.dart';
 import '../../services/app_settings.dart';
 import '../../services/guest_mode.dart';
 import '../../theme/app_theme.dart';
@@ -120,6 +121,13 @@ class _SplashScreenState extends State<SplashScreen>
     ];
 
     _c.forward();
+
+    // Load the user's whole working set behind the animation. Deferred one
+    // frame because `createLocalImageConfiguration` (inside [AppPreload]) reads
+    // inherited widgets, which are not resolvable from initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _startup = _prepare();
+    });
   }
 
   Animation<double> _phase(double begin, double end, Curve curve) {
@@ -137,22 +145,34 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  Future<void> _beginExit() async {
-    if (_exiting || _navigated || !mounted) return;
-    _exiting = true;
-    await _exit.forward();
-    if (!mounted) return;
-    await _continue();
-  }
+  /// Resolving who is signed in AND warming their data — started the moment
+  /// the splash mounts so it runs *underneath* the brand animation instead of
+  /// after it. See [_prepare].
+  Future<void>? _startup;
 
-  Future<void> _continue() async {
-    if (_navigated || !mounted) return;
-    _navigated = true;
+  /// The signed-in profile, resolved by [_prepare]. Null means "show Login".
+  UserProfile? _profile;
 
-    if (!AppSettings.instance.onboardingSeen.value) {
-      _replace(const OnboardingScreen());
-      return;
-    }
+  /// Everything the app needs before the first real screen can paint:
+  /// the user's profile, and — via [AppPreload] — every store, read model and
+  /// piece of Home art the shell reads from.
+  ///
+  /// Never throws. Anything that fails here degrades to the old behaviour:
+  /// the destination screen loads it itself.
+  Future<void> _prepare() async {
+    // Kicked off first so the asset decodes and the document fetch overlap the
+    // profile round-trip below rather than queueing behind it. Swallowing
+    // errors here, rather than at the `await` below, matters twice over: the
+    // early return for first-run onboarding would otherwise leave an unhandled
+    // error on a future nobody awaits, and a warm-up that failed must never be
+    // able to throw out of [_beginExit] and strand the app on the splash.
+    final warm = AppPreload.instance
+        .warmUp(context: context)
+        .catchError((Object _) {});
+
+    // First run goes to onboarding, where there is no user data to show — no
+    // reason to make the intro wait on a warm-up nobody will see.
+    if (!AppSettings.instance.onboardingSeen.value) return;
 
     try {
       final session = Supabase.instance.client.auth.currentSession;
@@ -165,20 +185,52 @@ class _SplashScreenState extends State<SplashScreen>
             session.user.id,
           );
         } else {
+          // Cached profile is good enough to open with; refresh behind it.
           unawaited(
             UserRepository.instance.getProfileByAuthId(session.user.id),
           );
         }
-        if (profile != null && mounted) {
-          _goToShellFade(profile);
-          return;
-        }
+        _profile = profile;
       }
     } catch (_) {
       // Fall through to Login — never block cold start on network.
     }
 
+    await warm;
+  }
+
+  Future<void> _beginExit() async {
+    if (_exiting || _navigated || !mounted) return;
+    _exiting = true;
+
+    // Hold the finished mark on screen until the user's data is warm, so the
+    // shell opens fully populated instead of opening onto skeletons. Capped:
+    // a slow network must never turn into a stuck splash, and everything
+    // still in flight keeps going and lands in the caches anyway.
+    await (_startup ?? Future<void>.value())
+        .timeout(AppPreload.splashBudget, onTimeout: () {});
     if (!mounted) return;
+
+    await _exit.forward();
+    if (!mounted) return;
+    _continue();
+  }
+
+  void _continue() {
+    if (_navigated || !mounted) return;
+    _navigated = true;
+
+    if (!AppSettings.instance.onboardingSeen.value) {
+      _replace(const OnboardingScreen());
+      return;
+    }
+
+    final profile = _profile;
+    if (profile != null) {
+      _goToShellFade(profile);
+      return;
+    }
+
     _replace(const LoginScreen());
   }
 

@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
 import '../common/shiny_icon.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// Opens the Create Category sheet and returns the created [DocumentCategory],
 /// or null if the user dismissed it. The category is already persisted to
@@ -226,15 +227,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                         borderRadius: BorderRadius.circular(AppRadius.button),
                         child: Center(
                           child: _saving
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.4,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
+                              ? const InoLoader(size: 22, color: Colors.white)
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [

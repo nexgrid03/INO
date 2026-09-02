@@ -22,6 +22,7 @@ import '../../widgets/reminders/reminders_header.dart';
 import 'all_reminders_screen.dart';
 import 'completed_reminders_screen.dart';
 import 'reminder_calendar_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The Reminders home - a calm, single-glance answer to "what needs my
 /// attention right now?".
@@ -140,9 +141,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     listenable: _store,
                     builder: (context, _) {
                       return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
                         slivers: [
                           if (!_store.isLoaded)
                             SliverFillRemaining(
@@ -150,10 +148,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                               child: Center(
                                 child: Padding(
                                   padding: EdgeInsets.only(top: 60),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.6,
-                                    color: AppColors.primaryGreen,
-                                  ),
+                                  child: InoLoader(color: AppColors.primaryGreen),
                                 ),
                               ),
                             )
@@ -527,7 +522,6 @@ class _WeekStrip extends StatelessWidget {
       height: context.horizontalCardHeight(72),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         itemCount: days.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),

@@ -16,6 +16,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../documents/add_document_screen.dart';
 import '../networth/net_worth_analytics_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Assets - the total asset value, a searchable breakdown by class (from the
 /// [NetWorthService] allocation model) and a real "Add asset" entry point that
@@ -71,7 +72,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
         future: _ready,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: InoLoader());
           }
           return ListenableBuilder(
             listenable: NetWorthService.instance,
@@ -311,7 +312,6 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   compact: true,
                 )
               : ListView.separated(
-                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     AppSpacing.xs,

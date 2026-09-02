@@ -39,7 +39,6 @@ class CategoryChips extends StatelessWidget {
       height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
         padding: const EdgeInsets.symmetric(vertical: 6),
         children: [

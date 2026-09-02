@@ -19,6 +19,7 @@ import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The recipient-facing viewer for a **view-once** link.
 ///
@@ -368,7 +369,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
     switch (_phase) {
       case _Phase.loading:
         return  Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+          child: InoLoader(color: AppColors.primaryGreen),
         );
       case _Phase.gate:
       case _Phase.opening:
@@ -386,7 +387,6 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
     final l10n = AppLocalizations.of(context);
     final opening = _phase == _Phase.opening;
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, AppSpacing.lg),
       children: [
@@ -473,15 +473,7 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
                       ),
                       child: Center(
                         child: opening
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
+                            ? const InoLoader(size: 22, color: Colors.white)
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [

@@ -403,9 +403,6 @@ class _OverviewTab extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
       children: [
         // ---- Total investments hero ----
         FadeSlideIn(
@@ -981,9 +978,6 @@ class _HoldingsTab extends StatelessWidget {
                     16,
                     120,
                   ),
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
                   itemCount: investments.length,
                   separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.md),
@@ -1238,9 +1232,6 @@ class _ActivityTab extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
       itemCount: events.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, i) {
