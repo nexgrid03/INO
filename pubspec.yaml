@@ -1,5 +1,7 @@
 name: inoapp
+
 description: "INO — personal wealth & secure document vault"
+
 publish_to: "none"
 
 version: 1.0.1+2
@@ -10,43 +12,82 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   flutter_localizations:
     sdk: flutter
 
   flutter_screenutil: ^5.9.3
+
   supabase_flutter: ^2.15.0
+
   google_sign_in: ^7.2.0
+
   camera: ^0.12.0+1
+
   permission_handler: ^12.0.3
+
   image_picker: ^1.2.3
+
   image: ^4.8.0
+
   google_mlkit_document_scanner: ^0.4.1
+
   local_auth: ^2.3.0
+
   local_auth_android: ^1.0.56
+
   local_auth_darwin: ^1.6.1
+
   shared_preferences: ^2.3.2
+
   path_provider: ^2.1.4
+
   open_filex: ^4.5.0
+
   share_plus: ^10.1.2
+
   package_info_plus: ^8.3.1
+
   url_launcher: ^6.3.2
+
   google_mlkit_text_recognition: ^0.15.1
+
   # Pinned with text_recognition on commons ^0.11.0 (see 0.15.x note in history).
   google_mlkit_barcode_scanning: ^0.14.2
+
   file_picker: ^8.1.6
+
   qr_flutter: ^4.1.0
+
   http: ^1.2.2
+
   app_links: ^6.3.0
+
   pdf: ^3.11.1
+
   speech_to_text: ^7.0.0
+
   flutter_tts: ^4.2.0
+
   firebase_core: ^4.12.1
+
   firebase_messaging: ^16.4.3
+
   flutter_local_notifications: ^22.2.0
+
   cryptography: ^2.9.0
+
   google_fonts: ^6.2.1
+
   flutter_svg: ^2.3.0
+
   timezone: ^0.11.1
+
+  mobile_scanner: ^7.4.0
+
+  flutter_secure_storage: ^10.3.1
+
+  qr: ^3.0.2
 
 dependency_overrides:
   # AGP 9 + path_provider_android 2.3.x/jni break; pin pre-jni until fixed.
@@ -55,7 +96,9 @@ dependency_overrides:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^6.0.0
+
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
@@ -69,6 +112,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/icon/ino_icon_splash.png
     - assets/icons/home/

@@ -111,11 +111,15 @@ class ShareRepository {
       name: 'share',
     );
 
+    final sw = Stopwatch()..start();
     try {
       final row = await _client
           .rpc('create_document_share', params: payload)
           .timeout(NetGuard.mutation);
-      developer.log('RPC create_document_share → RESPONSE: $row', name: 'share');
+      developer.log(
+          'RPC create_document_share → RESPONSE (${sw.elapsedMilliseconds}ms): '
+          '$row',
+          name: 'share');
 
       // The RPC returns the inserted row (a JSON object, or a 1-element list).
       final map = (row is List ? (row.isEmpty ? null : row.first) : row)

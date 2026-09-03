@@ -44,32 +44,43 @@ class _PressableScaleState extends State<PressableScale> {
 
   /// A real press reads as instant at 70ms, but a scroll touch has usually
   /// started moving by then.
-  static const Duration _activationDelay = Duration(milliseconds: 70);
+  static const Duration _activationDelay =
+      Duration(milliseconds: 70);
 
   /// Movement beyond this is a drag, not a press (matches kTouchSlop).
   static const double _slop = 18.0;
 
   void _onDown(PointerDownEvent event) {
     _downPosition = event.position;
+
     _activation?.cancel();
+
     _activation = Timer(_activationDelay, () {
-      if (mounted && _downPosition != null) {
-        setState(() => _pressed = true);
-      }
+      if (!mounted || _downPosition == null) return;
+
+      setState(() => _pressed = true);
     });
   }
 
   void _onMove(PointerMoveEvent event) {
     final down = _downPosition;
+
     if (down == null) return;
-    if ((event.position - down).distance > _slop) _release();
+
+    if ((event.position - down).distance > _slop) {
+      _release();
+    }
   }
 
   void _release() {
     _activation?.cancel();
     _activation = null;
     _downPosition = null;
-    if (_pressed && mounted) setState(() => _pressed = false);
+
+    // Guard against setState() after dispose().
+    if (!mounted || !_pressed) return;
+
+    setState(() => _pressed = false);
   }
 
   @override
