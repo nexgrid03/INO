@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../navigation/wallet_module_router.dart';
+import '../../services/app_settings.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/notification_center.dart';
 import '../../services/vault_guard.dart';
@@ -160,80 +161,148 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsScaffold(
-      title: l10n.t('notifications'),
-      actions: [
-        ListenableBuilder(
-          listenable: _center,
-          builder: (context, _) {
-            if (_center.unreadCount == 0) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: TextButton(
-                  onPressed: _center.markAllRead,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _center,
+        AppSettings.instance.hideReadNotifications,
+      ]),
+      builder: (context, _) {
+        final hideRead = AppSettings.instance.hideReadNotifications.value;
+        final allItems = _center.notifications;
+        final unreadItems = allItems.where((n) => !n.read).toList();
+        final readItems = allItems.where((n) => n.read).toList();
+
+        return SettingsScaffold(
+          title: l10n.t('notifications'),
+          actions: [
+            IconButton(
+              icon: Icon(
+                hideRead
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 22,
+                color: hideRead
+                    ? AppColors.primaryGreen
+                    : AppPalette.of(context).textSecondary,
+              ),
+              tooltip: hideRead ? 'Show read notifications' : 'Hide read notifications',
+              onPressed: () {
+                AppSettings.instance.setHideReadNotifications(!hideRead);
+              },
+            ),
+            if (_center.unreadCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: TextButton(
+                    onPressed: () async {
+                      await _center.markAllRead();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: AppColors.primaryGreen,
                     ),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: AppColors.primaryGreen,
-                  ),
-                  child: Text(
-                    l10n.t('markAllRead'),
-                    style: TextStyle(
-                      color: AppColors.primaryGreen,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                    child: Text(
+                      l10n.t('markAllRead'),
+                      style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
               ),
-            );
-          },
+          ],
+          child: _buildBody(
+            context,
+            l10n,
+            hideRead: hideRead,
+            unreadItems: unreadItems,
+            readItems: readItems,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool hideRead,
+    required List<AppNotification> unreadItems,
+    required List<AppNotification> readItems,
+  }) {
+    final palette = AppPalette.of(context);
+    final visibleItems = hideRead ? unreadItems : [...unreadItems, ...readItems];
+
+    if (visibleItems.isEmpty) {
+      return EmptyState(
+        icon: Icons.notifications_off_rounded,
+        title: l10n.t('allCaughtUp'),
+        message: l10n.t('noNewNotifications'),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primaryGreen,
+      onRefresh: _center.refresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          AppSpacing.sm,
+          AppSpacing.screen,
+          AppSpacing.xl,
         ),
-      ],
-      child: ListenableBuilder(
-        listenable: _center,
-        builder: (context, _) {
-          final items = _center.notifications;
-          if (items.isEmpty) {
-            return EmptyState(
-              icon: Icons.notifications_off_rounded,
-              title: l10n.t('allCaughtUp'),
-              message: l10n.t('noNewNotifications'),
-            );
-          }
-          return RefreshIndicator(
-            color: AppColors.primaryGreen,
-            onRefresh: _center.refresh,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                AppSpacing.sm,
-                AppSpacing.screen,
-                AppSpacing.xl,
+        children: [
+          if (unreadItems.isNotEmpty) ...[
+            if (!hideRead && readItems.isNotEmpty)
+              _SectionHeader(
+                title: 'UNREAD NOTIFICATIONS',
+                count: unreadItems.length,
+                color: AppColors.primaryGreen,
               ),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final n = items[i];
-                return Dismissible(
-                  key: ValueKey(n.id),
-                  direction: DismissDirection.endToStart,
-                  background: _dismissBg(),
-                  onDismissed: (_) => _center.dismiss(n.id),
-                  child: _NotificationTile(
-                    notification: n,
-                    onTap: () => _handleNotificationTap(n),
-                  ),
-                );
-              },
+            for (final n in unreadItems) ...[
+              const SizedBox(height: 8),
+              Dismissible(
+                key: ValueKey(n.id),
+                direction: DismissDirection.endToStart,
+                background: _dismissBg(),
+                onDismissed: (_) => _center.dismiss(n.id),
+                child: _NotificationTile(
+                  notification: n,
+                  onTap: () => _handleNotificationTap(n),
+                ),
+              ),
+            ],
+          ],
+          if (!hideRead && readItems.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _SectionHeader(
+              title: 'RECENT ACTIVITY',
+              count: readItems.length,
+              color: palette.textFaint,
             ),
-          );
-        },
+            for (final n in readItems) ...[
+              const SizedBox(height: 8),
+              Dismissible(
+                key: ValueKey(n.id),
+                direction: DismissDirection.endToStart,
+                background: _dismissBg(),
+                onDismissed: (_) => _center.dismiss(n.id),
+                child: _NotificationTile(
+                  notification: n,
+                  onTap: () => _handleNotificationTap(n),
+                ),
+              ),
+            ],
+          ],
+        ],
       ),
     );
   }
@@ -387,6 +456,57 @@ class _NotificationTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: card,
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.count,
+    required this.color,
+  });
+
+  final String title;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Container(height: 1, color: palette.border)),
+        ],
       ),
     );
   }

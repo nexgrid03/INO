@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../repositories/share_repository.dart';
+import '../../services/app_settings.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -30,12 +31,21 @@ class ManageSharesScreen extends StatefulWidget {
 
 class _ManageSharesScreenState extends State<ManageSharesScreen> {
   late Future<List<DocumentShare>> _future;
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
     super.initState();
     _future = ShareRepository.instance.listMyShares();
     ShareRepository.revision.addListener(_reload);
+    _triggerAutoCleanup();
+  }
+
+  Future<void> _triggerAutoCleanup() async {
+    if (AppSettings.instance.autoRemoveExpiredShares.value) {
+      await ShareRepository.instance.autoCleanupExpiredLinks(days: 30);
+    }
   }
 
   @override
@@ -46,10 +56,90 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
 
   void _reload() {
     if (!mounted) return;
-    // Block body: an arrow hands setState the assigned Future, which it rejects.
     setState(() {
       _future = ShareRepository.instance.listMyShares();
     });
+  }
+
+  void _toggleSelection(String shareId) {
+    setState(() {
+      if (_selectedIds.contains(shareId)) {
+        _selectedIds.remove(shareId);
+        if (_selectedIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedIds.add(shareId);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _enterSelectionMode(String shareId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIds.add(shareId);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Shared Links'),
+        content: const Text(
+          'Are you sure you want to permanently remove the selected shared links from history?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.critical,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final count = _selectedIds.length;
+      await ShareRepository.instance.deleteBatch(_selectedIds.toList());
+      _exitSelectionMode();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count shared link(s) permanently removed.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.primaryGreen,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete links: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.critical,
+        ),
+      );
+    }
   }
 
   @override
@@ -67,10 +157,26 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
           child: Column(
             children: [
               DivineGlassAppBar(
-                title: l10n.t('sharedLinksTitle'),
-                onBack: () => Navigator.of(context).maybePop(),
+                title: _isSelectionMode
+                    ? '${_selectedIds.length} Selected'
+                    : l10n.t('sharedLinksTitle'),
+                onBack: _isSelectionMode
+                    ? _exitSelectionMode
+                    : () => Navigator.of(context).maybePop(),
                 centerTitle: false,
                 includeStatusBar: true,
+                actions: [
+                  if (_isSelectionMode) ...[
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppColors.critical,
+                      ),
+                      tooltip: 'Delete Selected',
+                      onPressed: _deleteSelected,
+                    ),
+                  ],
+                ],
               ),
               Expanded(
                 child: FutureBuilder<List<DocumentShare>>(
@@ -88,8 +194,12 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                       onRefresh: () async => _reload(),
                       child: _SharesList(
                         shares: shares,
+                        isSelectionMode: _isSelectionMode,
+                        selectedIds: _selectedIds,
                         onOpen: _open,
                         onRevoke: _revoke,
+                        onToggleSelection: _toggleSelection,
+                        onEnterSelectionMode: _enterSelectionMode,
                       ),
                     );
                   },
@@ -172,13 +282,21 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
 class _SharesList extends StatelessWidget {
   const _SharesList({
     required this.shares,
+    required this.isSelectionMode,
+    required this.selectedIds,
     required this.onOpen,
     required this.onRevoke,
+    required this.onToggleSelection,
+    required this.onEnterSelectionMode,
   });
 
   final List<DocumentShare> shares;
+  final bool isSelectionMode;
+  final Set<String> selectedIds;
   final void Function(DocumentShare) onOpen;
   final void Function(DocumentShare) onRevoke;
+  final void Function(String) onToggleSelection;
+  final void Function(String) onEnterSelectionMode;
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +321,8 @@ class _SharesList extends StatelessWidget {
         views: totalViews,
         downloads: totalDownloads,
       ),
+      const SizedBox(height: 12),
+      _AutoCleanupCard(),
       if (active.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg + 4),
         _SectionLabel(
@@ -214,8 +334,14 @@ class _SharesList extends StatelessWidget {
           if (i > 0) const SizedBox(height: 12),
           _ShareCard(
             share: active[i],
-            onOpen: () => onOpen(active[i]),
+            isSelectionMode: isSelectionMode,
+            isSelected: selectedIds.contains(active[i].shareId),
+            onOpen: () => isSelectionMode
+                ? onToggleSelection(active[i].shareId)
+                : onOpen(active[i]),
             onRevoke: () => onRevoke(active[i]),
+            onLongPress: () => onEnterSelectionMode(active[i].shareId),
+            onSelectToggle: () => onToggleSelection(active[i].shareId),
           ),
         ],
       ],
@@ -231,19 +357,21 @@ class _SharesList extends StatelessWidget {
           if (i > 0) const SizedBox(height: 12),
           _ShareCard(
             share: history[i],
-            onOpen: () => onOpen(history[i]),
+            isSelectionMode: isSelectionMode,
+            isSelected: selectedIds.contains(history[i].shareId),
+            onOpen: () => isSelectionMode
+                ? onToggleSelection(history[i].shareId)
+                : onOpen(history[i]),
             onRevoke: () => onRevoke(history[i]),
+            onLongPress: () => onEnterSelectionMode(history[i].shareId),
+            onSelectToggle: () => onToggleSelection(history[i].shareId),
           ),
         ],
       ],
       const SizedBox(height: 24),
     ];
 
-    // Lazy: only visible rows get elements/render objects, so a long share
-    // history costs nothing until scrolled to. No FadeSlideIn — recycled rows
-    // replay the entrance every time they scroll back into view.
     return ListView.builder(
-      // Clear gap under the frosted app bar so stats never kiss the header.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.md + 4,
@@ -252,6 +380,53 @@ class _SharesList extends StatelessWidget {
       ),
       itemCount: sections.length,
       itemBuilder: (context, i) => sections[i],
+    );
+  }
+}
+
+class _AutoCleanupCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppSettings.instance.autoRemoveExpiredShares,
+      builder: (context, enabled, _) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: palette.surfaceVariant.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: palette.border.withValues(alpha: 0.6)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_delete_outlined,
+                size: 20,
+                color: enabled ? AppColors.primaryGreen : palette.textFaint,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Automatically remove expired links after 30 days',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textPrimary,
+                  ),
+                ),
+              ),
+              Switch.adaptive(
+                value: enabled,
+                activeTrackColor: AppColors.primaryGreen,
+                onChanged: (val) {
+                  AppSettings.instance.setAutoRemoveExpiredShares(val);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -436,11 +611,19 @@ class _ShareCard extends StatelessWidget {
     required this.share,
     required this.onOpen,
     required this.onRevoke,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onLongPress,
+    this.onSelectToggle,
   });
 
   final DocumentShare share;
   final VoidCallback onOpen;
   final VoidCallback onRevoke;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onSelectToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -459,6 +642,14 @@ class _ShareCard extends StatelessWidget {
       children: [
         Row(
           children: [
+            if (isSelectionMode) ...[
+              Checkbox(
+                value: isSelected,
+                activeColor: AppColors.primaryGreen,
+                onChanged: (_) => onSelectToggle?.call(),
+              ),
+              const SizedBox(width: 4),
+            ],
             Container(
               width: 46,
               height: 46,
@@ -574,11 +765,11 @@ class _ShareCard extends StatelessWidget {
       ],
     );
 
-    // Same frosted glass language as wallet / home cards.
     return PressableScale(
       pressedScale: 0.985,
       child: GestureDetector(
-        onTap: onOpen,
+        onTap: isSelectionMode ? onSelectToggle : onOpen,
+        onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: divineGlassEnabled(context)
             ? AdaptiveGlassCard(

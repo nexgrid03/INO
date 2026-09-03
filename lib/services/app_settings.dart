@@ -28,6 +28,8 @@ class AppSettings {
   static const _kOnboardingSeen = 'pref_onboarding_seen';
   static const _kPaymentAppConsent = 'pref_payment_app_consent';
   static const _kQuickMenu = 'pref_quick_menu';
+  static const _kAutoRemoveExpiredShares = 'pref_auto_remove_expired_shares';
+  static const _kHideReadNotifications = 'pref_hide_read_notifications';
 
   /// Push / reminder notifications. Default on.
   final ValueNotifier<bool> notifications = ValueNotifier<bool>(true);
@@ -82,6 +84,12 @@ class AppSettings {
     const ['expenses', 'scan', 'notes'],
   );
 
+  /// Automatically remove expired shared links after 30 days. Default off.
+  final ValueNotifier<bool> autoRemoveExpiredShares = ValueNotifier<bool>(false);
+
+  /// Hide read notifications from the main notifications list. Default off.
+  final ValueNotifier<bool> hideReadNotifications = ValueNotifier<bool>(false);
+
   /// Reads every persisted preference into memory. Call once at startup.
   Future<void> load() async {
     try {
@@ -95,6 +103,8 @@ class AppSettings {
       tourSeen.value = p.getBool(_kTourSeen) ?? false;
       onboardingSeen.value = p.getBool(_kOnboardingSeen) ?? false;
       paymentAppConsent.value = p.getBool(_kPaymentAppConsent) ?? false;
+      autoRemoveExpiredShares.value = p.getBool(_kAutoRemoveExpiredShares) ?? false;
+      hideReadNotifications.value = p.getBool(_kHideReadNotifications) ?? false;
       final menu = p.getStringList(_kQuickMenu);
       if (menu != null && menu.isNotEmpty) {
         quickMenu.value = List.unmodifiable(menu.take(5));
@@ -213,5 +223,21 @@ class AppSettings {
     } catch (e) {
       developer.log('resetAccountScoped failed: $e', name: 'settings');
     }
+  }
+
+  Future<void> setAutoRemoveExpiredShares(bool value) async {
+    autoRemoveExpiredShares.value = value;
+    try {
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      await p.setBool(_kAutoRemoveExpiredShares, value);
+    } catch (_) {}
+  }
+
+  Future<void> setHideReadNotifications(bool value) async {
+    hideReadNotifications.value = value;
+    try {
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      await p.setBool(_kHideReadNotifications, value);
+    } catch (_) {}
   }
 }

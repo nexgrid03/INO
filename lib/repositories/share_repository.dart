@@ -424,6 +424,41 @@ class ShareRepository {
     _bump();
   }
 
+  /// Permanently deletes multiple share rows by ID (and cascades their analytics).
+  Future<void> deleteBatch(List<String> shareIds) async {
+    if (shareIds.isEmpty) return;
+    final uid = _uid;
+    if (uid == null) {
+      throw const ShareException('You must be signed in to delete shares.');
+    }
+    await _client
+        .from(_table)
+        .delete()
+        .inFilter('share_id', shareIds)
+        .eq('owner_id', uid)
+        .timeout(NetGuard.mutation);
+    _bump();
+  }
+
+  /// Automatically deletes expired or revoked links older than [days] days.
+  Future<void> autoCleanupExpiredLinks({int days = 30}) async {
+    final uid = _uid;
+    if (uid == null) return;
+    final cutoff = DateTime.now().subtract(Duration(days: days));
+    try {
+      await _client
+          .from(_table)
+          .delete()
+          .eq('owner_id', uid)
+          .or('status.eq.expired,status.eq.revoked')
+          .lt('expires_at', cutoff.toIso8601String())
+          .timeout(NetGuard.mutation);
+      _bump();
+    } catch (e) {
+      developer.log('autoCleanupExpiredLinks error: $e', name: 'share');
+    }
+  }
+
   // ---- Public (recipient) side --------------------------------------------
   // These hit the anonymous `share` Edge Function over plain HTTP - recipients
   // have no Supabase session, and the private tables are never queried directly.

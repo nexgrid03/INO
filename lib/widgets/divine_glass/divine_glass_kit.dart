@@ -21,6 +21,7 @@ class DivineGlassAppBar extends StatelessWidget {
     String? subtitle,
     this.onBack,
     this.trailing,
+    this.actions,
     this.centerTitle = false,
     this.includeStatusBar = false,
   });
@@ -28,6 +29,7 @@ class DivineGlassAppBar extends StatelessWidget {
   final String title;
   final VoidCallback? onBack;
   final Widget? trailing;
+  final List<Widget>? actions;
 
   /// When false (default), title sits left next to the back control.
   final bool centerTitle;
@@ -107,6 +109,13 @@ class DivineGlassAppBar extends StatelessWidget {
       ),
     );
 
+    Widget? effectiveTrailing = trailing;
+    if (effectiveTrailing == null && actions != null && actions!.isNotEmpty) {
+      effectiveTrailing = actions!.length == 1
+          ? actions!.first
+          : Row(mainAxisSize: MainAxisSize.min, children: actions!);
+    }
+
     // Transparent plate — white Material under frost made every page heading
     // read as a solid slab. LiquidGlass alone provides the glassy wash so the
     // sky / mist shows through like Document cards.
@@ -152,10 +161,10 @@ class DivineGlassAppBar extends StatelessWidget {
                   if (!centerTitle) const SizedBox(width: 6),
                   Expanded(child: titleBlock),
                   SizedBox(
-                    width: trailing == null ? 44 : null,
+                    width: effectiveTrailing == null ? 44 : null,
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: trailing ?? const SizedBox.shrink(),
+                      child: effectiveTrailing ?? const SizedBox.shrink(),
                     ),
                   ),
                 ],
