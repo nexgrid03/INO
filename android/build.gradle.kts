@@ -49,6 +49,30 @@ subprojects {
     if (state.executed) raiseCompileSdk() else afterEvaluate { raiseCompileSdk() }
 }
 
+// ---------------------------------------------------------------------------
+// OneDrive ReparsePoint Fix for Windows: Ensures generated build files are
+// kept as local regular files so Gradle snapshotting never fails with
+// "not a regular file" on OneDrive-synced projects.
+// ---------------------------------------------------------------------------
+if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) {
+    subprojects {
+        tasks.matching {
+            it.name.startsWith("compile") || it.name.startsWith("generate") || it.name.startsWith("merge")
+        }.configureEach {
+            doFirst {
+                val bDir = project.layout.buildDirectory.orNull?.asFile
+                if (bDir != null && bDir.exists()) {
+                    try {
+                        ProcessBuilder("cmd.exe", "/c", "attrib -u +p \"${bDir.absolutePath}\" /s /d")
+                            .start()
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
