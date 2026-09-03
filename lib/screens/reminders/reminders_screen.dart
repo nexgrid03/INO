@@ -47,6 +47,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[Reminders] Screen opened');
     _store.ensureLoaded();
   }
 
@@ -140,24 +141,35 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   child: ListenableBuilder(
                     listenable: _store,
                     builder: (context, _) {
+                      final isLoading = !_store.isLoaded || _store.isLoading;
+                      final showEmpty = !isLoading && _store.isEmpty && _store.loadError == null;
+                      final showDashboard = !isLoading && !_store.isEmpty;
+                      final showError = !isLoading && _store.loadError != null && _store.isEmpty;
+
+                      if (showDashboard) {
+                        debugPrint('[Reminders] Showing Dashboard');
+                      } else if (showEmpty) {
+                        debugPrint('[Reminders] Showing Empty State');
+                      }
+
                       return CustomScrollView(
                         slivers: [
-                          if (!_store.isLoaded)
+                          if (isLoading)
                             SliverFillRemaining(
                               hasScrollBody: false,
                               child: Center(
                                 child: Padding(
-                                  padding: EdgeInsets.only(top: 60),
+                                  padding: const EdgeInsets.only(top: 60),
                                   child: InoLoader(color: AppColors.primaryGreen),
                                 ),
                               ),
                             )
-                          else if (_store.loadError != null && _store.isEmpty)
+                          else if (showError)
                             SliverFillRemaining(
                               hasScrollBody: false,
                               child: _LoadFailed(onRetry: _refresh),
                             )
-                          else if (_store.isEmpty)
+                          else if (showEmpty)
                             SliverFillRemaining(
                               hasScrollBody: false,
                               child: RemindersEmptyState(onCreate: _add),

@@ -47,7 +47,18 @@ class InoBottomNav extends StatefulWidget {
     required this.index,
     required this.onSelect,
     this.onQuickMenuAction,
+    this.homeTabKey,
+    this.vaultTabKey,
+    this.quickAddKey,
+    this.alertsTabKey,
+    this.profileTabKey,
   });
+
+  final Key? homeTabKey;
+  final Key? vaultTabKey;
+  final Key? quickAddKey;
+  final Key? alertsTabKey;
+  final Key? profileTabKey;
 
   /// The active tab (0 Home · 1 Vault · 3 Alerts · 4 Profile). Index 2 is the
   /// centre "+" button and is never a resting page.
@@ -423,7 +434,7 @@ class _InoBottomNavState extends State<InoBottomNav>
                             child: i == 2
                                 ? Center(
                                     child: _ScanButton(
-                                      key: _scanKey,
+                                      key: widget.quickAddKey ?? _scanKey,
                                       progress: _menu,
                                       onTap: _toggleMenu,
                                       onHoldStart: _onHoldStart,
@@ -433,6 +444,7 @@ class _InoBottomNavState extends State<InoBottomNav>
                                     ),
                                   )
                                 : _TabButton(
+                                    key: _tabKeyFor(i),
                                     item: InoBottomNav.tabs[i],
                                     kind: _kindFor(i),
                                     selected: widget.index == i,
@@ -456,6 +468,15 @@ class _InoBottomNavState extends State<InoBottomNav>
         1 => _TabKind.wallet,
         3 => _TabKind.notifications,
         _ => _TabKind.profile,
+      };
+
+  Key? _tabKeyFor(int i) => switch (i) {
+        0 => widget.homeTabKey,
+        1 => widget.vaultTabKey,
+        2 => widget.quickAddKey,
+        3 => widget.alertsTabKey,
+        4 => widget.profileTabKey,
+        _ => null,
       };
 }
 
@@ -558,6 +579,7 @@ enum _TabKind { home, wallet, notifications, profile }
 /// on selection, and layer their signature motion on top.
 class _TabButton extends StatefulWidget {
   const _TabButton({
+    super.key,
     required this.item,
     required this.kind,
     required this.selected,

@@ -9,12 +9,14 @@ import '../../theme/app_theme.dart';
 /// One stop in the first-run feature tour.
 class TourStep {
   const TourStep({
+    this.name = 'TargetWidget',
     required this.title,
     required this.body,
     required this.target,
     this.radius = 34,
   });
 
+  final String name;
   final String title;
   final String body;
 
@@ -99,6 +101,11 @@ class _FeatureTourState extends State<FeatureTour> {
             builder: (context, t, _) {
               final center = Offset.lerp(_fromCenter ?? target, target, t)!;
               final radius = _fromRadius + (_step.radius - _fromRadius) * t;
+
+              debugPrint(
+                '[Tutorial] Step=$_i Target=${_step.name} Position=(${target.dx.toStringAsFixed(1)}, ${target.dy.toStringAsFixed(1)}) SpotlightCenter=(${center.dx.toStringAsFixed(1)}, ${center.dy.toStringAsFixed(1)})',
+              );
+
               // Card fades in during the tail of the slide so it never trails the
               // moving hole.
               final cardT = ((t - 0.35) / 0.65).clamp(0.0, 1.0);

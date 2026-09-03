@@ -25,6 +25,7 @@ class WelcomeHeader extends StatefulWidget {
     this.email,
     this.notificationCount = 0,
     this.voiceButtonKey,
+    this.notificationsKey,
     this.launcherStyle = false,
     this.onHelp,
   });
@@ -35,6 +36,9 @@ class WelcomeHeader extends StatefulWidget {
   /// Optional key attached to the voice-assistant button so the first-run tour
   /// can spotlight it.
   final Key? voiceButtonKey;
+
+  /// Optional key attached to the notifications button for the tour spotlight.
+  final Key? notificationsKey;
 
   /// Opens the Profile page when the avatar is tapped.
   final VoidCallback? onProfile;
@@ -275,6 +279,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
         ),
         if (widget.launcherStyle) ...[
           _HeaderIcon(
+            key: widget.notificationsKey,
             icon: Icons.notifications_none_rounded,
             onTap: widget.onNotifications,
             tooltip: AppLocalizations.of(context).t('notifications'),
@@ -291,6 +296,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
           VoiceMicIconButton(key: widget.voiceButtonKey, size: 42),
           const SizedBox(width: 8),
           _HeaderIcon(
+            key: widget.notificationsKey,
             icon: Icons.notifications_rounded,
             onTap: widget.onNotifications,
             tooltip: AppLocalizations.of(context).t('notifications'),
@@ -305,6 +311,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
 
 class _HeaderIcon extends StatelessWidget {
   const _HeaderIcon({
+    super.key,
     required this.icon,
     required this.onTap,
     required this.tooltip,

@@ -56,6 +56,14 @@ class _MainShellState extends State<MainShell>
   /// Locates the Home header's voice-assistant button for the tour's final
   /// step. Threaded Home → WelcomeHeader → VoiceMicIconButton.
   final GlobalKey _voiceKey = GlobalKey();
+  final GlobalKey _notificationsKey = GlobalKey();
+
+  /// GlobalKeys for bottom nav tabs so the spotlight anchors precisely to live UI widgets.
+  final GlobalKey _homeTabKey = GlobalKey();
+  final GlobalKey _vaultTabKey = GlobalKey();
+  final GlobalKey _quickAddKey = GlobalKey();
+  final GlobalKey _alertsTabKey = GlobalKey();
+  final GlobalKey _profileTabKey = GlobalKey();
 
   /// Plays a brief fade each time the destination changes. The [IndexedStack]
   /// keeps every page alive (no rebuilds, scroll preserved); we only fade the
@@ -187,57 +195,68 @@ class _MainShellState extends State<MainShell>
   }
 
   /// The one-time tour's stops: the four nav destinations, the centre quick-add
-  /// button, then the voice assistant up top. Nav positions are derived from
-  /// the bar's own geometry (see [InoBottomNav]: 16px outer + 8px inner padding,
-  /// 66px tall, 12px above the safe area, five equal slots).
+  /// button, then the voice assistant up top. Target positions are resolved
+  /// live via GlobalKey + RenderBox.localToGlobal() on every frame tick.
   List<TourStep> _tourSteps(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final size = MediaQuery.sizeOf(context);
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final slotW = (size.width - 32 - 16) / 5;
-    final navY = size.height - safeBottom - 12 - 33;
-    Offset slot(int i) => Offset(24 + slotW * (i + 0.5), navY);
 
-    Offset voiceCenter() {
-      final box = _voiceKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize) {
-        return box.localToGlobal(box.size.center(Offset.zero));
+    Offset resolveCenter(GlobalKey key, String name, {GlobalKey? fallbackKey}) {
+      var ctx = key.currentContext;
+      if (ctx == null && fallbackKey != null) {
+        ctx = fallbackKey.currentContext;
       }
-      // Fallback: where the header places it (beside the bell, top-right).
-      return Offset(size.width - 82, MediaQuery.paddingOf(context).top + 46);
+      if (ctx != null) {
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null && box.hasSize && box.attached) {
+          final pos = box.localToGlobal(box.size.center(Offset.zero));
+          return pos;
+        }
+      }
+      return Offset(size.width / 2, size.height / 2);
     }
 
     return [
       TourStep(
+        name: 'HomeTab',
         title: l10n.t('home'),
         body: l10n.t('tourHomeBody'),
-        target: () => slot(0),
+        target: () => resolveCenter(_homeTabKey, 'HomeTab'),
       ),
       TourStep(
+        name: 'VaultTab',
         title: l10n.t('vault'),
         body: l10n.t('tourVaultBody'),
-        target: () => slot(1),
+        target: () => resolveCenter(_vaultTabKey, 'VaultTab'),
       ),
       TourStep(
+        name: 'QuickAddFAB',
         title: l10n.t('quickAdd'),
         body: l10n.t('tourQuickAddBody'),
-        target: () => slot(2),
+        target: () => resolveCenter(_quickAddKey, 'QuickAddFAB'),
         radius: 40,
       ),
       TourStep(
+        name: 'NotificationBell',
         title: l10n.t('alerts'),
         body: l10n.t('tourAlertsBody'),
-        target: () => slot(3),
+        target: () => resolveCenter(
+          _notificationsKey,
+          'NotificationBell',
+          fallbackKey: _alertsTabKey,
+        ),
       ),
       TourStep(
+        name: 'ProfileTab',
         title: l10n.t('profile'),
         body: l10n.t('tourProfileBody'),
-        target: () => slot(4),
+        target: () => resolveCenter(_profileTabKey, 'ProfileTab'),
       ),
       TourStep(
+        name: 'VoiceAssistant',
         title: l10n.t('voiceAssistant'),
         body: l10n.t('tourVoiceBody'),
-        target: voiceCenter,
+        target: () => resolveCenter(_voiceKey, 'VoiceAssistant'),
         radius: 32,
       ),
     ];
@@ -260,6 +279,7 @@ class _MainShellState extends State<MainShell>
         themeMode: widget.themeMode,
         onToggleTheme: widget.onToggleTheme,
         voiceTourKey: _voiceKey,
+        notificationsTourKey: _notificationsKey,
       ),
       if (guest)
         const PlaceholderTab(
@@ -329,6 +349,11 @@ class _MainShellState extends State<MainShell>
         index: _index,
         onSelect: _select,
         onQuickMenuAction: _onQuickAction,
+        homeTabKey: _homeTabKey,
+        vaultTabKey: _vaultTabKey,
+        quickAddKey: _quickAddKey,
+        alertsTabKey: _alertsTabKey,
+        profileTabKey: _profileTabKey,
       ),
     );
 

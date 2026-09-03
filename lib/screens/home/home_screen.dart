@@ -106,6 +106,7 @@ class HomeScreen extends StatefulWidget {
     this.themeMode = ThemeMode.system,
     this.onToggleTheme,
     this.voiceTourKey,
+    this.notificationsTourKey,
   });
 
   final UserProfile profile;
@@ -115,6 +116,9 @@ class HomeScreen extends StatefulWidget {
   /// Attached to the header's voice-assistant button so the first-run tour can
   /// spotlight it (see [MainShell]).
   final GlobalKey? voiceTourKey;
+
+  /// Attached to the header's notifications button for the first-run tour.
+  final GlobalKey? notificationsTourKey;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -447,6 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onProfile: () => _goToTab(4),
           onNotifications: () => _push(const NotificationsScreen()),
           voiceButtonKey: widget.voiceTourKey,
+          notificationsKey: widget.notificationsTourKey,
           launcherStyle: launcher,
           onHelp: () => _push(const HelpCenterScreen()),
         ),

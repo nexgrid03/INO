@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/perf/perf_tracer.dart';
 import '../l10n/app_localizations.dart';
@@ -22,6 +23,8 @@ class ReminderStore extends ChangeNotifier {
 
   bool _loading = false;
   bool _loaded = false;
+  String? _loadedUid;
+
   bool get isLoaded => _loaded;
   bool get isLoading => _loading;
 
@@ -45,11 +48,20 @@ class ReminderStore extends ChangeNotifier {
 
   bool get isEmpty => _active.isEmpty && _completed.isEmpty;
 
-  /// Loads the data once. Safe to call from every screen's `initState`.
+  /// Loads the data once per user session. Safe to call from every screen's `initState`.
   Future<void> ensureLoaded() => PerfTracer.traceQuery('ReminderStore.ensureLoaded', () async {
-    if (_loaded || _loading) return;
+    final currentUid = Supabase.instance.client.auth.currentUser?.id;
+
+    // Skip if already loaded for the current authenticated user.
+    if (_loaded && !_loading && _loadedUid == currentUid && currentUid != null) {
+      return;
+    }
+    if (_loading) return;
+
     _loading = true;
     notifyListeners();
+    debugPrint('[Reminders] Fetch started');
+
     try {
       final data = await ReminderRepository.instance.load();
       _today = data.today;
@@ -61,22 +73,25 @@ class ReminderStore extends ChangeNotifier {
         ..addAll(data.completed);
       _sort();
       _loadError = null;
-      // Re-arm the device's exact-time notifications from the fresh server
-      // state (covers reminders created on another device, and a reinstall).
+      _loadedUid = currentUid;
       unawaited(ReminderScheduler.instance.sync(_active));
+      debugPrint('[Reminders] Fetch completed');
+      debugPrint('[Reminders] Total reminders = ${_active.length + _completed.length}');
     } catch (e) {
-      debugPrint('Reminders load failed: $e');
+      debugPrint('[Reminders] Fetch failed: $e');
       _loadError = e.toString();
+    } finally {
+      _loaded = true;
+      _loading = false;
+      notifyListeners();
     }
-    _loaded = true;
-    _loading = false;
-    notifyListeners();
   });
 
   /// Pull-to-refresh: re-hydrate from the repository.
   Future<void> reload() async {
     _loaded = false;
     _loading = false;
+    _loadedUid = null;
     await ensureLoaded();
   }
 
