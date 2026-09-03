@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/document_protection_store.dart';
@@ -9,6 +10,7 @@ import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
@@ -97,18 +99,60 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
       );
       return;
     }
-    final result = await OpenFilex.open(file.path);
+    // Hand the local copy to whatever the device uses for this type. The MIME
+    // type is passed explicitly: open_filex otherwise infers it from the file
+    // extension, and a document stored without one (or with an extension it
+    // does not know) resolves to no handler at all - which is what made
+    // perfectly good saved files look like they simply would not open.
+    final result = await OpenFilex.open(file.path, type: _mimeFor(doc));
     if (!mounted) return;
-    if (result.type != ResultType.done) {
+    if (result.type == ResultType.done) return;
+
+    // No viewer installed for this type. Rather than dead-ending, offer the
+    // file to the system share sheet - "Open with" lives there too, so the
+    // user can still reach an app that handles it (or save it elsewhere).
+    final l10n = AppLocalizations.of(context);
+    final origin = shareOrigin(context);
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path, name: doc.name)],
+        subject: doc.name,
+        sharePositionOrigin: origin,
+      );
+    } catch (_) {
+      if (!mounted) return;
       showModuleToast(
         context,
-        AppLocalizations.of(context)
-            .t('noAppForExtension')
-            .replaceAll('{ext}', doc.extension),
+        l10n.t('noAppForExtension').replaceAll('{ext}', doc.extension),
         error: true,
       );
     }
   }
+
+  /// The MIME type for [doc], derived from its extension.
+  ///
+  /// Only the types the app actually produces or accepts are listed; anything
+  /// else returns null so open_filex falls back to its own (larger) table.
+  /// `application/octet-stream` is deliberately NOT a default here - it matches
+  /// no viewer, so guessing it would guarantee the failure this is avoiding.
+  String? _mimeFor(OfflineDoc doc) => switch (doc.extension) {
+        'pdf' => 'application/pdf',
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'heic' => 'image/heic',
+        'gif' => 'image/gif',
+        'bmp' => 'image/bmp',
+        'txt' => 'text/plain',
+        'csv' => 'text/csv',
+        'doc' => 'application/msword',
+        'docx' =>
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' =>
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        _ => null,
+      };
 
   Future<void> _remove(OfflineDoc doc) async {
     final l10n = AppLocalizations.of(context);
@@ -164,16 +208,9 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                 child: CustomScrollView(
                   slivers: [
                     if (!_store.isLoaded)
-                      const SliverPadding(
-                        padding: EdgeInsets.fromLTRB(
-                          AppSpacing.screen,
-                          AppSpacing.md,
-                          AppSpacing.screen,
-                          0,
-                        ),
-                        sliver: SliverToBoxAdapter(
-                          child: ModuleSkeleton(height: 72, count: 4),
-                        ),
+                      SliverToBoxAdapter(
+                        child:
+                            ModuleLoading(message: l10n.t('loadingOfflineDocs')),
                       )
                     else if (docs.isEmpty)
                       SliverFillRemaining(

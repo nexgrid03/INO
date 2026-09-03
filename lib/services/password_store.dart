@@ -1,5 +1,9 @@
+import 'dart:developer' as developer;
 import 'dart:math';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/net/net_guard.dart';
 import '../models/password_models.dart';
 import 'local_collection_store.dart';
 import 'vault_crypto.dart';
@@ -102,6 +106,60 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
       createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
       updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
     );
+  }
+
+  /// Re-seals every locally-cached entry under the vault's current key, and
+  /// drops server rows this device cannot account for.
+  ///
+  /// Called immediately after [VaultCrypto.resetPassphrase]. The local cache
+  /// holds plaintext, so those entries survive a forgotten passphrase intact -
+  /// this is what turns "reset" from "lose everything" into "lose only what
+  /// was never on this phone".
+  ///
+  /// The orphan sweep is not tidiness. A row sealed under the old key can
+  /// never be opened again; leaving it would mean the vault permanently listed
+  /// entries that show as blank passwords, with no way for the user to tell
+  /// those apart from a genuine sync problem. Deleting them makes the loss
+  /// visible once, which is the honest outcome.
+  ///
+  /// Best-effort throughout: a failure here leaves the new key working and the
+  /// local entries intact, and the next sync retries.
+  Future<void> resealForNewKey() async {
+    if (!VaultCrypto.instance.isUnlocked) return;
+    final client = Supabase.instance.client;
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) return;
+
+    final local = {for (final e in items) e.id: e};
+
+    try {
+      final rows = await client
+          .from('w_password_vault')
+          .select('id')
+          .eq('auth_user_id', uid)
+          .timeout(NetGuard.query);
+      for (final row in rows) {
+        final id = row['id'] as String?;
+        if (id == null || local.containsKey(id)) continue;
+        await client
+            .from('w_password_vault')
+            .delete()
+            .eq('id', id)
+            .timeout(NetGuard.mutation);
+      }
+    } catch (e) {
+      developer.log('reseal: orphan sweep failed: $e', name: 'vault');
+    }
+
+    for (final entry in local.values) {
+      try {
+        // update() runs toRow(), which seals with whatever key is loaded now -
+        // so this is the re-encryption, not just a touch.
+        await update(entry);
+      } catch (e) {
+        developer.log('reseal: ${entry.id} failed: $e', name: 'vault');
+      }
+    }
   }
 
   /// A–Z by nickname - the vault list reads best alphabetically.

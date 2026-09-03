@@ -18,10 +18,29 @@ import '../common/ino_loader.dart';
 /// confirms the payee back to the user, and hands a canonical `upi://pay` URI to
 /// the app they choose - the amount, PIN and the actual transfer all happen
 /// inside that app, where they belong.
+/// The permission gate runs **before** the picker, not on the tap that would
+/// launch. Profile → Privacy → "Payment apps" is the switch that decides
+/// whether INO may hand a payee's VPA to Google Pay / PhonePe / Paytm at all,
+/// so with it off the app list should never appear in the first place: showing
+/// the apps and only then refusing reads as the picker being broken. Granting
+/// here flips that same setting on, so it stays a single tap afterwards and
+/// can still be withdrawn from Profile.
 Future<void> showPaymentAppSheet(
   BuildContext context,
   PaymentRequest request,
-) {
+) async {
+  if (!AppSettings.instance.paymentAppConsent.value) {
+    final l10n = AppLocalizations.of(context);
+    final granted = await showPaymentAppConsentDialog(
+      context,
+      l10n.t('paymentConsentAnyApp'),
+    );
+    if (!granted) return;
+    await AppSettings.instance.setPaymentAppConsent(true);
+    if (!context.mounted) return;
+  }
+
+  if (!context.mounted) return;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,

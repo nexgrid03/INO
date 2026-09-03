@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/l10n/app_localizations.dart';
 import 'package:inoapp/screens/passwords/password_form_screen.dart';
+import 'package:inoapp/screens/passwords/vault_passphrase_sheet.dart';
 import 'package:inoapp/services/password_store.dart';
 import 'package:inoapp/services/vault_crypto.dart';
 import 'package:inoapp/theme/app_theme.dart';
@@ -83,5 +84,51 @@ void main() {
       find.text('Type a name by which you can remember this password'),
       findsOneWidget,
     );
+  });
+
+  /// Opens the passphrase sheet in [isFirstTime] mode and settles it.
+  Future<void> openSheet(WidgetTester tester, {required bool first}) async {
+    await tester.pumpWidget(wrap(Builder(
+      builder: (context) => TextButton(
+        onPressed: () => showVaultPassphraseSheet(context, isFirstTime: first),
+        child: const Text('open'),
+      ),
+    )));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  testWidgets('unlocking an existing vault offers a way back in', (tester) async {
+    tester.view.physicalSize = const Size(1400, 3000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await openSheet(tester, first: false);
+
+    // Without this the only options were the right passphrase or nothing -
+    // a forgotten one meant a vault that could never be opened again.
+    expect(find.text('Forgot passphrase?'), findsOneWidget);
+    expect(find.text('Unlock Vault'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('first-time setup has nothing to recover, so offers no reset',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 3000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await openSheet(tester, first: true);
+
+    expect(find.text('Forgot passphrase?'), findsNothing);
+    expect(find.text('Create Vault'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

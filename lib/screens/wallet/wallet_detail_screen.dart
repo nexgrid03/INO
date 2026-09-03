@@ -25,7 +25,7 @@ import '../../widgets/shell/quick_actions.dart';
 import '../../widgets/wallet_detail/document_card.dart';
 import '../../widgets/wallet_detail/document_filter_bar.dart';
 import '../../widgets/wallet_detail/document_quick_view.dart';
-import '../../widgets/wallet_detail/document_skeleton.dart';
+import '../../widgets/wallet_modules/module_kit.dart' show ModuleLoading;
 import '../../widgets/wallet_detail/category_chips.dart';
 import '../../widgets/wallet_detail/empty_state.dart';
 import '../../widgets/wallet_detail/search_section.dart';
@@ -961,16 +961,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 
   Widget _loadingSliver() {
-    return const SliverPadding(
-      padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 120),
-      sliver: SliverToBoxAdapter(
-        child: Column(
-          children: [
-            SummarySkeleton(),
-            SizedBox(height: 24),
-            DocumentSkeleton(),
-          ],
-        ),
+    // The brand mark plus what it is doing, rather than a column of grey pills
+    // that read as a screen which failed to render.
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: ModuleLoading(
+        message: AppLocalizations.of(context).t('openingWallet'),
+        topPadding: 0,
       ),
     );
   }

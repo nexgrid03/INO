@@ -310,11 +310,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
                 child: CustomScrollView(
                   slivers: [
                     if (!_store.isLoaded)
-                      const SliverPadding(
-                        padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: ModuleSkeleton(height: 72, count: 5),
-                        ),
+                      SliverToBoxAdapter(
+                        child: ModuleLoading(message: l10n.t('openingVault')),
                       )
                     else if (!hasAny)
                       SliverFillRemaining(

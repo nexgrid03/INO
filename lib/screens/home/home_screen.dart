@@ -36,7 +36,7 @@ import '../../widgets/home/quick_action_button.dart';
 import '../../widgets/home/launcher_finance_tools.dart';
 import '../../widgets/home/launcher_hub_shortcuts.dart';
 import '../../widgets/home/launcher_quick_actions.dart';
-import '../../widgets/home/skeletons.dart';
+import '../../widgets/wallet_modules/module_kit.dart' show ModuleLoading;
 import '../../widgets/home/voice_mic_button.dart';
 import '../../widgets/scan/home_qr_panel.dart';
 import '../documents/offline_documents_screen.dart';
@@ -386,15 +386,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: ErrorRetry(onRetry: _refresh),
                             )
                           else if (data == null)
-                            SliverPadding(
-                              padding: EdgeInsets.fromLTRB(
-                                sidePadding,
-                                AppSpacing.md,
-                                sidePadding,
-                                navClearance,
-                              ),
-                              sliver: const SliverToBoxAdapter(
-                                child: DashboardSkeleton(),
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: ModuleLoading(
+                                message: AppLocalizations.of(context)
+                                    .t('loadingDashboard'),
+                                topPadding: 0,
                               ),
                             )
                           else ...[

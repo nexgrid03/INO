@@ -156,6 +156,65 @@ class VaultCrypto extends ChangeNotifier {
     }
   }
 
+  /// Replaces the vault key with one derived from [passphrase], for a user who
+  /// has forgotten the old one.
+  ///
+  /// **This is a re-key, not a recovery.** Nothing anywhere can derive the old
+  /// key, so every secret sealed under it becomes permanently unreadable the
+  /// moment the salt is replaced. The caller MUST have proved device ownership
+  /// (biometrics / device lock) and warned the user first - see the vault
+  /// passphrase sheet.
+  ///
+  /// What survives is whatever is still cached in plaintext on this device:
+  /// [PasswordStore.resealForNewKey] re-seals those under the new key
+  /// immediately after this returns, which is why a reset from the phone that
+  /// holds the entries loses nothing. Entries that only ever existed on
+  /// another device are gone, and the UI says so before this is called.
+  ///
+  /// **Delete + insert, not an update.** `vault_keys` has owner SELECT, INSERT
+  /// and DELETE policies but deliberately no UPDATE one (see the migration:
+  /// making the salt write-once is what stopped a stray update from stranding
+  /// every secret). Re-keying through the two policies that do exist means
+  /// this ships without loosening that, at the cost of a brief window where
+  /// the row is absent.
+  ///
+  /// That window is made as safe as it can be: the new key and verifier are
+  /// derived BEFORE anything is deleted, so the only step left after the
+  /// delete is one insert of values already in hand. If even that fails, the
+  /// user simply has no vault key — which the vault screen reads as "set one
+  /// up", and their plaintext entries on this device are still intact.
+  Future<bool> resetPassphrase(String passphrase) async {
+    final uid = _uid;
+    if (uid == null || passphrase.isEmpty) return false;
+    try {
+      // All the fallible local work first.
+      final salt = _randomBytes(32);
+      final key = await _deriveKey(passphrase, salt);
+      final verifier = await _seal(_verifierPlaintext, key);
+      final row = {
+        'auth_user_id': uid,
+        'salt': base64Encode(salt),
+        'verifier': verifier,
+        'iterations': _iterations,
+      };
+
+      await _client
+          .from(_table)
+          .delete()
+          .eq('auth_user_id', uid)
+          .timeout(NetGuard.mutation);
+      await _client.from(_table).insert(row).timeout(NetGuard.mutation);
+
+      _key = key;
+      notifyListeners();
+      developer.log('vault passphrase reset', name: 'vault');
+      return true;
+    } catch (e) {
+      developer.log('resetPassphrase failed: $e', name: 'vault');
+      return false;
+    }
+  }
+
   /// Drops the in-memory key. Called on sign-out and when the app is locked.
   void lock() {
     if (_key == null) return;

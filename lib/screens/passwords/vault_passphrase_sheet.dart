@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/biometric_service.dart';
+import '../../services/password_store.dart';
 import '../../services/vault_crypto.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -52,6 +54,15 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
   bool _acknowledged = false;
   String? _error;
 
+  /// The sheet has been switched from "unlock" to "choose a new passphrase"
+  /// after the user proved device ownership. See [_forgotPassphrase].
+  bool _resetting = false;
+
+  /// True whenever the form is asking for a NEW passphrase - first-time setup
+  /// and a post-biometric reset ask for exactly the same thing (twice, with an
+  /// acknowledgement), so they share every branch below.
+  bool get _creating => widget.isFirstTime || _resetting;
+
   /// Short enough to be memorable, long enough that PBKDF2 at 210k rounds makes
   /// brute force impractical. Below this the key derivation is doing all the
   /// work on its own, which is not a position worth being in.
@@ -68,7 +79,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
     final value = _passphrase.text;
     final l10n = AppLocalizations.of(context);
 
-    if (widget.isFirstTime) {
+    if (_creating) {
       if (value.length < _minLength) {
         setState(() => _error = l10n
             .t('vaultPassphraseTooShort')
@@ -93,9 +104,17 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
       _error = null;
     });
 
-    final ok = widget.isFirstTime
-        ? await VaultCrypto.instance.createPassphrase(value)
-        : await VaultCrypto.instance.unlock(value);
+    final bool ok;
+    if (_resetting) {
+      ok = await VaultCrypto.instance.resetPassphrase(value);
+      // Re-seal what this device still holds in plaintext under the new key,
+      // so a reset from the phone that has the entries loses nothing.
+      if (ok) await PasswordStore.instance.resealForNewKey();
+    } else if (widget.isFirstTime) {
+      ok = await VaultCrypto.instance.createPassphrase(value);
+    } else {
+      ok = await VaultCrypto.instance.unlock(value);
+    }
 
     if (!mounted) return;
 
@@ -105,9 +124,75 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
     }
     setState(() {
       _busy = false;
-      _error = widget.isFirstTime
-          ? l10n.t('vaultSetupFailed')
-          : l10n.t('vaultPassphraseIncorrect');
+      _error = _resetting
+          ? l10n.t('vaultResetFailed')
+          : widget.isFirstTime
+              ? l10n.t('vaultSetupFailed')
+              : l10n.t('vaultPassphraseIncorrect');
+    });
+  }
+
+  /// "Forgot passphrase?" - the only way back into a vault whose passphrase is
+  /// gone.
+  ///
+  /// It cannot recover the old key (nothing anywhere can), so it re-keys the
+  /// vault instead, behind two gates:
+  ///
+  ///  1. **Device ownership.** The OS prompt runs with `biometricOnly: false`,
+  ///     so a phone with no fingerprint enrolled falls back to its PIN or
+  ///     pattern - otherwise this door would be shut precisely for the users
+  ///     most likely to need it.
+  ///  2. **Informed consent.** The dialog states the real cost up front: the
+  ///     passwords cached on THIS device survive (they are re-encrypted under
+  ///     the new key), anything that only ever lived on another device does
+  ///     not. The count is spelled out so the choice is concrete.
+  Future<void> _forgotPassphrase() async {
+    final l10n = AppLocalizations.of(context);
+
+    final proven = await BiometricService.instance.authenticate(
+      reason: l10n.t('authResetVaultPassphrase'),
+    );
+    if (!mounted) return;
+    if (!proven) {
+      setState(() => _error = l10n.t('vaultPassphraseIncorrect'));
+      return;
+    }
+
+    await PasswordStore.instance.ensureLoaded();
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.t('vaultResetWarnTitle')),
+        content: Text(
+          l10n
+              .t('vaultResetWarnBody')
+              .replaceAll('{n}', '${PasswordStore.instance.count}'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              l10n.t('resetPassphrase'),
+              style: const TextStyle(color: AppColors.critical),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _resetting = true;
+      _error = null;
+      _acknowledged = false;
+      _passphrase.clear();
+      _confirm.clear();
     });
   }
 
@@ -159,9 +244,11 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      widget.isFirstTime
-                          ? l10n.t('setVaultPassphrase')
-                          : l10n.t('unlockYourVault'),
+                      _resetting
+                          ? l10n.t('resetVaultPassphrase')
+                          : widget.isFirstTime
+                              ? l10n.t('setVaultPassphrase')
+                              : l10n.t('unlockYourVault'),
                       style: AppText.title.copyWith(color: palette.textPrimary),
                     ),
                   ),
@@ -169,9 +256,11 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
               ),
               const SizedBox(height: 10),
               Text(
-                widget.isFirstTime
-                    ? l10n.t('vaultSetupIntro')
-                    : l10n.t('vaultUnlockIntro'),
+                _resetting
+                    ? l10n.t('vaultResetIntro')
+                    : widget.isFirstTime
+                        ? l10n.t('vaultSetupIntro')
+                        : l10n.t('vaultUnlockIntro'),
                 style: AppText.body.copyWith(
                   color: palette.textSecondary,
                   height: 1.4,
@@ -183,10 +272,9 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                 obscureText: _obscure,
                 autofocus: true,
                 enabled: !_busy,
-                textInputAction: widget.isFirstTime
-                    ? TextInputAction.next
-                    : TextInputAction.done,
-                onSubmitted: widget.isFirstTime ? null : (_) => _submit(),
+                textInputAction:
+                    _creating ? TextInputAction.next : TextInputAction.done,
+                onSubmitted: _creating ? null : (_) => _submit(),
                 style: AppText.body.copyWith(color: palette.textPrimary),
                 decoration: InputDecoration(
                   labelText: l10n.t('vaultPassphraseLabel'),
@@ -199,7 +287,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   ),
                 ),
               ),
-              if (widget.isFirstTime) ...[
+              if (_creating) ...[
                 const SizedBox(height: 12),
                 TextField(
                   controller: _confirm,
@@ -285,13 +373,21 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
                   ),
                   child: _busy
                       ? const InoLoader(size: 20, color: Colors.white)
-                      : Text(widget.isFirstTime
-                          ? l10n.t('createVault')
-                          : l10n.t('unlockVault')),
+                      : Text(_resetting
+                          ? l10n.t('resetPassphrase')
+                          : widget.isFirstTime
+                              ? l10n.t('createVault')
+                              : l10n.t('unlockVault')),
                 ),
               ),
+              if (!_creating) ...[
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: _busy ? null : _forgotPassphrase,
+                  child: Text(l10n.t('forgotPassphrase')),
+                ),
+              ],
               if (!widget.isFirstTime) ...[
-                const SizedBox(height: 8),
                 TextButton(
                   onPressed:
                       _busy ? null : () => Navigator.of(context).pop(false),

@@ -205,11 +205,8 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                 child: CustomScrollView(
                   slivers: [
                     if (!_store.isLoaded)
-                      const SliverPadding(
-                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: ModuleSkeleton(height: 88, count: 3),
-                        ),
+                      SliverToBoxAdapter(
+                        child: ModuleLoading(message: l10n.t('loadingCards')),
                       )
                     else if (!hasAny)
                       SliverFillRemaining(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../screens/expenses/add_expense_screen.dart';
+import '../../screens/expenses/expense_dashboard_screen.dart';
 import '../../screens/expenses/tax_records_screen.dart';
 import '../../screens/notes/notes_screen.dart';
 import '../../screens/property/area_converter_screen.dart';
@@ -103,7 +103,11 @@ void openQuickMenuAction(
 
   switch (action) {
     case QuickMenuAction.expenses:
-      push(const AddExpenseScreen());
+      // The Transaction Vault sits underneath the form on purpose - see
+      // [ExpenseDashboardScreen.openAddOnStart]. Saving then returns the user
+      // to the list holding their new expense, instead of dropping them back
+      // on Home with no sign it was recorded.
+      push(const ExpenseDashboardScreen(openAddOnStart: true));
     case QuickMenuAction.scan:
       launchScanFlow(context, initialWallet: initialWallet);
     case QuickMenuAction.notes:

@@ -22,7 +22,16 @@ import '../../widgets/common/ino_loader.dart';
 /// ITR-ready Transaction Vault - records + receipts organised by financial year,
 /// with a tax-document vault and a tax summary. Starts completely empty.
 class ExpenseDashboardScreen extends StatefulWidget {
-  const ExpenseDashboardScreen({super.key});
+  const ExpenseDashboardScreen({super.key, this.openAddOnStart = false});
+
+  /// Opens the Add Expense form immediately, with this vault underneath it.
+  ///
+  /// Used by the quick-add shortcut. Pushing the form on its own meant saving
+  /// popped the user straight back to wherever they started - usually Home -
+  /// with no sign the expense had been recorded, which read as the app
+  /// discarding the entry. Landing on the vault makes the new transaction the
+  /// first thing they see.
+  final bool openAddOnStart;
 
   @override
   State<ExpenseDashboardScreen> createState() => _ExpenseDashboardScreenState();
@@ -38,6 +47,13 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
     super.initState();
     // Hydrate the vault from Supabase (no-op when already loaded / signed out).
     _store.ensureLoaded();
+    if (widget.openAddOnStart) {
+      // After the first frame, so this route is settled and the form animates
+      // in over a vault that is already on screen.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _push(const AddExpenseScreen());
+      });
+    }
   }
 
   @override

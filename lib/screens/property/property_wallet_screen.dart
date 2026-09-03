@@ -203,11 +203,8 @@ class _PropertyWalletScreenState extends State<PropertyWalletScreen> {
                 child: CustomScrollView(
                   slivers: [
                     if (!_store.isLoaded)
-                      const SliverPadding(
-                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: ModuleSkeleton(height: 132, count: 3),
-                        ),
+                      SliverToBoxAdapter(
+                        child: ModuleLoading(message: l10n.t('loadingProperties')),
                       )
                     else if (!hasAny)
                       SliverFillRemaining(

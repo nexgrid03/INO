@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'forgot_password_screen.dart';
+import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
 import '../../widgets/common/ino_loader.dart';
@@ -112,14 +114,92 @@ class _LoginScreenState extends State<LoginScreen> {
         email: user.email ?? identifier,
       );
     } on AuthException catch (e) {
+      // An account that was created but never verified cannot sign in, and
+      // Supabase answers every attempt with the same error forever. Showing it
+      // as a red snackbar left the user permanently locked out of an account
+      // they had already made - "sign in with email just doesn't work". Send
+      // them to the same 6-digit verification signup uses, with a fresh code,
+      // so the account can actually be finished.
+      if (_isUnverifiedEmail(e)) {
+        await _verifyThenSignIn(identifier);
+        return;
+      }
       _showMessage(e.message);
     } on PostgrestException catch (e) {
       _showMessage(e.message);
+    } on TimeoutException {
+      // Distinguished from a generic failure on purpose: "check your
+      // connection" is actionable, "something went wrong" is not.
+      _showMessage(l10n.t('checkConnection'));
     } catch (_) {
       _showMessage(l10n.t('somethingWentWrong'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Whether [e] is Supabase's "this email was never confirmed" refusal.
+  ///
+  /// Matched on the stable error code first; the message check is the fallback
+  /// for older gotrue responses that carry no code.
+  static bool _isUnverifiedEmail(AuthException e) {
+    if (e.code == 'email_not_confirmed') return true;
+    final message = e.message.toLowerCase();
+    return message.contains('not confirmed') ||
+        message.contains('email confirmation');
+  }
+
+  /// Finishes a half-created account: resend the sign-up code, verify it, then
+  /// route on exactly as a successful sign-in would.
+  ///
+  /// The password the user just typed is already correct (Supabase rejected
+  /// the attempt for verification, not credentials), so once the account is
+  /// confirmed the OTP response carries a live session and nothing else needs
+  /// re-entering.
+  Future<void> _verifyThenSignIn(String email) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      await AuthService.instance.resendSignupOtp(email);
+    } catch (_) {
+      // A resend failure is not fatal - the original code may still be valid,
+      // and the screen offers its own resend button.
+    }
+    if (!mounted) return;
+
+    _showMessage(l10n.t('verifyEmailToContinue'), isError: false);
+    User? verifiedUser;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: l10n.t('verificationCode'),
+          destination: email,
+          onResend: () => AuthService.instance.resendSignupOtp(email),
+          onVerify: (code) async {
+            final res = await AuthService.instance.verifySignupOtp(
+              email: email,
+              token: code,
+            );
+            verifiedUser = res.user;
+            return verifiedUser != null;
+          },
+          onVerified: (_) {
+            final user = verifiedUser;
+            if (user == null) return;
+            // The shared post-auth router decides where they land - it fills
+            // in a missing profile row, which is exactly the state an account
+            // abandoned at verification is in.
+            unawaited(
+              routeAfterAuth(
+                authUserId: user.id,
+                fullName:
+                    (user.userMetadata?['full_name'] as String?) ?? 'INO User',
+                email: user.email ?? email,
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _continueWithGoogle() async {

@@ -1228,6 +1228,33 @@ class _SuccessBurstState extends State<_SuccessBurst>
   }
 }
 
+/// What a module shows while it hydrates: the spinning INO shield over a line
+/// saying what is being loaded.
+///
+/// Replaces the grey pulsing pill placeholders. A skeleton is only worth its
+/// ambiguity when it genuinely previews the shape of what is coming; here it
+/// read as the screen having failed to paint, and gave the user nothing to
+/// tell "loading" apart from "broken". A branded mark plus "Opening wallet…"
+/// answers both questions at once.
+class ModuleLoading extends StatelessWidget {
+  const ModuleLoading({super.key, required this.message, this.topPadding = 72});
+
+  /// Already localized - it is shown to the user.
+  final String message;
+
+  /// Pushes the mark down off the header, so it sits in the optical middle of
+  /// the space the list would have filled rather than jammed under the title.
+  final double topPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: topPadding, bottom: AppSpacing.xl),
+      child: Center(child: InoLoader(size: 72, label: message)),
+    );
+  }
+}
+
 /// A simple pill-shaped skeleton block, used while a module hydrates.
 class ModuleSkeleton extends StatefulWidget {
   const ModuleSkeleton({

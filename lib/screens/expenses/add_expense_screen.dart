@@ -466,6 +466,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ));
     }
     HapticFeedback.mediumImpact();
+    // Confirm before leaving. The store writes optimistically (local first,
+    // Supabase behind it), so without this the screen just vanished and the
+    // user had no signal the expense had been recorded at all.
+    _toast(e == null ? l10n.t('expenseSaved') : l10n.t('expenseUpdated'));
     Navigator.of(context).maybePop();
   }
 

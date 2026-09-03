@@ -243,10 +243,7 @@ class _InvestmentWalletScreenState extends State<InvestmentWalletScreen>
                 ),
               Expanded(
                 child: !_store.isLoaded
-                    ? const Padding(
-                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                        child: ModuleSkeleton(height: 120, count: 3),
-                      )
+                    ? ModuleLoading(message: l10n.t('loadingInvestments'))
                     : !hasAny
                     ? ModuleEmptyState(
                         icon: Icons.trending_up_rounded,

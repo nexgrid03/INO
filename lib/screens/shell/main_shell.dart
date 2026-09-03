@@ -46,11 +46,6 @@ class _MainShellState extends State<MainShell>
     with SingleTickerProviderStateMixin {
   int _index = ShellController.tab.value;
 
-  /// Breadcrumb of visited tabs so the system back button returns to the
-  /// previous tab instead of closing the app. Only the app root (an empty
-  /// history) lets a back press actually exit.
-  final List<int> _tabHistory = [];
-
   /// Held in state so a profile edit (from the Profile tab) propagates to every
   /// destination that shows the user's details.
   late UserProfile _profile = widget.profile;
@@ -131,40 +126,50 @@ class _MainShellState extends State<MainShell>
     if (mounted && _index != next) {
       setState(() {
         _visitedTabs.add(next);
-        _tabHistory.add(_index); // remember where we came from
         _index = next;
       });
       _pageAnim.forward(from: 0);
     }
   }
 
-  /// System back at the shell root: step back through the visited tabs; only
-  /// exit the app once there's no tab history left.
+  /// System back at the shell root: **Home is always one press away, and the
+  /// second press exits.**
+  ///
+  /// Retracing the full tab history was the wrong model. Hopping
+  /// Home → Wallet → Alerts → Profile meant three back presses to leave, each
+  /// landing somewhere the user had already moved on from, and no way to
+  /// predict how many presses "get me out" would take. Android's convention
+  /// for a bottom-nav app is a single home destination that back returns to,
+  /// which is also what makes the gesture safe: from anywhere but Home you go
+  /// to Home, from Home you leave.
+  ///
+  /// Note this only fires at the shell ROOT — a pushed route (a wallet, a
+  /// form) pops normally through the Navigator first, so "inside a wallet,
+  /// back returns to Wallets" still holds and is untouched.
   void _handleBack() {
-    final routeName = ModalRoute.of(context)?.settings.name ?? 'MainShell';
-    final isFabOpen = InoBottomNav.isMenuOpen;
-    debugPrint('[Navigation] Android back pressed -> route: $routeName, currentTab: $_index, isFabMenuOpen: $isFabOpen');
-
-    // IF fabMenuExpanded == true -> collapse FAB menu and consume back event.
-    if (isFabOpen) {
-      debugPrint('[FAB Menu] Intercepted Android back -> closing FAB menu (currentTab: $_index)');
+    // The FAB's quick menu is an overlay on top of the shell: back closes it
+    // and stops there, without moving tabs or popping a route.
+    if (InoBottomNav.isMenuOpen) {
       InoBottomNav.closeActiveMenu();
-      return; // DO NOT call Navigator.pop(), DO NOT change tabs, DO NOT change route!
+      return;
     }
 
-    if (_tabHistory.isEmpty) {
-      debugPrint('[Navigation] No tab history left -> exiting app via SystemNavigator.pop()');
+    if (_index == _homeTab) {
       SystemNavigator.pop();
       return;
     }
-    final previous = _tabHistory.removeLast();
-    debugPrint('[Navigation] Retracing tab history -> moving to tab: $previous');
-    // Set `_index` first so `_onTabChanged` sees no change and doesn't push
-    // this hop back onto the history.
-    setState(() => _index = previous);
-    ShellController.tab.value = previous;
+
+    // Any other destination returns to Home; the next press then exits.
+    // Set `_index` first so `_onTabChanged` sees no change and treats this as
+    // an already-applied switch.
+    setState(() => _index = _homeTab);
+    ShellController.tab.value = _homeTab;
     _pageAnim.forward(from: 0);
   }
+
+  /// Home's index in the bottom nav — the one destination back always returns
+  /// to, and the only one a back press can exit the app from.
+  static const int _homeTab = 0;
 
   void _select(int i) {
     if (i == _index) return;
