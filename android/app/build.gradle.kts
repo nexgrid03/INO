@@ -52,6 +52,16 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            val projectDebugKeystore = file("debug.keystore")
+            if (projectDebugKeystore.exists()) {
+                storeFile = projectDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+
         // The real release key, loaded from android/key.properties (git-ignored).
         // Created ONLY when that file exists, so a fresh clone / CI without the
         // keystore still configures and builds cleanly.

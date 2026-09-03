@@ -15,7 +15,8 @@ final Map<int, ImageFilter> _kBlurFilters = <int, ImageFilter>{};
 ImageFilter _blurFilterFor(double sigma) => sharedBlurFilter(sigma);
 
 /// A cached [ImageFilter.blur] for [sigma], snapped to 0.5px buckets.
-///
+
+
 /// Reach for this instead of constructing `ImageFilter.blur` inline — most
 /// importantly inside an [AnimatedBuilder], where a fresh filter per frame
 /// makes the engine rebuild the blur shader on every single frame of the

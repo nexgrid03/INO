@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Allow shared debug keystore for zero-setup team development & test builds
+!app/debug.keystore
+
