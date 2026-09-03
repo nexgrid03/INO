@@ -76,7 +76,7 @@ class _VaultLockViewState extends State<VaultLockView> {
               Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: AppColors.brandGradient,
                   shape: BoxShape.circle,
                 ),

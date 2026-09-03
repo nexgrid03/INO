@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../models/document_share.dart';
+import '../../models/public_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../services/share_codec_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import 'shared_documents_screen.dart';
 
-enum _ScanStatus { scanning, resolving, result, error }
+enum _ScanStatus { scanning, resolving, error }
 
-/// Receiving side: scan an INO share QR, resolve the token, and list the shared
-/// documents with a copyable download link for each.
+/// Receiving side: scan an INO share QR, validate it, and navigate to the
+/// [SharedDocumentsScreen] recipient viewer.
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -28,7 +28,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
   _ScanStatus _status = _ScanStatus.scanning;
   bool _handling = false;
   String? _error;
-  DocumentShare? _share;
 
   @override
   void dispose() {
@@ -47,23 +46,46 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
     _handling = true;
     await _scanner.stop();
+    if (!mounted) return;
     setState(() => _status = _ScanStatus.resolving);
+    
     try {
-      final share = await ShareRepository.instance.fetchByToken(token);
+      final share = await ShareRepository.instance.fetchPublicShare(token);
       if (!mounted) return;
-      if (share == null || share.isExpired) {
+      
+      if (share.status == PublicShareStatus.notFound || share.status == PublicShareStatus.error) {
         setState(() {
           _status = _ScanStatus.error;
-          _error = share == null
-              ? 'This share could not be found.'
-              : 'This share has expired.';
+          _error = 'This share could not be found.';
         });
         return;
       }
-      setState(() {
-        _share = share;
-        _status = _ScanStatus.result;
-      });
+      if (share.status == PublicShareStatus.expired) {
+        setState(() {
+          _status = _ScanStatus.error;
+          _error = 'This share has expired.';
+        });
+        return;
+      }
+      if (share.status == PublicShareStatus.revoked) {
+        setState(() {
+          _status = _ScanStatus.error;
+          _error = 'This share has been revoked.';
+        });
+        return;
+      }
+
+      // Successfully validated. Let's push the SharedDocumentsScreen.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SharedDocumentsScreen(token: token),
+        ),
+      );
+      
+      // When recipient screen is closed, resume scanning.
+      if (mounted) {
+        await _rescan();
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -78,7 +100,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
     setState(() {
       _status = _ScanStatus.scanning;
       _error = null;
-      _share = null;
     });
     _handling = false;
     await _scanner.start();
@@ -92,11 +113,12 @@ class _QrScanScreenState extends State<QrScanScreen> {
       appBar: AppBar(title: const Text('Scan share QR')),
       body: switch (_status) {
         _ScanStatus.scanning => _buildScanner(),
-        _ScanStatus.resolving => const Center(
+        _ScanStatus.resolving => Center(
             child: CircularProgressIndicator(
-                strokeWidth: 2.6, color: AppColors.primaryGreen),
+              strokeWidth: 2.6,
+              color: AppColors.primaryGreen,
+            ),
           ),
-        _ScanStatus.result => _ResultView(share: _share!, onRescan: _rescan),
         _ScanStatus.error => _ErrorView(
             message: _error ?? 'Something went wrong.',
             onRetry: _rescan,
@@ -130,106 +152,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
             ),
             child: const Text('Point at an INO share QR',
                 style: TextStyle(color: Colors.white)),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ResultView extends StatelessWidget {
-  const _ResultView({required this.share, required this.onRescan});
-  final DocumentShare share;
-  final VoidCallback onRescan;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              const Icon(Icons.verified_rounded,
-                  color: AppColors.primaryGreen),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(share.title,
-                        style: AppText.title
-                            .copyWith(color: palette.textPrimary)),
-                    Text(
-                      '${share.fileCount} document'
-                      '${share.fileCount == 1 ? '' : 's'} available',
-                      style: AppText.caption
-                          .copyWith(color: palette.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            itemCount: share.files.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
-            itemBuilder: (context, i) {
-              final file = share.files[i];
-              final url = ShareRepository.instance.publicUrl(file.path);
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  border: Border.all(color: palette.border),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.description_rounded,
-                        color: AppColors.lightBlue),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(file.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.body
-                              .copyWith(color: palette.textPrimary)),
-                    ),
-                    IconButton(
-                      tooltip: 'Copy download link',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: url));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Link for ${file.name} copied.'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.primaryGreen,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.download_rounded),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: OutlinedButton.icon(
-              onPressed: onRescan,
-              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-              label: const Text('Scan another'),
-            ),
           ),
         ),
       ],

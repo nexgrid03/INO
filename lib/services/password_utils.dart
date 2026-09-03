@@ -9,8 +9,8 @@ enum PasswordStrength {
   empty('', 0, Color(0xFF94A3B8)),
   weak('Weak', 1, AppColors.critical),
   fair('Fair', 2, AppColors.warning),
-  good('Good', 3, AppColors.lightBlue),
-  strong('Strong', 4, AppColors.primaryGreen);
+  good('Good', 3, AppColors.skyBrandSecondary),
+  strong('Strong', 4, AppColors.skyBrand);
 
   const PasswordStrength(this.label, this.score, this.color);
 

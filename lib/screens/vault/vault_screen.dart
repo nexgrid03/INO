@@ -106,7 +106,7 @@ class _VaultScreenState extends State<VaultScreen> {
         builder: (context, _) {
           switch (_controller.status) {
             case VaultStatus.loading:
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(
                     strokeWidth: 2.6, color: AppColors.primaryGreen),
               );
