@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every endpoint INO talks to is HTTPS (Supabase, FCM, the share site, the
+  currency and metals rate feeds). Cleartext is already blocked by default on
+  API 28+, but minSdk is 24, so this makes the block explicit on API 24-27 too.
+
+  Deliberately NO certificate pinning: Supabase terminates TLS at Cloudflare and
+  rotates certificates, so pinning would cause outages with no real gain here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

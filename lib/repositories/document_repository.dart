@@ -14,7 +14,20 @@ import '../core/net/paged_query.dart';
 import '../core/perf/perf_tracer.dart';
 import '../core/net/stream_download.dart';
 import '../models/document.dart';
+import '../services/storage_stats_service.dart';
 import 'wallet_tables.dart';
+
+/// Thrown when an upload would cause the user's storage to exceed the 5 GB quota.
+class StorageQuotaExceededException implements Exception {
+  final String message;
+  const StorageQuotaExceededException([
+    this.message =
+        'Storage limit of 5 GB reached. Please delete some documents to continue uploading.',
+  ]);
+
+  @override
+  String toString() => message;
+}
 
 /// The ONLY place in the app that reads/writes wallet records.
 ///
@@ -117,11 +130,21 @@ class DocumentRepository {
     if (userId == null) {
       throw const AuthException('You must be signed in to upload a document.');
     }
+
+    final file = File(localPath);
+    if (await file.exists()) {
+      final uploadSize = await file.length();
+      final usage = await StorageStatsService.instance.load();
+      if (usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
+        throw const StorageQuotaExceededException();
+      }
+    }
+
     final ext = localPath.contains('.') ? localPath.split('.').last : 'jpg';
     final objectPath = '$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
     final stored = await _client.storage
         .from(_bucket)
-        .upload(objectPath, File(localPath))
+        .upload(objectPath, file)
         .timeout(NetGuard.storage);
     // `upload` returns the full "<bucket>/<path>" key on success; the value we
     // persist and read back is the object path (without the bucket prefix).

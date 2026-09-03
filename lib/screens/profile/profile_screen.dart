@@ -14,7 +14,6 @@ import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/session_reset.dart';
 import '../../services/storage_stats_service.dart';
-import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/avatar_color.dart';
@@ -38,8 +37,6 @@ import 'contact_support_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
-import 'trusted_devices_screen.dart';
-import 'two_factor_screen.dart';
 
 /// The Profile screen - a premium, grouped **settings** page (Apple Settings /
 /// Google Account), NOT a dashboard.
@@ -79,7 +76,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   late bool _biometric = BiometricService.instance.lockEnabled.value;
   late bool _notifications = AppSettings.instance.notifications.value;
   late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
-  bool _twoFactor = AppSettings.instance.twoFactor.value;
   late bool _paymentAppConsent = AppSettings.instance.paymentAppConsent.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
 
@@ -98,7 +94,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Refresh the storage meter whenever documents change (upload / delete).
     DocumentRepository.revision.addListener(_onDocsChanged);
     _loadStorage();
-    _syncTwoFactor();
   }
 
   @override
@@ -127,12 +122,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       _storage = usage;
       _storageLoading = false;
     });
-  }
-
-  Future<void> _syncTwoFactor() async {
-    final enabled = await TwoFactorService.instance.isEnabled();
-    if (!mounted) return;
-    if (enabled != _twoFactor) setState(() => _twoFactor = enabled);
   }
 
   static String _languageLabel(String code) {
@@ -452,12 +441,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     await _push(ChangePasswordScreen(email: _profile.email));
   }
 
-  Future<void> _openTwoFactor() async {
-    await _push(const TwoFactorScreen());
-    if (!mounted) return;
-    setState(() => _twoFactor = AppSettings.instance.twoFactor.value);
-  }
-
   // ---- Destructive actions -------------------------------------------------
 
   Future<void> _confirmLogout() async {
@@ -679,8 +662,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       _StorageCard(
         usedLabel: _storageLoading ? '…' : _storage.usedLabel,
         totalLabel: _storage.quotaLabel,
-        percentLabel: _storageLoading ? '…' : '${_storage.percent}%',
-        fraction: _storage.fraction,
+        percentLabel: _storageLoading ? '…' : _storage.percentFormatted,
+        fraction: _storage.displayFraction,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _loadStorage();
+        },
       ),
       // Multi-account: every account signed in on this device, switchable in
       // two taps. The current one is marked; tapping another offers
@@ -737,17 +724,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.password_rounded,
             title: l10n.t('changePassword'),
             onTap: _openChangePassword,
-          ),
-          SettingsRow(
-            icon: Icons.verified_user_rounded,
-            title: l10n.t('twoFactor'),
-            value: _twoFactor ? l10n.t('on') : l10n.t('off'),
-            onTap: _openTwoFactor,
-          ),
-          SettingsRow(
-            icon: Icons.devices_rounded,
-            title: l10n.t('trustedDevices'),
-            onTap: () => _push(const TrustedDevicesScreen()),
           ),
           SettingsRow(
             icon: Icons.account_balance_wallet_rounded,
@@ -1175,23 +1151,30 @@ class _StorageCard extends StatelessWidget {
     required this.totalLabel,
     required this.percentLabel,
     required this.fraction,
+    this.onTap,
   });
 
   final String usedLabel;
   final String totalLabel;
   final String percentLabel;
   final double fraction;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.internal),
-      decoration: BoxDecoration(
-        color: palette.surface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: palette.border),
-      ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.internal),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: palette.border),
+          ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1248,7 +1231,10 @@ class _StorageCard extends StatelessWidget {
                 ),
                 child: Text(
                   percentLabel,
-                  style: AppText.label.copyWith(color: palette.textSecondary),
+                  style: AppText.label.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1275,7 +1261,9 @@ class _StorageCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -1286,15 +1274,15 @@ class _ThemeSwatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppColors.primaryGreen;
     final Color fill;
     final Color edge;
     final Widget glyph;
     switch (style) {
       case ThemeStyle.launcher:
-        fill = Colors.white;
-        edge = accent;
-        glyph = Icon(Icons.apps_rounded, color: accent, size: 18);
+        fill = const Color(0xFFF0F9FF);
+        edge = const Color(0xFF0EA5E9);
+        glyph = const Icon(Icons.dashboard_customize_rounded,
+            color: Color(0xFF0EA5E9), size: 18);
       case ThemeStyle.aqua:
         fill = AppColors.aquaFoam;
         edge = AppColors.aquaPrimary;

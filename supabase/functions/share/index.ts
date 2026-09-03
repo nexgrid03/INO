@@ -149,28 +149,72 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Validation -------------------------------------------------------------
 
+/// Shapes a share identifier is ALLOWED to have, matching how the database
+/// actually generates them:
+///   • token    - 12 hex chars  (20260707000000_share_tokens.sql:17)
+///                16-32 accepted so the length can be raised without a redeploy.
+///   • share_id - 'share_' + 18 hex  (20260704000000_document_shares.sql:31-33)
+///
+/// SECURITY: this is not cosmetic. The value arrives as a raw URL path segment
+/// and is used to look a row up with the SERVICE-ROLE client, which bypasses
+/// RLS. A PostgREST filter expression is comma-separated, so a segment
+/// containing `,` `(` `)` or `.` - all legal in a URL path - used to let a
+/// caller append their own filter terms and turn this function into an
+/// enumeration oracle over every row of document_shares. Anything that is not
+/// exactly one of the two shapes below is refused before it reaches a query.
+const SHARE_ID_RE = /^(?:share_[0-9a-f]{12,24}|[0-9a-f]{12,32})$/;
+
+export function isValidShareRef(value: string | null | undefined): boolean {
+  return typeof value === "string" && SHARE_ID_RE.test(value);
+}
+
 async function loadShare(idOrToken: string): Promise<LoadResult> {
   console.log(`[share] fetch id/token=${idOrToken}`);
+
+  // Reject anything that is not a well-formed identifier. Returning the plain
+  // not_found result keeps the response indistinguishable from a real miss, so
+  // this leaks nothing about which ids exist.
+  if (!isValidShareRef(idOrToken)) {
+    console.warn(`[share] rejected malformed id/token=${idOrToken}`);
+    return { kind: "not_found" };
+  }
+
   // Accept EITHER the short public token (new /s/{token} links) or the internal
   // share_id (legacy links) - both resolve to the same row.
-  const { data, error } = await admin
+  //
+  // Two parameterised .eq() lookups instead of one string-built .or(): .eq()
+  // encodes its value, so no user input can ever become part of a filter
+  // expression. `.limit(1)` + `[0]` rather than `.maybeSingle()` also removes
+  // the "more than one row" error that previously distinguished a narrowed
+  // match from a miss.
+  const COLS =
+    "share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count, " +
+    "processed_paths, processed_names, processed_mimes, view_only, password_hash";
+
+  let { data, error } = await admin
     .from("document_shares")
-    .select(
-      "share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count, " +
-        "processed_paths, processed_names, processed_mimes, view_only, password_hash",
-    )
-    .or(`token.eq.${idOrToken},share_id.eq.${idOrToken}`)
-    .maybeSingle();
+    .select(COLS)
+    .eq("token", idOrToken)
+    .limit(1);
+
+  if (!error && (!data || data.length === 0)) {
+    ({ data, error } = await admin
+      .from("document_shares")
+      .select(COLS)
+      .eq("share_id", idOrToken)
+      .limit(1));
+  }
 
   if (error) {
     console.error(`[share] load error id/token=${idOrToken}:`, error);
     return { kind: "error" };
   }
-  if (!data) {
+  const row = data && data.length > 0 ? data[0] : null;
+  if (!row) {
     console.log(`[share] not found id/token=${idOrToken}`);
     return { kind: "not_found" };
   }
-  const share = data as ShareRow;
+  const share = row as unknown as ShareRow;
 
   if (share.status === "revoked") return { kind: "revoked" };
 

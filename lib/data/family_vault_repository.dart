@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/net/net_guard.dart';
 import '../core/net/stream_download.dart';
 import '../models/family_vault_models.dart';
+import '../repositories/document_repository.dart';
 
 /// Source of Family Vault data — the `public.family_vaults` and
 /// `public.vault_members` tables in Supabase.
@@ -736,6 +737,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
 /// Owner hunting for a permissions problem they did not have. Each
 /// distinguishable cause now says what it actually is.
 String describeVaultError(Object e) {
+  if (e is StorageQuotaExceededException) {
+    return e.message;
+  }
   if (e is PostgrestException) {
     final code = e.code ?? '';
     final message = e.message.toLowerCase();

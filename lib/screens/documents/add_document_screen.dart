@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,6 +16,8 @@ import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/reminder_scheduler.dart';
+import '../../services/storage_stats_service.dart';
+import '../shell/shell_controller.dart';
 
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
@@ -448,7 +451,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       //    location to store on the row.
       String? filePath;
       if (_localFilePath != null) {
-        filePath = await DocumentRepository.instance.uploadFile(_localFilePath!);
+        final localFile = File(_localFilePath!);
+        if (await localFile.exists()) {
+          final uploadSize = await localFile.length();
+          final usage = await StorageStatsService.instance.load();
+          if (usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
+            setState(() => _saving = false);
+            if (!mounted) return;
+            await _showStorageFullDialog(usage);
+            return;
+          }
+        }
+        filePath =
+            await DocumentRepository.instance.uploadFile(_localFilePath!);
       }
 
       DateTime? finalExpiry = _expiry;
@@ -559,6 +574,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
+      if (e is StorageQuotaExceededException) {
+        final usage = await StorageStatsService.instance.load();
+        if (mounted) await _showStorageFullDialog(usage);
+        return;
+      }
       // Surface the real reason (bucket missing, RLS denial, not signed in, …)
       // instead of a generic message, so failures are diagnosable on-device.
       _toast(
@@ -568,6 +588,98 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           error: true);
       debugPrint('Document save failed: $e');
     }
+  }
+
+  Future<void> _showStorageFullDialog(StorageUsage usage) async {
+    final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: palette.border),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.amber,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.t('storageLimitReached'),
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.t('storageFullWarning'),
+              style: AppText.body.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: palette.surfaceVariant,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.storage_rounded,
+                      size: 18, color: palette.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${usage.usedLabel} / ${usage.quotaLabel} (${usage.percent}%)',
+                    style: AppText.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              l10n.t('cancel'),
+              style: TextStyle(color: palette.textSecondary),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ShellController.tab.value = 1;
+              Navigator.of(context).popUntil((r) => r.isFirst);
+            },
+            child: Text(l10n.t('manageDocuments')),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Maps a wallet to the matching reminder category for auto-created expiry

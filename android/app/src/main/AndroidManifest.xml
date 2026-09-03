@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Network access for Supabase auth / Google Sign-In (release builds must
          not rely on this being merged in from a plugin manifest). -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -25,13 +26,35 @@
     <!-- Voice navigation: on-device speech recognition needs the microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Scanner: camera + gallery import permissions. -->
+    <!-- Scanner: camera only. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Gallery import deliberately declares NO media permission.
+         image_picker uses the Android 13+ system Photo Picker (and
+         ACTION_GET_CONTENT below that), which returns a user-chosen content URI
+         and needs no READ_MEDIA_* / READ_EXTERNAL_STORAGE grant.
+
+         Google Play's Photo and Video Permissions policy requires exactly this:
+         an app with occasional, one-off image access must use the Photo Picker
+         and must NOT declare the broad permissions. Declaring them triggers a
+         policy declaration form and likely rejection for this use case.
+
+         The three tools:node="remove" entries below strip permissions that
+         plugin manifests merge in uninvited - open_filex contributes
+         READ_MEDIA_VIDEO and READ_MEDIA_AUDIO, neither of which this app uses.
+         Verify after any dependency bump with:
+           build/app/outputs/logs/manifest-merger-release-report.txt -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"
+        tools:node="remove" />
+
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+        android:maxSdkVersion="32" tools:node="remove" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="28" tools:node="remove" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -39,7 +62,8 @@
     <application
         android:label="inoapp"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <!-- Preload the ML Kit modules from Google Play services: the document
              scanner and the OCR (text-recognition) model, so both are ready on
              first use instead of downloading on demand. -->

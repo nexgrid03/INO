@@ -53,6 +53,4 @@ app.*.map.json
 key.properties
 **/key.properties
 
-# Allow shared debug keystore for zero-setup team development & test builds
-!android/app/debug.keystore
 

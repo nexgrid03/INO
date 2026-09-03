@@ -10,11 +10,13 @@ import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/app_preload.dart';
 import '../../services/app_settings.dart';
+import '../../services/connectivity_service.dart';
 import '../../services/guest_mode.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../auth/login_screen.dart';
+import '../documents/offline_documents_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../shell/main_shell.dart';
 
@@ -122,6 +124,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     _c.forward();
 
+    // Is there internet? Started here, in parallel with everything else, so
+    // that by the time [_continue] needs the answer it is already in hand.
+    // Asking at the end instead would stack a DNS timeout on top of the
+    // warm-up's own timeouts - the offline launch this decides would be the
+    // slowest launch in the app.
+    _online = ConnectivityService.instance
+        .checkOnline(timeout: const Duration(milliseconds: 2000))
+        .catchError((Object _) => false);
+
     // Load the user's whole working set behind the animation. Deferred one
     // frame because `createLocalImageConfiguration` (inside [AppPreload]) reads
     // inherited widgets, which are not resolvable from initState.
@@ -152,6 +163,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   /// The signed-in profile, resolved by [_prepare]. Null means "show Login".
   UserProfile? _profile;
+
+  /// Whether the device has internet, started in `initState` so the answer is
+  /// ready by the time [_continue] picks a destination.
+  Future<bool>? _online;
 
   /// Everything the app needs before the first real screen can paint:
   /// the user's profile, and — via [AppPreload] — every store, read model and
@@ -213,15 +228,29 @@ class _SplashScreenState extends State<SplashScreen>
 
     await _exit.forward();
     if (!mounted) return;
-    _continue();
+    await _continue();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (_navigated || !mounted) return;
     _navigated = true;
 
+    // Onboarding is entirely local and is the only correct first screen on a
+    // first run, so it is decided before connectivity: a brand-new user with no
+    // internet must still get the intro, not an empty offline library.
     if (!AppSettings.instance.onboardingSeen.value) {
       _replace(const OnboardingScreen());
+      return;
+    }
+
+    // Direct offline access: with no internet the shell and login can't do
+    // their jobs anyway (every screen behind them is a network read), so skip
+    // both and open straight into the offline library - the one part of the app
+    // that is fully functional here.
+    final isOnline = await (_online ?? Future<bool>.value(true));
+    if (!mounted) return;
+    if (!isOnline) {
+      _replace(const OfflineDocumentsScreen(isRootOffline: true));
       return;
     }
 

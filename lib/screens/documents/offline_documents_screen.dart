@@ -5,6 +5,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/connectivity_service.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
 import '../../services/vault_guard.dart';
@@ -18,6 +19,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../shell/shell_controller.dart';
+import '../splash/splash_screen.dart';
 
 /// The offline library: documents the user saved to view without internet.
 ///
@@ -26,26 +28,60 @@ import '../shell/shell_controller.dart';
 /// Images get a full-screen in-app viewer; PDFs and other files open in the
 /// device's default app straight from the local copy.
 class OfflineDocumentsScreen extends StatefulWidget {
-  const OfflineDocumentsScreen({super.key});
+  const OfflineDocumentsScreen({super.key, this.isRootOffline = false});
+
+  /// True when the app cold-started offline and routed directly here as the root screen.
+  final bool isRootOffline;
 
   @override
   State<OfflineDocumentsScreen> createState() => _OfflineDocumentsScreenState();
 }
 
-class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
+class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen>
+    with WidgetsBindingObserver {
   final _store = OfflineDocumentStore.instance;
+  bool _checkingConnection = false;
+
+  /// Connectivity returned while this screen was the app's root. The user is
+  /// not yanked out of whatever they were reading - the banner just offers the
+  /// way through, so "I turned my wifi back on" doesn't mean hunting for the
+  /// retry button or force-quitting.
+  bool _backOnline = false;
 
   @override
   void initState() {
     super.initState();
-    _store.ensureLoaded();
+    _store.ensureLoaded(force: true);
     _store.addListener(_onChanged);
+    if (widget.isRootOffline) WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    if (widget.isRootOffline) WidgetsBinding.instance.removeObserver(this);
     _store.removeListener(_onChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from Settings (where wifi/data was just turned on) is the
+    // one moment worth re-probing; polling on a timer would burn battery for a
+    // screen that is, by definition, doing nothing over the network.
+    if (state == AppLifecycleState.resumed && !_backOnline) {
+      _pollConnection();
+    }
+  }
+
+  /// A silent probe - no toast either way, it just unlocks the banner's
+  /// "continue" affordance when the connection is genuinely back.
+  Future<void> _pollConnection() async {
+    if (_checkingConnection) return;
+    final online = await ConnectivityService.instance.checkOnline(
+      timeout: const Duration(milliseconds: 1500),
+    );
+    if (!mounted || !online) return;
+    setState(() => _backOnline = true);
   }
 
   void _onChanged() {
@@ -180,6 +216,117 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
     return Icons.description_rounded;
   }
 
+  Future<void> _retryConnection() async {
+    if (_checkingConnection) return;
+    setState(() => _checkingConnection = true);
+    final l10n = AppLocalizations.of(context);
+    showModuleToast(context, l10n.t('checkingConnection'));
+    final isOnline = await ConnectivityService.instance.checkOnline(
+      timeout: const Duration(seconds: 3),
+    );
+    if (!mounted) return;
+    setState(() => _checkingConnection = false);
+    if (isOnline) {
+      _enterOnlineMode();
+    } else {
+      showModuleToast(context, l10n.t('stillOffline'), error: true);
+    }
+  }
+
+  /// Hands the app back to the normal startup path now that there is internet.
+  ///
+  /// Going through the splash rather than straight to the shell is deliberate:
+  /// nothing has been warmed or authenticated in this launch, and the splash is
+  /// the one place that resolves the session and preloads the working set.
+  void _enterOnlineMode() {
+    showModuleToast(context, AppLocalizations.of(context).t('connectedOnline'));
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      (route) => false,
+    );
+  }
+
+  /// The offline-mode notice, which becomes the way back in once the
+  /// connection returns.
+  Widget _statusBanner(AppPalette palette, AppLocalizations l10n) {
+    final accent = _backOnline ? AppColors.primaryGreen : Colors.amber;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        AppSpacing.sm,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _backOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+            size: 20,
+            color: accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t(_backOnline ? 'backOnline' : 'offlineMode'),
+                  style: AppText.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                Text(
+                  l10n.t(_backOnline
+                      ? 'backOnlineSubtitle'
+                      : 'offlineModeSubtitle'),
+                  style: AppText.caption.copyWith(
+                    fontSize: 11,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: _backOnline
+                ? _enterOnlineMode
+                : (_checkingConnection ? null : _retryConnection),
+            icon: _checkingConnection
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    _backOnline
+                        ? Icons.arrow_forward_rounded
+                        : Icons.refresh_rounded,
+                    size: 16,
+                  ),
+            label: Text(
+              l10n.t(_backOnline ? 'continue' : 'retryConnection'),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -203,7 +350,26 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                     : l10n
                         .t('offlineDocsCount')
                         .replaceAll('{n}', '${docs.length}'),
+                // Root-offline is the only route in the stack, so there is
+                // nowhere to go back to and [InoBackButton] hides itself; from
+                // Home this pops back to Home. Either way the default is right.
+                onBack: null,
+                actions: [
+                  if (widget.isRootOffline)
+                    IconButton(
+                      tooltip: l10n.t('retryConnection'),
+                      icon: _checkingConnection
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded),
+                      onPressed: _checkingConnection ? null : _retryConnection,
+                    ),
+                ],
               ),
+              if (widget.isRootOffline) _statusBanner(palette, l10n),
               Expanded(
                 child: CustomScrollView(
                   slivers: [
@@ -217,12 +383,22 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen> {
                         hasScrollBody: false,
                         child: ModuleEmptyState(
                           icon: Icons.offline_pin_rounded,
-                          title: l10n.t('nothingSavedYet'),
-                          message: l10n.t('offlineDocsEmptyMessage'),
-                          actionLabel: l10n.t('browseWallets'),
+                          title: widget.isRootOffline
+                              ? l10n.t('offlineMode')
+                              : l10n.t('nothingSavedYet'),
+                          message: widget.isRootOffline
+                              ? l10n.t('noOfflineDocsYet')
+                              : l10n.t('offlineDocsEmptyMessage'),
+                          actionLabel: widget.isRootOffline
+                              ? l10n.t('retryConnection')
+                              : l10n.t('browseWallets'),
                           onAction: () {
-                            ShellController.tab.value = 1;
-                            Navigator.of(context).popUntil((r) => r.isFirst);
+                            if (widget.isRootOffline) {
+                              _retryConnection();
+                            } else {
+                              ShellController.tab.value = 1;
+                              Navigator.of(context).popUntil((r) => r.isFirst);
+                            }
                           },
                         ),
                       )

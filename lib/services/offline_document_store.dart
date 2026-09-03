@@ -15,6 +15,7 @@ class OfflineDoc {
     required this.id,
     required this.name,
     required this.wallet,
+    required this.relPath,
     required this.localPath,
     required this.objectPath,
     required this.sizeBytes,
@@ -28,7 +29,22 @@ class OfflineDoc {
   final String wallet;
   final String? category;
 
-  /// The durable on-device copy. This is what the offline viewer opens.
+  /// Where the copy lives *relative to the app documents directory* -
+  /// `offline_docs/<uid>/<file>`.
+  ///
+  /// This, not [localPath], is the durable identity of the file. The app's
+  /// documents container is re-created at a brand-new path on every iOS
+  /// update (the UUID in `/var/mobile/Containers/Data/Application/<UUID>/`
+  /// changes), so an absolute path written last week is dead today - and an
+  /// entry whose file "does not exist" is dropped on load, which is exactly
+  /// how a full offline library silently emptied itself. A relative path is
+  /// re-resolved against the *current* container on every launch and stays
+  /// valid for the life of the install.
+  final String relPath;
+
+  /// [relPath] resolved against the documents directory of THIS run - the
+  /// absolute path the viewer actually opens. Always recomputed on load;
+  /// never trusted as read from storage.
   final String localPath;
 
   /// The Storage object it came from (kept for re-download / diagnostics).
@@ -51,28 +67,61 @@ class OfflineDoc {
     return '$sizeBytes B';
   }
 
+  /// The same entry with [localPath] rebuilt from [baseDir].
+  OfflineDoc resolvedIn(String baseDir) => OfflineDoc(
+        id: id,
+        name: name,
+        wallet: wallet,
+        category: category,
+        relPath: relPath,
+        localPath: relPath.isEmpty ? localPath : '$baseDir/$relPath',
+        objectPath: objectPath,
+        sizeBytes: sizeBytes,
+        savedAt: savedAt,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'wallet': wallet,
         'category': category,
+        'relPath': relPath,
+        // Kept for diagnostics (and so an older build reading this same key
+        // still finds its file). Loading always prefers `relPath`.
         'localPath': localPath,
         'objectPath': objectPath,
         'sizeBytes': sizeBytes,
         'savedAt': savedAt.toIso8601String(),
       };
 
-  factory OfflineDoc.fromJson(Map<String, dynamic> j) => OfflineDoc(
-        id: j['id']?.toString() ?? '',
-        name: (j['name'] as String?) ?? 'Document',
-        wallet: (j['wallet'] as String?) ?? '',
-        category: j['category'] as String?,
-        localPath: (j['localPath'] as String?) ?? '',
-        objectPath: (j['objectPath'] as String?) ?? '',
-        sizeBytes: (j['sizeBytes'] as num?)?.toInt() ?? 0,
-        savedAt:
-            DateTime.tryParse(j['savedAt'] as String? ?? '') ?? DateTime.now(),
-      );
+  factory OfflineDoc.fromJson(Map<String, dynamic> j) {
+    final abs = _slashes((j['localPath'] as String?) ?? '');
+    final rel = _slashes((j['relPath'] as String?) ?? '');
+    return OfflineDoc(
+      id: j['id']?.toString() ?? '',
+      name: (j['name'] as String?) ?? 'Document',
+      wallet: (j['wallet'] as String?) ?? '',
+      category: j['category'] as String?,
+      relPath: rel.isNotEmpty ? rel : _relFromAbsolute(abs),
+      localPath: abs,
+      objectPath: (j['objectPath'] as String?) ?? '',
+      sizeBytes: (j['sizeBytes'] as num?)?.toInt() ?? 0,
+      savedAt:
+          DateTime.tryParse(j['savedAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  /// Recovers the relative tail of a legacy absolute path, so entries written
+  /// before [relPath] existed are migrated instead of thrown away.
+  static String _relFromAbsolute(String abs) {
+    const marker = '/${OfflineDocumentStore.dirName}/';
+    final at = abs.lastIndexOf(marker);
+    return at < 0 ? '' : abs.substring(at + 1);
+  }
+
+  /// Windows-style separators normalised, so `relPath` matching works the same
+  /// on every platform the app builds for.
+  static String _slashes(String p) => p.replaceAll(r'\', '/');
 }
 
 /// Documents saved for offline viewing.
@@ -96,11 +145,16 @@ class OfflineDocumentStore extends ChangeNotifier {
   OfflineDocumentStore._();
   static final OfflineDocumentStore instance = OfflineDocumentStore._();
 
+  /// Folder under the app documents directory that holds every offline copy.
+  static const String dirName = 'offline_docs';
+
   static const String _keyPrefix = 'ino_offline_docs';
+  static const String _kLastUidKey = 'ino_offline_docs_last_uid';
 
   final List<OfflineDoc> _docs = [];
   bool _loaded = false;
   String? _loadedUid;
+  String? _baseDirPath;
 
   List<OfflineDoc> get docs => List.unmodifiable(_docs);
   bool get isLoaded => _loaded;
@@ -134,25 +188,73 @@ class OfflineDocumentStore extends ChangeNotifier {
     return null;
   }
 
+  /// The app documents directory, resolved once per launch.
+  ///
+  /// Deliberately never persisted: its value is the thing that changes across
+  /// app updates, which is precisely why [OfflineDoc.relPath] exists.
+  Future<String?> _baseDir() async {
+    final cached = _baseDirPath;
+    if (cached != null) return cached;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      return _baseDirPath = OfflineDoc._slashes(dir.path);
+    } catch (_) {
+      // No plugin (tests) - callers degrade to the stored absolute path.
+      return null;
+    }
+  }
+
   /// Hydrates for the current user; reloads when the account changed. Safe to
   /// call from every screen's `initState`. Never touches the network.
-  Future<void> ensureLoaded() async {
-    final uid = _uid();
-    if (_loaded && uid == _loadedUid) return;
+  Future<void> ensureLoaded({bool force = false}) async {
+    final liveUid = _uid();
+    final p = await SharedPrefsCache.instance.prefsAsync;
+    if (liveUid != null && liveUid.isNotEmpty) {
+      await p.setString(_kLastUidKey, liveUid);
+    }
+    // Offline cold start: Supabase restores the session in the background and
+    // may not have produced a user yet (and never will without network), so the
+    // uid the library was saved under is remembered separately. Without this
+    // the list reads an empty per-uid key and the offline screen looks empty
+    // exactly when it is the only screen the user has.
+    final uid = liveUid ?? p.getString(_kLastUidKey);
+    if (!force && _loaded && uid == _loadedUid) return;
+
+    final base = await _baseDir();
     final loaded = <OfflineDoc>[];
+    var repaired = false;
     try {
-      final p = await SharedPrefsCache.instance.prefsAsync;
-      for (final raw in p.getStringList(_prefsKey(uid)) ?? const <String>[]) {
-        try {
-          final doc =
-              OfflineDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-          // An entry whose file vanished (storage cleared) is useless - drop
-          // it here so the list never advertises a doc it cannot open.
-          if (doc.localPath.isNotEmpty && File(doc.localPath).existsSync()) {
+      // This user's keys, plus the uid-less key that saves fall back to when
+      // the session has not resolved yet. Deliberately NOT every offline key on
+      // the device: that would hand one account another account's documents.
+      final keysToTry = <String>{
+        _prefsKey(uid),
+        if (liveUid != null) _prefsKey(liveUid),
+        _prefsKey(null),
+      };
+
+      final seenIds = <String>{};
+      for (final key in keysToTry) {
+        final list = p.getStringList(key);
+        if (list == null) continue;
+        for (final raw in list) {
+          try {
+            final stored =
+                OfflineDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+            if (stored.id.isEmpty || seenIds.contains(stored.id)) continue;
+            // An entry whose file really is gone (storage cleared) is useless -
+            // drop it so the list never advertises a doc it cannot open.
+            final doc = await _locate(stored, base);
+            if (doc == null) continue;
+            if (doc.localPath != stored.localPath ||
+                doc.relPath != stored.relPath) {
+              repaired = true;
+            }
+            seenIds.add(doc.id);
             loaded.add(doc);
+          } catch (_) {
+            // Skip a corrupt entry rather than losing the whole library.
           }
-        } catch (_) {
-          // Skip a corrupt entry rather than losing the whole library.
         }
       }
     } catch (_) {
@@ -165,17 +267,39 @@ class OfflineDocumentStore extends ChangeNotifier {
     _loadedUid = uid;
     notifyListeners();
 
+    // Rewrite entries whose paths moved, so the repair happens once instead of
+    // on every launch.
+    if (repaired) await _persist();
+
     // Background sync: push any locally cached documents to Supabase so
     // existing offline records populate the server-side table.
-    if (uid != null && _docs.isNotEmpty) {
-      _syncToSupabase(uid);
+    if (liveUid != null && _docs.isNotEmpty) {
+      _syncToSupabase(liveUid);
     }
+  }
+
+  /// Finds [doc]'s file in the container of this run, or null when it is
+  /// genuinely gone.
+  ///
+  /// The relative path is tried first (the durable one), then the absolute path
+  /// exactly as stored - which covers a legacy entry whose file sits outside
+  /// the `offline_docs` tree, where no relative path can be derived.
+  Future<OfflineDoc?> _locate(OfflineDoc doc, String? base) async {
+    if (base != null && doc.relPath.isNotEmpty) {
+      final resolved = doc.resolvedIn(base);
+      if (await File(resolved.localPath).exists()) return resolved;
+    }
+    if (doc.localPath.isNotEmpty && await File(doc.localPath).exists()) {
+      return doc;
+    }
+    return null;
   }
 
   /// The durable folder for the current user's offline files.
   Future<Directory> _dirFor(String uid) async {
-    final base = await getApplicationDocumentsDirectory();
-    final dir = Directory('${base.path}/offline_docs/$uid');
+    final base = await _baseDir();
+    if (base == null) throw const FileSystemException('no documents directory');
+    final dir = Directory('$base/$dirName/$uid');
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
@@ -194,8 +318,8 @@ class OfflineDocumentStore extends ChangeNotifier {
     String? category,
     File? sourceFile,
   }) async {
-    final uid = _uid();
-    if (uid == null) return null;
+    final p = await SharedPrefsCache.instance.prefsAsync;
+    final uid = _uid() ?? p.getString(_kLastUidKey) ?? 'local';
     await ensureLoaded();
 
     try {
@@ -203,7 +327,7 @@ class OfflineDocumentStore extends ChangeNotifier {
           await DocumentFileService.instance.ensureLocal(objectPath);
       final dir = await _dirFor(uid);
       final ext = DocumentFileService.extensionOf(objectPath);
-      final safeId = docId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final safeId = docId.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
       final target = File('${dir.path}/$safeId.$ext');
       await source.copy(target.path);
 
@@ -212,7 +336,8 @@ class OfflineDocumentStore extends ChangeNotifier {
         name: name,
         wallet: wallet,
         category: category,
-        localPath: target.path,
+        relPath: '$dirName/$uid/$safeId.$ext',
+        localPath: OfflineDoc._slashes(target.path),
         objectPath: objectPath,
         sizeBytes: await target.length(),
         savedAt: DateTime.now(),
@@ -225,7 +350,9 @@ class OfflineDocumentStore extends ChangeNotifier {
           name: 'offline');
 
       // Best-effort sync to Supabase table
-      _upsertToSupabase(uid, entry);
+      if (uid != 'local') {
+        _upsertToSupabase(uid, entry);
+      }
 
       return entry;
     } catch (e) {
@@ -263,10 +390,14 @@ class OfflineDocumentStore extends ChangeNotifier {
   Future<void> _persist() async {
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
+      final uid = _loadedUid ?? _uid() ?? p.getString(_kLastUidKey);
       await p.setStringList(
-        _prefsKey(_loadedUid),
+        _prefsKey(uid),
         [for (final d in _docs) jsonEncode(d.toJson())],
       );
+      if (uid != null && uid != 'local') {
+        await p.setString(_kLastUidKey, uid);
+      }
     } catch (_) {
       // Best-effort; the in-memory list stays correct for this session.
     }
@@ -284,7 +415,7 @@ class OfflineDocumentStore extends ChangeNotifier {
                 'wallet': doc.wallet,
                 'category': doc.category,
                 'object_path': doc.objectPath,
-                'local_path': doc.localPath,
+                'local_path': doc.relPath,
                 'size_bytes': doc.sizeBytes,
                 'saved_at': doc.savedAt.toIso8601String(),
               })
@@ -313,7 +444,7 @@ class OfflineDocumentStore extends ChangeNotifier {
           'wallet': doc.wallet,
           'category': doc.category,
           'object_path': doc.objectPath,
-          'local_path': doc.localPath,
+          'local_path': doc.relPath,
           'size_bytes': doc.sizeBytes,
           'saved_at': doc.savedAt.toIso8601String(),
         },
@@ -349,5 +480,6 @@ class OfflineDocumentStore extends ChangeNotifier {
     _docs.clear();
     _loaded = false;
     _loadedUid = null;
+    _baseDirPath = null;
   }
 }
