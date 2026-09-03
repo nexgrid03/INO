@@ -55,17 +55,26 @@ subprojects {
 // "not a regular file" on OneDrive-synced projects.
 // ---------------------------------------------------------------------------
 if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) {
-    subprojects {
-        tasks.matching {
-            it.name.startsWith("compile") || it.name.startsWith("generate") || it.name.startsWith("merge")
-        }.configureEach {
-            doFirst {
-                val bDir = project.layout.buildDirectory.orNull?.asFile
-                if (bDir != null && bDir.exists()) {
-                    try {
-                        ProcessBuilder("cmd.exe", "/c", "attrib -u +p \"${bDir.absolutePath}\" /s /d")
-                            .start()
-                    } catch (_: Exception) {}
+    allprojects {
+        tasks.configureEach {
+            if (name.startsWith("compile") ||
+                name.startsWith("generate") ||
+                name.startsWith("merge") ||
+                name.startsWith("compress") ||
+                name.startsWith("package") ||
+                name.startsWith("process") ||
+                name.startsWith("create") ||
+                name.startsWith("copy") ||
+                name.startsWith("assemble")
+            ) {
+                doFirst {
+                    val bDir = project.layout.buildDirectory.orNull?.asFile
+                    if (bDir != null && bDir.exists()) {
+                        try {
+                            ProcessBuilder("cmd.exe", "/c", "attrib -u +p \"${bDir.absolutePath}\" /s /d")
+                                .start()
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }
