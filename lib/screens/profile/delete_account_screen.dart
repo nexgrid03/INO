@@ -106,7 +106,6 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     return SettingsScaffold(
       title: l10n.t('deleteAccount'),
       child: ListView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
         children: [

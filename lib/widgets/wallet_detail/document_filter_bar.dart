@@ -36,7 +36,6 @@ class DocumentFilterBar extends StatelessWidget {
       height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
         padding: const EdgeInsets.symmetric(vertical: 6),
         children: [
@@ -81,12 +80,15 @@ class _Chip extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: selected ? null : palette.surface,
-              gradient: selected ? AppColors.vaultFillGradient(accent) : null,
+              // Gradient in both states — color↔gradient tweens dip through
+              // transparency and made the deselected chip blink.
+              gradient: selected
+                  ? AppColors.vaultFillGradient(accent)
+                  : AppColors.solidFillGradient(palette.surface),
               borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
                 color: selected ? Colors.transparent : palette.border,

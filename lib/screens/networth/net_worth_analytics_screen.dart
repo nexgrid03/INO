@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/net_worth_chart.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Net Worth Analytics — live totals from Property + Investment wallets,
 /// history-backed chart, and allocation from real holdings only.
@@ -56,7 +57,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
     return SettingsScaffold(
       title: l10n.t('netWorth'),
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: InoLoader())
           : _body(palette, l10n),
     );
   }
@@ -70,7 +71,6 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
     final yearChange = _percentChange(yearSeries);
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.sm,
@@ -167,8 +167,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           AdaptiveGlassCard(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Text(
-              'Add properties or investments to build your net worth. '
-              'Totals come from your Property and Investment wallets.',
+              l10n.t('netWorthEmptyHint'),
               style: AppText.caption.copyWith(
                 color: palette.textSecondary,
                 height: 1.45,
@@ -199,7 +198,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
                                 .copyWith(color: palette.textPrimary),
                           ),
                           Text(
-                            'classes',
+                            l10n.t('classesLabel'),
                             style: AppText.label
                                 .copyWith(color: palette.textFaint),
                           ),
@@ -222,8 +221,7 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
           ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Based on your Property and Investment wallets. '
-          'The chart updates from daily snapshots as your holdings change.',
+          l10n.t('netWorthFooterNote'),
           style: AppText.caption.copyWith(
             color: palette.textFaint,
             height: 1.4,
@@ -366,7 +364,7 @@ class _LegendRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  allocation.label,
+                  allocation.localizedLabel(AppLocalizations.of(context)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.subtitle.copyWith(

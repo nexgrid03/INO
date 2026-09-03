@@ -12,6 +12,7 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/home/empty_state.dart';
 import '../shell/shell_controller.dart';
 import '../wallet/wallet_detail_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Global Search - live search across documents, reminders, categories and tags,
 /// with recent searches, suggestions and a proper empty state.
@@ -146,7 +147,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Widget _body(AppPalette palette) {
     if (_query.isEmpty) return _idleState(palette);
     if (_searching) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2.4));
+      return const Center(child: InoLoader());
     }
     if (_results.isEmpty) {
       final l10n = AppLocalizations.of(context);
@@ -158,7 +159,6 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       );
     }
     return ListView.separated(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl),
       itemCount: _results.length,
@@ -171,7 +171,6 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Widget _idleState(AppPalette palette) {
     final l10n = AppLocalizations.of(context);
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
       children: [

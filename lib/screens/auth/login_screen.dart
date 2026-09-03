@@ -21,6 +21,7 @@ import 'auth_validators.dart';
 import 'forgot_password_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Screen 3 - Login.
 ///
@@ -515,14 +516,7 @@ class _GuestLoginButton extends StatelessWidget {
           ),
         ),
         child: busy
-            ?  SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: AppColors.primaryGreen,
-                ),
-              )
+            ? InoLoader(size: 20, color: AppColors.primaryGreen)
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

@@ -24,12 +24,9 @@ import 'package:flutter/material.dart';
 ///  • [clay]     - Same compact Home + Divine Glass chrome as [aqua]
 ///    (teal #098F90), with soft-3D / clay PNG Home icons.
 enum ThemeStyle {
-  classic,
   launcher,
   aqua,
-  aquaLight,
   aquaMist,
-  clay,
 }
 
 /// Inherited scope inserted above the Navigator (see main.dart) so every
@@ -43,7 +40,7 @@ class InoStyleScope extends InheritedWidget {
 
   static ThemeStyle of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<InoStyleScope>()?.style ??
-      ThemeStyle.classic;
+      ThemeStyle.aqua;
 
   @override
   bool updateShouldNotify(covariant InoStyleScope oldWidget) =>
@@ -55,10 +52,10 @@ class InoStyleScope extends InheritedWidget {
 class InoStyle {
   InoStyle._();
 
-  /// Sky brand (#0EA5E9) — classic / bold / soft / launcher.
+  /// Sky brand (#0EA5E9) — launcher.
   static const Color _skyBrand = Color(0xFF0EA5E9);
 
-  /// Aqua brand (#098F90) — aqua / aquaLight / aquaMist / clay.
+  /// Aqua brand (#098F90) — aqua / aquaMist.
   static const Color _aquaBrand = Color(0xFF098F90);
 
   static ThemeStyle of(BuildContext context) => InoStyleScope.of(context);
@@ -68,19 +65,17 @@ class InoStyle {
   static bool isLauncher(BuildContext context) =>
       of(context) == ThemeStyle.launcher;
 
-  /// Teal #098F90 brand family ([aqua], [aquaLight], [aquaMist], or [clay]).
+  /// Teal #098F90 brand family ([aqua] or [aquaMist]).
   static bool isAqua(BuildContext context) => usesAquaBrand(of(context));
 
   static bool usesAquaBrand(ThemeStyle style) =>
       style == ThemeStyle.aqua ||
-      style == ThemeStyle.aquaLight ||
-      style == ThemeStyle.aquaMist ||
-      style == ThemeStyle.clay;
+      style == ThemeStyle.aquaMist;
 
-  /// Flat solid scaffold wash — no aurora / sky gradient ([aquaLight], [aquaMist]).
+  /// Flat solid scaffold wash — no aurora / sky gradient ([aquaMist]).
   static bool usesFlatBackdrop(BuildContext context) {
     final style = of(context);
-    return style == ThemeStyle.aquaLight || style == ThemeStyle.aquaMist;
+    return style == ThemeStyle.aquaMist;
   }
 
   /// Flat #DFF3F3 mist wash — circular chrome needs porcelain + teal rim
@@ -88,24 +83,20 @@ class InoStyle {
   static bool isAquaMist(BuildContext context) =>
       of(context) == ThemeStyle.aquaMist;
 
-  /// Compact Home + Divine Glass chrome — launcher + aqua family + clay.
+  /// Compact Home + Divine Glass chrome — launcher + aqua family.
   static bool usesDivineGlass(BuildContext context) =>
       usesDivineGlassStyle(of(context));
 
   static bool usesDivineGlassStyle(ThemeStyle style) =>
       style == ThemeStyle.launcher ||
-      style == ThemeStyle.clay ||
       style == ThemeStyle.aqua ||
-      style == ThemeStyle.aquaLight ||
       style == ThemeStyle.aquaMist;
 
   /// Soft-3D / clay PNG Home icons (Quick Actions, vaults, tools, attention).
-  /// Only [ThemeStyle.clay]; aqua family / launcher keep tinted SVGs.
   static bool usesHome3dIcons(BuildContext context) =>
       usesHome3dIconsStyle(of(context));
 
-  static bool usesHome3dIconsStyle(ThemeStyle style) =>
-      style == ThemeStyle.clay;
+  static bool usesHome3dIconsStyle(ThemeStyle style) => false;
 
   /// Brand accent for the active style: teal #098F90 in Aqua family, else sky.
   static Color brandAccent(BuildContext context) {
@@ -132,12 +123,9 @@ class InoStyle {
 
   static Color accent(BuildContext context, Color c) {
     switch (of(context)) {
-      case ThemeStyle.classic:
       case ThemeStyle.launcher:
       case ThemeStyle.aqua:
-      case ThemeStyle.aquaLight:
       case ThemeStyle.aquaMist:
-      case ThemeStyle.clay:
         return c;
     }
   }
@@ -153,7 +141,7 @@ class InoStyle {
   /// Secondary (label) text on a bold accent fill.
   static Color get boldTextSecondary => Colors.white.withValues(alpha: 0.85);
 
-  /// A branded gradient resolved for the active style. Classic, launcher, clay and aqua family leave the gradient as authored.
+  /// A branded gradient resolved for the active style. Launcher and aqua family leave the gradient as authored.
   static Gradient gradient(BuildContext context, Gradient g) {
     return g;
   }

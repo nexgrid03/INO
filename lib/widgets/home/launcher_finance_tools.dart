@@ -9,9 +9,6 @@ import '../common/ino_svg_icon.dart';
 import 'launcher_glass_icon_tile.dart';
 
 /// Property & Finance Tools grid for Divine Glass Home.
-///
-/// [ThemeStyle.clay] uses soft-3D PNGs; aqua / launcher / aquaLight restore
-/// the tinted SVG set from before the 3D Home icons landed.
 class LauncherFinanceTools extends StatelessWidget {
   const LauncherFinanceTools({super.key});
 

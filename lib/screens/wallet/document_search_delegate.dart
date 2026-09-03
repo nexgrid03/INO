@@ -6,6 +6,7 @@ import '../../models/document_extraction.dart';
 import '../../repositories/document_repository.dart';
 import '../../theme/app_theme.dart';
 import 'wallet_detail_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A real global search across every document in the vault.
 ///
@@ -26,6 +27,30 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
   Future<List<Document>> _load() =>
       _corpus ??= DocumentRepository.instance.listAll();
 
+  /// Document → one pre-lowercased string holding every searchable field.
+  ///
+  /// Built once per document and reused for the rest of the search session.
+  /// Previously every keystroke re-lowercased each field *and* ran
+  /// [DocumentExtraction.decode] — a JSON parse — once per document. Across a
+  /// few hundred documents that was a few hundred JSON parses per character
+  /// typed, all on the UI thread, which is what made the search field feel like
+  /// it lagged behind the keyboard.
+  final Map<String, String> _haystacks = {};
+
+  String _haystack(Document d) => _haystacks.putIfAbsent(
+        d.id,
+        () => [
+          d.name,
+          d.category ?? '',
+          d.recordNumber ?? '',
+          d.wallet,
+          d.tags.join(' '),
+          // The OCR-extracted fields (Aadhaar / PAN / passport / licence
+          // number, full name, …) stored with the document.
+          DocumentExtraction.decode(d.notes).searchableText,
+        ].join(' ').toLowerCase(),
+      );
+
   List<Document> _filter(List<Document> docs, String q) {
     final query = q.trim().toLowerCase();
     Iterable<Document> pool = docs;
@@ -33,20 +58,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       pool = pool.where((d) => walletFilter.contains(d.wallet));
     }
     if (query.isEmpty) return pool.toList();
-    return pool
-        .where((d) =>
-            d.name.toLowerCase().contains(query) ||
-            (d.category?.toLowerCase().contains(query) ?? false) ||
-            (d.recordNumber?.toLowerCase().contains(query) ?? false) ||
-            d.wallet.toLowerCase().contains(query) ||
-            d.tags.any((t) => t.toLowerCase().contains(query)) ||
-            // Search the OCR-extracted fields (Aadhaar / PAN / passport / license
-            // number, full name, …) stored with the document.
-            DocumentExtraction.decode(d.notes)
-                .searchableText
-                .toLowerCase()
-                .contains(query))
-        .toList();
+    return pool.where((d) => _haystack(d).contains(query)).toList();
   }
 
   @override
@@ -77,7 +89,7 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return  Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: InoLoader(color: AppColors.primaryGreen),
           );
         }
         if (snap.hasError || !snap.hasData) {

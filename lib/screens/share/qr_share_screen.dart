@@ -251,7 +251,6 @@ class _QrShareScreenState extends State<QrShareScreen> {
               ),
               Expanded(
                 child: ListView(
-                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.lg),
                   children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/biometric_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -99,7 +100,8 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   Future<void> _authenticate() async {
     if (_authenticating) return;
     setState(() => _authenticating = true);
-    final ok = await _svc.authenticate(reason: 'Unlock INO');
+    final reason = AppLocalizations.of(context).t('unlockIno');
+    final ok = await _svc.authenticate(reason: reason);
     if (!mounted) return;
     setState(() {
       _authenticating = false;
@@ -194,7 +196,8 @@ class _LockScreen extends StatelessWidget {
                                           top: 2,
                                         ),
                                         child: Text(
-                                          'Digital Wallet',
+                                          AppLocalizations.of(context)
+                                              .t('digitalWallet'),
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
                                           style: AppText.display.copyWith(
@@ -221,7 +224,6 @@ class _LockScreen extends StatelessWidget {
                               // for the hero + title (avoids RenderFlex overflow).
                               if (mid.maxHeight < heroSize + gapTitleHero + 48) {
                                 return SingleChildScrollView(
-                                  physics: const BouncingScrollPhysics(),
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
                                       minHeight: mid.maxHeight,
@@ -239,7 +241,8 @@ class _LockScreen extends StatelessWidget {
                           child: SizedBox(
                             width: double.infinity,
                             child: PrimaryButton(
-                              label: 'Unlock',
+                              label: AppLocalizations.of(context)
+                                  .t('sharePasswordUnlock'),
                               icon: Icons.lock_open_rounded,
                               busy: authenticating,
                               onPressed: onUnlock,

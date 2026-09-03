@@ -11,6 +11,7 @@ import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/pressable_scale.dart';
 import 'document_crop_editor.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The review screen deliberately commits to the premium DARK camera chrome
 /// (matching the scanner viewport it follows) in both app themes, so the flow
@@ -551,10 +552,7 @@ class _CapturePreview extends StatelessWidget {
                       ColoredBox(
                         color: Colors.black.withValues(alpha: 0.25),
                         child:  Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primaryGreen),
-                          ),
+                          child: InoLoader(color: AppColors.primaryGreen),
                         ),
                       ),
                   ],

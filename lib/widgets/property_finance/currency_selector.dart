@@ -145,7 +145,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
     return Padding(
       // Keep the list clear of the keyboard while searching.
       padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Column(
         children: [
           const SizedBox(height: AppSpacing.sm),

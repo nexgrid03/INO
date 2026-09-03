@@ -1,3 +1,4 @@
+import 'dart:async' show Timer;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,7 +12,16 @@ import '../../theme/theme_style.dart';
 /// while cutting GPU churn across dozens of glass tiles.
 final Map<int, ImageFilter> _kBlurFilters = <int, ImageFilter>{};
 
-ImageFilter _blurFilterFor(double sigma) {
+ImageFilter _blurFilterFor(double sigma) => sharedBlurFilter(sigma);
+
+/// A cached [ImageFilter.blur] for [sigma], snapped to 0.5px buckets.
+///
+/// Reach for this instead of constructing `ImageFilter.blur` inline — most
+/// importantly inside an [AnimatedBuilder], where a fresh filter per frame
+/// makes the engine rebuild the blur shader on every single frame of the
+/// animation. Bucketing means an animated sigma reuses ~30 cached filters
+/// across its whole sweep rather than allocating 60 new ones per second.
+ImageFilter sharedBlurFilter(double sigma) {
   // Cap at 16: values 18–24 look nearly identical on phone screens but cost
   // disproportionately more fill-rate (backdrop blur is O(sigma²) work).
   final s = sigma.clamp(0.0, 16.0);
@@ -35,8 +45,8 @@ class GlassScrollPerformance extends InheritedWidget {
   final bool allowBlur;
 
   static bool blurAllowedOf(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<GlassScrollPerformance>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<GlassScrollPerformance>();
     return scope?.allowBlur ?? true;
   }
 
@@ -58,32 +68,59 @@ class GlassScrollListener extends StatefulWidget {
 
 class _GlassScrollListenerState extends State<GlassScrollListener> {
   bool _allowBlur = true;
-  int _scrollGen = 0;
 
-  void _onScrollActivity() {
+  /// Re-enables blur shortly after the scroll ends.
+  Timer? _settle;
+
+  /// Toggling [_allowBlur] swaps every visible glass surface between its
+  /// BackdropFilter and frost-only renderings — a layer-tree change plus a
+  /// dependents rebuild. The old implementation restarted a 140ms timer on
+  /// every ScrollUpdate, so a finger resting mid-drag (no updates for 140ms)
+  /// flipped blur back ON under the gesture, and the next movement flipped it
+  /// OFF again — a visible hitch in the middle of scrolling. Bracketing on
+  /// Start/End instead means blur drops exactly once per gesture and returns
+  /// exactly once, only after the scroll (fling included) has fully ended —
+  /// a drag flowing into its fling is a single Start…End bracket.
+  void _onScrollStart() {
+    _settle?.cancel();
     if (_allowBlur) setState(() => _allowBlur = false);
-    final gen = ++_scrollGen;
-    Future<void>.delayed(const Duration(milliseconds: 140), () {
-      if (!mounted || gen != _scrollGen) return;
+  }
+
+  void _onScrollEnd() {
+
+    _settle?.cancel();
+    // A beat of quiet before restoring blur, so back-to-back flicks don't\
+
+
+    // thrash the layer tree between them.
+    _settle = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || _allowBlur) return;
       setState(() => _allowBlur = true);
     });
+  }
+
+  @override
+  void dispose() {
+    _settle?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
-        if (n is ScrollUpdateNotification || n is ScrollStartNotification) {
-          _onScrollActivity();
+        // Depth 0 keeps this to the scrollable the user is actually dragging,
+        // so a nested horizontal chip strip doesn't also suspend blur for the
+        // whole page behind it.
+        if (n.depth != 0) return false;
+        if (n is ScrollStartNotification) {
+          _onScrollStart();
         } else if (n is ScrollEndNotification) {
-          _onScrollActivity();
+          _onScrollEnd();
         }
         return false;
       },
-      child: GlassScrollPerformance(
-        allowBlur: _allowBlur,
-        child: widget.child,
-      ),
+      child: GlassScrollPerformance(allowBlur: _allowBlur, child: widget.child),
     );
   }
 }
@@ -170,9 +207,15 @@ class LiquidGlass extends StatelessWidget {
     // icon tiles shift colour while scrolling. Light keeps real blur on
     // native; web always uses frosted fill only. Mid-scroll parents may
     // temporarily suspend blur via [GlassScrollPerformance] (frost-only).
-    final scrollOk = GlassScrollPerformance.blurAllowedOf(context);
+    // blurAllowedOf is consulted LAST so surfaces that can never blur (dark
+    // mode, web, enableBlur: false) register no dependency and aren't
+    // rebuilt on every scroll start/settle.
     final useBlur =
-        enableBlur && blur > 0 && !kIsWeb && !dark && scrollOk;
+        enableBlur &&
+        blur > 0 &&
+        !kIsWeb &&
+        !dark &&
+        GlassScrollPerformance.blurAllowedOf(context);
 
     final BorderRadius? radius = circle
         ? null
@@ -193,10 +236,7 @@ class LiquidGlass extends StatelessWidget {
       fill = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color.lerp(glassBase, Colors.white, lift)!,
-          glassBase,
-        ],
+        colors: [Color.lerp(glassBase, Colors.white, lift)!, glassBase],
       );
     } else {
       fill = LinearGradient(
@@ -256,10 +296,7 @@ class LiquidGlass extends StatelessWidget {
 
     Widget surface = useBlur
         ? RepaintBoundary(
-            child: BackdropFilter(
-              filter: _blurFilterFor(blur),
-              child: body,
-            ),
+            child: BackdropFilter(filter: _blurFilterFor(blur), child: body),
           )
         : body;
 
@@ -312,15 +349,9 @@ class LiquidGlass extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFFFFF),
-            Color(0xFFF4FAF9),
-          ],
+          colors: [Color(0xFFFFFFFF), Color(0xFFF4FAF9)],
         ),
-        border: Border.all(
-          color: brand.withValues(alpha: 0.34),
-          width: 1.35,
-        ),
+        border: Border.all(color: brand.withValues(alpha: 0.34), width: 1.35),
         boxShadow: [
           BoxShadow(
             color: brand.withValues(alpha: 0.18),

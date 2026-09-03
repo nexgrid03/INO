@@ -75,10 +75,16 @@ class _AuthScaffoldState extends State<AuthScaffold>
     with SingleTickerProviderStateMixin {
   /// Slow, perpetual loop for the floating background particles - matches the
   /// splash / onboarding cadence so the transition between them feels seamless.
-  late final AnimationController _particles = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 18),
-  )..repeat();
+  late final AnimationController _particles;
+
+  @override
+  void initState() {
+    super.initState();
+    _particles = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat();
+  }
 
   @override
   void dispose() {
@@ -123,7 +129,6 @@ class _AuthScaffoldState extends State<AuthScaffold>
         builder: (context, constraints) {
           return SingleChildScrollView(
             padding: widget.padding,
-            physics: const BouncingScrollPhysics(),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight: constraints.maxHeight,

@@ -11,6 +11,7 @@ import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
 import '../../widgets/scan/scan_controls.dart';
 import 'scan_theme.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Screen 1 - the production document scanner.
 ///
@@ -447,7 +448,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                           _FloatingGlassButton(
                             icon: Icons.close_rounded,
                             onTap: widget.onClose,
-                            tooltip: 'Close',
+                            tooltip: l10n.t('close'),
                           ),
                           _FloatingGlassButton(
                             icon: _flashIcon,
@@ -607,14 +608,7 @@ class _CenterStatus extends StatelessWidget {
           Icon(icon, color: ScanColors.textSecondary, size: 46),
           const SizedBox(height: 16),
           if (spinner) ...[
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(ScanColors.accent),
-              ),
-            ),
+            InoLoader(size: 22, color: ScanColors.accent),
             const SizedBox(height: 14),
           ],
           Text(
@@ -832,6 +826,7 @@ class _AutoManualToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       height: 38,
       padding: const EdgeInsets.all(3),
@@ -846,8 +841,14 @@ class _AutoManualToggle extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildOption(label: 'AUTO', active: isAuto, onTap: () => onChanged(true)),
-          _buildOption(label: 'MANUAL', active: !isAuto, onTap: () => onChanged(false)),
+          _buildOption(
+              label: l10n.t('scanModeAuto'),
+              active: isAuto,
+              onTap: () => onChanged(true)),
+          _buildOption(
+              label: l10n.t('scanModeManual'),
+              active: !isAuto,
+              onTap: () => onChanged(false)),
         ],
       ),
     );

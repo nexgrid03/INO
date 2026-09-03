@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Screen 3 - OCR processing.
 ///
@@ -295,10 +296,7 @@ class _StageChecklist extends StatelessWidget {
                       ? Icon(Icons.check_circle_rounded,
                           size: 17, color: AppColors.primaryGreen)
                       : s == current
-                          ?  CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primaryGreen,
-                            )
+                          ? InoLoader(size: 18, color: AppColors.primaryGreen)
                           : Icon(Icons.circle_outlined,
                               size: 15, color: palette.textFaint),
                 ),

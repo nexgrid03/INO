@@ -9,7 +9,6 @@ import 'quick_action_button.dart';
 /// Launcher Quick Actions (4): Scan · Documents · Reminder · Voice.
 ///
 /// Equal [Expanded] cells + shared disc sizing keep the row aligned.
-/// [ThemeStyle.clay] uses soft-3D PNGs; aqua / launcher / aquaLight use SVGs.
 class LauncherQuickActions extends StatelessWidget {
   const LauncherQuickActions({
     super.key,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// The primary call-to-action button for the auth flow (Sign In, Create
 /// Account, Verify, Enable Biometric …).
@@ -51,14 +52,7 @@ class AuthPrimaryButton extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: busy
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
+                ? const InoLoader(size: 22, color: Colors.white)
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

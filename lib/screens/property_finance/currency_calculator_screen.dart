@@ -10,6 +10,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property_finance/calc_widgets.dart';
 import '../../widgets/property_finance/currency_selector.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Currency Converter - enter an amount in one currency and read it in another
 /// (rupee → dollar → pound → …), across every currency in [Currencies.all].
@@ -415,14 +416,7 @@ class _RateNote extends StatelessWidget {
     return Row(
       children: [
         if (loading)
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.6,
-              valueColor: AlwaysStoppedAnimation<Color>(palette.textFaint),
-            ),
-          )
+          InoLoader(size: 12, color: palette.textFaint)
         else
           Icon(icon, size: 14, color: color),
         const SizedBox(width: 5),

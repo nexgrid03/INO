@@ -1,16 +1,28 @@
 # Reminder Push Notifications (FCM)
 
-Reminders are pushed to the user's devices by a daily Supabase cron job.
+Every reminder has an exact due **date and time** (`reminders.due_at`). It is
+rung two ways, both under the same notification id so they never stack:
+
+1. **On the device, at the exact moment** — `ReminderScheduler` arms a local
+   scheduled notification (`flutter_local_notifications.zonedSchedule`) when a
+   reminder is created / restored / loaded. Works offline and with the app
+   killed; survives reboots via the boot receiver in `AndroidManifest.xml`.
+2. **From the server, as a backup** — a per-minute Supabase cron calls
+   `send-reminder-push`, which pushes every reminder whose `due_at` has
+   arrived and has no `notified_at` yet. The message is **data-only**; the app
+   renders it itself (`PushService` / `inoFirebaseBackgroundHandler`) so a
+   phone that already rang just gets its banner refreshed.
+
 **Firebase is only the delivery pipe** — the reminders live in `public.reminders`
 and never leave Supabase.
 
 ```
-pg_cron (03:30 UTC = 09:00 IST)
+pg_cron (every minute)
    └─> Edge Function: send-reminder-push
-         ├─ reads public.reminders   (due today / tomorrow / in 7 days / overdue)
+         ├─ reads public.reminders   (due_at <= now(), notified_at is null)
          ├─ reads public.device_tokens
-         ├─ POST fcm.googleapis.com/v1/…/messages:send
-         └─ prunes dead tokens, stamps reminders.last_push_sent_on
+         ├─ POST fcm.googleapis.com/v1/…/messages:send   (data-only)
+         └─ prunes dead tokens, stamps reminders.notified_at
                      │
                      ▼
              FCM ──> device ──> PushService ──> reminder detail sheet
@@ -56,7 +68,7 @@ supabase secrets set FCM_SERVICE_ACCOUNT="$(cat ~/Downloads/inoapp-b0101-firebas
 supabase functions deploy send-reminder-push
 ```
 
-Test it immediately, before wiring the cron — create a reminder due today, then:
+Test it immediately, before wiring the cron — create a reminder due one minute from now, wait for that minute, then:
 
 ```bash
 curl -X POST "https://<project-ref>.supabase.co/functions/v1/send-reminder-push" \
@@ -70,12 +82,14 @@ a real device first.
 ### 4. Schedule it
 
 Supabase Dashboard → **Database → Extensions** → enable `pg_cron` and `pg_net`.
-Then in the SQL editor:
+Then in the SQL editor (the old daily `reminder-push` job must go — it would
+re-notify on the day at 09:00):
 
 ```sql
+select cron.unschedule('reminder-push');   -- ignore "could not find" if never created
 select cron.schedule(
-  'reminder-push',
-  '30 3 * * *',                       -- 09:00 IST
+  'reminder-push-due',
+  '* * * * *',                        -- every minute
   $$
   select net.http_post(
     url     := 'https://<project-ref>.supabase.co/functions/v1/send-reminder-push',
@@ -115,9 +129,11 @@ unreliable on the iOS Simulator. **Use a real device.**
    - App **foregrounded** → still appears (this is the `flutter_local_notifications`
      bridge; if it fails here but works backgrounded, the channel id has drifted).
 3. Tap a notification → opens the reminders list.
-4. Invoke the function manually with a reminder due today → the notification body
-   should read "Due today", and tapping it should open **that reminder's** sheet.
-5. Run the function a second time → `"sent":0` (the `last_push_sent_on` guard).
+4. Create a reminder two minutes out and put the phone down → it rings at that
+   minute (local schedule). Tapping it opens **that reminder's** sheet.
+5. Invoke the function manually after the due minute → `"sent":1`, and the
+   banner is replaced, not duplicated. Run it again → `"sent":0` (the
+   `notified_at` guard).
 6. **Account isolation:** sign out, sign in as a different user, and invoke the
    function with user A having a due reminder. User B's phone must receive
    nothing.

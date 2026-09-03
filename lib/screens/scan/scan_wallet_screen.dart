@@ -82,7 +82,6 @@ class _ScanWalletScreenState extends State<ScanWalletScreen> {
             _Header(onBack: widget.onBack),
             Expanded(
               child: ListView(
-                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screen,
                   0,

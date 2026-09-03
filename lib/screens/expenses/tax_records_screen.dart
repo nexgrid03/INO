@@ -16,6 +16,7 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The Tax Document Vault - Form 16, 26AS, AIS, TDS, salary slips, proofs, rent
 /// receipts, medical & insurance bills, home-loan certificates - filed under the
@@ -254,7 +255,6 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
                       const SizedBox(height: AppSpacing.md),
                       Expanded(
                         child: ListView(
-                          physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                               AppSpacing.screen, AppSpacing.xl),
                           children: [
@@ -279,7 +279,7 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
               if (_busy)
                 Container(
                   color: Colors.black.withValues(alpha: 0.15),
-                child: const Center(child: CircularProgressIndicator()),
+                child: const Center(child: InoLoader()),
               ),
           ],
         ),

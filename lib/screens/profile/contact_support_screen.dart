@@ -62,7 +62,6 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
     return SettingsScaffold(
       title: l10n.t('contactSupport'),
       child: ListView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md,
             AppSpacing.screen, AppSpacing.xl),
         children: [

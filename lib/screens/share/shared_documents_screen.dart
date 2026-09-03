@@ -17,6 +17,7 @@ import '../../utils/share_password.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Brand tokens from [INO-Share-Web](https://github.com/nexgrid03/INO-Share-Web)
 /// (`tailwind.config.ts` — ino.green + ino.blue). Kept local so the recipient
@@ -191,7 +192,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
       await Share.shareXFiles(
         [XFile(path, mimeType: file.mimeType, name: file.filename)],
         subject: doc.name,
-        text: 'Shared with you via INO',
+        text: l10n.t('sharedWithYouViaIno'),
         sharePositionOrigin: origin,
       );
     } on ShareException catch (e) {
@@ -419,14 +420,7 @@ class _PasswordGate extends StatelessWidget {
                     backgroundColor: _ShareWeb.green600,
                   ),
                   child: busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const InoLoader(size: 20, color: Colors.white)
                       : Text(l10n.t('sharePasswordUnlock')),
                 ),
               ),
@@ -471,7 +465,6 @@ class _ActiveShareBody extends StatelessWidget {
         remaining.inHours < 1;
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       children: [
         // Header: logo + Secure share pill
@@ -492,7 +485,7 @@ class _ActiveShareBody extends StatelessWidget {
                       size: 14, color: _ShareWeb.green700),
                   const SizedBox(width: 6),
                   Text(
-                    'Secure share',
+                    l10n.t('secureShare'),
                     style: TextStyle(
                       color: _ShareWeb.green700,
                       fontSize: 12,
@@ -544,9 +537,9 @@ class _ActiveShareBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Documents shared with you',
-                      style: TextStyle(
+                    Text(
+                      l10n.t('documentsSharedWithYou'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -555,7 +548,7 @@ class _ActiveShareBody extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Review, view and download the files below.',
+                      l10n.t('sharedReviewHint'),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13.5,
@@ -576,8 +569,10 @@ class _ActiveShareBody extends StatelessWidget {
                     Expanded(
                       child: Text(
                         count == 1
-                            ? '1 document'
-                            : '$count documents',
+                            ? l10n.t('oneDocument')
+                            : l10n
+                                .t('nDocuments')
+                                .replaceAll('{n}', '$count'),
                         style: const TextStyle(
                           color: _ShareWeb.slate700,
                           fontSize: 14,
@@ -591,9 +586,9 @@ class _ActiveShareBody extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Text(
-                                'Expires in',
-                                style: TextStyle(
+                              Text(
+                                l10n.t('expiresInLabel'),
+                                style: const TextStyle(
                                   color: _ShareWeb.slate500,
                                   fontSize: 12,
                                 ),
@@ -627,11 +622,11 @@ class _ActiveShareBody extends StatelessWidget {
         const SizedBox(height: 20),
 
         // Documents section
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Text(
-            'SHARED DOCUMENTS',
-            style: TextStyle(
+            l10n.t('sharedDocumentsCaption'),
+            style: const TextStyle(
               color: _ShareWeb.slate400,
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -662,11 +657,10 @@ class _ActiveShareBody extends StatelessWidget {
           ],
 
         const SizedBox(height: 40),
-        const Text(
-          'These documents were shared securely via INO. Do not forward this '
-          'link — it is private and time-limited.',
+        Text(
+          l10n.t('shareFooterNote'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: _ShareWeb.slate400,
             fontSize: 12,
             height: 1.45,
@@ -848,14 +842,7 @@ class _ShareDocRow extends StatelessWidget {
                 ),
               ),
               if (busy)
-                const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: _ShareWeb.green600,
-                  ),
-                ),
+                InoLoader(size: 22, color: _ShareWeb.green600),
             ],
           ),
           const SizedBox(height: 12),
@@ -863,7 +850,7 @@ class _ShareDocRow extends StatelessWidget {
             children: [
               Expanded(
                 child: _ActionBtn(
-                  label: 'View',
+                  label: l10n.t('view'),
                   icon: Icons.visibility_outlined,
                   filled: false,
                   onTap: busy ? null : onView,
@@ -873,7 +860,7 @@ class _ShareDocRow extends StatelessWidget {
               if (onDownload != null)
                 Expanded(
                   child: _ActionBtn(
-                    label: 'Download',
+                    label: l10n.t('download'),
                     icon: Icons.download_rounded,
                     filled: true,
                     onTap: busy ? null : onDownload,
@@ -969,24 +956,17 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _InoLogoMark(large: true),
-          SizedBox(height: 20),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.6,
-              color: _ShareWeb.green600,
-            ),
-          ),
-          SizedBox(height: 14),
+          const _InoLogoMark(large: true),
+          const SizedBox(height: 20),
+          InoLoader(size: 28, color: _ShareWeb.green600),
+          const SizedBox(height: 14),
           Text(
-            'Loading secure share…',
-            style: TextStyle(
+            AppLocalizations.of(context).t('loadingSecureShare'),
+            style: const TextStyle(
               color: _ShareWeb.slate500,
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
@@ -1125,12 +1105,12 @@ class _StatusCard extends StatelessWidget {
                         child: InkWell(
                           onTap: onRetry,
                           borderRadius: BorderRadius.circular(10),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 22, vertical: 12),
                             child: Text(
-                              'Try again',
-                              style: TextStyle(
+                              l10n.t('tryAgain'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
@@ -1145,9 +1125,9 @@ class _StatusCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
-            const Text(
-              'Secured by INO',
-              style: TextStyle(
+            Text(
+              l10n.t('securedByIno'),
+              style: const TextStyle(
                 color: _ShareWeb.slate400,
                 fontSize: 12,
               ),

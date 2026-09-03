@@ -93,10 +93,9 @@ class ReminderCard extends StatelessWidget {
                               children: [
                                 Flexible(
                                   child: _DueBadge(
-                                    label: reminder.localizedDueLabel(
-                                      today,
-                                      l10n,
-                                    ),
+                                    label:
+                                        '${reminder.localizedDueLabel(today, l10n)}'
+                                        ' · ${reminder.timeLabel}',
                                     color: urgency,
                                   ),
                                 ),

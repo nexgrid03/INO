@@ -11,11 +11,17 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/reminder_store.dart';
+import '../data/wallet_repository.dart';
 import '../firebase_options.dart';
 import '../models/reminder_models.dart';
+import '../screens/family/family_vault_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
+import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/reminders/all_reminders_screen.dart';
+import '../screens/wallet/wallet_detail_screen.dart';
 import '../widgets/reminders/reminder_detail_sheet.dart';
 import 'notification_center.dart';
+import 'security_alert_service.dart';
 
 /// Reminder push notifications, delivered over Firebase Cloud Messaging.
 ///
@@ -50,10 +56,40 @@ class PushService {
   /// a channel that does not exist, so the two must never drift apart.
   static const String channelId = 'ino_reminders';
 
+  /// A SEPARATE channel for security alerts (new sign-in, password change, 2FA).
+  ///
+  /// Deliberately its own channel so a user who mutes renewal reminders does not
+  /// also silence "your password was changed" — Android lets people disable
+  /// channels individually, and bundling these together would mean the least
+  /// important notification could switch off the most important one.
+  static const String securityChannelId = 'ino_security';
+
   static const String _table = 'device_tokens';
 
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
+
+  /// Completes once the local-notification plugin is initialised and the
+  /// channels exist. [ReminderScheduler] awaits this before scheduling, since
+  /// [init] is deferred past the first frame and a reminder can be created (or
+  /// the store hydrated) before it has run.
+  final Completer<void> _localReady = Completer<void>();
+  Future<void> get localReady => _localReady.future;
+
+  /// How a reminder notification looks, shared by the foreground bridge, the
+  /// exact-time local schedule and the background data-message handler so the
+  /// three are indistinguishable to the user.
+  static const NotificationDetails reminderDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      channelId,
+      'Reminders',
+      channelDescription: 'Alerts for documents, renewals and due dates.',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@drawable/ic_notification',
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
 
   GlobalKey<NavigatorState>? _navigatorKey;
   bool _initialised = false;
@@ -76,6 +112,11 @@ class PushService {
     if (_initialised) return;
 
     try {
+      // Local notifications first: the exact-time reminder schedule depends
+      // only on this, so a Firebase failure (missing google-services, no Play
+      // services) must not take local reminders down with it.
+      await _initLocalNotifications();
+
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
@@ -85,7 +126,6 @@ class PushService {
       // a top-level function and cannot touch any state from this isolate.
       FirebaseMessaging.onBackgroundMessage(inoFirebaseBackgroundHandler);
 
-      await _initLocalNotifications();
       await _requestPermission();
       await _initToken();
       _listenForSignIn();
@@ -107,6 +147,10 @@ class PushService {
       developer.log('push initialised', name: 'push');
     } catch (e, st) {
       developer.log('init failed: $e', name: 'push', error: e, stackTrace: st);
+    } finally {
+      // Unblock anyone waiting on the local plugin even if Firebase failed:
+      // exact-time local reminders do not need Firebase at all.
+      if (!_localReady.isCompleted) _localReady.complete();
     }
   }
 
@@ -130,7 +174,7 @@ class PushService {
         if (payload == null || payload.isEmpty) return;
         try {
           final data = (jsonDecode(payload) as Map).cast<String, dynamic>();
-          _routeToReminder(data['reminder_id'] as String?);
+          _route(data);
         } catch (e) {
           developer.log('bad local payload: $e', name: 'push');
         }
@@ -146,10 +190,21 @@ class PushService {
       description: 'Alerts for documents, renewals and due dates.',
       importance: Importance.high,
     );
-    await _local
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    // Security alerts get `max` importance: these are the ones worth
+    // interrupting for, and a channel's importance is fixed at creation.
+    const securityChannel = AndroidNotificationChannel(
+      securityChannelId,
+      'Security alerts',
+      description:
+          'Sign-ins, password changes and two-factor updates on your account.',
+      importance: Importance.max,
+    );
+
+    final android = _local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(channel);
+    await android?.createNotificationChannel(securityChannel);
+    if (!_localReady.isCompleted) _localReady.complete();
   }
 
   /// Raises the OS permission prompt (Android 13+ / iOS) once.
@@ -215,6 +270,13 @@ class PushService {
         if (state.event == AuthChangeEvent.signedIn ||
             state.event == AuthChangeEvent.initialSession) {
           unawaited(registerToken());
+        }
+        // Only a REAL sign-in raises the security alert. `initialSession` fires
+        // on every cold start with a restored session — alerting on that would
+        // tell users "your account was signed in" every time they opened the
+        // app, which trains them to ignore the one alert that matters.
+        if (state.event == AuthChangeEvent.signedIn) {
+          unawaited(SecurityAlertService.instance.signedIn());
         }
       },
       onError: (Object e) =>
@@ -282,26 +344,49 @@ class PushService {
       await _local.show(
         // A stable id per reminder, so a re-send REPLACES the banner instead of
         // stacking a second identical one.
-        id: (message.data['reminder_id'] ?? message.messageId ?? '').hashCode,
+        id: reminderNotificationId(message.data, message.messageId),
         title: notification.title,
         body: notification.body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            'Reminders',
-            channelDescription:
-                'Alerts for documents, renewals and due dates.',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@drawable/ic_notification',
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        notificationDetails: reminderDetails,
         payload: jsonEncode(message.data),
       );
+    } else if (isDueReminderMessage(message.data)) {
+      // Data-only "reminder is due now" push. Shown under the SAME id the local
+      // exact-time schedule used, so a device that already rang gets the banner
+      // refreshed, never a second copy.
+      await showDueReminder(_local, message.data);
     }
 
     await refreshFeed();
+  }
+
+  /// True for the per-minute server push that says "this reminder is due".
+  static bool isDueReminderMessage(Map<String, dynamic> data) =>
+      data['kind'] == 'reminder.due' &&
+      ((data['reminder_id'] as String?) ?? '').isNotEmpty;
+
+  /// The notification id for a reminder message - the same value
+  /// `ReminderScheduler.idFor` produces for the local schedule.
+  static int reminderNotificationId(
+      Map<String, dynamic> data, String? fallback) {
+    final rid = data['reminder_id'] as String?;
+    if (rid != null && rid.isNotEmpty) return rid.hashCode & 0x7fffffff;
+    return (fallback ?? '').hashCode & 0x7fffffff;
+  }
+
+  /// Displays a data-only due-reminder message through [plugin]. Static so the
+  /// background isolate (which has none of this singleton's state) can reuse it.
+  static Future<void> showDueReminder(
+    FlutterLocalNotificationsPlugin plugin,
+    Map<String, dynamic> data,
+  ) async {
+    await plugin.show(
+      id: reminderNotificationId(data, null),
+      title: (data['title'] as String?) ?? 'Reminder',
+      body: (data['body'] as String?) ?? '',
+      notificationDetails: reminderDetails,
+      payload: jsonEncode(data),
+    );
   }
 
   /// Re-hydrates reminders and the in-app notification feed so the bell badge
@@ -322,7 +407,69 @@ class PushService {
   void _onNotificationTapped(RemoteMessage message) {
     developer.log('tapped ${message.messageId} data=${message.data}',
         name: 'push');
-    _routeToReminder(message.data['reminder_id'] as String?);
+    _route(message.data);
+  }
+
+  /// Sends a tapped notification to the screen it is about.
+  ///
+  /// Keyed on `data.kind`, which every sender sets (see the `send-push` Edge
+  /// Function and `notification_outbox.kind`). Reminders predate `kind` and
+  /// carry `reminder_id` instead, so their absence of a kind is the fallback
+  /// rather than an error — an old notification sitting in the tray from before
+  /// this shipped still routes correctly.
+  void _route(Map<String, dynamic> data) {
+    final kind = (data['kind'] as String?) ?? '';
+
+    if (kind.startsWith('security.')) {
+      _routeToScreen(const TrustedDevicesScreen());
+      return;
+    }
+    // Every family-vault event (invite, join request, approval, role change)
+    // lands on the Family Vault home, which surfaces the pending cards.
+    if (kind.startsWith('vault.')) {
+      _routeToScreen(const FamilyVaultScreen());
+      return;
+    }
+    if (kind == 'card.expiry') {
+      _routeToWallet('Cards Wallet');
+      return;
+    }
+    if (kind == 'doc.expiry') {
+      _routeToWallet(data['wallet'] as String?);
+      return;
+    }
+    _routeToReminder(data['reminder_id'] as String?);
+  }
+
+  /// Opens a wallet by its canonical name, falling back to the notifications
+  /// list when the name is unknown (a wallet renamed or deleted since the
+  /// notification was sent).
+  void _routeToWallet(String? walletName) {
+    final category = walletName == null
+        ? null
+        : SupabaseWalletRepository.categoryFor(walletName);
+    _routeToScreen(category == null
+        ? const NotificationsScreen()
+        : WalletDetailScreen(category: category));
+  }
+
+  /// Pushes [screen] once the navigator exists. Cold start hands us a tap
+  /// before the tree is attached, so this waits the same bounded way
+  /// [_routeToReminder] does rather than dropping the tap.
+  Future<void> _routeToScreen(Widget screen, {int attempt = 0}) async {
+    final nav = _navigatorKey?.currentState;
+    if (nav == null) {
+      if (attempt >= 20) {
+        developer.log('route: navigator never became ready', name: 'push');
+        return;
+      }
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        () => _routeToScreen(screen, attempt: attempt + 1),
+      );
+      return;
+    }
+    await nav.push(MaterialPageRoute(builder: (_) => screen));
   }
 
   // ---------------------------------------------------------------------------
@@ -400,10 +547,32 @@ class PushService {
 /// being tree-shaken out of release builds - without it, push works in debug
 /// and mysteriously dies in release.
 ///
-/// There is deliberately nothing to do here: the message carries a
-/// `notification` payload, so the system has already drawn the tray entry. The
-/// in-app feed is refreshed when the app next comes to the foreground.
+/// For a message with a `notification` payload there is nothing to do: the
+/// system has already drawn the tray entry. A data-only "reminder.due" push is
+/// the exception - the system draws nothing for those, so it is displayed here
+/// through a plugin instance initialised inside this isolate. The in-app feed
+/// is refreshed when the app next comes to the foreground.
 @pragma('vm:entry-point')
 Future<void> inoFirebaseBackgroundHandler(RemoteMessage message) async {
   developer.log('background message ${message.messageId}', name: 'push');
+  if (message.notification != null ||
+      !PushService.isDueReminderMessage(message.data)) {
+    return;
+  }
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+    );
+    await PushService.showDueReminder(plugin, message.data);
+  } catch (e) {
+    developer.log('background reminder display failed: $e', name: 'push');
+  }
 }

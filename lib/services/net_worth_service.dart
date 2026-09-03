@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -83,7 +84,50 @@ class NetWorthService extends ChangeNotifier {
 
   bool get isReady => _ready;
 
+  /// In-flight (or completed) hydration, so concurrent callers share one run.
+  Future<void>? _hydration;
+
+  /// Hydrates the stores and the saved history, once.
+  ///
+  /// Every screen that shows a net-worth figure calls this on mount, and it
+  /// used to re-read AND re-write `shared_preferences` each time — real async
+  /// I/O sitting on the critical path of Home, Assets and the analytics
+  /// screen, for a history that had not changed. It now runs once per session
+  /// (the splash warm-up is what usually triggers it, see [AppPreload]); later
+  /// callers await the same future and return without touching disk.
+  /// [_onStoresChanged] still re-records the day whenever holdings actually
+  /// move, so the chart stays honest.
   Future<void> ensureReady() async {
+    // Already hydrated: return without touching disk. This is the whole point
+    // - it is the branch every screen after the first one takes.
+    if (_ready) return;
+    // A hydration is already running; join it rather than starting a second.
+    final inFlight = _hydration;
+    if (inFlight != null) return inFlight;
+
+    final run = _hydrate();
+    _hydration = run;
+    try {
+      await run;
+    } finally {
+      // Cleared either way. On success `_ready` short-circuits from here on;
+      // on failure the next caller gets a real retry rather than the same
+      // stale failure. Never hold a completed future: awaiting one created in
+      // another zone (which is what every widget test is) would never resolve.
+      _hydration = null;
+    }
+  }
+
+  /// Forgets the hydration so the next [ensureReady] rebuilds from scratch.
+  /// Called on sign-out ([SessionReset]) - the history belongs to whoever was
+  /// signed in, and the next account's holdings are different.
+  void reset() {
+    _hydration = null;
+    _ready = false;
+    _history = const [];
+  }
+
+  Future<void> _hydrate() async {
     await Future.wait([
       InvestmentStore.instance.ensureLoaded(),
       PropertyStore.instance.ensureLoaded(),

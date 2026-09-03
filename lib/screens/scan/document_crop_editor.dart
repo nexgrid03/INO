@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/document_crop_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A document crop editor with four draggable corner handles and live
 /// perspective preview - the Adobe Scan / Microsoft Lens interaction.
@@ -124,7 +125,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
       ),
       body: _imageSize == null
           ?  Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen))
+              child: InoLoader(color: AppColors.primaryGreen))
           : LayoutBuilder(
               builder: (context, constraints) {
                 final available =
@@ -173,8 +174,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                         child: ColoredBox(
                           color: Colors.black54,
                           child:  Center(
-                            child: CircularProgressIndicator(
-                                color: AppColors.primaryGreen),
+                            child: InoLoader(color: AppColors.primaryGreen),
                           ),
                         ),
                       ),

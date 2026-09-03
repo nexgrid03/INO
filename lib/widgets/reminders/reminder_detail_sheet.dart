@@ -91,14 +91,20 @@ class _ReminderDetailSheet extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.md),
-            Row(
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
               children: [
                 _MetaPill(
                   icon: Icons.event_rounded,
                   label: reminder.localizedDueLabel(store.today, l10n),
                   color: urgency,
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                _MetaPill(
+                  icon: Icons.schedule_rounded,
+                  label: reminderDateTimeLabel(reminder.date),
+                  color: urgency,
+                ),
                 _MetaPill(
                   icon: Icons.flag_rounded,
                   label: reminder.priority.localizedLabel(l10n),

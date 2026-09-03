@@ -3,6 +3,7 @@ import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
+import '../../services/app_preload.dart';
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -18,6 +19,7 @@ import '../../widgets/wallet/create_wallet_sheet.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../notifications/notifications_screen.dart';
 import 'document_search_delegate.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The INO Wallet Hub - a premium, fast-access vault launcher.
 ///
@@ -41,10 +43,28 @@ class WalletScreen extends StatefulWidget {
 class _WalletScreenState extends State<WalletScreen> {
   late Future<WalletHubData> _future;
 
+  /// Last successfully loaded hub data. Shown while a reload is in flight so
+  /// the grid never blanks back to the loading skeleton on every return from
+  /// a wallet — only the very first load shows the skeleton.
+  WalletHubData? _lastData;
+
+  Future<WalletHubData> _load() {
+    return WalletRepository.instance.load().then((data) {
+      _lastData = data;
+      return data;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _future = WalletRepository.instance.load();
+    // The splash already computed this hub (see [AppPreload]). Taking it here
+    // means the grid paints fully-formed on the FIRST frame - a FutureBuilder
+    // always shows its null branch for a frame or two, even when the future is
+    // resolved from a warm cache, which is exactly the skeleton flash the
+    // warm-up exists to remove.
+    _lastData = AppPreload.instance.seedWalletHub();
+    _future = _load();
   }
 
   /// Re-reads the hub so a freshly added / removed wallet shows up with its
@@ -53,7 +73,7 @@ class _WalletScreenState extends State<WalletScreen> {
     // Block body on purpose: an arrow would hand setState the assigned Future
     // as its return value, which Flutter rejects.
     setState(() {
-      _future = WalletRepository.instance.load();
+      _future = _load();
     });
   }
 
@@ -65,9 +85,9 @@ class _WalletScreenState extends State<WalletScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          AppLocalizations.of(context)
-              .t('walletCreated')
-              .replaceAll('{name}', created.name),
+          AppLocalizations.of(
+            context,
+          ).t('walletCreated').replaceAll('{name}', created.name),
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -123,8 +143,9 @@ class _WalletScreenState extends State<WalletScreen> {
       showDragHandle: false,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (_) => _WalletFilterSheet(categories: categories),
     );
@@ -146,9 +167,9 @@ class _WalletScreenState extends State<WalletScreen> {
   /// a module changes that wallet's count. Uses the theme's Cupertino slide
   /// (no opacity fade) so the page never flashes grey under translucent cards.
   Future<void> _openWallet(WalletCategory category) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _screenFor(category)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => _screenFor(category)));
     if (!mounted) return;
     _reload();
   }
@@ -180,7 +201,8 @@ class _WalletScreenState extends State<WalletScreen> {
           child: FutureBuilder<WalletHubData>(
             future: _future,
             builder: (context, snapshot) {
-              final data = snapshot.data;
+              // Fall back to the previous data mid-reload — no skeleton blink.
+              final data = snapshot.data ?? _lastData;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -203,7 +225,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -551,8 +572,9 @@ class _WalletFilterSheetState extends State<_WalletFilterSheet> {
                             child: Center(
                               child: Text(
                                 'Clear',
-                                style: AppText.subtitle
-                                    .copyWith(color: palette.textSecondary),
+                                style: AppText.subtitle.copyWith(
+                                  color: palette.textSecondary,
+                                ),
                               ),
                             ),
                           ),
@@ -620,8 +642,11 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          gradient: selected ? AppColors.brandGradient : null,
-          color: selected ? null : palette.surfaceVariant,
+          // Gradient in both states — color↔gradient tweens dip through
+          // transparency and made the deselected chip blink.
+          gradient: selected
+              ? AppColors.brandGradient
+              : AppColors.solidFillGradient(palette.surfaceVariant),
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
             color: selected ? Colors.transparent : palette.border,
@@ -644,17 +669,10 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return  Center(
+    return Center(
       child: Padding(
         padding: EdgeInsets.only(top: 80),
-        child: SizedBox(
-          width: 30,
-          height: 30,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.6,
-            color: AppColors.primaryGreen,
-          ),
-        ),
+        child: InoLoader(size: 30, color: AppColors.primaryGreen),
       ),
     );
   }

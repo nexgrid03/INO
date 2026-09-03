@@ -255,10 +255,13 @@ class DocumentCard extends StatelessWidget {
 
   (DivineGlassMetaCell, Widget) _launcherMeta(BuildContext context) {
     final palette = AppPalette.of(context);
-    
+    final l10n = AppLocalizations.of(context);
+
     if (isHealth) {
       final left = DivineGlassMetaCell(
-        label: record.expiresAt != null ? 'Next Appointment' : 'Appointment',
+        label: record.expiresAt != null
+            ? l10n.t('nextAppointment')
+            : l10n.t('appointment'),
         value: record.expiresAt != null
             ? inoFormatDate(record.expiresAt!)
             : '—',
@@ -266,7 +269,7 @@ class DocumentCard extends StatelessWidget {
       return (
         left,
         DivineGlassMetaCell(
-          label: 'Uploaded',
+          label: l10n.t('uploadedLabel'),
           value: inoFormatDate(record.uploadedAt),
           alignEnd: true,
           valueColor: palette.textPrimary,
@@ -281,7 +284,9 @@ class DocumentCard extends StatelessWidget {
         : _ExtractedSummary._maskedNumber(number);
 
     final left = DivineGlassMetaCell(
-      label: record.expiresAt != null ? 'Expiry Date' : 'Number',
+      label: record.expiresAt != null
+          ? l10n.t('expiryDate')
+          : l10n.t('number'),
       value: record.expiresAt != null
           ? inoFormatDate(record.expiresAt!)
           : masked,
@@ -291,8 +296,8 @@ class DocumentCard extends StatelessWidget {
       return (
         left,
         DivineGlassMetaCell(
-          label: 'Security',
-          value: 'Encrypted',
+          label: l10n.t('security'),
+          value: l10n.t('encrypted'),
           alignEnd: true,
           valueColor: _iconColor,
           leading: Icon(
@@ -309,7 +314,7 @@ class DocumentCard extends StatelessWidget {
       return (
         left,
         DivineGlassMetaCell(
-          label: 'Linked To',
+          label: l10n.t('linkedTo'),
           value: name.trim(),
           alignEnd: true,
         ),
@@ -320,8 +325,8 @@ class DocumentCard extends StatelessWidget {
       return (
         left,
         DivineGlassMetaCell(
-          label: 'Status',
-          value: 'Verified',
+          label: l10n.t('status'),
+          value: l10n.t('verified'),
           alignEnd: true,
           valueColor: _iconColor,
         ),
@@ -331,7 +336,7 @@ class DocumentCard extends StatelessWidget {
     return (
       left,
       DivineGlassMetaCell(
-        label: 'Updated',
+        label: l10n.t('updatedLabel'),
         value: inoFormatDate(record.updatedAt),
         alignEnd: true,
         valueColor: palette.textPrimary,
@@ -425,7 +430,8 @@ class _MetaLine extends StatelessWidget {
     final palette = AppPalette.of(context);
     if (isHealth && record.expiresAt != null) {
       return Text(
-        '${record.category}  ·  Appt: ${inoFormatDate(record.expiresAt!)}',
+        '${record.category}  ·  ${AppLocalizations.of(context).t('apptShort')}: '
+        '${inoFormatDate(record.expiresAt!)}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 12, color: palette.textSecondary),
@@ -450,13 +456,17 @@ class _ExtractedSummary extends StatelessWidget {
   final DocumentRecord record;
   final Color? accent;
 
+  /// Compiled once. Built inline this was re-compiled for every card carrying
+  /// a document number, on every build.
+  static final RegExp _nonDigit = RegExp(r'\D');
+
   /// Masks the document number for a list view: the last 4 stay visible, the
   /// rest are hidden. A 12-digit Aadhaar keeps its familiar "XXXX XXXX 1234"
   /// grouping.
   static String _maskedNumber(String raw) {
     final v = raw.trim();
     if (v.isEmpty) return '';
-    final digits = v.replaceAll(RegExp(r'\D'), '');
+    final digits = v.replaceAll(_nonDigit, '');
     if (digits.length == 12) return 'XXXX XXXX ${digits.substring(8)}';
     if (v.length > 4) {
       return '${'•' * (v.length - 4)}${v.substring(v.length - 4)}';

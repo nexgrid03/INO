@@ -22,6 +22,7 @@ import '../../widgets/reminders/reminders_header.dart';
 import 'all_reminders_screen.dart';
 import 'completed_reminders_screen.dart';
 import 'reminder_calendar_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The Reminders home - a calm, single-glance answer to "what needs my
 /// attention right now?".
@@ -140,9 +141,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     listenable: _store,
                     builder: (context, _) {
                       return CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
                         slivers: [
                           if (!_store.isLoaded)
                             SliverFillRemaining(
@@ -150,12 +148,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
                               child: Center(
                                 child: Padding(
                                   padding: EdgeInsets.only(top: 60),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.6,
-                                    color: AppColors.primaryGreen,
-                                  ),
+                                  child: InoLoader(color: AppColors.primaryGreen),
                                 ),
                               ),
+                            )
+                          else if (_store.loadError != null && _store.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _LoadFailed(onRetry: _refresh),
                             )
                           else if (_store.isEmpty)
                             SliverFillRemaining(
@@ -392,6 +392,60 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
 // ---------------------------------------------------------------------------
 
+/// Shown when the reminders could not be fetched at all - distinct from "you
+/// have none", which used to be the only thing an offline user ever saw.
+class _LoadFailed extends StatelessWidget {
+  const _LoadFailed({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 52, color: palette.textFaint),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              l10n.t('remindersLoadFailed'),
+              textAlign: TextAlign.center,
+              style: AppText.body
+                  .copyWith(color: palette.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            PressableScale(
+              child: GestureDetector(
+                onTap: onRetry,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    l10n.t('tryAgain'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CaughtUpNote extends StatelessWidget {
   const _CaughtUpNote();
 
@@ -468,7 +522,6 @@ class _WeekStrip extends StatelessWidget {
       height: context.horizontalCardHeight(72),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         itemCount: days.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),

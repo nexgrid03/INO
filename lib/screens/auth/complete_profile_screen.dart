@@ -28,12 +28,14 @@ class CompleteProfileScreen extends StatefulWidget {
     required this.authUserId,
     required this.fullName,
     required this.email,
+    this.phone,
     this.existingProfile,
   });
 
   final String authUserId;
   final String fullName;
   final String email;
+  final String? phone;
 
   /// The already-created (but incomplete) profile row, if any. Null for a
   /// brand-new user whose row hasn't been inserted yet.
@@ -45,10 +47,12 @@ class CompleteProfileScreen extends StatefulWidget {
 
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController =
-      TextEditingController(text: widget.fullName);
-  late final TextEditingController _phoneController =
-      TextEditingController(text: widget.existingProfile?.phone ?? '');
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.fullName == 'INO User' ? '' : widget.fullName,
+  );
+  late final TextEditingController _phoneController = TextEditingController(
+    text: widget.phone ?? widget.existingProfile?.phone ?? '',
+  );
 
   bool _busy = false;
 
@@ -145,27 +149,27 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           FadeSlideIn(child: const _ProfileBadge()),
-          const SizedBox(height: 26),
+          const SizedBox(height: 18),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: AuthPageTitle(l10n.t('completeProfile')),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
             child: Text(
               l10n.t('completeProfileSubtitle'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 14.5,
+                fontSize: 14,
                 color: AppColors.textMuted,
-                height: 1.5,
+                height: 1.4,
               ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 22),
           Form(
             key: _formKey,
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -176,6 +180,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   child: AuthTextField(
                     controller: _nameController,
                     label: l10n.t('fullName'),
+                    hint: 'e.g. John Doe',
                     icon: Icons.person_outline_rounded,
                     keyboardType: TextInputType.name,
                     textInputAction: TextInputAction.next,
@@ -184,7 +189,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     validator: validate.name,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 200),
                   child: AuthTextField(
@@ -202,7 +207,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           FadeSlideIn(
             delay: const Duration(milliseconds: 250),
             child: AuthPrimaryButton(
@@ -227,7 +232,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -242,23 +247,23 @@ class _ProfileBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 84,
-        height: 84,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           gradient: AppColors.brandGradient,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
               color: AppColors.primaryGreen.withValues(alpha: 0.35),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: const Icon(
           Icons.person_add_alt_1_rounded,
           color: Colors.white,
-          size: 38,
+          size: 32,
         ),
       ),
     );

@@ -38,6 +38,8 @@ class PropertyFinanceToolsScreen extends StatelessWidget {
         'sip' => l10n.t('sipSubtitle'),
         'gold' => l10n.t('goldSubtitle'),
         'fx' => l10n.t('currencySubtitle'),
+        'stamp' => l10n.t('stampDutySubtitle'),
+        'tax' => l10n.t('taxCalcSubtitle'),
         _ => t.subtitle,
       };
 

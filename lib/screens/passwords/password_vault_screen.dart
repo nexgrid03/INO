@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/password_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/password_store.dart';
@@ -13,12 +14,37 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import 'password_form_screen.dart';
 import 'vault_passphrase_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
+
+/// Why the Password Vault is closed — or [open], meaning it is not.
+///
+/// Only [open] renders the entry list. Everything else keeps the vault shut
+/// and tells the user which specific door is in the way.
+enum _VaultGate {
+  /// Biometrics passed AND the encryption key is in memory.
+  open,
+
+  /// The device-owner check has not passed (or was cancelled).
+  biometrics,
+
+  /// A vault passphrase exists and has not been entered this session. The
+  /// saved passwords are ciphertext until it is.
+  passphrase,
+
+  /// No vault passphrase has ever been set. One must be created before
+  /// anything can be sealed, so the vault cannot be used until it is.
+  setup,
+
+  /// Could not reach the server to find out whether a passphrase exists.
+  /// Deliberately NOT treated as "set one up": creating a second passphrase
+  /// would overwrite the salt and strand every secret sealed under the first.
+  offline,
+}
 
 /// The Password Vault, simplified: a list of NICKNAMES, nothing else.
 ///
@@ -45,7 +71,11 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   /// Only one password is ever revealed at a time.
   String? _revealedId;
 
-  bool _unlocked = false;
+  /// Why the vault is currently closed — which decides what the locked screen
+  /// offers, and (crucially) that it stays closed until that reason is
+  /// actually resolved. Starts at [_VaultGate.biometrics] because nothing has
+  /// been proven yet.
+  _VaultGate _gate = _VaultGate.biometrics;
   bool _checking = true;
 
   @override
@@ -67,7 +97,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Two gates, in order.
+  /// Two gates, in order, and **both** must pass before a single entry is
+  /// built.
   ///
   /// 1. **Biometric** - proves it is the device owner. A cancelled prompt
   ///    leaves the vault closed and pops back, so the list is never built and
@@ -77,86 +108,125 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   ///    is not a second lock over the same door: it is the only thing that
   ///    makes the contents legible at all.
   ///
-  /// The passphrase step is skipped when the key is already in memory for this
-  /// session, and degrades gracefully offline: if we cannot tell whether a
-  /// passphrase exists, the vault opens read-only from the local cache rather
-  /// than offering to create a second one, which would strand every secret
-  /// sealed under the first.
+  /// The passphrase step is skipped only when the key is already in memory for
+  /// this session. Dismissing the passphrase sheet does **not** open the
+  /// vault - it lands on the locked screen for whichever reason applies, which
+  /// is the whole point: a vault that opens when you swipe its passphrase
+  /// prompt away is not locked. The device-local cache still holds decrypted
+  /// entries from an earlier session, so "open the list anyway" would have
+  /// shown real passwords to someone who never entered the passphrase.
   Future<void> _unlock() async {
+    final l10n = AppLocalizations.of(context);
+    setState(() => _checking = true);
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
-      reason: 'Authenticate to open your Password Vault.',
-      title: 'Verify your identity',
+      reason: l10n.t('authOpenPasswordVault'),
+      title: l10n.t('verifyIdentity'),
     );
     if (!mounted) return;
     if (!ok) {
       setState(() {
-        _unlocked = false;
+        _gate = _VaultGate.biometrics;
         _checking = false;
       });
       Navigator.of(context).maybePop();
       return;
     }
 
-    await _ensureVaultKey();
+    final gate = await _openVaultKey();
     if (!mounted) return;
     setState(() {
-      _unlocked = true;
+      _gate = gate;
       _checking = false;
     });
-    // Now that the key is available, pull the encrypted entries down.
-    unawaited(_store.reload());
+    // Only now that the key is in hand can the encrypted entries be pulled
+    // down and decrypted.
+    if (gate == _VaultGate.open) unawaited(_store.reload());
   }
 
-  /// Obtains the encryption key, prompting for the passphrase if needed.
-  Future<void> _ensureVaultKey() async {
-    if (VaultCrypto.instance.isUnlocked) return;
+  /// Obtains the encryption key, prompting for the passphrase if needed, and
+  /// reports what stands in the way when it could not.
+  ///
+  /// Offline is deliberately its own outcome rather than "create a passphrase":
+  /// we cannot tell whether one already exists, and creating a second would
+  /// overwrite the salt and strand every secret sealed under the first.
+  Future<_VaultGate> _openVaultKey() async {
+    if (VaultCrypto.instance.isUnlocked) return _VaultGate.open;
 
     final exists = await VaultCrypto.instance.hasPassphrase();
-    if (!mounted) return;
+    if (!mounted || exists == null) return _VaultGate.offline;
 
-    // Unknown (offline / signed out) - do NOT offer to create one.
-    if (exists == null) return;
+    final unlocked = await showVaultPassphraseSheet(
+      context,
+      isFirstTime: !exists,
+    );
+    if (unlocked) return _VaultGate.open;
+    // Dismissed or wrong passphrase - stay shut, and say which door it is.
+    return exists ? _VaultGate.passphrase : _VaultGate.setup;
+  }
 
-    await showVaultPassphraseSheet(context, isFirstTime: !exists);
+  /// The write-side guard: no password is created or edited without a key.
+  ///
+  /// The list is only reachable while unlocked, so this is a second line of
+  /// defence rather than the first - but a necessary one, because the key can
+  /// be dropped mid-session (sign-out, [SessionReset], the app lock). Saving
+  /// without it would write a password to `shared_preferences` in the clear
+  /// that could never sync, which is exactly the outcome the vault exists to
+  /// prevent. Re-prompts rather than just refusing, so the user's next step is
+  /// obvious.
+  Future<bool> _requireVaultKey() async {
+    if (VaultCrypto.instance.isUnlocked) return true;
+    final gate = await _openVaultKey();
+    if (!mounted) return false;
+    setState(() => _gate = gate);
+    return gate == _VaultGate.open;
   }
 
   List<PasswordEntry> get _visible =>
       _store.sorted.where((e) => e.matches(_query)).toList();
 
   Future<void> _add() async {
+    if (!await _requireVaultKey() || !mounted) return;
     final created = await Navigator.of(context).push<PasswordEntry>(
       MaterialPageRoute(builder: (_) => const PasswordFormScreen()),
     );
     if (created == null || !mounted) return;
-    await showSuccessBurst(context, 'Saved to your vault');
+    await showSuccessBurst(
+      context,
+      AppLocalizations.of(context).t('savedToYourVault'),
+    );
   }
 
   Future<void> _edit(PasswordEntry entry) async {
+    if (!await _requireVaultKey() || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PasswordFormScreen(existing: entry),
-      ),
+      MaterialPageRoute(builder: (_) => PasswordFormScreen(existing: entry)),
     );
   }
 
   Future<void> _delete(PasswordEntry entry) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       context,
-      title: 'Delete password?',
-      message: 'The password saved as "${entry.nickname}" will be removed. '
-          'This cannot be undone.',
+      title: l10n.t('deletePasswordTitle'),
+      message: l10n
+          .t('deletePasswordBody')
+          .replaceAll('{name}', entry.nickname),
     );
     if (!ok || !mounted) return;
     await _store.remove(entry.id);
     if (!mounted) return;
-    showModuleToast(context, 'Password deleted');
+    showModuleToast(context, l10n.t('passwordDeleted'));
   }
 
+  /// [label] must already be localized - it is shown to the user.
   void _copy(String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
     HapticFeedback.selectionClick();
-    showModuleToast(context, '$label copied');
+    showModuleToast(
+      context,
+      AppLocalizations.of(context).t('copiedLabel').replaceAll('{label}', label),
+    );
   }
 
   /// Revealing a password re-checks the biometric session first - a phone left
@@ -166,10 +236,11 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       setState(() => _revealedId = null);
       return;
     }
+    final l10n = AppLocalizations.of(context);
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
-      reason: 'Authenticate to reveal this password.',
-      title: 'Verify your identity',
+      reason: l10n.t('authRevealPassword'),
+      title: l10n.t('verifyIdentity'),
     );
     if (!ok || !mounted) return;
     setState(() => _revealedId = entry.id);
@@ -178,23 +249,25 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   Future<void> _openGenerator() async {
     final generated = await showPasswordGeneratorSheet(context);
     if (generated == null || !mounted) return;
-    _copy('Password', generated);
+    _copy(AppLocalizations.of(context).t('password'), generated);
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
 
-    // Nothing renders until the gate passes.
-    if (!_unlocked) {
+    // Nothing renders until BOTH gates pass. `_gate` says which one is shut,
+    // so the locked screen can name the real obstacle instead of always
+    // offering a fingerprint the user has already given.
+    if (_gate != _VaultGate.open) {
       return Scaffold(
         backgroundColor: palette.bg,
         body: SafeArea(
           child: Center(
             child: _checking
-                ?  CircularProgressIndicator(
-                    strokeWidth: 2.6, color: AppColors.primaryGreen)
-                : _LockedState(onRetry: _unlock),
+                ? InoLoader(color: AppColors.primaryGreen)
+                : _LockedState(gate: _gate, onRetry: _unlock),
           ),
         ),
       );
@@ -214,101 +287,103 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
           child: Column(
             children: [
               ModuleHeader(
-                title: 'Passwords',
+                title: l10n.t('passwordsTitle'),
                 subtitle: hasAny
-                    ? '${_store.count} saved · unlocked'
-                    : 'Locked behind your biometrics',
+                    ? l10n
+                        .t('passwordsSavedUnlocked')
+                        .replaceAll('{n}', '${_store.count}')
+                    : l10n.t('lockedBehindBiometrics'),
                 actions: [
                   ModuleIconButton(
                     icon: Icons.auto_awesome_rounded,
-                    tooltip: 'Password generator',
+                    tooltip: l10n.t('passwordGenerator'),
                     onTap: _openGenerator,
                   ),
                   ModuleIconButton(
                     icon: Icons.add_rounded,
-                    tooltip: 'Add password',
+                    tooltip: l10n.t('addPassword'),
                     onTap: _add,
                   ),
                 ],
               ),
               Expanded(
                 child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
                   slivers: [
-              if (!_store.isLoaded)
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 72, count: 5),
-                  ),
-                )
-              else if (!hasAny)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ModuleEmptyState(
-                    icon: Icons.lock_rounded,
-                    title: 'Vault is empty',
-                    message:
-                        'Save a password under a nickname only you understand. '
-                        'It is encrypted on this device before it is stored, '
-                        'and stays behind your biometrics.',
-                    actionLabel: 'Add password',
-                    onAction: _add,
-                  ),
-                )
-              else ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 12),
-                    child: FloatingSearchBar(
-                      hint: 'Search nicknames…',
-                      height: 48,
-                      controller: _searchController,
-                      onChanged: (v) => setState(() => _query = v),
-                    ),
-                  ),
-                ),
-                if (visible.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(
-                          'No nickname matches this search.',
-                          style: AppText.body
-                              .copyWith(color: palette.textSecondary),
+                    if (!_store.isLoaded)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: ModuleSkeleton(height: 72, count: 5),
+                        ),
+                      )
+                    else if (!hasAny)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: ModuleEmptyState(
+                          icon: Icons.lock_rounded,
+                          title: l10n.t('vaultIsEmpty'),
+                          message: l10n.t('vaultEmptyMessage'),
+                          actionLabel: l10n.t('addPassword'),
+                          onAction: _add,
+                        ),
+                      )
+                    else ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            AppSpacing.md,
+                            16,
+                            12,
+                          ),
+                          child: FloatingSearchBar(
+                            hint: l10n.t('searchNicknames'),
+                            height: 48,
+                            controller: _searchController,
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList.separated(
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-                      itemBuilder: (context, i) {
-                        final entry = visible[i];
-                        return FadeSlideIn(
-                          delay: Duration(milliseconds: (i * 35).clamp(0, 300)),
-                          offset: 10,
-                          child: PasswordTile(
-                            entry: entry,
-                            revealed: _revealedId == entry.id,
-                            onTap: () => _edit(entry),
-                            onReveal: () => _toggleReveal(entry),
-                            onCopyPassword: () =>
-                                _copy('Password', entry.password),
-                            onDelete: () => _delete(entry),
+                      if (visible.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: Text(
+                                l10n.t('noNicknameMatches'),
+                                style: AppText.body.copyWith(
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
-              ],
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverList.separated(
+                            itemCount: visible.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.md),
+                            // No FadeSlideIn: recycled rows replay the entrance
+                            // every time they scroll back into view.
+                            itemBuilder: (context, i) {
+                              final entry = visible[i];
+                              return PasswordTile(
+                                key: ValueKey(entry.id),
+                                entry: entry,
+                                revealed: _revealedId == entry.id,
+                                onTap: () => _edit(entry),
+                                onReveal: () => _toggleReveal(entry),
+                                onCopyPassword: () =>
+                                    _copy(l10n.t('password'), entry.password),
+                                onDelete: () => _delete(entry),
+                              );
+                            },
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                    ],
                   ],
                 ),
               ),
@@ -318,7 +393,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
       ),
       floatingActionButton: hasAny
           ? GradientButton(
-              label: 'Add',
+              label: l10n.t('add'),
               icon: Icons.add_rounded,
               expand: false,
               onTap: _add,
@@ -351,6 +426,7 @@ class PasswordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final color = AppColors.primaryGreen;
     return PressableScale(
       pressedScale: 0.99,
@@ -411,7 +487,9 @@ class PasswordTile extends StatelessWidget {
                   IconButton(
                     onPressed: onReveal,
                     visualDensity: VisualDensity.compact,
-                    tooltip: revealed ? 'Hide password' : 'Show password',
+                    tooltip: revealed
+                        ? l10n.t('hidePassword')
+                        : l10n.t('showPassword'),
                     icon: Icon(
                       revealed
                           ? Icons.visibility_off_rounded
@@ -420,8 +498,11 @@ class PasswordTile extends StatelessWidget {
                       color: palette.textSecondary,
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 18, color: palette.textFaint),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: palette.textFaint,
+                  ),
                 ],
               ),
               // The revealed state also exposes the quick actions, so the
@@ -437,13 +518,13 @@ class PasswordTile extends StatelessWidget {
                           children: [
                             _QuickAction(
                               icon: Icons.key_rounded,
-                              label: 'Copy password',
+                              label: l10n.t('copyPassword'),
                               onTap: onCopyPassword,
                             ),
                             const SizedBox(width: 8),
                             _QuickAction(
                               icon: Icons.delete_outline_rounded,
-                              label: 'Delete',
+                              label: l10n.t('delete'),
                               onTap: onDelete,
                               danger: true,
                             ),
@@ -527,8 +608,11 @@ class _StrengthDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Tooltip(
-      message: '${strength.label} password',
+      message: l10n
+          .t('strengthPasswordTooltip')
+          .replaceAll('{strength}', passwordStrengthLabel(l10n, strength)),
       child: Container(
         width: 8,
         height: 8,
@@ -548,24 +632,59 @@ class _StrengthDot extends StatelessWidget {
 }
 
 class _LockedState extends StatelessWidget {
-  const _LockedState({required this.onRetry});
+  const _LockedState({required this.gate, required this.onRetry});
 
+  final _VaultGate gate;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final launcher = divineGlassEnabled(context);
+
+    // Each closed gate names its own obstacle and its own next step. Showing
+    // "Unlock Vault" + a fingerprint for a missing passphrase would send the
+    // user back through biometrics they have already passed.
+    final (String title, String subtitle, String action, IconData icon) =
+        switch (gate) {
+      _VaultGate.open ||
+      _VaultGate.biometrics =>
+        (
+          l10n.t('vaultLocked'),
+          l10n.t('vaultLockedSubtitle'),
+          l10n.t('unlockVault'),
+          Icons.fingerprint_rounded,
+        ),
+      _VaultGate.passphrase => (
+          l10n.t('vaultPassphraseTitle'),
+          l10n.t('vaultPassphraseGateSubtitle'),
+          l10n.t('enterPassphrase'),
+          Icons.key_rounded,
+        ),
+      _VaultGate.setup => (
+          l10n.t('vaultSetupTitle'),
+          l10n.t('vaultSetupGateSubtitle'),
+          l10n.t('setUpVault'),
+          Icons.shield_moon_rounded,
+        ),
+      _VaultGate.offline => (
+          l10n.t('vaultOfflineTitle'),
+          l10n.t('vaultOfflineSubtitle'),
+          l10n.t('tryAgain'),
+          Icons.cloud_off_rounded,
+        ),
+    };
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (launcher)
-            const DivineGlassEmptyPanel(
-              title: 'Vault Locked',
-              subtitle:
-                  'Use your biometrics to access your secure credentials.',
+            DivineGlassEmptyPanel(
+              title: title,
+              subtitle: subtitle,
               icon: Icons.lock_outline_rounded,
             )
           else ...[
@@ -576,30 +695,39 @@ class _LockedState extends StatelessWidget {
                 color: palette.surface,
                 borderRadius: BorderRadius.circular(AppRadius.large),
                 border: Border.all(
-                    color: AppColors.tealPale.withValues(alpha: 0.6)),
+                  color: AppColors.tealPale.withValues(alpha: 0.6),
+                ),
                 boxShadow: AppShadows.floating,
               ),
-              child:  Icon(Icons.lock_outline_rounded,
-                  color: AppColors.primaryGreen, size: 40),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.primaryGreen,
+                size: 40,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Vault Locked',
-              style: AppText.headline
-                  .copyWith(color: palette.textPrimary, fontSize: 22),
+              title,
+              textAlign: TextAlign.center,
+              style: AppText.headline.copyWith(
+                color: palette.textPrimary,
+                fontSize: 22,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Use your biometrics to access your secure credentials.',
+              subtitle,
               textAlign: TextAlign.center,
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
+              style: AppText.body.copyWith(
+                color: palette.textSecondary,
+                height: 1.5,
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
           GradientButton(
-            label: 'Unlock Vault',
-            icon: Icons.fingerprint_rounded,
+            label: action,
+            icon: icon,
             expand: false,
             onTap: onRetry,
           ),

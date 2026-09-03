@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
@@ -24,9 +25,9 @@ import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
-import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/profile/settings_group.dart';
 import '../../widgets/profile/settings_row.dart';
+import '../../widgets/security/biometric_ux.dart';
 import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../family/family_vault_screen.dart';
@@ -79,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   late bool _notifications = AppSettings.instance.notifications.value;
   late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
   bool _twoFactor = AppSettings.instance.twoFactor.value;
+  late bool _paymentAppConsent = AppSettings.instance.paymentAppConsent.value;
   late String _language = _languageLabel(widget.profile.preferredLanguage);
 
   // Live storage meter, computed from real Storage objects.
@@ -169,6 +171,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _pickLanguage() async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    // Endonyms - a language is always offered in its own script, never
+    // translated into the currently active one.
     const options = ['English', 'हिन्दी', 'తెలుగు'];
     final picked = await showInoOptionsSheet<String>(
       context: context,
@@ -204,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Persist locally (instant) and mirror onto the profile row (best effort).
     await AppSettings.instance.setLanguage(code);
     _persistLanguage(code);
-    _toast('Language set to $picked');
+    _toast(l10n.t('languageSetTo').replaceAll('{language}', picked));
   }
 
   void _persistLanguage(String code) {
@@ -224,17 +229,38 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _toggleNotifications(bool value) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _notifications = value);
     await AppSettings.instance.setNotifications(value);
-    _toast(value ? 'Notifications enabled' : 'Notifications turned off');
+    _toast(value
+        ? l10n.t('notificationsEnabledToast')
+        : l10n.t('notificationsOffToast'));
+  }
+
+  /// Withdraws (or re-grants) permission for INO to open external payment apps.
+  /// Turning it off means the next scanned payment QR asks again before handing
+  /// anything to Google Pay / PhonePe / Paytm.
+  Future<void> _togglePaymentAppConsent(bool value) async {
+    // Resolved before the await — reading it after would use a BuildContext
+    // across an async gap.
+    final l10n = AppLocalizations.of(context);
+    setState(() => _paymentAppConsent = value);
+    await AppSettings.instance.setPaymentAppConsent(value);
+    if (!mounted) return;
+    _toast(value
+        ? l10n.t('paymentAppsAllowedToast')
+        : l10n.t('paymentAppsRevokedToast'));
   }
 
   Future<void> _toggleWelcomeSound(bool value) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _welcomeSound = value);
     // Persisting false also stops a greeting that's currently playing -
     // VoiceGreetingService listens to this setting.
     await AppSettings.instance.setWelcomeSound(value);
-    _toast(value ? 'Startup greeting on' : 'Startup greeting muted');
+    _toast(value
+        ? l10n.t('welcomeSoundOnToast')
+        : l10n.t('welcomeSoundMutedToast'));
   }
 
   void _toggleDarkMode() {
@@ -248,37 +274,23 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   String _themeStyleLabel(AppLocalizations l10n, ThemeStyle style) {
     switch (style) {
-      case ThemeStyle.classic:
-        return l10n.t('themeClassic');
-
       case ThemeStyle.launcher:
         return l10n.t('themeLauncher');
       case ThemeStyle.aqua:
         return l10n.t('themeAqua');
-      case ThemeStyle.aquaLight:
-        return l10n.t('themeAquaLight');
       case ThemeStyle.aquaMist:
         return l10n.t('themeAquaMist');
-      case ThemeStyle.clay:
-        return l10n.t('themeClay');
     }
   }
 
   String _themeStyleDesc(AppLocalizations l10n, ThemeStyle style) {
     switch (style) {
-      case ThemeStyle.classic:
-        return l10n.t('themeClassicDesc');
-
       case ThemeStyle.launcher:
         return l10n.t('themeLauncherDesc');
       case ThemeStyle.aqua:
         return l10n.t('themeAquaDesc');
-      case ThemeStyle.aquaLight:
-        return l10n.t('themeAquaLightDesc');
       case ThemeStyle.aquaMist:
         return l10n.t('themeAquaMistDesc');
-      case ThemeStyle.clay:
-        return l10n.t('themeClayDesc');
     }
   }
 
@@ -331,7 +343,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Persists + rebuilds the whole app instantly (see ThemeController.style).
     ThemeController.setStyle(picked);
     if (!mounted) return;
-    _toast('Theme set to ${_themeStyleLabel(l10n, picked)}');
+    _toast(
+      l10n.t('themeSetTo').replaceAll('{theme}', _themeStyleLabel(l10n, picked)),
+    );
   }
 
   // ---- Biometric app-lock --------------------------------------------------
@@ -346,7 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       case BiometricSupport.unsupported:
         BiometricUx.errorSnack(
           context,
-          'This device does not support biometric authentication.',
+          AppLocalizations.of(context).t('biometricUnsupportedDevice'),
         );
       case BiometricSupport.notEnrolled:
         final openSettings = await BiometricUx.noBiometricsDialog(context);
@@ -545,7 +559,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       _language = _languageLabel(updated.preferredLanguage);
     });
     widget.onProfileUpdated?.call(updated);
-    _toast('Profile updated');
+    _toast(AppLocalizations.of(context).t('profileUpdated'));
   }
 
   // ---- Accounts (multi-account) --------------------------------------------
@@ -569,6 +583,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// Actions for a saved (non-current) account: switch to it, or forget it.
   Future<void> _accountSheet(SavedAccount account) async {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final action = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -590,14 +605,14 @@ class _ProfileScreenState extends State<ProfileScreen>
           ListTile(
             leading: Icon(Icons.swap_horiz_rounded,
                 color: AppColors.primaryGreen),
-            title: Text('Switch to this account',
+            title: Text(l10n.t('switchToThisAccount'),
                 style: TextStyle(color: palette.textPrimary)),
             onTap: () => Navigator.of(context).pop('switch'),
           ),
           ListTile(
             leading: const Icon(Icons.person_remove_rounded,
                 color: AppColors.critical),
-            title: Text('Remove from this device',
+            title: Text(l10n.t('removeFromThisDevice'),
                 style: TextStyle(color: palette.textPrimary)),
             onTap: () => Navigator.of(context).pop('remove'),
           ),
@@ -611,18 +626,19 @@ class _ProfileScreenState extends State<ProfileScreen>
       await AccountSwitcher.instance.removeAccount(account.id);
       if (!mounted) return;
       setState(() {});
-      _toast('Account removed from this device');
+      _toast(l10n.t('accountRemovedFromDevice'));
     }
   }
 
   Future<void> _switchAccount(SavedAccount account) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await AccountSwitcher.instance.switchTo(account);
     if (!mounted) return;
     if (!ok) {
       // The stored session was revoked or expired; the dead entry is already
       // removed. The account can be re-added through the normal sign-in.
       setState(() {});
-      _toast('That session has expired - use Add account to sign in again');
+      _toast(l10n.t('savedSessionExpired'));
       return;
     }
     final user = AuthService.instance.currentUser;
@@ -643,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final p = _profile;
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Title stays pinned above the list (Home-style). Putting it inside the
@@ -675,7 +691,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           final accounts = AccountSwitcher.instance.accounts;
           final currentId = AccountSwitcher.instance.currentUserId;
           return SettingsGroup(
-            caption: 'Accounts',
+            caption: l10n.t('accounts'),
             children: [
               for (final a in accounts)
                 SettingsRow(
@@ -690,7 +706,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   trailing: a.id == currentId
                       ? Text(
-                          'Current',
+                          l10n.t('currentAccount'),
                           style: AppText.caption.copyWith(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
@@ -701,8 +717,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               SettingsRow(
                 icon: Icons.person_add_alt_1_rounded,
-                title: 'Add account',
-                subtitle: 'Sign in with another account and switch anytime',
+                title: l10n.t('addAccount'),
+                subtitle: l10n.t('addAccountSubtitle'),
                 onTap: _addAccount,
               ),
             ],
@@ -732,6 +748,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.devices_rounded,
             title: l10n.t('trustedDevices'),
             onTap: () => _push(const TrustedDevicesScreen()),
+          ),
+          SettingsRow(
+            icon: Icons.account_balance_wallet_rounded,
+            title: l10n.t('paymentAppsPermission'),
+            subtitle: l10n.t('paymentAppsPermissionDesc'),
+            trailing: Semantics(
+              label: l10n.t('paymentAppsPermission'),
+              toggled: _paymentAppConsent,
+              child: _switch(_paymentAppConsent, _togglePaymentAppConsent),
+            ),
           ),
         ],
       ),
@@ -823,7 +849,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       // Destructive actions, lowest visual weight, at the very bottom.
       // Decorative caption from the Stitch design's "SYSTEM" group.
       SettingsGroup(
-        caption: 'System',
+        caption: l10n.t('systemCaption'),
         children: [
           SettingsRow(
             icon: Icons.delete_outline_rounded,
@@ -855,9 +881,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: ListView.separated(
                   // Clamping + no M3 stretch (see InoNoStretchScrollBehavior)
                   // keeps type and glass groups at a stable size while scrolling.
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics(),
-                  ),
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     AppSpacing.md,
@@ -1008,6 +1031,8 @@ class _ProfileHero extends StatelessWidget {
                               fit: BoxFit.cover,
                               width: 84,
                               height: 84,
+                              cacheWidth: context.decodeWidthFor(84),
+                              cacheHeight: context.decodeWidthFor(84),
                               errorBuilder: (_, _, _) => _HeroInitials(
                                 initials: _initials,
                                 gradient: accentGrad,
@@ -1048,7 +1073,9 @@ class _ProfileHero extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                fullName.trim().isEmpty ? 'Your Name' : fullName,
+                fullName.trim().isEmpty
+                    ? AppLocalizations.of(context).t('yourNamePlaceholder')
+                    : fullName,
                 maxLines: 1,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
@@ -1123,7 +1150,7 @@ class _HeroBadge extends StatelessWidget {
           Icon(Icons.verified_rounded, size: 13, color: accent),
           const SizedBox(width: 5),
           Text(
-            'VAULT PROTECTED',
+            AppLocalizations.of(context).t('vaultProtectedBadge'),
             style: AppText.label.copyWith(
               color: accent,
               fontSize: 10.5,
@@ -1196,7 +1223,10 @@ class _StorageCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$usedLabel of $totalLabel',
+                      AppLocalizations.of(context)
+                          .t('storageUsedOf')
+                          .replaceAll('{used}', usedLabel)
+                          .replaceAll('{total}', totalLabel),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.caption.copyWith(
@@ -1261,19 +1291,6 @@ class _ThemeSwatch extends StatelessWidget {
     final Color edge;
     final Widget glyph;
     switch (style) {
-      case ThemeStyle.classic:
-        fill = Colors.white;
-        edge = accent;
-        glyph = Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            color: accent,
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: const Icon(Icons.star_rounded, color: Colors.white, size: 12),
-        );
-
       case ThemeStyle.launcher:
         fill = Colors.white;
         edge = accent;
@@ -1286,27 +1303,11 @@ class _ThemeSwatch extends StatelessWidget {
           color: AppColors.aquaPrimary,
           size: 18,
         );
-      case ThemeStyle.aquaLight:
-        fill = const Color(0xFFF3F9F9);
-        edge = AppColors.aquaPrimary;
-        glyph = const Icon(
-          Icons.water_drop_outlined,
-          color: AppColors.aquaPrimary,
-          size: 18,
-        );
       case ThemeStyle.aquaMist:
         fill = AppColors.aquaMist;
         edge = AppColors.aquaPrimary;
         glyph = const Icon(
           Icons.blur_on_rounded,
-          color: AppColors.aquaPrimary,
-          size: 18,
-        );
-      case ThemeStyle.clay:
-        fill = AppColors.aquaFoam;
-        edge = AppColors.aquaPrimary;
-        glyph = const Icon(
-          Icons.view_in_ar_rounded,
           color: AppColors.aquaPrimary,
           size: 18,
         );

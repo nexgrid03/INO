@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/payment_qr.dart';
+import '../../services/app_settings.dart';
 import '../../services/upi_app_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
+import 'payment_app_consent_dialog.dart';
+import '../common/ino_loader.dart';
 
 /// Bottom sheet shown after a **payment** QR is scanned: what is being paid, to
 /// whom, and which installed app should handle it.
@@ -52,8 +55,27 @@ class _PaymentAppSheetState extends State<_PaymentAppSheet> {
     setState(() => _apps = apps);
   }
 
+  /// Asks — once per device — before INO hands anything to an external payment
+  /// app, and returns whether we may proceed.
+  ///
+  /// Leaving for a payment app is a genuine trust boundary: the payee's VPA
+  /// crosses out of INO and the transfer happens somewhere INO cannot see. That
+  /// deserves an explicit yes the first time rather than happening silently on
+  /// a tap. Once granted it is remembered ([AppSettings.paymentAppConsent]) so
+  /// paying stays one tap afterwards; it can be withdrawn again from
+  /// Profile → Privacy.
+  Future<bool> _ensurePaymentAppConsent(String appLabel) async {
+    if (AppSettings.instance.paymentAppConsent.value) return true;
+    final granted = await showPaymentAppConsentDialog(context, appLabel);
+    if (!granted) return false;
+    await AppSettings.instance.setPaymentAppConsent(true);
+    return true;
+  }
+
   Future<void> _pay(UpiApp app) async {
     if (_launching) return;
+    if (!await _ensurePaymentAppConsent(app.name)) return;
+    if (!mounted) return;
     setState(() => _launching = true);
     final ok = await UpiAppService.instance.pay(app, widget.request.uri);
     if (!mounted) return;
@@ -76,6 +98,9 @@ class _PaymentAppSheetState extends State<_PaymentAppSheet> {
 
   Future<void> _payWithOther() async {
     if (_launching) return;
+    final l10n = AppLocalizations.of(context);
+    if (!await _ensurePaymentAppConsent(l10n.t('paymentConsentAnyApp'))) return;
+    if (!mounted) return;
     setState(() => _launching = true);
     final ok =
         await UpiAppService.instance.payWithSystemChooser(widget.request.uri);
@@ -143,7 +168,7 @@ class _PaymentAppSheetState extends State<_PaymentAppSheet> {
               if (apps == null)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: InoLoader()),
                 )
               else if (apps.isEmpty)
                 _NoAppsFound(onOther: _payWithOther)

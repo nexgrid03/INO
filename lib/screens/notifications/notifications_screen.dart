@@ -1,13 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../data/reminder_store.dart';
+import '../../data/wallet_detail_repository.dart';
+import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/reminder_models.dart';
+import '../../models/wallet_detail_models.dart';
+import '../../navigation/wallet_module_router.dart';
+import '../../services/document_protection_store.dart';
 import '../../services/notification_center.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/empty_state.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/reminders/reminder_detail_sheet.dart';
+import '../cards/cards_wallet_screen.dart';
+import '../family/family_vault_screen.dart';
+import '../profile/two_factor_screen.dart';
+import '../reminders/all_reminders_screen.dart';
+import '../shell/shell_controller.dart';
+import '../wallet/document_viewer_screen.dart';
 
 /// Notifications - a real, categorised feed generated from app state (due
 /// reminders, expiring documents, security posture, backup health) with unread
@@ -26,6 +41,120 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _center.refresh();
+  }
+
+  Future<void> _handleNotificationTap(AppNotification n) async {
+    await _center.markRead(n.id);
+    if (!mounted) return;
+
+    switch (n.category) {
+      case NotificationCategory.reminder:
+        final reminderId = n.targetId ??
+            (n.id.startsWith('rem-') ? n.id.substring(4) : null);
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AllRemindersScreen()),
+        );
+        if (reminderId != null && mounted) {
+          try {
+            await ReminderStore.instance.ensureLoaded();
+            final match = ReminderStore.instance.active
+                .cast<Reminder?>()
+                .firstWhere((r) => r?.id == reminderId, orElse: () => null);
+            if (match != null && mounted) {
+              await showReminderDetail(context, match);
+            }
+          } catch (_) {}
+        }
+        break;
+
+      case NotificationCategory.document:
+        final docId = n.targetId ??
+            (n.id.startsWith('doc-exp-') ? n.id.substring(8) : null);
+        final walletName = n.targetWallet;
+        final category = walletName != null
+            ? SupabaseWalletRepository.categoryFor(walletName)
+            : null;
+
+        if (docId != null && walletName != null && category != null) {
+          try {
+            final data =
+                await WalletDetailRepository.instance.load(category);
+            final doc = data.records
+                .cast<DocumentRecord?>()
+                .firstWhere((r) => r?.id == docId, orElse: () => null);
+            if (doc != null && mounted) {
+              final isProtected =
+                  DocumentProtectionStore.instance.isProtected(doc.id);
+              if (isProtected) {
+                final unlocked = await VaultGuard.instance.ensureUnlocked(
+                  context,
+                  reason: AppLocalizations.of(context)
+                      .t('authProtectedDocReason'),
+                  title: AppLocalizations.of(context).t('verifyIdentity'),
+                );
+                if (!unlocked || !mounted) return;
+              }
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => DocumentViewerScreen(
+                    record: doc,
+                    walletName: walletName,
+                    accent: category.gradient,
+                    protected: isProtected,
+                  ),
+                ),
+              );
+              return;
+            }
+          } catch (_) {}
+        }
+
+        if (category != null && mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => walletScreenFor(category)),
+          );
+        } else if (mounted) {
+          ShellController.tab.value = 1;
+          Navigator.of(context).popUntil((r) => r.isFirst);
+        }
+        break;
+
+      case NotificationCategory.asset:
+        final category =
+            SupabaseWalletRepository.categoryFor('Banking Wallet') ??
+                SupabaseWalletRepository.builtIns
+                    .firstWhere((c) => c.name == 'Banking Wallet');
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CardsWalletScreen(category: category),
+          ),
+        );
+        break;
+
+      case NotificationCategory.security:
+        if (n.id == 'sec-2fa') {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const TwoFactorScreen()),
+          );
+        } else {
+          ShellController.tab.value = 4;
+          Navigator.of(context).popUntil((r) => r.isFirst);
+        }
+        break;
+
+      case NotificationCategory.backup:
+        ShellController.tab.value = 4;
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        break;
+
+      case NotificationCategory.system:
+        if (n.id.contains('vault')) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FamilyVaultScreen()),
+          );
+        }
+        break;
+    }
   }
 
   @override
@@ -81,9 +210,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: AppColors.primaryGreen,
             onRefresh: _center.refresh,
             child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen,
                 AppSpacing.sm,
@@ -101,7 +227,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onDismissed: (_) => _center.dismiss(n.id),
                   child: _NotificationTile(
                     notification: n,
-                    onTap: () => _center.markRead(n.id),
+                    onTap: () => _handleNotificationTap(n),
                   ),
                 );
               },
@@ -188,7 +314,7 @@ class _NotificationTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      notification.title,
+                      notification.resolveTitle(l10n),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.subtitle.copyWith(
@@ -213,7 +339,7 @@ class _NotificationTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                notification.body,
+                notification.resolveBody(l10n),
                 style: AppText.body.copyWith(
                   color: palette.textSecondary,
                   height: 1.4,

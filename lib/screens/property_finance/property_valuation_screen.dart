@@ -246,7 +246,9 @@ class _ProfitLossCard extends StatelessWidget {
                   onTap: () => copyToClipboard(
                     context,
                     copyText,
-                    message: '$title copied',
+                    message: AppLocalizations.of(context)
+                        .t('copiedLabel')
+                        .replaceAll('{label}', title),
                   ),
                   child: SizedBox(
                     width: 32,

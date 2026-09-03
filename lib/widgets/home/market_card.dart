@@ -88,6 +88,7 @@ class _MarketCardState extends State<MarketCard> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final quotes = widget.quotes;
 
     MarketQuote? goldQuote;
@@ -119,7 +120,7 @@ class _MarketCardState extends State<MarketCard> {
               const _LiveDot(),
               const SizedBox(width: 8),
               Text(
-                'Live rates',
+                l10n.t('liveRates'),
                 style: TextStyle(
                   color: palette.textSecondary,
                   fontSize: 12.5,
@@ -140,8 +141,8 @@ class _MarketCardState extends State<MarketCard> {
           ),
         ),
         _MetalRow(
-          name: 'Gold',
-          caption: '24K fine',
+          name: l10n.t('goldShort'),
+          caption: l10n.t('gold24kFine'),
           icon: Icons.diamond_rounded,
           badgeColor: AppColors.gold,
           price: goldQuote?.price ?? '₹10,250',
@@ -150,8 +151,8 @@ class _MarketCardState extends State<MarketCard> {
         ),
         Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
         _MetalRow(
-          name: 'Silver',
-          caption: '999 pure',
+          name: l10n.t('silver'),
+          caption: l10n.t('silver999Pure'),
           icon: Icons.auto_awesome_rounded,
           badgeColor: AppColors.silver,
           price: silverQuote?.price ?? '₹120.50',
@@ -161,7 +162,6 @@ class _MarketCardState extends State<MarketCard> {
       ],
     );
 
-    final l10n = AppLocalizations.of(context);
     final fuel = Column(
       children: [
         Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
@@ -215,8 +215,8 @@ class _MarketCardState extends State<MarketCard> {
         ),
         Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
         _FuelRow(
-          name: 'Petrol',
-          caption: 'per litre',
+          name: l10n.t('petrol'),
+          caption: l10n.t('perLitreLabel'),
           icon: Icons.local_gas_station_rounded,
           badgeColor: AppColors.primaryGreen,
           controller: _petrol,
@@ -225,8 +225,8 @@ class _MarketCardState extends State<MarketCard> {
         ),
         Divider(color: palette.border, height: 1, indent: 18, endIndent: 18),
         _FuelRow(
-          name: 'Diesel',
-          caption: 'per litre',
+          name: l10n.t('diesel'),
+          caption: l10n.t('perLitreLabel'),
           icon: Icons.oil_barrel_rounded,
           badgeColor: AppColors.skyBlue,
           controller: _diesel,

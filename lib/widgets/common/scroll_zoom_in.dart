@@ -114,6 +114,10 @@ class _ScrollZoomInState extends State<ScrollZoomIn> {
     _scrollable = Scrollable.maybeOf(context);
   }
 
+  /// Snaps progress to 60 discrete steps across the whole travel, so repeated
+  /// frames produce an identical transform and shadow the engine can reuse.
+  static double _quantise(double v) => (v * 60).roundToDouble() / 60;
+
   /// 0 when the child is a full [ScrollZoomIn.travelFraction] below its settle
   /// point, 1 once it reaches (or passes) it.
   double _progress() {
@@ -170,7 +174,12 @@ class _ScrollZoomInState extends State<ScrollZoomIn> {
       // Passed through, never rebuilt - only the transform below is.
       child: child,
       builder: (context, child) {
-        final t = widget.curve.transform(_progress());
+        // Quantised to 60 steps. This builder runs on every frame of a scroll,
+        // and an unquantised `t` meant the glow's blurRadius changed by a
+        // fraction of a pixel each frame — which the engine cannot cache, so it
+        // re-rasterised a large blurred shadow 60 times a second for motion no
+        // one can see. Snapping `t` lets identical frames reuse the raster.
+        final t = _quantise(widget.curve.transform(_progress()));
         final scale =
             lerpDouble(widget.minScale, widget.maxScale, t) ?? widget.maxScale;
 
@@ -196,7 +205,10 @@ class _ScrollZoomInState extends State<ScrollZoomIn> {
           offset: Offset(0, widget.lift * (1 - t)),
           child: Transform.scale(
             scale: scale,
-            filterQuality: FilterQuality.medium,
+            // No filterQuality on purpose. Setting one makes Transform push a
+            // saveLayer and resample the child through an ImageFilter every
+            // frame — real cost, for a scale that only ever ranges 0.62–1.0 on
+            // vector/text content where the default sampling is indistinguishable.
             child: painted,
           ),
         );

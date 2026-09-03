@@ -14,6 +14,7 @@ import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/reminder_scheduler.dart';
 
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
@@ -29,6 +30,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../scan/scanner_screen.dart';
 import 'document_upload_success_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The source a user picks to add a document.
 enum _DocSource { scan, pdf, image }
@@ -104,6 +106,11 @@ List<(String, IconData)> get _wallets => [
 /// category" instead of an existing one.
 const String _kCreateCategory = '__create_category__';
 
+/// Sentinel file name used when a scan arrives without a real file name. Kept
+/// language-independent in state and translated at render time so switching
+/// language re-labels it.
+const String _kScannedDocument = '__scanned_document__';
+
 /// Add Document - the fastest path to get a document into the vault.
 ///
 /// Pick a source (scan / image), then fill a short set of details and save.
@@ -141,6 +148,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   String? _wallet;
   String? _category;
   DateTime? _expiry;
+  TimeOfDay? _expiryTime;
 
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
@@ -173,7 +181,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _source = _DocSource.scan;
       _tempFileName = _localFilePath != null
           ? _localFilePath!.split(RegExp(r'[\\/]')).last
-          : 'Scanned document';
+          : _kScannedDocument;
       if (prefill.documentName.isNotEmpty) {
         _nameController.text = prefill.documentName;
       }
@@ -369,7 +377,25 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       firstDate: now,
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _expiry = picked);
+    if (picked != null) {
+      setState(() {
+        _expiry = picked;
+        _expiryTime ??= const TimeOfDay(hour: 9, minute: 0);
+      });
+    }
+  }
+
+  Future<void> _pickExpiryTime() async {
+    final now = TimeOfDay.now();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _expiryTime ??
+          TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
+      helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
+    );
+    if (picked != null) {
+      setState(() => _expiryTime = picked);
+    }
   }
 
   Future<void> _save() async {
@@ -380,7 +406,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       return;
     }
     if (_localFilePath == null) {
-      _toast('Attach a photo or PDF before saving — needed for Secure Share.',
+      _toast(AppLocalizations.of(context).t('attachFileBeforeSaving'),
           error: true);
       return;
     }
@@ -406,7 +432,14 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     FocusScope.of(context).unfocus();
 
     // The consent gate: nothing is uploaded or stored until the user agrees.
-    if (!await showDataConsentSheet(context, what: 'this document')) return;
+    // Localized: the fragment is spliced into a full sentence inside the
+    // sheet, so an English literal here would produce mixed-language copy.
+    if (!await showDataConsentSheet(
+      context,
+      what: AppLocalizations.of(context).t('thisDocument'),
+    )) {
+      return;
+    }
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -418,6 +451,17 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         filePath = await DocumentRepository.instance.uploadFile(_localFilePath!);
       }
 
+      DateTime? finalExpiry = _expiry;
+      if (finalExpiry != null && _expiryTime != null) {
+        finalExpiry = DateTime(
+          finalExpiry.year,
+          finalExpiry.month,
+          finalExpiry.day,
+          _expiryTime!.hour,
+          _expiryTime!.minute,
+        );
+      }
+
       // 2) Persist to Supabase (the `documents` table). RLS ties the row to the
       //    signed-in user automatically.
       final doc = await DocumentRepository.instance.create(
@@ -427,7 +471,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         recordNumber: _recordNumber,
         tags: tags,
         notes: storedNotes,
-        expiresAt: _expiry,
+        expiresAt: finalExpiry,
         filePath: filePath,
         doctorName: _wallet == 'Health Wallet' ? _doctorController.text.trim() : null,
       );
@@ -469,16 +513,30 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       // If the document has an expiry date, also create a reminder for it so it
       // shows up on the Reminders page (persisted to Supabase).
       if (_expiry != null) {
-        ReminderStore.instance.add(
+        final e = finalExpiry ?? _expiry!;
+        try {
+          await ReminderScheduler.instance.ensureExactPermission();
+        } catch (_) {}
+        unawaited(ReminderStore.instance.add(
           Reminder(
             id: 'doc-${doc.id}',
             title: name,
             subtitle: '$_wallet · Expiry',
             category: _reminderCategoryForWallet(_wallet!),
             priority: ReminderPriority.important,
-            date: _expiry!,
+            date: e,
           ),
-        );
+        ).catchError((Object err) {
+          debugPrint('expiry reminder not saved: $err');
+          return Reminder(
+            id: 'doc-${doc.id}',
+            title: name,
+            subtitle: '',
+            category: ReminderCategory.custom,
+            priority: ReminderPriority.normal,
+            date: e,
+          );
+        }));
       }
 
       if (!mounted) return;
@@ -542,6 +600,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -552,7 +611,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             const _Header(),
             Expanded(
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
                     AppSpacing.screen, AppSpacing.lg),
                 child: Column(
@@ -577,7 +635,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                         child: _DetailsForm(
                           formKey: _formKey,
                           source: _source!,
-                          fileName: _tempFileName ?? 'Document',
+                          fileName: switch (_tempFileName) {
+                            null => l10n.t('document'),
+                            _kScannedDocument => l10n.t('scannedDocument'),
+                            final name => name,
+                          },
                           nameController: _nameController,
                           doctorController: _doctorController,
                           tagsController: _tagsController,
@@ -585,11 +647,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           wallet: _wallet,
                           category: _category,
                           expiry: _expiry,
+                          expiryTime: _expiryTime,
                           onRemoveFile: _removeFile,
                           onPickWallet: _chooseWallet,
                           onPickCategory: _chooseCategory,
                           onCategoryChanged: (v) => setState(() => _category = v),
                           onPickExpiry: _pickExpiry,
+                          onPickExpiryTime: _pickExpiryTime,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -807,7 +871,8 @@ class _UploadOptions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionLabel('CHOOSE METHOD'),
+        _SectionLabel(
+            AppLocalizations.of(context).t('chooseMethod').toUpperCase()),
         const SizedBox(height: AppSpacing.sm),
         for (var i = 0; i < _DocSource.values.length; i++) ...[
           if (i > 0) const SizedBox(height: AppSpacing.sm),
@@ -988,15 +1053,7 @@ class _EmptyState extends StatelessWidget {
                   ),
                   child: busy
                       ?  Center(
-                          child: SizedBox(
-                            width: 34,
-                            height: 34,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primaryGreen),
-                            ),
-                          ),
+                          child: InoLoader(size: 34, color: AppColors.primaryGreen),
                         )
                       :  Icon(Icons.cloud_upload_rounded,
                           color: AppColors.primaryGreen, size: 44),
@@ -1092,11 +1149,13 @@ class _DetailsForm extends StatelessWidget {
     required this.wallet,
     required this.category,
     required this.expiry,
+    required this.expiryTime,
     required this.onRemoveFile,
     required this.onPickWallet,
     required this.onPickCategory,
     required this.onCategoryChanged,
     required this.onPickExpiry,
+    required this.onPickExpiryTime,
   });
 
   final GlobalKey<FormState> formKey;
@@ -1109,18 +1168,16 @@ class _DetailsForm extends StatelessWidget {
   final String? wallet;
   final String? category;
   final DateTime? expiry;
+  final TimeOfDay? expiryTime;
   final VoidCallback onRemoveFile;
   final VoidCallback onPickWallet;
   final VoidCallback onPickCategory;
   final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onPickExpiry;
+  final VoidCallback onPickExpiryTime;
 
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  String _fmt(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
+  String _fmt(AppLocalizations l10n, DateTime d) =>
+      '${d.day} ${l10n.monthShort(d.month)} ${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -1132,7 +1189,7 @@ class _DetailsForm extends StatelessWidget {
         children: [
           _SelectedFile(source: source, fileName: fileName, onRemove: onRemoveFile),
           const SizedBox(height: AppSpacing.lg),
-          const _SectionLabel('DOCUMENT DETAILS'),
+          _SectionLabel(l10n.t('documentDetails').toUpperCase()),
           const SizedBox(height: AppSpacing.sm),
           InoCard(
             radius: AppRadius.large,
@@ -1141,27 +1198,36 @@ class _DetailsForm extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Hospital Name' : l10n.t('documentName'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('hospitalName')
+                      : l10n.t('documentName'),
                   child: TextFormField(
                     controller: nameController,
                     textInputAction: TextInputAction.next,
                     textCapitalization: TextCapitalization.words,
                     validator: (v) => (v == null || v.trim().isEmpty)
-                        ? (wallet == 'Health Wallet' ? 'Please enter hospital name' : l10n.t('enterDocumentName'))
+                        ? (wallet == 'Health Wallet'
+                            ? l10n.t('enterHospitalName')
+                            : l10n.t('enterDocumentName'))
                         : null,
-                    decoration: _decoration(context, wallet == 'Health Wallet' ? 'e.g. Apollo Hospital, Max Healthcare' : l10n.t('hintAddDocName')),
+                    decoration: _decoration(
+                        context,
+                        wallet == 'Health Wallet'
+                            ? l10n.t('hintHospitalName')
+                            : l10n.t('hintAddDocName')),
                   ),
                 ),
                 if (wallet == 'Health Wallet') ...[
                   const SizedBox(height: AppSpacing.internal),
                   _Field(
-                    label: 'Doctor Name',
+                    label: l10n.t('doctorName'),
                     optional: true,
                     child: TextFormField(
                       controller: doctorController,
                       textInputAction: TextInputAction.next,
                       textCapitalization: TextCapitalization.words,
-                      decoration: _decoration(context, 'e.g. Dr. Ashish Gupta'),
+                      decoration:
+                          _decoration(context, l10n.t('hintDoctorName')),
                     ),
                   ),
                 ],
@@ -1179,25 +1245,45 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Document Type' : l10n.t('category'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('documentType')
+                      : l10n.t('category'),
                   child: wallet == 'Health Wallet'
                       ? DropdownButtonFormField<String>(
                           initialValue: (category == null || category!.isEmpty) ? null : category,
-                          decoration: _decoration(context, 'Choose document type').copyWith(
+                          decoration: _decoration(
+                                  context, l10n.t('chooseDocumentType'))
+                              .copyWith(
                             prefixIcon: Icon(Icons.medical_services_rounded, color: AppColors.primaryGreen, size: 19),
                           ),
                           dropdownColor: AppPalette.of(context).isDark ? AppPalette.of(context).surface : Colors.white,
                           style: AppText.body.copyWith(color: AppPalette.of(context).textPrimary),
                           icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.of(context).textFaint),
-                          items: const [
-                            DropdownMenuItem(value: 'X-Ray', child: Text('X-Ray')),
-                            DropdownMenuItem(value: 'Prescription', child: Text('Prescription')),
-                            DropdownMenuItem(value: 'Lab Report', child: Text('Lab Report')),
-                            DropdownMenuItem(value: 'Discharge Summary', child: Text('Discharge Summary')),
-                            DropdownMenuItem(value: 'Vaccine Record', child: Text('Vaccine Record')),
-                            DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          // Values stay English - they are the stored category
+                          // on the row; only the labels are translated.
+                          items: [
+                            DropdownMenuItem(
+                                value: 'X-Ray',
+                                child: Text(l10n.t('docTypeXRay'))),
+                            DropdownMenuItem(
+                                value: 'Prescription',
+                                child: Text(l10n.t('docTypePrescription'))),
+                            DropdownMenuItem(
+                                value: 'Lab Report',
+                                child: Text(l10n.t('docTypeLabReport'))),
+                            DropdownMenuItem(
+                                value: 'Discharge Summary',
+                                child:
+                                    Text(l10n.t('docTypeDischargeSummary'))),
+                            DropdownMenuItem(
+                                value: 'Vaccine Record',
+                                child: Text(l10n.t('docTypeVaccineRecord'))),
+                            DropdownMenuItem(
+                                value: 'Other', child: Text(l10n.t('catOther'))),
                           ],
-                          validator: (v) => (v == null || v.isEmpty) ? 'Please choose document type' : null,
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? l10n.t('pleaseChooseDocumentType')
+                              : null,
                           onChanged: onCategoryChanged,
                         )
                       : _Selector(
@@ -1219,16 +1305,37 @@ class _DetailsForm extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
-                  label: wallet == 'Health Wallet' ? 'Next Appointment Date' : l10n.t('expiryDate'),
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('nextAppointmentDate')
+                      : l10n.t('expiryDate'),
                   optional: true,
                   child: _Selector(
-                    value: expiry == null ? null : _fmt(expiry!),
-                    placeholder: wallet == 'Health Wallet' ? 'Select appointment date' : l10n.t('noExpiry'),
+                    value: expiry == null ? null : _fmt(l10n, expiry!),
+                    placeholder: wallet == 'Health Wallet'
+                        ? l10n.t('selectAppointmentDate')
+                        : l10n.t('noExpiry'),
                     leading: Icons.event_rounded,
                     trailing: Icons.calendar_today_rounded,
                     onTap: onPickExpiry,
                   ),
                 ),
+                if (expiry != null) ...[
+                  const SizedBox(height: AppSpacing.internal),
+                  _Field(
+                    label: l10n.t('dueTime'),
+                    optional: true,
+                    child: _Selector(
+                      value: expiryTime == null
+                          ? l10n.t('pickTime')
+                          : reminderTimeLabel(DateTime(
+                              2000, 1, 1, expiryTime!.hour, expiryTime!.minute)),
+                      placeholder: l10n.t('pickTime'),
+                      leading: Icons.access_time_rounded,
+                      trailing: Icons.schedule_rounded,
+                      onTap: onPickExpiryTime,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.internal),
                 _Field(
                   label: l10n.t('notes'),
@@ -1618,15 +1725,7 @@ class _SaveBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppRadius.button),
                     child: Center(
                       child: saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
+                          ? const InoLoader(size: 22, color: Colors.white)
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

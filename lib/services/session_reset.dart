@@ -4,6 +4,7 @@ import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
 import '../repositories/qr_code_repository.dart';
 import '../repositories/user_repository.dart';
+import 'app_preload.dart';
 import 'app_settings.dart';
 import 'card_store.dart';
 import 'category_store.dart';
@@ -12,6 +13,7 @@ import 'expense_store.dart';
 import 'family_vault_store.dart';
 import 'global_search_service.dart';
 import 'investment_store.dart';
+import 'net_worth_service.dart';
 import 'notes_store.dart';
 import 'notification_center.dart';
 import 'password_store.dart';
@@ -111,6 +113,16 @@ class SessionReset {
     // never inherits Account A's cached documents or profile snapshot.
     await _guard('documentRepository', () async => DocumentRepository.instance.clearCache());
     await _guard('userRepository', () async => UserRepository.instance.clearCache());
+
+    // Net-worth history + its once-per-session hydration guard. The holdings
+    // behind it were just cleared, so the cached chart is the previous user's.
+    await _guard('netWorth', () async => NetWorthService.instance.reset());
+
+    // The splash warm-up's cached read models (documents, the wallet hub) and
+    // its "already ran" guard. Without this the next account would either be
+    // handed the previous user's snapshot, or get no warm-up at all because
+    // AppPreload still believed it had done its job.
+    await _guard('preload', () async => AppPreload.instance.reset());
 
     // Nudge document listeners (storage meter, wallet counts) to re-fetch - the
     // next fetch is RLS-scoped to whoever signs in next.

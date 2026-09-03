@@ -145,7 +145,8 @@ class _AreaInputCard extends StatelessWidget {
                       style:
                           AppText.title.copyWith(color: palette.textPrimary),
                       decoration: InputDecoration(
-                        hintText: 'e.g. 312',
+                        hintText:
+                            AppLocalizations.of(context).t('areaValueHint'),
                         hintStyle:
                             AppText.body.copyWith(color: palette.textFaint),
                         filled: true,

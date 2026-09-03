@@ -15,6 +15,18 @@ const List<String> _months = [
 /// Compact, intl-free date: "12 Jul".
 String reminderShortDate(DateTime d) => '${d.day} ${_months[d.month - 1]}';
 
+/// Compact, intl-free 12-hour clock: "5:30 PM".
+String reminderTimeLabel(DateTime d) {
+  final h24 = d.hour;
+  final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+  final mm = d.minute.toString().padLeft(2, '0');
+  return '$h12:$mm ${h24 < 12 ? 'AM' : 'PM'}';
+}
+
+/// "12 Jul · 5:30 PM" - the full moment a reminder fires.
+String reminderDateTimeLabel(DateTime d) =>
+    '${reminderShortDate(d)} · ${reminderTimeLabel(d)}';
+
 /// Truncates a datetime to midnight (date-only comparisons).
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -205,8 +217,19 @@ class Reminder {
   final String subtitle;
   final ReminderCategory category;
   final ReminderPriority priority;
+
+  /// The exact LOCAL moment the reminder fires - date **and** time. Every
+  /// day-based read (grouping, calendar dots, "due today") truncates this via
+  /// [dateOnly]; the notification pipeline (local schedule + server push) uses
+  /// the full instant.
   final DateTime date;
   final bool completed;
+
+  /// "5:30 PM" - the time-of-day part of [date].
+  String get timeLabel => reminderTimeLabel(date);
+
+  /// True once the reminder's moment has passed (to the minute).
+  bool get isPast => date.isBefore(DateTime.now());
 
   /// When [completed], a human label of when ("2 days ago").
   final String? completedLabel;
@@ -253,13 +276,17 @@ class Reminder {
       );
 
   /// Builds a [Reminder] from a `public.reminders` table row.
+  ///
+  /// `due_at` (timestamptz, exact moment) is authoritative; rows written before
+  /// it existed carry only `due_date` and are treated as due at 09:00 local -
+  /// the hour the old daily push used to fire, so nothing shifts for them.
   factory Reminder.fromMap(Map<String, dynamic> m) {
     final completedAt = m['completed_at'] == null
         ? null
-        : DateTime.parse(m['completed_at'] as String);
+        : DateTime.parse(m['completed_at'] as String).toLocal();
     return Reminder(
-      id: m['id'] as String,
-      title: m['title'] as String,
+      id: m['id'].toString(),
+      title: (m['title'] as String?) ?? '',
       subtitle: (m['subtitle'] as String?) ?? '',
       category: ReminderCategory.values.firstWhere(
         (c) => c.name == m['category'],
@@ -269,20 +296,41 @@ class Reminder {
         (p) => p.name == m['priority'],
         orElse: () => ReminderPriority.normal,
       ),
-      date: DateTime.parse(m['due_date'] as String),
+      date: _dueMomentFromRow(m),
       completed: (m['completed'] as bool?) ?? false,
       completedLabel:
           completedAt == null ? null : reminderRelativeLabel(completedAt),
     );
   }
 
+  static DateTime _dueMomentFromRow(Map<String, dynamic> m) {
+    final dueAt = m['due_at'];
+    if (dueAt is String && dueAt.isNotEmpty) {
+      final parsed = DateTime.tryParse(dueAt);
+      if (parsed != null) return parsed.toLocal();
+    }
+    final dueDate = m['due_date'];
+    if (dueDate is String && dueDate.isNotEmpty) {
+      final d = DateTime.tryParse(dueDate);
+      if (d != null) return DateTime(d.year, d.month, d.day, 9);
+    }
+    // A row with neither is malformed; surfacing it as "now" keeps it visible
+    // (and overdue) rather than crashing the whole list.
+    return DateTime.now();
+  }
+
   /// Columns the app owns on insert; the DB fills id / auth_user_id / timestamps.
+  ///
+  /// Both `due_date` (the local calendar day, for day-based queries) and
+  /// `due_at` (the exact UTC instant the push fires) are written, so the
+  /// server never has to guess the user's timezone.
   Map<String, dynamic> toInsert() => {
         'title': title,
         'subtitle': subtitle,
         'category': category.name,
         'priority': priority.name,
         'due_date': _reminderDateOnly(date),
+        'due_at': date.toUtc().toIso8601String(),
         'completed': completed,
       };
 }
@@ -296,6 +344,7 @@ String _reminderDateOnly(DateTime d) =>
 /// A short relative label like "Just now", "2h ago", "3 days ago".
 String reminderRelativeLabel(DateTime t) {
   final diff = DateTime.now().difference(t);
+  if (diff.isNegative) return 'Just now';
   if (diff.inMinutes < 1) return 'Just now';
   if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
   if (diff.inHours < 24) return '${diff.inHours}h ago';

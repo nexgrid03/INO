@@ -77,11 +77,11 @@ abstract final class InoHomeIcons {
       };
 }
 
-/// Clay / soft-3D PNG icons for [ThemeStyle.clay] Home only.
+/// Soft-3D PNG icons for Home assets.
 ///
 /// Full circular discs for Quick Actions; coloured glyphs for vault / strip /
-/// finance tiles (tile chrome + count badge stay in code). Aqua / Launcher /
-/// Aqua Light use [InoHomeIcons] SVGs instead — both sets stay in the bundle.
+/// finance tiles (tile chrome + count badge stay in code). Launcher / Aqua /
+/// Aqua Mist use [InoHomeIcons] SVGs instead.
 abstract final class InoHomeIcons3d {
   static const scan = 'assets/icons/home/3d/qa_scan.png';
   static const documents = 'assets/icons/home/3d/qa_documents.png';

@@ -116,11 +116,11 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
   }
 
   Future<void> _pickDate({required bool issue}) async {
-    final base = DateTime(2026, 7, 1);
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: (issue ? _issueDate : _expiryDate) ?? base,
-      firstDate: DateTime(1990),
+      initialDate: (issue ? _issueDate : _expiryDate) ?? now,
+      firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
@@ -192,7 +192,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen,
                     0,
@@ -263,6 +262,15 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       delay: const Duration(milliseconds: 120),
                       children: [
                         OcrField(
+                          label: l10n.t('category'),
+                          child: OcrSelector(
+                            value: _category,
+                            placeholder: l10n.t('chooseCategory'),
+                            leading: Icons.label_rounded,
+                            onTap: _pickCategory,
+                          ),
+                        ),
+                        OcrField(
                           label: l10n.t('documentName'),
                           child: OcrTextField(
                             controller: _name,
@@ -316,15 +324,6 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       icon: Icons.folder_rounded,
                       delay: const Duration(milliseconds: 180),
                       children: [
-                        OcrField(
-                          label: l10n.t('category'),
-                          child: OcrSelector(
-                            value: _category,
-                            placeholder: l10n.t('chooseCategory'),
-                            leading: Icons.label_rounded,
-                            onTap: _pickCategory,
-                          ),
-                        ),
                         OcrField(
                           label: l10n.t('tags'),
                           optional: true,

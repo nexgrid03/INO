@@ -11,6 +11,7 @@ import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Manage Shares - every QR/link the user has created, so they can review
 /// analytics (views / downloads) and revoke access at any time, long after the
@@ -77,10 +78,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.6,
-                          color: AppColors.primaryGreen,
-                        ),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     }
                     final shares = snapshot.data ?? const <DocumentShare>[];
@@ -126,10 +124,7 @@ class _ManageSharesScreenState extends State<ManageSharesScreen> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.critical,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(l10n.t('revoke')),
@@ -211,7 +206,9 @@ class _SharesList extends StatelessWidget {
       if (active.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg + 4),
         _SectionLabel(
-            label: l10n.t('activeLinksSection'), count: active.length),
+          label: l10n.t('activeLinksSection'),
+          count: active.length,
+        ),
         const SizedBox(height: AppSpacing.md),
         for (var i = 0; i < active.length; i++) ...[
           if (i > 0) const SizedBox(height: 12),
@@ -225,9 +222,10 @@ class _SharesList extends StatelessWidget {
       if (history.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg + 4),
         _SectionLabel(
-            label: l10n.t('historySection'),
-            count: history.length,
-            muted: true),
+          label: l10n.t('historySection'),
+          count: history.length,
+          muted: true,
+        ),
         const SizedBox(height: AppSpacing.md),
         for (var i = 0; i < history.length; i++) ...[
           if (i > 0) const SizedBox(height: 12),
@@ -241,10 +239,10 @@ class _SharesList extends StatelessWidget {
       const SizedBox(height: 24),
     ];
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
+    // Lazy: only visible rows get elements/render objects, so a long share
+    // history costs nothing until scrolled to. No FadeSlideIn — recycled rows
+    // replay the entrance every time they scroll back into view.
+    return ListView.builder(
       // Clear gap under the frosted app bar so stats never kiss the header.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
@@ -252,13 +250,8 @@ class _SharesList extends StatelessWidget {
         AppSpacing.screen,
         AppSpacing.xl,
       ),
-      children: [
-        for (var i = 0; i < sections.length; i++)
-          FadeSlideIn(
-            delay: Duration(milliseconds: (i * 45).clamp(0, 320)),
-            child: sections[i],
-          ),
-      ],
+      itemCount: sections.length,
+      itemBuilder: (context, i) => sections[i],
     );
   }
 }
@@ -501,9 +494,11 @@ class _ShareCard extends StatelessWidget {
                 children: [
                   Text(
                     l10n
-                        .t(share.documentCount == 1
-                            ? 'docCountOne'
-                            : 'docCountMany')
+                        .t(
+                          share.documentCount == 1
+                              ? 'docCountOne'
+                              : 'docCountMany',
+                        )
                         .replaceFirst('{n}', '${share.documentCount}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -532,10 +527,7 @@ class _ShareCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        Container(
-          height: 1,
-          color: palette.border.withValues(alpha: 0.7),
-        ),
+        Container(height: 1, color: palette.border.withValues(alpha: 0.7)),
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
@@ -549,9 +541,11 @@ class _ShareCard extends StatelessWidget {
             _MetaStat(
               icon: Icons.download_outlined,
               label: l10n
-                  .t(share.downloadsCount == 1
-                      ? 'downloadCountOne'
-                      : 'downloadCountMany')
+                  .t(
+                    share.downloadsCount == 1
+                        ? 'downloadCountOne'
+                        : 'downloadCountMany',
+                  )
                   .replaceFirst('{n}', '${share.downloadsCount}'),
             ),
             const Spacer(),
@@ -771,7 +765,7 @@ class _EmptyState extends StatelessWidget {
                         border: Border.all(color: AppColors.tealPale),
                         boxShadow: AppShadows.card,
                       ),
-                      child:  Icon(
+                      child: Icon(
                         Icons.qr_code_2_rounded,
                         size: 36,
                         color: AppColors.primaryGreen,

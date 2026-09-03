@@ -34,16 +34,18 @@ class FadeSlideIn extends StatefulWidget {
 
 class _FadeSlideInState extends State<FadeSlideIn>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: widget.duration);
-  late final Animation<Offset> _slide = Tween<Offset>(
-    begin: Offset(0, widget.offset / 100),
-    end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+  late final AnimationController _c;
+  late final Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
+    _c = AnimationController(vsync: this, duration: widget.duration);
+    _slide = Tween<Offset>(
+      begin: Offset(0, widget.offset / 100),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+
     // Web: never risk a blank / mid-tween screen from a stalled ticker.
     if (kIsWeb) {
       _c.value = 1;

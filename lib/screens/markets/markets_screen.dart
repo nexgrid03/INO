@@ -33,9 +33,6 @@ class MarketsScreen extends StatelessWidget {
     }).toList();
 
     final scrollBody = ListView(
-      physics: InoStyle.usesDivineGlass(context)
-          ? const ClampingScrollPhysics()
-          : const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
       children: [
@@ -72,7 +69,6 @@ class MarketsScreen extends StatelessWidget {
         body: InoBackground(
           sky: true,
           child: ListView(
-            physics: const ClampingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               AppSpacing.screen,
               barH + AppSpacing.md,

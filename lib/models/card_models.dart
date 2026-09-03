@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Models backing the Banking Wallet's saved cards.
 ///
 /// SECURITY: a card is stored as an *identifier*, never as a usable instrument.
@@ -15,6 +17,14 @@ extension CardKindX on CardKind {
         CardKind.credit => 'Credit',
         CardKind.prepaid => 'Prepaid',
         CardKind.forex => 'Forex',
+      };
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+        CardKind.debit => l10n.t('cardKindDebit'),
+        CardKind.credit => l10n.t('cardKindCredit'),
+        CardKind.prepaid => l10n.t('cardKindPrepaid'),
+        CardKind.forex => l10n.t('cardKindForex'),
       };
 
   static CardKind fromName(String? name) => CardKind.values.firstWhere(

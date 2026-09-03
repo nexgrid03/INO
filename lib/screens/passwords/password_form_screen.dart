@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/password_models.dart';
 import '../../services/password_store.dart';
+import '../../services/vault_crypto.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -69,6 +71,17 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
 
+    // No key, no save. The vault screen already refuses to open this form
+    // while locked, so reaching here means the key was dropped mid-edit
+    // (sign-out, SessionReset, the app lock). Writing anyway would put the
+    // password into `shared_preferences` in the clear with no way to ever sync
+    // it - the exact outcome an encrypted vault exists to prevent.
+    final l10n = AppLocalizations.of(context);
+    if (!VaultCrypto.instance.isUnlocked) {
+      showModuleToast(context, l10n.t('vaultSetupRequired'));
+      return;
+    }
+
     // The consent gate. Declining leaves the form exactly as it was - nothing
     // is stored anywhere until this returns true.
     final agreed = await showSaveConsentSheet(context);
@@ -92,7 +105,12 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
     }
     if (!mounted) return;
     HapticFeedback.mediumImpact();
-    if (_isEdit) await showSuccessBurst(context, 'Password updated');
+    if (_isEdit) {
+      await showSuccessBurst(
+        context,
+        AppLocalizations.of(context).t('passwordEntryUpdated'),
+      );
+    }
     if (!mounted) return;
     Navigator.of(context).pop(entry);
   }
@@ -100,6 +118,7 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final strength = passwordStrength(_password.text);
 
     final glass = divineGlassEnabled(context);
@@ -116,8 +135,10 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
             child: Column(
               children: [
                 ModuleHeader(
-                  title: _isEdit ? 'Edit password' : 'Add password',
-                  subtitle: 'A nickname and the password · nothing else',
+                  title: _isEdit
+                      ? l10n.t('editPassword')
+                      : l10n.t('addPassword'),
+                  subtitle: l10n.t('passwordFormSubtitle'),
                 ),
                 Expanded(
                   child: ListView(
@@ -126,17 +147,17 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
                 // ---- Nickname ----
                 FadeSlideIn(
                   child: ModuleSection(
-                    title: 'Nickname',
+                    title: l10n.t('nickname'),
                     icon: Icons.badge_rounded,
                     accent: AppColors.primaryGreen,
                     children: [
                       ModuleField(
-                        label: 'Type a name by which you can remember this password',
+                        label: l10n.t('nicknameFieldLabel'),
                         controller: _nickname,
-                        hint: 'e.g. blue parrot',
+                        hint: l10n.t('nicknameHint'),
                         textCapitalization: TextCapitalization.none,
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Give this password a nickname'
+                            ? l10n.t('nicknameRequired')
                             : null,
                         onChanged: (_) => setState(() {}),
                       ),
@@ -150,28 +171,29 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 60),
                   child: ModuleSection(
-                    title: 'Password',
+                    title: l10n.t('password'),
                     icon: Icons.key_rounded,
                     accent: AppColors.primaryGreen,
                     trailing: ModuleIconButton(
                       icon: Icons.auto_awesome_rounded,
                       size: 34,
-                      tooltip: 'Generate',
+                      tooltip: l10n.t('generate'),
                       onTap: _generate,
                     ),
                     children: [
                       ModuleField(
-                        label: 'Password',
+                        label: l10n.t('password'),
                         controller: _password,
                         obscure: _obscure,
                         textCapitalization: TextCapitalization.none,
-                        validator: (v) =>
-                            (v ?? '').isEmpty ? 'Enter a password' : null,
+                        validator: (v) => (v ?? '').isEmpty
+                            ? l10n.t('enterAPassword')
+                            : null,
                         onChanged: (_) => setState(() {}),
                         suffix: IconButton(
                           onPressed: () => setState(() => _obscure = !_obscure),
                           visualDensity: VisualDensity.compact,
-                          tooltip: _obscure ? 'Show' : 'Hide',
+                          tooltip: _obscure ? l10n.t('show') : l10n.t('hide'),
                           icon: Icon(
                             _obscure
                                 ? Icons.visibility_rounded
@@ -202,7 +224,9 @@ class _PasswordFormScreenState extends State<PasswordFormScreen> {
         child: SafeArea(
           top: false,
           child: GradientButton(
-            label: _isEdit ? 'Save changes' : 'Save password',
+            label: _isEdit
+                ? l10n.t('saveChanges')
+                : l10n.t('savePassword'),
             busy: _saving,
             onTap: _save,
           ),
@@ -219,6 +243,7 @@ class _NicknameNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -236,8 +261,7 @@ class _NicknameNote extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Use a random nickname only you understand - not the real app '
-              'or site name. "blue parrot" is good; "Instagram" is not.',
+              l10n.t('nicknameNote'),
               style: AppText.caption.copyWith(
                 color: palette.textSecondary,
                 height: 1.4,
@@ -267,6 +291,7 @@ class _ConsentSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: palette.surface,
@@ -296,19 +321,16 @@ class _ConsentSheet extends StatelessWidget {
                  Icon(Icons.verified_user_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
-                Text('Before this password is saved',
-                    style: AppText.title.copyWith(color: palette.textPrimary)),
+                Expanded(
+                  child: Text(l10n.t('consentSheetTitle'),
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary)),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Your password will be saved with proper security - it is '
-              'encrypted on this device with your vault passphrase before it '
-              'is stored, so nobody else can read it.\n\n'
-              'One check before you agree: make sure you entered a NICKNAME, '
-              'not the real name. Saving "Instagram" with password "ramu1243" '
-              'links the two together - a random nickname like "blue parrot" '
-              'keeps them apart.',
+              l10n.t('consentSheetBody'),
               style: AppText.body.copyWith(
                 color: palette.textSecondary,
                 height: 1.5,
@@ -331,7 +353,7 @@ class _ConsentSheet extends StatelessWidget {
                           border: Border.all(color: palette.border),
                         ),
                         child: Text(
-                          'Go back',
+                          l10n.t('goBack'),
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary),
                         ),
@@ -343,7 +365,7 @@ class _ConsentSheet extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: GradientButton(
-                    label: 'I understand · save',
+                    label: l10n.t('understandAndSave'),
                     icon: Icons.check_rounded,
                     onTap: () => Navigator.of(context).pop(true),
                   ),
@@ -356,6 +378,18 @@ class _ConsentSheet extends StatelessWidget {
     );
   }
 }
+
+/// The strength verdict ("Weak" … "Strong") in the active language.
+///
+/// The scoring itself lives in `PasswordStrength` - this only translates the
+/// word shown next to the meter.
+String passwordStrengthLabel(AppLocalizations l10n, PasswordStrength s) =>
+    switch (s) {
+      PasswordStrength.weak => l10n.t('strengthWeak'),
+      PasswordStrength.fair => l10n.t('strengthFair'),
+      PasswordStrength.good => l10n.t('strengthGood'),
+      PasswordStrength.strong => l10n.t('strengthStrong'),
+    };
 
 /// The four-segment strength meter with its verdict label.
 class StrengthMeter extends StatelessWidget {
@@ -389,7 +423,7 @@ class StrengthMeter extends StatelessWidget {
           SizedBox(
             width: 52,
             child: Text(
-              strength.label,
+              passwordStrengthLabel(AppLocalizations.of(context), strength),
               textAlign: TextAlign.right,
               style: AppText.label.copyWith(color: strength.color),
             ),
@@ -441,6 +475,7 @@ class _GeneratorSheetState extends State<_GeneratorSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final strength = passwordStrength(_password);
     return Container(
       decoration: BoxDecoration(
@@ -471,8 +506,11 @@ class _GeneratorSheetState extends State<_GeneratorSheet> {
                  Icon(Icons.auto_awesome_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
-                Text('Password generator',
-                    style: AppText.title.copyWith(color: palette.textPrimary)),
+                Expanded(
+                  child: Text(l10n.t('passwordGenerator'),
+                      style:
+                          AppText.title.copyWith(color: palette.textPrimary)),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -526,7 +564,7 @@ class _GeneratorSheetState extends State<_GeneratorSheet> {
             // Length.
             Row(
               children: [
-                Text('Length',
+                Text(l10n.t('generatorLength'),
                     style: AppText.label.copyWith(color: palette.textPrimary)),
                 const Spacer(),
                 Text('${_recipe.length}',
@@ -552,35 +590,34 @@ class _GeneratorSheetState extends State<_GeneratorSheet> {
 
             // Character classes.
             _ClassToggle(
-              label: 'Lowercase (a–z)',
+              label: l10n.t('generatorLowercase'),
               value: _recipe.lowercase,
               onChanged: (v) => _update(_recipe.copyWith(lowercase: v)),
             ),
             _ClassToggle(
-              label: 'Uppercase (A–Z)',
+              label: l10n.t('generatorUppercase'),
               value: _recipe.uppercase,
               onChanged: (v) => _update(_recipe.copyWith(uppercase: v)),
             ),
             _ClassToggle(
-              label: 'Numbers (2–9)',
+              label: l10n.t('generatorNumbers'),
               value: _recipe.digits,
               onChanged: (v) => _update(_recipe.copyWith(digits: v)),
             ),
             _ClassToggle(
-              label: 'Symbols (!@#…)',
+              label: l10n.t('generatorSymbols'),
               value: _recipe.symbols,
               onChanged: (v) => _update(_recipe.copyWith(symbols: v)),
             ),
             const SizedBox(height: 4),
             Text(
-              'Look-alike characters (0/O, 1/l/I) are left out so the password '
-              'can still be typed by hand.',
+              l10n.t('generatorLookalikeNote'),
               style: AppText.caption
                   .copyWith(color: palette.textFaint, fontSize: 11.5),
             ),
             const SizedBox(height: AppSpacing.md),
             GradientButton(
-              label: 'Use this password',
+              label: l10n.t('useThisPassword'),
               icon: Icons.check_rounded,
               onTap: () => Navigator.of(context).pop(_password),
             ),

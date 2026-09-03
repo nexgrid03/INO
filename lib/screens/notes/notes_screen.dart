@@ -7,29 +7,25 @@ import '../../services/notes_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/floating_search_bar.dart';
-import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import 'note_editor_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 enum _NotesFilter { all, pinned, favorites, archived }
 
 extension _NotesFilterX on _NotesFilter {
-  String get label => switch (this) {
-        _NotesFilter.all => 'All',
-        _NotesFilter.pinned => 'Pinned',
-        _NotesFilter.favorites => 'Favorites',
-        _NotesFilter.archived => 'Archived',
-      };
+  String label(AppLocalizations l10n) => switch (this) {
+    _NotesFilter.all => l10n.t('all'),
+    _NotesFilter.pinned => l10n.t('pinned'),
+    _NotesFilter.favorites => l10n.t('favorites'),
+    _NotesFilter.archived => l10n.t('archived'),
+  };
 }
 
-const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
+String _fmtDate(DateTime d, AppLocalizations l10n) =>
+    '${d.day} ${l10n.monthShort(d.month)} ${d.year}';
 
 /// The Notes Vault - personal notes, reminders, password hints (never actual
 /// passwords), property/tax notes and general records. Starts empty; grid or
@@ -62,8 +58,9 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   List<Note> _visible() {
-    final base =
-        _filter == _NotesFilter.archived ? _store.archived : _store.active;
+    final base = _filter == _NotesFilter.archived
+        ? _store.archived
+        : _store.active;
     return base.where((n) {
       if (_filter == _NotesFilter.pinned && !n.isPinned) return false;
       if (_filter == _NotesFilter.favorites && !n.isFavorite) return false;
@@ -79,11 +76,14 @@ class _NotesScreenState extends State<NotesScreen> {
 
   void _quickActions(Note note) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.isDark ? palette.surface : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -91,17 +91,19 @@ class _NotesScreenState extends State<NotesScreen> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
             _sheetAction(
               icon: note.isPinned
                   ? Icons.push_pin_rounded
                   : Icons.push_pin_outlined,
-              label: note.isPinned ? 'Unpin' : 'Pin',
+              label: note.isPinned ? l10n.t('unpin') : l10n.t('pin'),
               onTap: () {
                 Navigator.of(context).pop();
                 _store.togglePin(note.id);
@@ -112,8 +114,8 @@ class _NotesScreenState extends State<NotesScreen> {
                   ? Icons.star_rounded
                   : Icons.star_outline_rounded,
               label: note.isFavorite
-                  ? 'Remove from favorites'
-                  : 'Add to favorites',
+                  ? l10n.t('removeFromFavorites')
+                  : l10n.t('addToFavorites'),
               onTap: () {
                 Navigator.of(context).pop();
                 _store.toggleFavorite(note.id);
@@ -123,7 +125,7 @@ class _NotesScreenState extends State<NotesScreen> {
               icon: note.isArchived
                   ? Icons.unarchive_rounded
                   : Icons.archive_rounded,
-              label: note.isArchived ? 'Unarchive' : 'Archive',
+              label: note.isArchived ? l10n.t('unarchive') : l10n.t('archive'),
               onTap: () {
                 Navigator.of(context).pop();
                 _store.toggleArchive(note.id);
@@ -131,18 +133,20 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
             _sheetAction(
               icon: Icons.delete_outline_rounded,
-              label: 'Delete',
+              label: l10n.t('delete'),
               danger: true,
               onTap: () {
                 Navigator.of(context).pop();
-                _store.remove(note.id).then((_) {
-                  if (mounted) _toast('Note deleted');
-                }).catchError((Object e) {
-                  if (mounted) {
-                    _toast('Couldn\'t delete the note. Check your connection.',
-                        error: true);
-                  }
-                });
+                _store
+                    .remove(note.id)
+                    .then((_) {
+                      if (mounted) _toast(l10n.t('noteDeleted'));
+                    })
+                    .catchError((Object e) {
+                      if (mounted) {
+                        _toast(l10n.t('noteDeleteFailed'), error: true);
+                      }
+                    });
               },
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -153,11 +157,13 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   void _toast(String m, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? AppColors.critical : AppColors.primaryGreen,
+      ),
+    );
   }
 
   Widget _sheetAction({
@@ -169,7 +175,10 @@ class _NotesScreenState extends State<NotesScreen> {
     final palette = AppPalette.of(context);
     final color = danger ? AppColors.critical : palette.textPrimary;
     return ListTile(
-      leading: Icon(icon, color: danger ? AppColors.critical : AppColors.primaryGreen),
+      leading: Icon(
+        icon,
+        color: danger ? AppColors.critical : AppColors.primaryGreen,
+      ),
       title: Text(label, style: AppText.subtitle.copyWith(color: color)),
       onTap: onTap,
     );
@@ -183,7 +192,7 @@ class _NotesScreenState extends State<NotesScreen> {
       title: l10n.t('notes'),
       actions: [
         IconButton(
-          tooltip: _grid ? 'List view' : 'Grid view',
+          tooltip: _grid ? l10n.t('listView') : l10n.t('gridView'),
           icon: Icon(
             _grid ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
             color: palette.textPrimary,
@@ -200,7 +209,7 @@ class _NotesScreenState extends State<NotesScreen> {
           final notes = _visible();
 
           if (loading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: InoLoader());
           }
 
           return Stack(
@@ -216,15 +225,18 @@ class _NotesScreenState extends State<NotesScreen> {
                         AppSpacing.sm,
                       ),
                       child: FloatingSearchBar(
-                        hint: 'Search notes',
+                        hint: l10n.t('searchNotes'),
                         controller: _searchController,
                         onChanged: (v) => setState(() => _query = v),
                         trailing: _query.isEmpty
                             ? null
                             : IconButton(
-                                tooltip: 'Clear',
-                                icon: Icon(Icons.close_rounded,
-                                    size: 18, color: palette.textFaint),
+                                tooltip: l10n.t('clear'),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: palette.textFaint,
+                                ),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() => _query = '');
@@ -232,7 +244,7 @@ class _NotesScreenState extends State<NotesScreen> {
                               ),
                       ),
                     ),
-                    _filterRow(),
+                    _filterRow(l10n),
                     const SizedBox(height: AppSpacing.sm),
                   ],
                   Expanded(
@@ -245,12 +257,12 @@ class _NotesScreenState extends State<NotesScreen> {
                               onRetry: _store.reload,
                             )
                           : empty
-                              ? _EmptyState(onAdd: _openEditor)
-                              : notes.isEmpty
-                                  ? _noMatches(palette)
-                                  : _grid
-                                      ? _gridView(notes)
-                                      : _listView(notes),
+                          ? _EmptyState(onAdd: _openEditor)
+                          : notes.isEmpty
+                          ? _noMatches(palette, l10n)
+                          : _grid
+                          ? _gridView(notes)
+                          : _listView(notes),
                     ),
                   ),
                 ],
@@ -259,9 +271,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 Positioned(
                   right: AppSpacing.screen,
                   bottom: AppSpacing.lg,
-                  child: SafeArea(
-                    child: _AddButton(onTap: _openEditor),
-                  ),
+                  child: SafeArea(child: _AddButton(onTap: _openEditor)),
                 ),
             ],
           );
@@ -270,17 +280,16 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Widget _filterRow() {
+  Widget _filterRow(AppLocalizations l10n) {
     return SizedBox(
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         children: [
           for (final f in _NotesFilter.values) ...[
             _FilterChip(
-              label: f.label,
+              label: f.label(l10n),
               selected: _filter == f,
               onTap: () => setState(() => _filter = f),
             ),
@@ -291,10 +300,9 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Widget _noMatches(AppPalette palette) {
+  Widget _noMatches(AppPalette palette, AppLocalizations l10n) {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -302,8 +310,8 @@ class _NotesScreenState extends State<NotesScreen> {
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Text(
                 _filter == _NotesFilter.archived
-                    ? 'No archived notes.'
-                    : 'No notes match your search or filter.',
+                    ? l10n.t('noArchivedNotes')
+                    : l10n.t('noNotesMatch'),
                 textAlign: TextAlign.center,
                 style: AppText.body.copyWith(color: palette.textSecondary),
               ),
@@ -316,8 +324,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _listView(List<Note> notes) {
     return ListView.separated(
-      physics:
-          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         0,
@@ -326,22 +332,20 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
       itemCount: notes.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (context, i) => FadeSlideIn(
-        delay: Duration(milliseconds: (i * 30).clamp(0, 240)),
-        child: _NoteCard(
-          note: notes[i],
-          grid: false,
-          onTap: () => _openEditor(notes[i]),
-          onMore: () => _quickActions(notes[i]),
-        ),
+      // No FadeSlideIn: recycled rows replay the entrance every time they
+      // scroll back into view (see the note in profile_screen.dart).
+      itemBuilder: (context, i) => _NoteCard(
+        key: ValueKey(notes[i].id),
+        note: notes[i],
+        grid: false,
+        onTap: () => _openEditor(notes[i]),
+        onMore: () => _quickActions(notes[i]),
       ),
     );
   }
 
   Widget _gridView(List<Note> notes) {
     return GridView.builder(
-      physics:
-          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: EdgeInsets.fromLTRB(
         context.responsivePadding,
         0,
@@ -355,14 +359,12 @@ class _NotesScreenState extends State<NotesScreen> {
         childAspectRatio: context.notesGridAspectRatio,
       ),
       itemCount: notes.length,
-      itemBuilder: (context, i) => FadeSlideIn(
-        delay: Duration(milliseconds: (i * 30).clamp(0, 240)),
-        child: _NoteCard(
-          note: notes[i],
-          grid: true,
-          onTap: () => _openEditor(notes[i]),
-          onMore: () => _quickActions(notes[i]),
-        ),
+      itemBuilder: (context, i) => _NoteCard(
+        key: ValueKey(notes[i].id),
+        note: notes[i],
+        grid: true,
+        onTap: () => _openEditor(notes[i]),
+        onMore: () => _quickActions(notes[i]),
       ),
     );
   }
@@ -371,8 +373,11 @@ class _NotesScreenState extends State<NotesScreen> {
 // ---------------------------------------------------------------------------
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -414,6 +419,7 @@ class _FilterChip extends StatelessWidget {
 
 class _NoteCard extends StatelessWidget {
   const _NoteCard({
+    super.key,
     required this.note,
     required this.grid,
     required this.onTap,
@@ -428,6 +434,7 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final accent = note.category.color;
     final iconSize = grid ? 36.0 : AppSizes.iconContainerSm;
     return InoCard(
@@ -450,26 +457,38 @@ class _NoteCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                   border: Border.all(color: palette.border),
                 ),
-                child: Icon(note.category.icon,
-                    color: AppColors.primaryGreen, size: grid ? 18 : 20),
+                child: Icon(
+                  note.category.icon,
+                  color: AppColors.primaryGreen,
+                  size: grid ? 18 : 20,
+                ),
               ),
               const Spacer(),
               if (note.isPinned)
-                Icon(Icons.push_pin_rounded,
-                    size: 14, color: AppColors.primaryGreen),
+                Icon(
+                  Icons.push_pin_rounded,
+                  size: 14,
+                  color: AppColors.primaryGreen,
+                ),
               if (note.isFavorite)
                 const Padding(
                   padding: EdgeInsets.only(left: 4),
-                  child: Icon(Icons.star_rounded,
-                      size: 14, color: AppColors.warning),
+                  child: Icon(
+                    Icons.star_rounded,
+                    size: 14,
+                    color: AppColors.warning,
+                  ),
                 ),
               GestureDetector(
                 onTap: onMore,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 4),
-                  child: Icon(Icons.more_horiz_rounded,
-                      size: 18, color: palette.textFaint),
+                  child: Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: palette.textFaint,
+                  ),
                 ),
               ),
             ],
@@ -481,11 +500,13 @@ class _NoteCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    note.title.isEmpty ? 'Untitled' : note.title,
+                    note.title.isEmpty ? l10n.t('untitled') : note.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.subtitle
-                        .copyWith(color: palette.textPrimary, fontSize: 14.5),
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 14.5,
+                    ),
                   ),
                   if (note.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -494,8 +515,10 @@ class _NoteCard extends StatelessWidget {
                         note.description,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.caption
-                            .copyWith(color: palette.textSecondary, height: 1.35),
+                        style: AppText.caption.copyWith(
+                          color: palette.textSecondary,
+                          height: 1.35,
+                        ),
                       ),
                     ),
                   ],
@@ -504,11 +527,13 @@ class _NoteCard extends StatelessWidget {
             )
           else ...[
             Text(
-              note.title.isEmpty ? 'Untitled' : note.title,
+              note.title.isEmpty ? l10n.t('untitled') : note.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.subtitle
-                  .copyWith(color: palette.textPrimary, fontSize: 15),
+              style: AppText.subtitle.copyWith(
+                color: palette.textPrimary,
+                fontSize: 15,
+              ),
             ),
             if (note.description.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -516,8 +541,10 @@ class _NoteCard extends StatelessWidget {
                 note.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.caption
-                    .copyWith(color: palette.textSecondary, height: 1.4),
+                style: AppText.caption.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.4,
+                ),
               ),
             ],
             const SizedBox(height: AppSpacing.sm),
@@ -527,15 +554,19 @@ class _NoteCard extends StatelessWidget {
             children: [
               Flexible(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: palette.isDark ? palette.surfaceVariant : Colors.white,
+                    color: palette.isDark
+                        ? palette.surfaceVariant
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     border: Border.all(color: palette.border),
                   ),
                   child: Text(
-                    note.category.label,
+                    noteCategoryLabel(l10n, note.category),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -549,9 +580,11 @@ class _NoteCard extends StatelessWidget {
               if (!grid) ...[
                 const Spacer(),
                 Text(
-                  _fmtDate(note.updatedAt),
-                  style: AppText.label
-                      .copyWith(color: palette.textFaint, fontSize: 11),
+                  _fmtDate(note.updatedAt, l10n),
+                  style: AppText.label.copyWith(
+                    color: palette.textFaint,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ],
@@ -559,11 +592,13 @@ class _NoteCard extends StatelessWidget {
           if (grid) ...[
             const SizedBox(height: 4),
             Text(
-              _fmtDate(note.updatedAt),
+              _fmtDate(note.updatedAt, l10n),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style:
-                  AppText.label.copyWith(color: palette.textFaint, fontSize: 11),
+              style: AppText.label.copyWith(
+                color: palette.textFaint,
+                fontSize: 11,
+              ),
             ),
           ],
         ],
@@ -581,9 +616,9 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -592,18 +627,24 @@ class _ErrorState extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.cloud_off_rounded,
-                      size: 56, color: palette.textFaint),
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 56,
+                    color: palette.textFaint,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Couldn\'t load notes',
-                      style:
-                          AppText.title.copyWith(color: palette.textPrimary)),
+                  Text(
+                    l10n.t('couldntLoadNotes'),
+                    style: AppText.title.copyWith(color: palette.textPrimary),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: AppText.body
-                        .copyWith(color: palette.textSecondary, height: 1.5),
+                    style: AppText.body.copyWith(
+                      color: palette.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   PressableScale(
@@ -611,23 +652,30 @@ class _ErrorState extends StatelessWidget {
                       onTap: onRetry,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg, vertical: 12),
+                          horizontal: AppSpacing.lg,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.button),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.refresh_rounded,
-                                color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('Try Again',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              l10n.t('tryAgain'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -651,9 +699,9 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -667,19 +715,25 @@ class _EmptyState extends StatelessWidget {
                 border: Border.all(color: palette.border),
                 boxShadow: AppShadows.card,
               ),
-              child: Icon(Icons.edit_note_rounded,
-                  color: AppColors.primaryGreen, size: 52),
+              child: Icon(
+                Icons.edit_note_rounded,
+                color: AppColors.primaryGreen,
+                size: 52,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('No Notes Yet',
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              l10n.t('noNotesYet'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Capture reminders, password hints, property and tax notes, '
-              'and general records - securely in one place.',
+              l10n.t('notesEmptySubtitle'),
               textAlign: TextAlign.center,
-              style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.5),
+              style: AppText.body.copyWith(
+                color: palette.textSecondary,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             PressableScale(
@@ -687,7 +741,9 @@ class _EmptyState extends StatelessWidget {
                 onTap: onAdd,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg, vertical: 14),
+                    horizontal: AppSpacing.lg,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     gradient: AppColors.brandGradient,
                     borderRadius: BorderRadius.circular(AppRadius.button),
@@ -699,16 +755,20 @@ class _EmptyState extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('Add First Note',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15)),
+                      const Icon(Icons.add_rounded,
+                          color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.t('addFirstNote'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -728,12 +788,15 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PressableScale(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 15),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 15,
+          ),
           decoration: BoxDecoration(
             gradient: AppColors.brandGradient,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -745,16 +808,19 @@ class _AddButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: Colors.white, size: 22),
-              SizedBox(width: 6),
-              Text('New Note',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15)),
+              const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 6),
+              Text(
+                l10n.t('newNote'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ],
           ),
         ),

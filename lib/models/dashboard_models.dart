@@ -217,9 +217,24 @@ class AssetAllocation {
     required this.color,
   });
 
+  /// The bucket's English name. Stays English because it doubles as the lookup
+  /// key for the bucket's icon — call [localizedLabel] to display it.
   final String label;
   final double value; // absolute amount
   final Color color;
+
+  /// [label] in the active language, falling back to the English text for any
+  /// bucket without a translation.
+  String localizedLabel(AppLocalizations l10n) {
+    final key = switch (label) {
+      'Property' => 'assetProperty',
+      'Investments' => 'assetInvestments',
+      'Gold' => 'assetGold',
+      'Digital Assets' => 'assetDigitalAssets',
+      _ => null,
+    };
+    return key == null ? label : l10n.t(key);
+  }
 }
 
 class InvestmentSummary {

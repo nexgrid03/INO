@@ -56,7 +56,9 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Property Wallet'), findsOneWidget);
       expect(find.text('No properties yet'), findsOneWidget);
-      expect(find.text('Add property'), findsOneWidget);
+      // Localization routed this through the shared 'addProperty' key, so the
+      // label now matches the rest of the app's title casing.
+      expect(find.text('Add Property'), findsOneWidget);
     });
 
     testWidgets('Property Wallet renders a property card', (tester) async {

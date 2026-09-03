@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/guest_mode.dart';
@@ -14,6 +15,7 @@ import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
 import '../auth/signup_screen.dart';
 import 'onboarding_layout.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The "your documents are secured" moment between onboarding and signup.
 ///
@@ -310,7 +312,7 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
                               // descenders ("g" in Digital).
                               padding: const EdgeInsets.only(bottom: 6, top: 2),
                               child: Text(
-                                'Digital Wallet',
+                                AppLocalizations.of(context).t('digitalWallet'),
                                 textAlign: TextAlign.center,
                                 style: AppText.display.copyWith(
                                   color: Colors.white,
@@ -659,28 +661,21 @@ class _GetStartedButton extends StatelessWidget {
           onTap: busy ? null : onTap,
           child: Center(
             child: busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Row(
+                ? const InoLoader(size: 22, color: Colors.white)
+                : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Get Started',
-                        style: TextStyle(
+                        AppLocalizations.of(context).t('getStarted'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                         ),
                       ),
-                      SizedBox(width: 8),
-                      Icon(
+                      const SizedBox(width: 8),
+                      const Icon(
                         Icons.arrow_forward_rounded,
                         color: Colors.white,
                         size: 20,

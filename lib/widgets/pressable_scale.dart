@@ -1,3 +1,5 @@
+import 'dart:async' show Timer;
+
 import 'package:flutter/material.dart';
 
 /// Wraps a child so it scales down slightly while pressed, then springs back
@@ -6,6 +8,15 @@ import 'package:flutter/material.dart';
 /// Implemented with a [Listener] (not a GestureDetector) so it only *observes*
 /// pointer events without consuming them: the inner button still receives the
 /// tap and shows its own ink ripple.
+///
+/// Because a [Listener] sits below the gesture arena it also sees the touches
+/// that *start* a scroll. Two guards keep the squish out of scrolling:
+///
+///  * a short activation delay, so the fleeting touch of a fling never fires
+///    the squish at all;
+///  * a touch-slop check, so the moment the finger travels far enough to be a
+///    drag the squish releases instead of staying compressed for the whole
+///    scroll.
 class PressableScale extends StatefulWidget {
   const PressableScale({
     super.key,
@@ -28,21 +39,63 @@ class PressableScale extends StatefulWidget {
 
 class _PressableScaleState extends State<PressableScale> {
   bool _pressed = false;
+  Timer? _activation;
+  Offset? _downPosition;
 
-  void _setPressed(bool value) {
-    // A pointer up/cancel can arrive after this widget is gone (e.g. the press
-    // navigated away, disposing us, before the release event lands). Guard
-    // against setState() after dispose().
-    if (!mounted || _pressed == value) return;
-    setState(() => _pressed = value);
+  /// A real press reads as instant at 70ms, but a scroll touch has usually
+  /// started moving by then.
+  static const Duration _activationDelay =
+      Duration(milliseconds: 70);
+
+  /// Movement beyond this is a drag, not a press (matches kTouchSlop).
+  static const double _slop = 18.0;
+
+  void _onDown(PointerDownEvent event) {
+    _downPosition = event.position;
+
+    _activation?.cancel();
+
+    _activation = Timer(_activationDelay, () {
+      if (!mounted || _downPosition == null) return;
+
+      setState(() => _pressed = true);
+    });
+  }
+
+  void _onMove(PointerMoveEvent event) {
+    final down = _downPosition;
+
+    if (down == null) return;
+
+    if ((event.position - down).distance > _slop) {
+      _release();
+    }
+  }
+
+  void _release() {
+    _activation?.cancel();
+    _activation = null;
+    _downPosition = null;
+
+    // Guard against setState() after dispose().
+    if (!mounted || !_pressed) return;
+
+    setState(() => _pressed = false);
+  }
+
+  @override
+  void dispose() {
+    _activation?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => _setPressed(true),
-      onPointerUp: (_) => _setPressed(false),
-      onPointerCancel: (_) => _setPressed(false),
+      onPointerDown: _onDown,
+      onPointerMove: _onMove,
+      onPointerUp: (_) => _release(),
+      onPointerCancel: (_) => _release(),
       child: AnimatedScale(
         scale: _pressed ? widget.pressedScale : 1.0,
         duration: widget.duration,

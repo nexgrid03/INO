@@ -101,7 +101,6 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           ),
           Expanded(
             child: ListView(
-              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screen,
                 AppSpacing.xs,

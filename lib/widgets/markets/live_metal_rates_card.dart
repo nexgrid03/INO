@@ -92,7 +92,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Market rates',
+          l10n.t('marketRates'),
           style: AppText.subtitle.copyWith(
             color: palette.textPrimary,
             fontSize: 15,
@@ -103,7 +103,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
         InoCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: _MetalTile(
-            name: 'Gold',
+            name: l10n.t('goldShort'),
             subtitle: '24K',
             icon: Icons.circle,
             color: AppColors.gold,
@@ -114,8 +114,8 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
         InoCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: _MetalTile(
-            name: 'Silver',
-            subtitle: 'Fine',
+            name: l10n.t('silver'),
+            subtitle: l10n.t('silverFine'),
             icon: Icons.circle,
             color: AppColors.silver,
             priceText: _inr(_silverPerGram),
@@ -177,7 +177,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
         InoCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: _FuelTile(
-            name: 'Petrol',
+            name: l10n.t('petrol'),
             subtitle: '₹/L',
             icon: Icons.local_gas_station_rounded,
             color: AppColors.primaryGreen,
@@ -190,7 +190,7 @@ class _LiveMetalRatesCardState extends State<LiveMetalRatesCard> {
         InoCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: _FuelTile(
-            name: 'Diesel',
+            name: l10n.t('diesel'),
             subtitle: '₹/L',
             icon: Icons.oil_barrel_rounded,
             color: AppColors.primaryGreen,
@@ -341,7 +341,7 @@ class _FuelTile extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'per litre',
+          AppLocalizations.of(context).t('perLitreLabel'),
           style: AppText.caption.copyWith(
             color: palette.textSecondary,
             fontSize: 11,
@@ -417,7 +417,7 @@ class _MetalTile extends StatelessWidget {
         ),
         const SizedBox(height: 1),
         Text(
-          'per gram',
+          AppLocalizations.of(context).t('perGramLabel'),
           style: AppText.caption.copyWith(
             color: palette.textSecondary,
             fontSize: 11,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../models/investment_models.dart';
 import '../../services/app_settings.dart';
@@ -14,6 +15,32 @@ import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
+
+/// The user-facing name of an [InvestmentType] in the active language.
+///
+/// The enum's own `name` remains the persisted value - only the label the user
+/// reads is translated, so switching language never rewrites stored data.
+String investmentTypeLabel(AppLocalizations l10n, InvestmentType type) =>
+    l10n.t(switch (type) {
+      InvestmentType.stocks => 'invTypeStocks',
+      InvestmentType.mutualFunds => 'invTypeMutualFunds',
+      InvestmentType.etf => 'invTypeEtf',
+      InvestmentType.bonds => 'invTypeBonds',
+      InvestmentType.fixedDeposit => 'invTypeFixedDeposit',
+      InvestmentType.gold => 'invTypeGold',
+      InvestmentType.crypto => 'invTypeCrypto',
+      InvestmentType.ppf => 'invTypePpf',
+      InvestmentType.nps => 'invTypeNps',
+      InvestmentType.sip => 'invTypeSip',
+      InvestmentType.realEstate => 'invTypeRealEstate',
+      InvestmentType.other => 'invTypeOther',
+    });
+
+/// The short label used on chips and the allocation legend.
+String investmentTypeShortLabel(AppLocalizations l10n, InvestmentType type) =>
+    type == InvestmentType.fixedDeposit
+        ? l10n.t('invTypeFixedDepositShort')
+        : investmentTypeLabel(l10n, type);
 
 /// Add / edit one holding.
 ///
@@ -125,10 +152,13 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
   }
 
   Future<void> _pickType() async {
+    final l10n = AppLocalizations.of(context);
     final i = await showModulePicker(
       context,
-      title: 'Investment type',
-      labels: [for (final t in InvestmentType.values) t.label],
+      title: l10n.t('investmentType'),
+      labels: [
+        for (final t in InvestmentType.values) investmentTypeLabel(l10n, t),
+      ],
       icons: [for (final t in InvestmentType.values) t.icon],
       colors: [for (final t in InvestmentType.values) t.color],
       selectedIndex: InvestmentType.values.indexOf(_type),
@@ -172,14 +202,17 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final l10n = AppLocalizations.of(context);
     if (!(_formKey.currentState?.validate() ?? false)) {
-      showModuleToast(context, 'Give the investment a name first', error: true);
+      showModuleToast(context, l10n.t('nameTheInvestmentFirst'), error: true);
       return;
     }
     FocusScope.of(context).unfocus();
 
     // The consent gate: nothing is stored until the user agrees.
-    if (!await showDataConsentSheet(context, what: 'this investment')) return;
+    if (!await showDataConsentSheet(context, what: l10n.t('thisInvestment'))) {
+      return;
+    }
     if (!mounted) return;
     setState(() => _saving = true);
 
@@ -211,7 +244,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
     }
     if (!mounted) return;
     HapticFeedback.mediumImpact();
-    if (_isEdit) await showSuccessBurst(context, 'Changes saved');
+    if (_isEdit) await showSuccessBurst(context, l10n.t('changesSaved'));
     if (!mounted) return;
     Navigator.of(context).pop(investment);
   }
@@ -219,6 +252,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final currency = _currency;
     final symbol = currency.symbol;
     final invested = _impliedInvested;
@@ -240,8 +274,11 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
             child: Column(
               children: [
                 ModuleHeader(
-                  title: _isEdit ? 'Edit investment' : 'Add investment',
-                  subtitle: _isEdit ? widget.existing!.name : _type.label,
+                  title: l10n
+                      .t(_isEdit ? 'editInvestment' : 'addInvestment'),
+                  subtitle: _isEdit
+                      ? widget.existing!.name
+                      : investmentTypeLabel(l10n, _type),
                 ),
                 Expanded(
                   child: ListView(
@@ -251,35 +288,36 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                 // ---- Instrument ----
                 FadeSlideIn(
                   child: ModuleSection(
-                    title: 'Instrument',
+                    title: l10n.t('instrument'),
                     icon: _type.icon,
                     accent: _type.color,
                     children: [
                       ModulePickerField(
-                        label: 'Investment type',
-                        value: _type.label,
+                        label: l10n.t('investmentType'),
+                        value: investmentTypeLabel(l10n, _type),
                         icon: _type.icon,
                         accent: _type.color,
                         onTap: _pickType,
                       ),
                       ModuleField(
-                        label: 'Investment name',
+                        label: l10n.t('investmentName'),
                         controller: _name,
-                        hint: 'e.g. Nifty 50 Index Fund',
+                        hint: l10n.t('investmentNameHint'),
                         textCapitalization: TextCapitalization.words,
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Enter a name' : null,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? l10n.t('enterAName')
+                            : null,
                       ),
                       ModuleField(
-                        label: 'Institution / broker',
+                        label: l10n.t('institutionBroker'),
                         controller: _institution,
-                        hint: 'e.g. Zerodha, HDFC AMC',
+                        hint: l10n.t('institutionBrokerHint'),
                         textCapitalization: TextCapitalization.words,
                       ),
                       ModuleField(
-                        label: 'Account / folio number',
+                        label: l10n.t('accountFolioNumber'),
                         controller: _account,
-                        hint: 'Only the last 4 digits are ever shown',
+                        hint: l10n.t('onlyLast4DigitsShown'),
                         textCapitalization: TextCapitalization.characters,
                       ),
                     ],
@@ -291,12 +329,12 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 50),
                   child: ModuleSection(
-                    title: 'Amounts',
+                    title: l10n.t('amounts'),
                     icon: Icons.payments_rounded,
                     accent: AppColors.success,
-                    subtitle: _showsUnits
-                        ? 'Units × price, or a total - whichever you have'
-                        : 'What went in, and what it is worth now',
+                    subtitle: l10n.t(_showsUnits
+                        ? 'amountsUnitsSubtitle'
+                        : 'amountsSubtitle'),
                     children: [
                       // Units only exist for unit-based instruments.
                       AnimatedSize(
@@ -308,7 +346,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                                 children: [
                                   Expanded(
                                     child: ModuleField(
-                                      label: 'Units',
+                                      label: l10n.t('units'),
                                       controller: _units,
                                       hint: '0',
                                       keyboardType:
@@ -320,7 +358,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                                   const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: ModuleField(
-                                      label: 'Price / unit',
+                                      label: l10n.t('pricePerUnit'),
                                       controller: _unitPrice,
                                       hint: '0',
                                       prefixText: '$symbol ',
@@ -338,9 +376,9 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                         children: [
                           Expanded(
                             child: ModuleField(
-                              label: 'Invested amount',
+                              label: l10n.t('investedAmount'),
                               controller: _invested,
-                              hint: _showsUnits ? 'Auto from units' : '0',
+                              hint: _showsUnits ? l10n.t('autoFromUnits') : '0',
                               prefixText: '$symbol ',
                               keyboardType: const TextInputType.numberWithOptions(
                                   decimal: true),
@@ -350,7 +388,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: ModuleField(
-                              label: 'Current value',
+                              label: l10n.t('currentValue'),
                               controller: _current,
                               hint: '0',
                               prefixText: '$symbol ',
@@ -378,16 +416,16 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 100),
                   child: ModuleSection(
-                    title: 'Dates & nominee',
+                    title: l10n.t('datesAndNominee'),
                     icon: Icons.event_rounded,
                     accent: const Color(0xFF4383EA),
                     children: [
                       ModulePickerField(
-                        label: 'Purchase date',
+                        label: l10n.t('purchaseDate'),
                         value: _purchaseDate == null
                             ? null
                             : formatModuleDate(_purchaseDate!),
-                        hint: 'Select a date',
+                        hint: l10n.t('selectADate'),
                         icon: Icons.event_rounded,
                         trailingIcon: Icons.calendar_month_rounded,
                         onTap: () => _pickDate(purchase: true),
@@ -399,11 +437,11 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                         alignment: Alignment.topCenter,
                         child: _type.hasMaturity
                             ? ModulePickerField(
-                                label: 'Maturity date',
+                                label: l10n.t('maturityDate'),
                                 value: _maturityDate == null
                                     ? null
                                     : formatModuleDate(_maturityDate!),
-                                hint: 'Select a date',
+                                hint: l10n.t('selectADate'),
                                 icon: Icons.event_available_rounded,
                                 trailingIcon: Icons.calendar_month_rounded,
                                 onTap: () => _pickDate(purchase: false),
@@ -411,7 +449,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                             : const SizedBox(width: double.infinity),
                       ),
                       ModuleField(
-                        label: 'Nominee',
+                        label: l10n.t('nominee'),
                         controller: _nominee,
                         textCapitalization: TextCapitalization.words,
                       ),
@@ -424,13 +462,13 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 150),
                   child: ModuleSection(
-                    title: 'Documents & notes',
+                    title: l10n.t('documentsAndNotes'),
                     icon: Icons.folder_copy_rounded,
                     accent: const Color(0xFF0891B2),
                     trailing: ModuleIconButton(
                       icon: Icons.attach_file_rounded,
                       size: 34,
-                      tooltip: 'Attach',
+                      tooltip: l10n.t('attach'),
                       onTap: _attach,
                     ),
                     children: [
@@ -438,7 +476,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Attach a statement or certificate (optional).',
+                            l10n.t('attachStatementOptional'),
                             style: AppText.caption
                                 .copyWith(color: palette.textFaint),
                           ),
@@ -484,9 +522,9 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
                             ),
                           ),
                       ModuleField(
-                        label: 'Notes',
+                        label: l10n.t('notes'),
                         controller: _notes,
-                        hint: 'Strategy, lock-in, anything worth remembering',
+                        hint: l10n.t('investmentNotesHint'),
                         maxLines: 3,
                       ),
                     ],
@@ -509,7 +547,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
         child: SafeArea(
           top: false,
           child: GradientButton(
-            label: _isEdit ? 'Save changes' : 'Add investment',
+            label: l10n.t(_isEdit ? 'saveChanges' : 'addInvestment'),
             busy: _saving,
             onTap: _save,
           ),
@@ -536,6 +574,7 @@ class _ProfitPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final up = profit >= 0;
     final color = up ? AppColors.success : AppColors.critical;
     final pct = invested <= 0 ? null : (profit / invested) * 100;
@@ -557,7 +596,7 @@ class _ProfitPreview extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              up ? 'Unrealised gain' : 'Unrealised loss',
+              l10n.t(up ? 'unrealisedGain' : 'unrealisedLoss'),
               style: AppText.caption.copyWith(color: palette.textSecondary),
             ),
           ),

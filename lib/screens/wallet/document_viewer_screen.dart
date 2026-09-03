@@ -30,6 +30,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_detail/document_card.dart' show documentCardAccent;
 import '../../widgets/wallet_detail/share_to_vault_sheet.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// What changed while viewing a document, returned to the wallet list on pop.
 class DocumentViewerResult {
@@ -452,7 +453,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       final file = await _localFile();
       final path = _record.filePath;
       if (file == null || path == null) {
-        _snack('Nothing to share - the file could not be loaded.', error: true);
+        if (!mounted) return;
+        _snack(AppLocalizations.of(context).t('nothingToShare'), error: true);
         return;
       }
       final named =
@@ -463,7 +465,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         sharePositionOrigin: origin,
       );
     } catch (_) {
-      _snack('Could not share this document.', error: true);
+      if (mounted) {
+        _snack(AppLocalizations.of(context).t('couldNotShareDocument'),
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -479,12 +484,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       await store.remove(_record.id);
       if (!mounted) return;
       setState(() {});
-      _snack('Removed from offline');
+      _snack(AppLocalizations.of(context).t('removedFromOffline'));
       return;
     }
     final path = _storagePath ?? _record.filePath;
     if (path == null) {
-      _snack('This record has no file to save.', error: true);
+      _snack(AppLocalizations.of(context).t('noFileToSave'), error: true);
       return;
     }
     if (_busy) return;
@@ -502,9 +507,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (!mounted) return;
       setState(() {});
       if (saved != null) {
-        _snack('Saved offline - view it anytime, no internet needed');
+        _snack(AppLocalizations.of(context).t('savedOfflineToast'));
       } else {
-        _snack('Could not save this document offline.', error: true);
+        _snack(AppLocalizations.of(context).t('couldNotSaveDocOffline'),
+            error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -519,7 +525,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Future<void> _shareToFamilyVault() async {
     final path = _storagePath ?? _record.filePath;
     if (path == null) {
-      _snack('This record has no file to share.', error: true);
+      _snack(AppLocalizations.of(context).t('noFileToShare'), error: true);
       return;
     }
     final shared = await showShareToVaultSheet(
@@ -531,7 +537,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       sourceId: _record.id,
     );
     if (!mounted || !shared) return;
-    _snack('Shared to your Family Vault');
+    _snack(AppLocalizations.of(context).t('sharedToFamilyVault'));
   }
 
   Future<void> _download() async {
@@ -541,7 +547,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       final file = await _localFile();
       final path = _record.filePath;
       if (file == null || path == null) {
-        _snack('Nothing to download - the file could not be loaded.',
+        if (!mounted) return;
+        _snack(AppLocalizations.of(context).t('nothingToDownload'),
             error: true);
         return;
       }
@@ -733,7 +740,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Future<void> _removeProtection() async {
     final ok = await VaultGuard.instance.ensureUnlocked(
       context,
-      reason: 'Authenticate to remove protection from this document.',
+      reason: AppLocalizations.of(context).t('authRemoveProtectionReason'),
       title: AppLocalizations.of(context).t('verifyIdentity'),
     );
     if (!ok || !mounted) return;
@@ -887,34 +894,48 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// Styled as the Stitch insights panel: tinted wash card, accent hairline,
   /// label-over-value rows with the copy affordance.
   List<Widget> _extractedInfoRows(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
     final fields = extraction.displayFields();
     final List<Widget> rows;
     if (isHealth) {
       rows = [
-        _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
-        _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        _InfoRow(
+            label: l10n.t('hospitalName'),
+            value: _record.name,
+            copyable: true),
+        _InfoRow(
+            label: l10n.t('documentType'),
+            value: _record.category,
+            copyable: true),
         if (_record.doctorName != null && _record.doctorName!.trim().isNotEmpty)
-          _InfoRow(label: 'Doctor Name', value: _record.doctorName!, copyable: true),
+          _InfoRow(
+              label: l10n.t('doctorName'),
+              value: _record.doctorName!,
+              copyable: true),
         if (_record.expiresAt != null)
-          _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
+          _InfoRow(
+              label: l10n.t('nextAppointmentDate'),
+              value: inoFormatDate(_record.expiresAt!),
+              copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
-          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+          _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
     } else if (fields.isEmpty) {
       // No structured data, but a bare record number may still exist.
       final number = _record.recordNumber;
       if (number == null || number.trim().isEmpty) return const [];
       rows = [
-        _InfoRow(label: 'Document Number', value: number, copyable: true),
+        _InfoRow(
+            label: l10n.t('documentNumber'), value: number, copyable: true),
       ];
     } else {
       rows = [
         for (final f in fields)
           _InfoRow(label: f.label, value: f.value, copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
-          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+          _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
     }
     return [
@@ -943,6 +964,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// document bodies so the OCR data is visible immediately on reopen. Returns
   /// null when there's nothing extracted.
   Widget? _extractedCard(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
     final fields = extraction.displayFields();
@@ -952,25 +974,38 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     final List<Widget> rows;
     if (isHealth) {
       rows = [
-        _InfoRow(label: 'Hospital Name', value: _record.name, copyable: true),
-        _InfoRow(label: 'Document Type', value: _record.category, copyable: true),
+        _InfoRow(
+            label: l10n.t('hospitalName'),
+            value: _record.name,
+            copyable: true),
+        _InfoRow(
+            label: l10n.t('documentType'),
+            value: _record.category,
+            copyable: true),
         if (_record.doctorName != null && _record.doctorName!.trim().isNotEmpty)
-          _InfoRow(label: 'Doctor Name', value: _record.doctorName!, copyable: true),
+          _InfoRow(
+              label: l10n.t('doctorName'),
+              value: _record.doctorName!,
+              copyable: true),
         if (_record.expiresAt != null)
-          _InfoRow(label: 'Next Appointment Date', value: inoFormatDate(_record.expiresAt!), copyable: true),
+          _InfoRow(
+              label: l10n.t('nextAppointmentDate'),
+              value: inoFormatDate(_record.expiresAt!),
+              copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
-          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+          _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
     } else if (fields.isEmpty) {
       rows = [
-        _InfoRow(label: 'Document Number', value: number!, copyable: true),
+        _InfoRow(
+            label: l10n.t('documentNumber'), value: number!, copyable: true),
       ];
     } else {
       rows = [
         for (final f in fields)
           _InfoRow(label: f.label, value: f.value, copyable: true),
         if (extraction.userNotes.trim().isNotEmpty)
-          _InfoRow(label: 'Notes', value: extraction.userNotes.trim()),
+          _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
     }
 
@@ -1051,7 +1086,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                 final saved =
                     OfflineDocumentStore.instance.isSaved(_record.id);
                 return IconButton(
-                  tooltip: saved ? 'Remove offline copy' : 'Save offline',
+                  tooltip: AppLocalizations.of(context)
+                      .t(saved ? 'removeOfflineCopy' : 'saveOffline'),
                   icon: Icon(
                     saved
                         ? Icons.offline_pin_rounded
@@ -1063,7 +1099,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               },
             ),
             IconButton(
-              tooltip: 'Share to Family Vault',
+              tooltip: AppLocalizations.of(context).t('shareToFamilyVault'),
               icon: const Icon(Icons.family_restroom_rounded),
               onPressed: _shareToFamilyVault,
             ),
@@ -1112,9 +1148,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           PopupMenuItem(
             value: 'offline',
             child: Text(
-              OfflineDocumentStore.instance.isSaved(_record.id)
-                  ? 'Remove offline copy'
-                  : 'Save to app · view offline',
+              l10n.t(OfflineDocumentStore.instance.isSaved(_record.id)
+                  ? 'removeOfflineCopy'
+                  : 'saveToAppOffline'),
             ),
           ),
           PopupMenuItem(value: 'rename', child: Text(l10n.t('rename'))),
@@ -1137,8 +1173,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Widget _body(AppPalette palette) {
     if (_loading) {
       return  Center(
-        child: CircularProgressIndicator(
-            strokeWidth: 2.6, color: AppColors.primaryGreen),
+        child: InoLoader(color: AppColors.primaryGreen),
       );
     }
     if (_error != _LoadError.none) {
@@ -1156,7 +1191,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   Widget _errorView() {
-    final spec = _specFor(_error);
+    final spec = _specFor(AppLocalizations.of(context), _error);
     return _ErrorView(
       icon: spec.icon,
       title: spec.title,
@@ -1167,80 +1202,77 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   ({IconData icon, String title, String message, bool retryable}) _specFor(
-      _LoadError e) {
+      AppLocalizations l10n, _LoadError e) {
     switch (e) {
       case _LoadError.invalidPath:
         return (
           icon: Icons.link_off_rounded,
-          title: 'No file attached',
-          message: 'This document has no stored file to open.',
+          title: l10n.t('errNoFileAttached'),
+          message: l10n.t('errNoFileAttachedBody'),
           retryable: false,
         );
       case _LoadError.missing:
         return (
           icon: Icons.broken_image_rounded,
-          title: 'This document is no longer available.',
-          message: 'The file could not be found in your secure storage.',
+          title: l10n.t('errDocUnavailable'),
+          message: l10n.t('errDocUnavailableBody'),
           retryable: false,
         );
       case _LoadError.bucketMissing:
         return (
           icon: Icons.folder_off_rounded,
-          title: 'Storage not configured',
-          message:
-              'The "documents" storage bucket is missing. Create it in Supabase → Storage.',
+          title: l10n.t('errStorageNotConfigured'),
+          message: l10n.t('errStorageNotConfiguredBody'),
           retryable: true,
         );
       case _LoadError.permission:
         return (
           icon: Icons.lock_outline_rounded,
-          title: 'Access denied',
-          message:
-              "You don't have permission to open this file. Check the Storage RLS policies for the documents bucket.",
+          title: l10n.t('errAccessDenied'),
+          message: l10n.t('errAccessDeniedBody'),
           retryable: true,
         );
       case _LoadError.signedUrlFailed:
         return (
           icon: Icons.link_off_rounded,
-          title: "Couldn't prepare the file",
-          message: 'The secure link could not be generated. Please try again.',
+          title: l10n.t('errSignedUrlFailed'),
+          message: l10n.t('errSignedUrlFailedBody'),
           retryable: true,
         );
       case _LoadError.timeout:
         return (
           icon: Icons.timer_off_rounded,
-          title: 'Loading timed out',
-          message: 'The file took too long to load. Please try again.',
+          title: l10n.t('errLoadingTimedOut'),
+          message: l10n.t('errLoadingTimedOutBody'),
           retryable: true,
         );
       case _LoadError.authExpired:
         return (
           icon: Icons.logout_rounded,
-          title: 'Session expired',
-          message: 'Please sign in again to open this document.',
+          title: l10n.t('errSessionExpired'),
+          message: l10n.t('errSessionExpiredBody'),
           retryable: true,
         );
       case _LoadError.plugin:
         return (
           icon: Icons.extension_off_rounded,
-          title: 'Restart required',
-          message:
-              "A required module isn't loaded. Fully close and reopen the app (a hot reload isn't enough after adding plugins).",
+          title: l10n.t('errRestartRequired'),
+          message: l10n.t('errRestartRequiredBody'),
           retryable: true,
         );
       case _LoadError.network:
         return (
           icon: Icons.wifi_off_rounded,
-          title: "Couldn't load this document",
-          message: 'Check your connection and try again.',
+          title: l10n.t('errCouldntLoadDocument'),
+          message: l10n.t('checkConnection'),
           retryable: true,
         );
       case _LoadError.unknown:
       case _LoadError.none:
         return (
           icon: Icons.error_outline_rounded,
-          title: "Couldn't open this document",
-          message: 'An unexpected error occurred. Please try again.',
+          title: l10n.t('errCouldntOpenDocument'),
+          message: l10n.t('errUnexpected'),
           retryable: true,
         );
     }
@@ -1270,14 +1302,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.6,
-                          color: AppColors.primaryGreen,
-                          value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!
-                              : null,
-                        ),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     },
                     errorBuilder: (context, error, stack) {
@@ -1294,8 +1319,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                         });
                       }
                       return  Center(
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2.6, color: AppColors.primaryGreen),
+                        child: InoLoader(color: AppColors.primaryGreen),
                       );
                     },
                   ),
@@ -1584,15 +1608,16 @@ class _DetailsPill extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome_rounded, size: 15, color: Colors.white),
-              SizedBox(width: 7),
-              Text('View extracted details',
-                  style: TextStyle(
+              const Icon(Icons.auto_awesome_rounded,
+                  size: 15, color: Colors.white),
+              const SizedBox(width: 7),
+              Text(AppLocalizations.of(context).t('viewExtractedDetails'),
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700)),
@@ -1648,7 +1673,9 @@ class _ExtractedHeader extends StatelessWidget {
         Icon(isHealth ? Icons.medical_services_rounded : Icons.psychology_rounded,
             size: 15, color: AppColors.primaryGreen),
         const SizedBox(width: 6),
-        Text(isHealth ? 'Health Details' : 'Extracted Information',
+        Text(
+            AppLocalizations.of(context)
+                .t(isHealth ? 'healthDetails' : 'extractedInformation'),
             style: AppText.label
                 .copyWith(color: palette.textFaint, letterSpacing: 1.0)),
       ],
@@ -1718,7 +1745,9 @@ class _CopyButton extends StatelessWidget {
           ..showSnackBar(SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: AppColors.primaryGreen,
-            content: Text('$label copied'),
+            content: Text(AppLocalizations.of(context)
+                .t('copiedLabel')
+                .replaceAll('{label}', label)),
           ));
       },
       child: Padding(
@@ -1792,7 +1821,7 @@ class _ErrorView extends StatelessWidget {
                     backgroundColor: AppColors.primaryGreen),
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
+                label: Text(AppLocalizations.of(context).t('retry')),
               ),
             ],
           ],

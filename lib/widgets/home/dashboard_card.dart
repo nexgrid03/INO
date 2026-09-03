@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/dashboard_models.dart';
+import '../../services/biometric_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -9,6 +10,7 @@ import '../common/ino_svg_icon.dart';
 import '../common/liquid_glass.dart';
 import '../dashboard/fade_slide_in.dart';
 import '../pressable_scale.dart';
+import '../security/biometric_ux.dart';
 import 'launcher_glass_icon_tile.dart';
 
 /// The Home hero block, replicating the reference vault layout:
@@ -131,6 +133,7 @@ class _DashboardCardState extends State<DashboardCard>
     }
 
     final dark = palette.isDark;
+    final l10n = AppLocalizations.of(context);
     final eyebrow = AppColors.primaryGreen;
     final washCore = dark
         ? AppColors.primaryGreen.withValues(alpha: 0.12)
@@ -161,38 +164,43 @@ class _DashboardCardState extends State<DashboardCard>
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  colors: [
-                    washCore,
-                    washMid,
-                    Colors.transparent,
-                  ],
+                  colors: [washCore, washMid, Colors.transparent],
                   stops: const [0.0, 0.45, 1.0],
                 ),
               ),
             ),
           ),
           // Gentle ambient shift (light only — keeps dark cards calmer).
+          // RepaintBoundary keeps the gradient repaint inside its own layer,
+          // and quantising t (same trick as InoBackground) means the equal
+          // BoxDecoration short-circuits the repaint on most ticks instead of
+          // re-rasterising the hero every frame for invisible movement.
           if (!dark && _ambient != null)
             Positioned.fill(
               child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _ambient!,
-                  builder: (context, _) {
-                    final t = Curves.easeInOut.transform(_ambient!.value);
-                    return DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment(-1 + t * 0.3, -1),
-                          end: Alignment(1, 1 - t * 0.3),
-                          colors: [
-                            AppColors.tealFoam.withValues(alpha: 0.20),
-                            AppColors.tealMist.withValues(alpha: 0.08),
-                            Colors.transparent,
-                          ],
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _ambient!,
+                    builder: (context, _) {
+                      final t =
+                          (Curves.easeInOut.transform(_ambient!.value) * 120)
+                              .roundToDouble() /
+                          120;
+                      return DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment(-1 + t * 0.3, -1),
+                            end: Alignment(1, 1 - t * 0.3),
+                            colors: [
+                              AppColors.tealFoam.withValues(alpha: 0.20),
+                              AppColors.tealMist.withValues(alpha: 0.08),
+                              Colors.transparent,
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -201,10 +209,11 @@ class _DashboardCardState extends State<DashboardCard>
             child: LayoutBuilder(
               builder: (context, constraints) {
                 // Shrink mascot on narrow phones so headline/CTA stay usable.
-                final mascotW =
-                    (constraints.maxWidth * 0.38).clamp(100.0, 140.0);
-                final titleSize =
-                    constraints.maxWidth < 280 ? 18.0 : 22.0;
+                final mascotW = (constraints.maxWidth * 0.38).clamp(
+                  100.0,
+                  140.0,
+                );
+                final titleSize = constraints.maxWidth < 280 ? 18.0 : 22.0;
                 return IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,7 +229,7 @@ class _DashboardCardState extends State<DashboardCard>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'YOUR VAULT',
+                              l10n.t('yourVaultEyebrow'),
                               style: TextStyle(
                                 color: eyebrow,
                                 fontSize: 11,
@@ -230,7 +239,7 @@ class _DashboardCardState extends State<DashboardCard>
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Your Vault is 100% Protected',
+                              l10n.t('vaultFullyProtected'),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -243,7 +252,7 @@ class _DashboardCardState extends State<DashboardCard>
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'All your documents are safe and backed up',
+                              l10n.t('vaultBackedUpSubtitle'),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -320,7 +329,9 @@ class _ClayVaultHero extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primaryGreen.withValues(alpha: dark ? 0.18 : 0.14),
+                    AppColors.primaryGreen.withValues(
+                      alpha: dark ? 0.18 : 0.14,
+                    ),
                     AppColors.skyBlue.withValues(alpha: dark ? 0.08 : 0.08),
                     Colors.transparent,
                   ],
@@ -346,12 +357,14 @@ class _ClayVaultHero extends StatelessWidget {
                 // Keep copy + art on one row (same as other themes) —
                 // shrink art / title instead of stacking on narrow widths.
                 final titleSize = constraints.maxWidth < 300 ? 17.0 : 21.0;
-                final artW =
-                    (constraints.maxWidth * 0.42).clamp(108.0, 188.0);
+                final artW = (constraints.maxWidth * 0.44).clamp(115.0, 195.0);
                 final copy = _copy(
                   palette: palette,
                   titleSize: titleSize,
+                  eyebrow: l10n.t('yourVaultEyebrow'),
                   headline: l10n.t('vaultFullyProtected'),
+                  subtitle: l10n.t('vaultBackedUpSubtitle'),
+                  ctaLabel: l10n.t('viewDocuments'),
                 );
                 final art = SizedBox(
                   width: artW,
@@ -391,14 +404,17 @@ class _ClayVaultHero extends StatelessWidget {
   Widget _copy({
     required AppPalette palette,
     required double titleSize,
+    required String eyebrow,
     required String headline,
+    required String subtitle,
+    required String ctaLabel,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'YOUR VAULT',
+          eyebrow,
           style: TextStyle(
             color: AppColors.primaryGreen,
             fontSize: 11,
@@ -421,7 +437,7 @@ class _ClayVaultHero extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'All your documents are safe and backed up',
+          subtitle,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -432,17 +448,121 @@ class _ClayVaultHero extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        _HeroCta(onTap: onCta),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: _HeroCta(onTap: onCta, label: ctaLabel)),
+            const SizedBox(width: 10),
+            _FingerprintOption(palette: palette),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+/// Fingerprint biometric option button located at the bottom of the hero card.
+class _FingerprintOption extends StatelessWidget {
+  const _FingerprintOption({required this.palette});
+
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: BiometricService.instance.lockEnabled,
+      builder: (context, enabled, _) {
+        return Tooltip(
+          message: enabled
+              ? l10n.t('biometricProtected')
+              : l10n.t('enableBiometricLock'),
+          child: PressableScale(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                if (!enabled) {
+                  final support = await BiometricService.instance.support();
+                  if (support == BiometricSupport.unsupported) {
+                    if (context.mounted) {
+                      BiometricUx.errorSnack(
+                        context,
+                        l10n.t('biometricUnsupportedDevice'),
+                      );
+                    }
+                    return;
+                  }
+                  if (support == BiometricSupport.notEnrolled) {
+                    if (context.mounted) {
+                      final openSettings =
+                          await BiometricUx.noBiometricsDialog(context);
+                      if (openSettings) {
+                        await BiometricService.instance
+                            .openEnrollmentSettings();
+                      }
+                    }
+                    return;
+                  }
+                  final outcome =
+                      await BiometricService.instance.authenticateDetailed(
+                    reason: l10n.t('confirmIdentityEnable'),
+                  );
+                  if (outcome.ok) {
+                    await BiometricService.instance.setLockEnabled(true);
+                    if (context.mounted) {
+                      BiometricUx.successSnack(
+                        context,
+                        l10n.t('biometricEnabledMsg'),
+                      );
+                    }
+                  }
+                } else {
+                  if (context.mounted) {
+                    BiometricUx.successSnack(
+                      context,
+                      l10n.t('biometricProtected'),
+                    );
+                  }
+                }
+              },
+              child: Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.fingerprint_rounded,
+                    size: 21,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 /// The hero's gradient pill CTA - "View Documents →".
 class _HeroCta extends StatelessWidget {
-  const _HeroCta({this.onTap});
+  const _HeroCta({this.onTap, this.label});
 
   final VoidCallback? onTap;
+
+  /// Pre-resolved label; falls back to the localized "View Documents".
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -466,19 +586,23 @@ class _HeroCta extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'View Documents',
-                  style: TextStyle(
+                  label ?? AppLocalizations.of(context).t('viewDocuments'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 15,
+                  color: Colors.white,
+                ),
               ],
             ),
           ),
@@ -503,11 +627,8 @@ class _MascotBadge extends StatelessWidget {
         _asset,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
-        errorBuilder: (_, error, stackTrace) => Icon(
-          Icons.shield_rounded,
-          color: AppColors.primaryGreen,
-          size: 48,
-        ),
+        errorBuilder: (_, error, stackTrace) =>
+            Icon(Icons.shield_rounded, color: AppColors.primaryGreen, size: 48),
       ),
     );
   }
@@ -568,52 +689,55 @@ class HomeSummaryStrip extends StatelessWidget {
             onTap: onRemindersToday,
           );
 
-    final tiles = <({
-      String label,
-      int value,
-      IconData icon,
-      String? image,
-      Color accent,
-      VoidCallback? onTap,
-    })>[
-      (
-        label: l10n.t('expiring'),
-        value: documentsExpiring,
-        icon: Icons.warning_amber_rounded,
-        image: use3d ? InoHomeIcons3d.attnExpiring : null,
-        accent: AppColors.warning,
-        onTap: onDocumentsExpiring,
-      ),
-      (
-        label: l10n.t('emiDue'),
-        value: emiDue,
-        icon: Icons.account_balance_wallet_rounded,
-        image: use3d ? InoHomeIcons3d.attnEmi : null,
-        accent: AppColors.accentBlue,
-        onTap: onEmiDues,
-      ),
-      third,
-      (
-        label: l10n.t('insurance'),
-        value: insuranceRenewals,
-        icon: Icons.shield_rounded,
-        image: use3d ? InoHomeIcons3d.attnInsurance : null,
-        accent: AppColors.vaultIdentity,
-        onTap: onInsuranceRenewals,
-      ),
-    ];
+    final tiles =
+        <
+          ({
+            String label,
+            int value,
+            IconData icon,
+            String? image,
+            Color accent,
+            VoidCallback? onTap,
+          })
+        >[
+          (
+            label: l10n.t('expiring'),
+            value: documentsExpiring,
+            icon: Icons.warning_amber_rounded,
+            image: use3d ? InoHomeIcons3d.attnExpiring : null,
+            accent: AppColors.warning,
+            onTap: onDocumentsExpiring,
+          ),
+          (
+            label: l10n.t('emiDue'),
+            value: emiDue,
+            icon: Icons.account_balance_wallet_rounded,
+            image: use3d ? InoHomeIcons3d.attnEmi : null,
+            accent: AppColors.accentBlue,
+            onTap: onEmiDues,
+          ),
+          third,
+          (
+            label: l10n.t('insurance'),
+            value: insuranceRenewals,
+            icon: Icons.shield_rounded,
+            image: use3d ? InoHomeIcons3d.attnInsurance : null,
+            accent: AppColors.vaultIdentity,
+            onTap: onInsuranceRenewals,
+          ),
+        ];
 
     if (enlargedIcons) {
       // Launcher: same glass as My Vaults — single 4-across row (unchanged layout).
       // Labels stay one line via FittedBox inside LauncherGlassIconTile.
       Widget tile(int i) => LauncherGlassIconTile(
-            label: tiles[i].label,
-            count: tiles[i].value,
-            imageAsset: tiles[i].image,
-            icon: tiles[i].image == null ? tiles[i].icon : null,
-            accent: tiles[i].accent,
-            onTap: tiles[i].onTap ?? () {},
-          );
+        label: tiles[i].label,
+        count: tiles[i].value,
+        imageAsset: tiles[i].image,
+        icon: tiles[i].image == null ? tiles[i].icon : null,
+        accent: tiles[i].accent,
+        onTap: tiles[i].onTap ?? () {},
+      );
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

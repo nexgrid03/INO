@@ -95,6 +95,54 @@ class _FakeVaultRepo implements FamilyVaultRepository {
   @override
   Future<void> resendInvitation(String id, {VaultRole? role}) async {}
 
+  // ---- Invite-by-identifier / join requests / co-owners (Sep 2026) ---------
+
+  @override
+  Future<VaultInvitation> inviteUser(
+          String vaultId, VaultRole role, String query) =>
+      invite(vaultId, role, email: query.contains('@') ? query : null,
+          phone: query.contains('@') ? null : query);
+
+  @override
+  Future<List<FamilyMatch>> searchFamilies(String name) async => [
+        for (final v in vaults)
+          if (v.vault.name.toLowerCase() == name.trim().toLowerCase())
+            FamilyMatch(
+              id: v.vault.id,
+              name: v.vault.name,
+              memberCount: 1,
+              alreadyMember: true,
+              requestPending: false,
+            ),
+      ];
+
+  @override
+  Future<VaultJoinRequest> requestToJoin(String vaultId) async =>
+      VaultJoinRequest(
+        id: 'jr-$vaultId',
+        vaultId: vaultId,
+        requesterAuthUserId: 'me',
+        status: JoinRequestStatus.pending,
+      );
+
+  @override
+  Future<List<VaultJoinRequest>> incomingJoinRequests() async => const [];
+
+  @override
+  Future<List<VaultJoinRequest>> myJoinRequests() async => const [];
+
+  @override
+  Future<void> approveJoinRequest(String requestId, VaultRole role) async {}
+
+  @override
+  Future<void> declineJoinRequest(String requestId) async {}
+
+  @override
+  Future<void> cancelJoinRequest(String requestId) async {}
+
+  @override
+  Future<void> promoteToOwner(String memberId) async {}
+
   @override
   Future<List<VaultAuditEntry>> auditLog(String vaultId, {int limit = 50}) async =>
       const [];

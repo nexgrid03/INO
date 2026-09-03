@@ -3,15 +3,25 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../data/family_vault_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/common/ino_loader.dart';
 
-/// Bottom sheet for inviting a member by email or phone with a role. Pops
-/// `true` when an invitation was sent. All permission / dedup checks are
-/// enforced server-side by `invite_to_vault` (see the 20260731 migration); this
-/// sheet just does light client validation for fast feedback.
+/// Bottom sheet for inviting a member by **phone number, name or email**.
+///
+/// One field, auto-detected: anything with an `@` is an email, digits (with an
+/// optional +country code) are a phone number, anything else is a name. The
+/// server (`invite_ino_user_to_vault`) resolves that to an INO account:
+///
+///   * found      → the invitation is created and the person is pushed;
+///   * not found  → the sheet explains that they need to install INO and
+///                  create an account first (no dangling invitation is made);
+///   * ambiguous  → several users share that name; asks for phone/email.
+///
+/// Pops `true` when an invitation was sent.
 Future<bool?> showInviteMemberSheet(BuildContext context, String vaultId) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -24,7 +34,7 @@ Future<bool?> showInviteMemberSheet(BuildContext context, String vaultId) {
   );
 }
 
-enum _By { email, phone }
+enum _Kind { email, phone, name }
 
 class _InviteMemberSheet extends StatefulWidget {
   const _InviteMemberSheet({required this.vaultId});
@@ -37,13 +47,24 @@ class _InviteMemberSheet extends StatefulWidget {
 
 class _InviteMemberSheetState extends State<_InviteMemberSheet> {
   final _controller = TextEditingController();
-  _By _by = _By.email;
   VaultRole _role = VaultRole.viewer;
   bool _sending = false;
   String? _error;
 
+  /// A friendlier, non-error explanation (no account / ambiguous name).
+  String? _notice;
+
   static final _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-  static final _phoneRe = RegExp(r'^\+?[0-9]{8,15}$');
+  static final _phoneRe = RegExp(r'^[+()\s\d-]+$');
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {
+          _error = null;
+          _notice = null;
+        }));
+  }
 
   @override
   void dispose() {
@@ -51,22 +72,35 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
     super.dispose();
   }
 
-  String? _validate() {
+  _Kind get _kind {
     final v = _controller.text.trim();
-    if (v.isEmpty) {
-      return _by == _By.email ? 'Enter an email address' : 'Enter a phone number';
+    if (v.contains('@')) return _Kind.email;
+    if (_phoneRe.hasMatch(v) && v.replaceAll(RegExp(r'\D'), '').length >= 8) {
+      return _Kind.phone;
     }
-    if (_by == _By.email && !_emailRe.hasMatch(v)) {
-      return 'Enter a valid email address';
-    }
-    if (_by == _By.phone && !_phoneRe.hasMatch(v.replaceAll(' ', ''))) {
-      return 'Enter a valid phone number (e.g. +919876543210)';
+    return _Kind.name;
+  }
+
+  String? _validate(AppLocalizations l10n) {
+    final v = _controller.text.trim();
+    if (v.isEmpty) return l10n.t('enterPhoneNameOrEmail');
+    switch (_kind) {
+      case _Kind.email:
+        if (!_emailRe.hasMatch(v)) return l10n.t('enterValidEmailAddress');
+      case _Kind.phone:
+        final digits = v.replaceAll(RegExp(r'\D'), '');
+        if (digits.length < 8 || digits.length > 15) {
+          return l10n.t('enterValidPhoneNumber');
+        }
+      case _Kind.name:
+        if (v.length < 2) return l10n.t('enterPhoneNameOrEmail');
     }
     return null;
   }
 
   Future<void> _send() async {
-    final err = _validate();
+    final l10n = AppLocalizations.of(context);
+    final err = _validate(l10n);
     if (err != null) {
       setState(() => _error = err);
       return;
@@ -75,23 +109,30 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
     setState(() {
       _sending = true;
       _error = null;
+      _notice = null;
     });
     final value = _controller.text.trim();
     try {
-      await FamilyVaultRepository.instance.invite(
+      await FamilyVaultRepository.instance.inviteUser(
         widget.vaultId,
         _role,
-        email: _by == _By.email ? value : null,
-        phone: _by == _By.phone ? value.replaceAll(' ', '') : null,
+        _kind == _Kind.phone ? value.replaceAll(' ', '') : value,
       );
       if (mounted) Navigator.of(context).pop(true);
+    } on VaultUserNotFound catch (e) {
+      if (mounted) {
+        setState(() => _notice =
+            l10n.t('inviteUserNotFound').replaceAll('{query}', e.query));
+      }
+    } on VaultUserAmbiguous {
+      if (mounted) setState(() => _notice = l10n.t('inviteMultipleMatches'));
     } on PostgrestException catch (e) {
-      // Server-side validation (duplicate / already a member / self / role) is
+      // Server-side validation (already a member / self / duplicate) is
       // surfaced verbatim so the user knows exactly why it was rejected.
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Couldn\'t send the invitation. Try again.');
+        setState(() => _error = l10n.t('couldNotSendInvitation'));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -101,122 +142,136 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final kind = _kind;
+    final kindIcon = switch (kind) {
+      _Kind.email => Icons.email_rounded,
+      _Kind.phone => Icons.phone_rounded,
+      _Kind.name => Icons.person_search_rounded,
+    };
     return Padding(
       padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg,
           AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: palette.border,
-                  borderRadius: BorderRadius.circular(AppRadius.pill)),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Invite a member',
-              style: AppText.title.copyWith(color: palette.textPrimary)),
-          const SizedBox(height: AppSpacing.xs),
-          Text('They\'ll join when they accept — even if they sign up later '
-              'with this email or number.',
-              style: AppText.caption.copyWith(color: palette.textSecondary)),
-          const SizedBox(height: AppSpacing.md),
-
-          // Email / Phone toggle.
-          _Segmented(
-            options: const ['Email', 'Phone'],
-            selectedIndex: _by == _By.phone ? 1 : 0,
-            onChanged: (i) => setState(() {
-              _by = i == 1 ? _By.phone : _By.email;
-              _error = null;
-            }),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            keyboardType: _by == _By.email
-                ? TextInputType.emailAddress
-                : TextInputType.phone,
-            onChanged: (_) {
-              if (_error != null) setState(() => _error = null);
-            },
-            style: AppText.body.copyWith(color: palette.textPrimary),
-            decoration: InputDecoration(
-              hintText: _by == _By.email
-                  ? 'name@example.com'
-                  : '+91 98765 43210',
-              hintStyle: AppText.body.copyWith(color: palette.textFaint),
-              prefixIcon: Icon(
-                  _by == _By.email
-                      ? Icons.email_rounded
-                      : Icons.phone_rounded,
-                  color: palette.textFaint),
-              filled: true,
-              fillColor: palette.surfaceVariant,
-              border: _border(palette.border),
-              enabledBorder: _border(palette.border),
-              focusedBorder: _border(AppColors.primaryGreen, 1.6),
-              errorText: _error,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          Text('Role', style: AppText.label.copyWith(color: palette.textFaint)),
-          const SizedBox(height: 6),
-          // Owner is never invitable — only these three roles.
-          Row(
-            children: [
-              for (final r in VaultRoleX.assignable) ...[
-                Expanded(child: _RoleChip(
-                  role: r,
-                  selected: _role == r,
-                  onTap: () => setState(() => _role = r),
-                )),
-                if (r != VaultRoleX.assignable.last)
-                  const SizedBox(width: AppSpacing.xs),
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(_role.description,
-              style: AppText.caption.copyWith(color: palette.textSecondary)),
-          const SizedBox(height: AppSpacing.lg),
-
-          PressableScale(
-            child: GestureDetector(
-              onTap: _sending ? null : _send,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
               child: Container(
-                height: AppSizes.button,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill)),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(l10n.t('inviteAMember'),
+                style: AppText.title.copyWith(color: palette.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(l10n.t('inviteMemberSubtitleAny'),
+                style: AppText.caption.copyWith(color: palette.textSecondary)),
+            const SizedBox(height: AppSpacing.md),
+
+            Text(l10n.t('inviteByAnyLabel'),
+                style: AppText.label.copyWith(color: palette.textFaint)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _send(),
+              style: AppText.body.copyWith(color: palette.textPrimary),
+              decoration: InputDecoration(
+                hintText: l10n.t('inviteByAnyHint'),
+                hintStyle: AppText.body.copyWith(color: palette.textFaint),
+                prefixIcon: Icon(kindIcon, color: palette.textFaint),
+                filled: true,
+                fillColor: palette.surfaceVariant,
+                border: _border(palette.border),
+                enabledBorder: _border(palette.border),
+                focusedBorder: _border(AppColors.primaryGreen, 1.6),
+                errorText: _error,
+              ),
+            ),
+
+            if (_notice != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.5)),
                 ),
-                child: Center(
-                  child: _sending
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white)))
-                      : const Text('Send Invitation',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.person_off_rounded,
+                        size: 18, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _notice!,
+                        style: AppText.caption.copyWith(
+                            color: palette.textPrimary, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+
+            Text(l10n.t('role'),
+                style: AppText.label.copyWith(color: palette.textFaint)),
+            const SizedBox(height: 6),
+            // Owner is never invitable — promote a member afterwards instead.
+            Row(
+              children: [
+                for (final r in VaultRoleX.assignable) ...[
+                  Expanded(child: _RoleChip(
+                    role: r,
+                    selected: _role == r,
+                    onTap: () => setState(() => _role = r),
+                  )),
+                  if (r != VaultRoleX.assignable.last)
+                    const SizedBox(width: AppSpacing.xs),
+                ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(_role.localizedDescription(l10n),
+                style: AppText.caption.copyWith(color: palette.textSecondary)),
+            const SizedBox(height: AppSpacing.lg),
+
+            PressableScale(
+              child: GestureDetector(
+                onTap: _sending ? null : _send,
+                child: Container(
+                  height: AppSizes.button,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    boxShadow: AppShadows.glow(AppColors.primaryGreen),
+                  ),
+                  child: Center(
+                    child: _sending
+                        ? const InoLoader(size: 22, color: Colors.white)
+                        : Text(l10n.t('sendInvitation'),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15)),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -264,64 +319,13 @@ class _RoleChip extends StatelessWidget {
                   size: 15,
                   color: selected ? role.color : palette.textSecondary),
               const SizedBox(width: 5),
-              Text(role.label,
+              Text(role.localizedLabel(AppLocalizations.of(context)),
                   style: AppText.caption.copyWith(
                       color: selected ? role.color : palette.textSecondary,
                       fontWeight: FontWeight.w700)),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Segmented extends StatelessWidget {
-  const _Segmented({
-    required this.options,
-    required this.selectedIndex,
-    required this.onChanged,
-  });
-
-  final List<String> options;
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: palette.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: palette.border),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < options.length; i++)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient:
-                        i == selectedIndex ? AppColors.brandGradient : null,
-                    borderRadius: BorderRadius.circular(AppRadius.chip - 4),
-                  ),
-                  child: Text(options[i],
-                      style: AppText.subtitle.copyWith(
-                          color: i == selectedIndex
-                              ? Colors.white
-                              : palette.textSecondary,
-                          fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../common/ino_back_button.dart';
 import '../common/ino_background.dart';
 import '../divine_glass/divine_glass.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// A consistent page chrome for every Profile sub-screen (Change Password,
 /// Cloud Backup, About, …): a transparent back-button app bar over the themed
@@ -175,14 +176,7 @@ class SettingsPrimaryButton extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: busy
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
+                ? const InoLoader(size: 22, color: Colors.white)
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

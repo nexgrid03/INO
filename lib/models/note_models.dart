@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// The categories a note can be filed under. Order is intentional (shown in the
@@ -40,6 +41,32 @@ extension NoteCategoryX on NoteCategory {
         return 'Business';
       case NoteCategory.other:
         return 'Other';
+    }
+  }
+
+  /// [label] in the active language.
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case NoteCategory.personal:
+        return l10n.t('noteCatPersonal');
+      case NoteCategory.financial:
+        return l10n.t('noteCatFinancial');
+      case NoteCategory.tax:
+        return l10n.t('tax');
+      case NoteCategory.property:
+        return l10n.t('property');
+      case NoteCategory.health:
+        return l10n.t('health');
+      case NoteCategory.insurance:
+        return l10n.t('insurance');
+      case NoteCategory.banking:
+        return l10n.t('noteCatBanking');
+      case NoteCategory.investments:
+        return l10n.t('investments');
+      case NoteCategory.business:
+        return l10n.t('catBusiness');
+      case NoteCategory.other:
+        return l10n.t('catOther');
     }
   }
 

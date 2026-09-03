@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../pressable_scale.dart';
@@ -17,11 +18,14 @@ import 'ino_options_sheet.dart';
 /// warning); every other wallet uses this one.
 ///
 /// [what] names the thing being saved so the copy reads naturally:
-/// "this property", "this card", "this document".
+/// "this property", "this card", "this document". Pass a localized noun
+/// (e.g. `l10n.t('thisProperty')`); when omitted it falls back to
+/// `l10n.t('thisRecord')`.
 Future<bool> showDataConsentSheet(
   BuildContext context, {
-  String what = 'this record',
+  String? what,
 }) async {
+  final label = what ?? AppLocalizations.of(context).t('thisRecord');
   final agreed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -31,7 +35,7 @@ Future<bool> showDataConsentSheet(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
     ),
-    builder: (_) => _DataConsentSheet(what: what),
+    builder: (_) => _DataConsentSheet(what: label),
   );
   return agreed == true;
 }
@@ -44,6 +48,7 @@ class _DataConsentSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: SafeArea(
@@ -59,16 +64,13 @@ class _DataConsentSheet extends StatelessWidget {
                  Icon(Icons.verified_user_rounded,
                     size: 20, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
-                Text('Your data stays yours',
+                Text(l10n.t('consentDataStaysYours'),
                     style: AppText.title.copyWith(color: palette.textPrimary)),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Before we save $what: it is stored in your private INO vault, '
-              'locked to your signed-in account - no other user can read it, '
-              'and it is never shared unless you explicitly share it yourself.'
-              '\n\nSave $what to your vault?',
+              l10n.t('consentSaveBody').replaceAll('{what}', what),
               style: AppText.body.copyWith(
                 color: palette.textSecondary,
                 height: 1.5,
@@ -91,7 +93,7 @@ class _DataConsentSheet extends StatelessWidget {
                           border: Border.all(color: palette.border),
                         ),
                         child: Text(
-                          'Go back',
+                          l10n.t('goBack'),
                           style: AppText.subtitle
                               .copyWith(color: palette.textPrimary),
                         ),
@@ -103,7 +105,7 @@ class _DataConsentSheet extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: GradientButton(
-                    label: 'I agree · save',
+                    label: l10n.t('iAgreeSave'),
                     icon: Icons.check_rounded,
                     onTap: () => Navigator.of(context).pop(true),
                   ),

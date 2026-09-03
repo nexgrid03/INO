@@ -1,5 +1,3 @@
-// CupertinoPageTransitionsBuilder lives in the cupertino library (it's no
-// longer re-exported by material.dart), so it needs its own import.
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -64,7 +62,7 @@ class AppColors {
   static const Color skyBrandFoam = _skyFoam;
 
   /// When true, legacy brand getters resolve to the Aqua teal ladder
-  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaLight] / [ThemeStyle.aquaMist]).
+  /// ([ThemeStyle.aqua] / [ThemeStyle.aquaMist]).
   static bool _aquaActive = false;
 
   /// Sync brand getters with the picked [ThemeStyle]. Called from
@@ -103,7 +101,11 @@ class AppColors {
   static Color brandOf(BuildContext context) => InoStyle.brandAccent(context);
 
   /// Soft brand glow for dark surfaces — keeps glass, cuts the glitter.
-  static Color glowOf(BuildContext context, {double light = 0.28, double dark = 0.14}) {
+  static Color glowOf(
+    BuildContext context, {
+    double light = 0.28,
+    double dark = 0.14,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return primaryGreen.withValues(alpha: isDark ? dark : light);
   }
@@ -140,11 +142,14 @@ class AppColors {
   static const Color vaultIdentity = Color(0xFF8B6CEF);
   static const Color vaultProperty = Color(0xFF22C55E);
   static const Color vaultInvestments = Color(0xFFF59E0B);
+
   /// Cards / Banking / Documents vault accent — brand aqua teal (never sky blue).
   static const Color _vaultCardsTeal = Color(0xFF098F90);
   static const Color vaultInsurance = Color(0xFFF5704A);
+
   /// Medical blue — distinct from Property green in the launcher grid.
   static const Color vaultHealth = Color(0xFF3B82F6);
+
   /// Indigo lock accent — distinct from Investment amber in the launcher grid.
   static const Color vaultPassword = Color(0xFF6366F1);
 
@@ -158,16 +163,16 @@ class AppColors {
   /// Under Aqua styles, chrome follows the brand teal ladder for blue vaults
   /// so Document / Cards screens match the theme instead of sky-blue.
   static Color vaultAccentFor(String name) => switch (name) {
-        'Identity Wallet' => vaultIdentity,
-        'Property Wallet' => vaultProperty,
-        'Investment Wallet' => vaultInvestments,
-        'Banking Wallet' => vaultCards,
-        'Document Wallet' => vaultDocuments,
-        'Insurance Wallet' => vaultInsurance,
-        'Health Wallet' => vaultHealth,
-        'Password Vault' => vaultPassword,
-        _ => primaryGreen,
-      };
+    'Identity Wallet' => vaultIdentity,
+    'Property Wallet' => vaultProperty,
+    'Investment Wallet' => vaultInvestments,
+    'Banking Wallet' => vaultCards,
+    'Document Wallet' => vaultDocuments,
+    'Insurance Wallet' => vaultInsurance,
+    'Health Wallet' => vaultHealth,
+    'Password Vault' => vaultPassword,
+    _ => primaryGreen,
+  };
 
   /// Soft two-stop gradient for wallet chrome, derived from [vaultAccentFor].
   static List<Color> vaultGradientFor(String name) {
@@ -177,10 +182,24 @@ class AppColors {
 
   /// Selected-chip / FAB fill for a vault accent (matches Home tile tint).
   static LinearGradient vaultFillGradient(Color accent) => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [accent, Color.lerp(accent, Colors.white, 0.18)!],
-      );
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [accent, Color.lerp(accent, Colors.white, 0.18)!],
+  );
+
+  /// A solid colour expressed as a two-stop gradient with the same geometry as
+  /// [vaultFillGradient] / [brandGradient].
+  ///
+  /// Use as the *unselected* fill wherever an [AnimatedContainer] tweens to a
+  /// gradient when selected. Tweening `color ↔ gradient` through `null` fades
+  /// BOTH fills through transparency mid-animation, so the chip visibly blinks
+  /// as the page shows through; gradient ↔ gradient lerps colour-to-colour at
+  /// full opacity instead.
+  static LinearGradient solidFillGradient(Color color) => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [color, color],
+  );
 
   static const Color accentCoral = Color(0xFFF5704A);
   static const Color accentBlue = Color(0xFF2563EB);
@@ -195,6 +214,7 @@ class AppColors {
   static const Color background = Color(0xFFEAF4FC);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF0F172A);
+
   /// Secondary body / captions. Darker than classic slate-500 so Aqua washes
   /// don't wash grey copy out (auth + screens still using this const).
   static const Color textMuted = Color(0xFF3D5266);
@@ -203,24 +223,24 @@ class AppColors {
 
   /// Hero gradient - buttons, FAB, avatars, splash.
   static LinearGradient get brandGradient => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [primaryGreen, secondaryGreen],
-      );
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [primaryGreen, secondaryGreen],
+  );
 
   /// Wallet gradient - tint 1 → tint 2.
   static LinearGradient get walletGradient => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [secondaryGreen, skyBlue],
-      );
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [secondaryGreen, skyBlue],
+  );
 
   /// Insight gradient - anchor → tint 2 (a wider, airier sweep).
   static LinearGradient get insightGradient => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [primaryGreen, skyBlue],
-      );
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [primaryGreen, skyBlue],
+  );
 }
 
 /// The named gradient library. Prefer these over ad-hoc [LinearGradient]s so
@@ -240,20 +260,20 @@ class AppGradients {
 
   /// Airy mist gradient (white → mist) - screen washes, empty states.
   static LinearGradient get mist => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Colors.white, AppColors.tealMist],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Colors.white, AppColors.tealMist],
+  );
 
   /// A barely-there wash for card headers / hero tints (use over white).
   static LinearGradient wash({double opacity = 0.08}) => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          AppColors.primaryGreen.withValues(alpha: opacity),
-          AppColors.skyBlue.withValues(alpha: opacity * 0.75),
-        ],
-      );
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      AppColors.primaryGreen.withValues(alpha: opacity),
+      AppColors.skyBlue.withValues(alpha: opacity * 0.75),
+    ],
+  );
 
   /// Success gradient for positive stat chips.
   static const LinearGradient successGrad = LinearGradient(
@@ -407,8 +427,6 @@ class AppPalette {
     shadowStrength: 1.0,
   );
 
-
-
   /// Aqua-style light: same layout tokens as classic, washed in teal #098F90.
   /// Secondary/faint ink is intentionally deep — light slate greys vanish on
   /// the aqua sky across Home, Profile, wallets and settings.
@@ -520,17 +538,10 @@ class AppPalette {
       return InoStyle.usesAquaBrand(style) ? darkAqua : dark;
     }
     switch (style) {
-
       case ThemeStyle.aqua:
         return lightAqua;
-      case ThemeStyle.aquaLight:
-        return lightAquaLight;
       case ThemeStyle.aquaMist:
         return lightAquaMist;
-      case ThemeStyle.clay:
-        // Clay shares Aqua's teal palette; only Home icons differ (3D).
-        return lightAqua;
-      case ThemeStyle.classic:
       case ThemeStyle.launcher:
         return light;
     }
@@ -576,7 +587,7 @@ class AppTheme {
   static ThemeData get dark => _build(Brightness.dark);
 
   /// Style-aware variants - the scaffold wash, borders and shadows shift with
-  /// the picked [ThemeStyle] (classic / bold / soft).
+  /// the picked [ThemeStyle] (launcher / aqua / aquaMist).
   static ThemeData lightFor(ThemeStyle style) =>
       _build(Brightness.light, style: style);
   static ThemeData darkFor(ThemeStyle style) =>
@@ -584,14 +595,16 @@ class AppTheme {
 
   static ThemeData _build(
     Brightness brightness, {
-    ThemeStyle style = ThemeStyle.classic,
+    ThemeStyle style = ThemeStyle.aqua,
   }) {
     final isDark = brightness == Brightness.dark;
     final palette = AppPalette.resolve(brightness: brightness, style: style);
     final fontFamily = GoogleFonts.manrope().fontFamily;
     final isAqua = InoStyle.usesAquaBrand(style);
     final seed = isAqua ? AppColors.aquaPrimary : AppColors._skyPrimary;
-    final secondary = isAqua ? AppColors.aquaSecondary : AppColors._skySecondary;
+    final secondary = isAqua
+        ? AppColors.aquaSecondary
+        : AppColors._skySecondary;
     final tertiary = isAqua ? AppColors.aquaSky : AppColors._skySky;
     final pale = isAqua ? AppColors.aquaPale : AppColors._skyPale;
     final mist = isAqua ? AppColors.aquaMist : AppColors._skyMist;
@@ -600,91 +613,104 @@ class AppTheme {
     // fromSeed still invents grey surfaceContainer* tokens; pin every
     // surface role to the palette so M3 chrome (and page transitions) never
     // flash a default slate grey before cards paint.
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      primary: seed,
-      secondary: secondary,
-      tertiary: tertiary,
-      error: AppColors.critical,
-      surface: palette.surface,
-      brightness: brightness,
-    ).copyWith(
-      surface: palette.surface,
-      surfaceDim: palette.bg,
-      surfaceBright: palette.surface,
-      surfaceContainerLowest: palette.bg,
-      surfaceContainerLow: palette.surfaceVariant,
-      surfaceContainer: palette.surface,
-      surfaceContainerHigh: palette.bgElevated,
-      surfaceContainerHighest: palette.surfaceVariant,
-      onSurface: palette.textPrimary,
-      onSurfaceVariant: palette.textSecondary,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: seed,
+          primary: seed,
+          secondary: secondary,
+          tertiary: tertiary,
+          error: AppColors.critical,
+          surface: palette.surface,
+          brightness: brightness,
+        ).copyWith(
+          surface: palette.surface,
+          surfaceDim: palette.bg,
+          surfaceBright: palette.surface,
+          surfaceContainerLowest: palette.bg,
+          surfaceContainerLow: palette.surfaceVariant,
+          surfaceContainer: palette.surface,
+          surfaceContainerHigh: palette.bgElevated,
+          surfaceContainerHighest: palette.surfaceVariant,
+          onSurface: palette.textPrimary,
+          onSurfaceVariant: palette.textSecondary,
+        );
 
     // Strong hierarchy: large expressive headings, comfortable body text.
     // Divine Glass spec: everything is set in Manrope.
-    final textTheme = GoogleFonts.manropeTextTheme(
-      Typography.material2021(platform: TargetPlatform.android).englishLike,
-    )
-        .apply(
-          bodyColor: palette.textPrimary,
-          displayColor: palette.textPrimary,
-        )
-        .copyWith(
-          displaySmall: TextStyle(fontFamily: fontFamily, 
-            fontSize: 34,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.7,
-            color: palette.headingInk,
-          ),
-          headlineMedium: TextStyle(fontFamily: fontFamily, 
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.4,
-            color: palette.headingInk,
-          ),
-          headlineSmall: TextStyle(fontFamily: fontFamily, 
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.35,
-            color: palette.headingInk,
-          ),
-          titleLarge: TextStyle(fontFamily: fontFamily, 
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.25,
-            color: palette.headingInk,
-          ),
-          titleMedium: TextStyle(fontFamily: fontFamily, 
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
-            color: palette.headingInk,
-          ),
-          bodyLarge: TextStyle(fontFamily: fontFamily, 
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
-            height: 1.45,
-            color: palette.textPrimary,
-          ),
-          bodyMedium: TextStyle(fontFamily: fontFamily, 
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            height: 1.45,
-            color: palette.textPrimary,
-          ),
-          bodySmall: TextStyle(fontFamily: fontFamily, 
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            color: palette.textSecondary,
-          ),
-          labelLarge: TextStyle(fontFamily: fontFamily, 
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.1,
-            color: palette.textPrimary,
-          ),
-        );
+    final textTheme =
+        GoogleFonts.manropeTextTheme(
+              Typography.material2021(
+                platform: TargetPlatform.android,
+              ).englishLike,
+            )
+            .apply(
+              bodyColor: palette.textPrimary,
+              displayColor: palette.textPrimary,
+            )
+            .copyWith(
+              displaySmall: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.7,
+                color: palette.headingInk,
+              ),
+              headlineMedium: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
+                color: palette.headingInk,
+              ),
+              headlineSmall: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.35,
+                color: palette.headingInk,
+              ),
+              titleLarge: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.25,
+                color: palette.headingInk,
+              ),
+              titleMedium: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+                color: palette.headingInk,
+              ),
+              bodyLarge: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 17,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+                color: palette.textPrimary,
+              ),
+              bodyMedium: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+                color: palette.textPrimary,
+              ),
+              bodySmall: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: palette.textSecondary,
+              ),
+              labelLarge: TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.1,
+                color: palette.textPrimary,
+              ),
+            );
 
     return ThemeData(
       useMaterial3: true,
@@ -714,7 +740,8 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(fontFamily: fontFamily, 
+        titleTextStyle: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 17,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
@@ -743,7 +770,8 @@ class AppTheme {
           disabledForegroundColor: AppColors.textMuted,
           elevation: 0,
           shadowColor: seed.withValues(alpha: 0.35),
-          textStyle: TextStyle(fontFamily: fontFamily, 
+          textStyle: TextStyle(
+            fontFamily: fontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -758,7 +786,8 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: seed,
           foregroundColor: Colors.white,
-          textStyle: TextStyle(fontFamily: fontFamily, 
+          textStyle: TextStyle(
+            fontFamily: fontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -774,11 +803,9 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           backgroundColor: isDark ? Colors.transparent : Colors.white,
           foregroundColor: seed,
-          side: BorderSide(
-            color: isDark ? palette.border : pale,
-            width: 1.2,
-          ),
-          textStyle: TextStyle(fontFamily: fontFamily, 
+          side: BorderSide(color: isDark ? palette.border : pale, width: 1.2),
+          textStyle: TextStyle(
+            fontFamily: fontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.1,
@@ -792,7 +819,11 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: seed,
-          textStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
+          textStyle: TextStyle(
+            fontFamily: fontFamily,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -809,12 +840,14 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark ? palette.surfaceVariant : Colors.white,
-        hintStyle: TextStyle(fontFamily: fontFamily, 
+        hintStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textFaint,
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
-        labelStyle: TextStyle(fontFamily: fontFamily, 
+        labelStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textSecondary,
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
@@ -831,10 +864,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: seed,
-            width: 1.4,
-          ),
+          borderSide: BorderSide(color: seed, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -854,12 +884,14 @@ class AppTheme {
         backgroundColor: isDark ? palette.surfaceVariant : foam,
         selectedColor: seed,
         disabledColor: palette.surfaceVariant,
-        labelStyle: TextStyle(fontFamily: fontFamily, 
+        labelStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textPrimary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        secondaryLabelStyle: TextStyle(fontFamily: fontFamily, 
+        secondaryLabelStyle: TextStyle(
+          fontFamily: fontFamily,
           color: Colors.white,
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -877,13 +909,15 @@ class AppTheme {
           borderRadius: BorderRadius.circular(28),
           side: BorderSide(color: palette.border),
         ),
-        titleTextStyle: TextStyle(fontFamily: fontFamily, 
+        titleTextStyle: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 19,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.3,
           color: palette.textPrimary,
         ),
-        contentTextStyle: TextStyle(fontFamily: fontFamily, 
+        contentTextStyle: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
           height: 1.5,
@@ -905,7 +939,8 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: seed,
-        contentTextStyle: TextStyle(fontFamily: fontFamily, 
+        contentTextStyle: TextStyle(
+          fontFamily: fontFamily,
           color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -918,17 +953,20 @@ class AppTheme {
       tabBarTheme: TabBarThemeData(
         labelColor: seed,
         unselectedLabelColor: palette.textFaint,
-        labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 14, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: TextStyle(fontFamily: fontFamily, 
+        labelStyle: TextStyle(
+          fontFamily: fontFamily,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
         indicatorColor: seed,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
-        overlayColor: WidgetStatePropertyAll(
-          seed.withValues(alpha: 0.06),
-        ),
+        overlayColor: WidgetStatePropertyAll(seed.withValues(alpha: 0.06)),
       ),
       dividerTheme: DividerThemeData(
         color: palette.border,
@@ -950,7 +988,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: palette.border),
         ),
-        textStyle: TextStyle(fontFamily: fontFamily, 
+        textStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -967,9 +1006,8 @@ class AppTheme {
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? seed
-              : Colors.transparent,
+          (states) =>
+              states.contains(WidgetState.selected) ? seed : Colors.transparent,
         ),
         checkColor: const WidgetStatePropertyAll(Colors.white),
         side: BorderSide(color: pale, width: 1.6),
@@ -977,16 +1015,12 @@ class AppTheme {
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? seed
-              : pale,
+          (states) => states.contains(WidgetState.selected) ? seed : pale,
         ),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: seed,
-        inactiveTrackColor: isDark
-            ? palette.surfaceVariant
-            : mist,
+        inactiveTrackColor: isDark ? palette.surfaceVariant : mist,
         thumbColor: Colors.white,
         overlayColor: seed.withValues(alpha: 0.10),
         trackHeight: 5,
@@ -994,16 +1028,15 @@ class AppTheme {
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: seed,
         linearTrackColor: isDark ? palette.surfaceVariant : mist,
-        circularTrackColor: isDark
-            ? palette.surfaceVariant
-            : mist,
+        circularTrackColor: isDark ? palette.surfaceVariant : mist,
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: seed,
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: TextStyle(fontFamily: fontFamily, 
+        textStyle: TextStyle(
+          fontFamily: fontFamily,
           color: Colors.white,
           fontSize: 12.5,
           fontWeight: FontWeight.w600,

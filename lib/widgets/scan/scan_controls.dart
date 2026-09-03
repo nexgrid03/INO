@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../pressable_scale.dart';
+import '../common/ino_loader.dart';
 
 /// Lifecycle of the capture button, which changes its look per state.
 enum CaptureButtonState { idle, detected, capturing, success }
@@ -68,13 +69,9 @@ class _CaptureButton extends StatelessWidget {
 
     Widget core;
     if (busy) {
-      core = const Padding(
-        padding: EdgeInsets.all(18),
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-        ),
-      );
+      // Sized to the button's white inner disc (76 - 3.5px ring - 4.5px
+      // inset = 58), so the mark fills it without touching the edge.
+      core = const InoLoader(size: 40, color: Colors.black);
     } else if (success) {
       core = const Icon(Icons.check_rounded, color: Colors.black, size: 30);
     } else {

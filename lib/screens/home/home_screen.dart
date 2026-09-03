@@ -30,7 +30,6 @@ import '../../widgets/dashboard/section_header.dart';
 import '../../widgets/dashboard/welcome_header.dart';
 import '../../widgets/home/dashboard_card.dart';
 import '../../widgets/home/empty_state.dart';
-import '../../widgets/home/market_card.dart';
 import '../../widgets/home/my_vaults_row.dart';
 import '../../widgets/home/pending_actions_row.dart';
 import '../../widgets/home/quick_action_button.dart';
@@ -43,7 +42,6 @@ import '../../widgets/scan/home_qr_panel.dart';
 import '../documents/offline_documents_screen.dart';
 import '../expenses/expense_dashboard_screen.dart';
 import '../home/pending_actions_screen.dart';
-import '../markets/markets_screen.dart';
 import '../notes/notes_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/help_center_screen.dart';
@@ -131,13 +129,23 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Live market quotes refreshed after first paint (same card, fresher numbers).
   List<MarketQuote>? _marketOverride;
 
+  /// The locale the current [_future] was built for - reloading when it changes
+  /// is what makes the localized pending-action copy follow a language switch.
+  Locale? _loadedLocale;
+
   @override
-  void initState() {
-    super.initState();
-    _future = _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (_loadedLocale != locale) {
+      _loadedLocale = locale;
+      _future = _load();
+    }
   }
 
-  Future<_HomeData> _load() => PerfTracer.traceQuery('HomeScreen._load', () async {
+  Future<_HomeData> _load() {
+    final l10n = AppLocalizations.of(context);
+    return PerfTracer.traceQuery('HomeScreen._load', () async {
     // 1) Fetch user documents ONCE upfront (cached defensively in DocumentRepository)
     final docs = await DocumentRepository.instance.listAll().catchError((_) => <Document>[]);
 
@@ -204,10 +212,9 @@ class _HomeScreenState extends State<HomeScreen> {
         pendingItems.add(
           LauncherPendingItem(
             title: r.title,
-            status: d < 0
-                ? 'Overdue'
-                : (d <= 3 ? 'Due Soon' : 'On Track'),
-            subtitle: 'Review now to stay on track',
+            status: l10n.t(
+                d < 0 ? 'overdue' : (d <= 3 ? 'dueSoon' : 'onTrack')),
+            subtitle: l10n.t('reviewToStayOnTrack'),
             icon: Icons.shield_rounded,
             accent: reminderUrgencyColor(r, today),
           ),
@@ -225,10 +232,12 @@ class _HomeScreenState extends State<HomeScreen> {
           0,
           LauncherPendingItem(
             title: expiringDocuments == 1
-                ? '1 document expiring soon'
-                : '$expiringDocuments documents expiring soon',
-            status: 'Due Soon',
-            subtitle: 'Review now to stay on track',
+                ? l10n.t('oneDocumentExpiringSoon')
+                : l10n
+                    .t('documentsExpiringSoon')
+                    .replaceAll('{n}', '$expiringDocuments'),
+            status: l10n.t('dueSoon'),
+            subtitle: l10n.t('reviewToStayOnTrack'),
             icon: Icons.shield_rounded,
             accent: AppColors.primaryGreen,
           ),
@@ -291,7 +300,8 @@ class _HomeScreenState extends State<HomeScreen> {
       cardsCount: cardsCount,
       pendingItems: pendingItems,
     );
-  });
+    });
+  }
 
   Future<void> _refresh() async {
     final data = _load();
@@ -303,9 +313,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await NotificationCenter.instance.refresh();
     await data;
   }
-
-  List<MarketQuote> _marketsFor(_HomeData data) =>
-      _marketOverride ?? data.market;
 
   // ---- Navigation ----------------------------------------------------------
 
@@ -357,9 +364,11 @@ class _HomeScreenState extends State<HomeScreen> {
               // 1. Greeting header - FIXED at the top.
               _header(palette),
               // 2. Scrollable feed — QR upload attached at the bottom (no overlay).
+              // The app-root GlassScrollListener (main.dart) already suspends
+              // glass blur while this feed scrolls — a second listener here
+              // just doubled the setState + rebuild work on every gesture.
               Expanded(
-                child: GlassScrollListener(
-                  child: RefreshIndicator(
+                child: RefreshIndicator(
                   color: AppColors.primaryGreen,
                   onRefresh: _refresh,
                   child: FutureBuilder<_HomeData>(
@@ -370,11 +379,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           snapshot.connectionState == ConnectionState.done &&
                               snapshot.hasError;
                       return CustomScrollView(
-                        physics: AlwaysScrollableScrollPhysics(
-                          parent: InoStyle.usesDivineGlass(context)
-                              ? const ClampingScrollPhysics()
-                              : const BouncingScrollPhysics(),
-                        ),
                         slivers: [
                           if (hasError)
                             SliverFillRemaining(
@@ -417,7 +421,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-                ),
                 ),
               ),
             ],
@@ -528,17 +531,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onAction: () => _push(const PropertyFinanceToolsScreen()),
         ),
         child: const _SixFinanceTools(),
-      ),
-      _Section(
-        header: SectionHeader(
-          title: l10n.t('marketSnapshot'),
-          actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-        child: MarketCard(
-          quotes: _marketsFor(data),
-          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
       ),
     ];
   }
@@ -651,19 +643,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onExpenses: () => _push(const ExpenseDashboardScreen()),
         onNetWorth: () => _push(const NetWorthAnalyticsScreen()),
       ),
-
-      // 7. Market Snapshot
-      _Section(
-        header: SectionHeader(
-          title: l10n.t('marketSnapshot'),
-          actionLabel: l10n.t('viewMarkets'),
-          onAction: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-        child: MarketCard(
-          quotes: _marketsFor(data),
-          onTap: () => _push(MarketsScreen(quotes: _marketsFor(data))),
-        ),
-      ),
     ];
   }
 }
@@ -685,6 +664,7 @@ class _ExpiryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return LiquidGlass(
       borderRadius: BorderRadius.circular(18),
       enableBlur: false,
@@ -712,8 +692,10 @@ class _ExpiryBanner extends StatelessWidget {
               children: [
                 Text(
                   count == 1
-                      ? '1 document expiring soon'
-                      : '$count documents expiring soon',
+                      ? l10n.t('oneDocumentExpiringSoon')
+                      : l10n
+                          .t('documentsExpiringSoon')
+                          .replaceAll('{n}', '$count'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -724,7 +706,7 @@ class _ExpiryBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Review now to stay on track',
+                  l10n.t('reviewToStayOnTrack'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -747,19 +729,19 @@ class _ExpiryBanner extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Review',
-                      style: TextStyle(
+                      l10n.t('review'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_rounded,
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_rounded,
                         size: 13, color: Colors.white),
                   ],
                 ),
@@ -850,7 +832,7 @@ class _QuickActionsRow extends StatelessWidget {
       QuickActionButton(
         icon: useSvg ? null : Icons.offline_pin_rounded,
         svgAsset: useSvg ? InoHomeIcons.offline : null,
-        label: 'Offline',
+        label: l10n.t('offline'),
         color: AppColors.accentCyan,
         onTap: onOffline,
       ),

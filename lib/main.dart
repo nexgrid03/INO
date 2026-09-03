@@ -30,6 +30,8 @@ import 'theme/ino_scroll_behavior.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/common/liquid_glass.dart';
 import 'theme/theme_style.dart';
+import 'widgets/shell/ino_bottom_nav.dart';
+import 'widgets/dashboard/expandable_fab.dart';
 
 Future<void> main() async {
   // Flutter needs this before any async work runs before runApp().
@@ -79,7 +81,7 @@ class InoApp extends StatefulWidget {
   State<InoApp> createState() => _InoAppState();
 }
 
-class _InoAppState extends State<InoApp> {
+class _InoAppState extends State<InoApp> with WidgetsBindingObserver {
   /// When the app was cold-launched from a share link, show the viewer directly
   /// as the root (resolved once, before the first frame in `main()`).
   final String? _initialShareId = DeepLinkService.instance.initialShareId;
@@ -92,12 +94,32 @@ class _InoAppState extends State<InoApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Warm links (background → foreground / already running) are pushed onto
     // the live navigator once it's attached, and non-critical services are deferred post-frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService.instance.startListening(InoApp.navigatorKey);
       _initDeferredServices();
     });
+  }
+
+  @override
+  Future<bool> didPopRoute() async {
+    debugPrint('[GLOBAL SYSTEM BACK OBSERVER] System back event received. isBottomNavOpen: ${InoBottomNav.isMenuOpen}, isExpandableFabOpen: ${ExpandableFab.isMenuOpen}');
+
+    if (InoBottomNav.isMenuOpen) {
+      debugPrint('[GLOBAL SYSTEM BACK OBSERVER] Intercepted back -> Closing InoBottomNav FAB menu. PREVENTING ALL NAVIGATION!');
+      InoBottomNav.closeActiveMenu();
+      return true; // Handled -> Cancels route pop and tab change entirely!
+    }
+
+    if (ExpandableFab.isMenuOpen) {
+      debugPrint('[GLOBAL SYSTEM BACK OBSERVER] Intercepted back -> Closing ExpandableFab. PREVENTING ALL NAVIGATION!');
+      ExpandableFab.closeActiveMenu();
+      return true; // Handled -> Cancels route pop and tab change entirely!
+    }
+
+    return false; // Not handled -> Normal navigation proceeds.
   }
 
   void _initDeferredServices() {
@@ -114,6 +136,7 @@ class _InoAppState extends State<InoApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     DeepLinkService.instance.dispose();
     // Release the native text-to-speech engine with the app root.
     VoiceManager.instance.dispose();
@@ -149,6 +172,10 @@ class _InoAppState extends State<InoApp> {
             return ValueListenableBuilder<String>(
               valueListenable: AppSettings.instance.language,
               builder: (context, langCode, _) {
+                // Mirror the active language to the static accessor so code
+                // without a BuildContext (services, the push sender) can
+                // translate in the language the user is actually seeing.
+                AppLocalizations.activeLanguageCode = langCode;
                 return MaterialApp(
                   title: 'INO',
                   debugShowCheckedModeBanner: false,
@@ -157,11 +184,12 @@ class _InoAppState extends State<InoApp> {
                   theme: AppTheme.lightFor(style),
                   darkTheme: AppTheme.darkFor(style),
                   themeMode: mode,
-                  // Launcher / Aqua: no M3 stretch overscroll (it scales the
-                  // page and makes text look like it shrinks while scrolling).
-                  scrollBehavior: InoStyle.usesDivineGlassStyle(style)
-                      ? const InoNoStretchScrollBehavior()
-                      : const MaterialScrollBehavior(),
+                  // ONE scroll feel for the entire app - iOS-style spring
+                  // physics on every platform, no M3 stretch overscroll (it
+                  // scales the page and makes text look like it shrinks while
+                  // scrolling). Screens inherit this; none should pass
+                  // `physics:` of their own. See [InoScrollBehavior].
+                  scrollBehavior: const InoScrollBehavior(),
                   locale: _localeForCode(langCode),
                   supportedLocales: AppLocalizations.supportedLocales,
                   localizationsDelegates: const [

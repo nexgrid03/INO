@@ -6,6 +6,7 @@ import 'package:local_auth_android/local_auth_android.dart';
 import 'package:local_auth_darwin/local_auth_darwin.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
+import '../l10n/app_localizations.dart';
 
 /// The kind of biometric a device offers, used to label the UI.
 enum BiometricKind { faceId, fingerprint, iris, generic, none }
@@ -205,7 +206,9 @@ class BiometricService {
   }) async {
     final outcome = await authenticateDetailed(
       reason: reason,
-      title: 'Unlock INO',
+      // Shown in the OS biometric sheet, so it follows the app language.
+      // Resolved per prompt, never cached.
+      title: AppLocalizations.current.t('unlockIno'),
       biometricOnly: biometricOnly,
     );
     return outcome.ok;

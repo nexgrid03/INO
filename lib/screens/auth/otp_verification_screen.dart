@@ -148,16 +148,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           FadeSlideIn(
             child: const _OtpBadge(),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 18),
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: AuthPageTitle(widget.title ?? l10n.t('verificationCode')),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
             child: Text.rich(
@@ -165,9 +165,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 text:
                     '${l10n.t('otpSentTo').replaceAll('{n}', '${widget.length}')}\n',
                 style: const TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 14,
                   color: AppColors.textMuted,
-                  height: 1.5,
+                  height: 1.4,
                 ),
                 children: [
                   TextSpan(
@@ -182,7 +182,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 22),
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 160),
@@ -193,7 +193,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               onCompleted: (_) => _verify(),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 22),
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 210),
@@ -203,7 +203,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               onPressed: _busy ? null : _verify,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
 
           if (widget.onResend != null)
             FadeSlideIn(
@@ -214,7 +214,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         onPressed: _resend,
                         child: Text(
                           l10n.t('resendCode'),
-                          style:  TextStyle(
+                          style: TextStyle(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
                           ),
@@ -234,14 +234,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
               ),
             ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 20),
 
           // Decorative trust badge from the Divine Glass mockup footer.
           FadeSlideIn(
             delay: const Duration(milliseconds: 300),
             child: const Center(child: _SecuredFooterChip()),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -256,28 +256,24 @@ class _SecuredFooterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.tealPale, width: 1),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock_rounded, size: 15, color: AppColors.textMuted),
+          Icon(Icons.lock_rounded, size: 14, color: AppColors.textMuted),
           SizedBox(width: 8),
-          // Flexible, so the letter-spaced label wraps instead of running past
-          // the pill's right edge. At 1.1 letter-spacing this string is just
-          // wider than a narrow screen allows once the chip's own 18px padding
-          // is taken off - the source of the 1.9px overflow.
           Flexible(
             child: Text(
               'SECURED BY INO VAULT ENCRYPTION',
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
+                letterSpacing: 1.0,
                 color: AppColors.textMuted,
               ),
             ),
@@ -296,23 +292,23 @@ class _OtpBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 84,
-        height: 84,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           gradient: AppColors.brandGradient,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
               color: AppColors.primaryGreen.withValues(alpha: 0.35),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: const Icon(
           Icons.mark_email_read_rounded,
           color: Colors.white,
-          size: 38,
+          size: 32,
         ),
       ),
     );

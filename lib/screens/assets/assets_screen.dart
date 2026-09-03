@@ -16,6 +16,7 @@ import '../../widgets/pressable_scale.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../documents/add_document_screen.dart';
 import '../networth/net_worth_analytics_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Assets - the total asset value, a searchable breakdown by class (from the
 /// [NetWorthService] allocation model) and a real "Add asset" entry point that
@@ -49,9 +50,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
   }
 
   void _addAsset() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddDocumentScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddDocumentScreen()));
   }
 
   @override
@@ -71,7 +72,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
         future: _ready,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: InoLoader());
           }
           return ListenableBuilder(
             listenable: NetWorthService.instance,
@@ -91,196 +92,243 @@ class _AssetsScreenState extends State<AssetsScreen> {
     final total = service.total;
     final all = service.allocations;
     final growthPercent = service.data.growthPercent;
-    final trend =
-        service.seriesFor(NetWorthRange.month).map((p) => p.value).toList();
+    final trend = service
+        .seriesFor(NetWorthRange.month)
+        .map((p) => p.value)
+        .toList();
+    // Search matches the translated name the user is looking at, and still
+    // matches the English one so a typed "gold" works in any language.
     final filtered = _term.isEmpty
         ? all
-        : all.where((a) => a.label.toLowerCase().contains(_term)).toList();
+        : all.where((a) {
+            final shown = a.localizedLabel(l10n).toLowerCase();
+            return shown.contains(_term) ||
+                a.label.toLowerCase().contains(_term);
+          }).toList();
 
     return Column(
-        children: [
-          // Hero - glass performance card (total, trend pill, sparkline).
-          FadeSlideIn(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screen, AppSpacing.xs, AppSpacing.screen, 0),
-              child: PressableScale(
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const NetWorthAnalyticsScreen())),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: palette.cardGradient,
-                      borderRadius: BorderRadius.circular(AppRadius.large),
-                      border: Border.all(color: palette.border),
-                      boxShadow: palette.cardShadow,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.large),
-                      child: Stack(
-                        children: [
-                          const Positioned(
-                              right: -44, top: -44, child: _WashCircle(130)),
-                          const Positioned(
-                              left: -36, bottom: -56, child: _WashCircle(150)),
-                          Padding(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(l10n.t('totalAssets'),
-                                          style: TextStyle(
-                                              color: palette.textFaint,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 1.1)),
-                                    ),
-                                    // Real month-over-month trend from the
-                                    // same NetWorthService read model.
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryGreen
-                                            .withValues(alpha: 0.10),
-                                        borderRadius: BorderRadius.circular(
-                                            AppRadius.pill),
-                                        border: Border.all(
-                                            color: AppColors.tealPale),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                              growthPercent >= 0
-                                                  ? Icons.trending_up_rounded
-                                                  : Icons.trending_down_rounded,
-                                              size: 14,
-                                              color: AppColors.primaryGreen),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                              '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
-                                              style:  TextStyle(
-                                                  color:
-                                                      AppColors.primaryGreen,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w800)),
-                                        ],
+      children: [
+        // Hero - glass performance card (total, trend pill, sparkline).
+        FadeSlideIn(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.xs,
+              AppSpacing.screen,
+              0,
+            ),
+            child: PressableScale(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const NetWorthAnalyticsScreen(),
+                  ),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: palette.cardGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    border: Border.all(color: palette.border),
+                    boxShadow: palette.cardShadow,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    child: Stack(
+                      children: [
+                        const Positioned(
+                          right: -44,
+                          top: -44,
+                          child: _WashCircle(130),
+                        ),
+                        const Positioned(
+                          left: -36,
+                          bottom: -56,
+                          child: _WashCircle(150),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      l10n.t('totalAssets'),
+                                      style: TextStyle(
+                                        color: palette.textFaint,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.1,
                                       ),
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                ResponsiveMetricText(
-                                  formatInr(total),
-                                  style: TextStyle(
-                                      color: palette.textPrimary,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -1.0),
-                                ),
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  height: 40,
-                                  width: double.infinity,
-                                  child: CustomPaint(
-                                    painter:
-                                        _HeroSparklinePainter(values: trend),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Text(
-                                        l10n
-                                            .t('assetClasses')
-                                            .replaceAll('{n}', '${all.length}'),
-                                        style: TextStyle(
-                                            color: palette.textSecondary,
-                                            fontSize: 12)),
-                                    const Spacer(),
-                                    Text(l10n.t('viewAnalytics'),
-                                        style:  TextStyle(
+                                  // Real month-over-month trend from the
+                                  // same NetWorthService read model.
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryGreen.withValues(
+                                        alpha: 0.10,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.pill,
+                                      ),
+                                      border: Border.all(
+                                        color: AppColors.tealPale,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          growthPercent >= 0
+                                              ? Icons.trending_up_rounded
+                                              : Icons.trending_down_rounded,
+                                          size: 14,
+                                          color: AppColors.primaryGreen,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
+                                          style: TextStyle(
                                             color: AppColors.primaryGreen,
                                             fontSize: 12,
-                                            fontWeight: FontWeight.w700)),
-                                     Icon(Icons.chevron_right_rounded,
-                                        color: AppColors.primaryGreen,
-                                        size: 18),
-                                  ],
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              ResponsiveMetricText(
+                                formatInr(total),
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1.0,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                height: 40,
+                                width: double.infinity,
+                                child: CustomPaint(
+                                  painter: _HeroSparklinePainter(values: trend),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Text(
+                                    l10n
+                                        .t('assetClasses')
+                                        .replaceAll('{n}', '${all.length}'),
+                                    style: TextStyle(
+                                      color: palette.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    l10n.t('viewAnalytics'),
+                                    style: TextStyle(
+                                      color: AppColors.primaryGreen,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.primaryGreen,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          // Search.
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // Search.
+        FadeSlideIn(
+          delay: const Duration(milliseconds: 70),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+            child: FloatingSearchBar(
+              hint: l10n.t('searchAssets'),
+              controller: _query,
+            ),
+          ),
+        ),
+        if (filtered.isNotEmpty)
           FadeSlideIn(
-            delay: const Duration(milliseconds: 70),
+            delay: const Duration(milliseconds: 120),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-              child: FloatingSearchBar(
-                hint: l10n.t('searchAssets'),
-                controller: _query,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screen + 4,
+                AppSpacing.md,
+                AppSpacing.screen,
+                2,
               ),
-            ),
-          ),
-          if (filtered.isNotEmpty)
-            FadeSlideIn(
-              delay: const Duration(milliseconds: 120),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen + 4,
-                    AppSpacing.md, AppSpacing.screen, 2),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  // Decorative section label (Stitch "Portfolio Assets" rhythm).
-                  child: Text('PORTFOLIO ASSETS',
-                      style: AppText.label.copyWith(
-                          color: palette.textFaint,
-                          fontSize: 11,
-                          letterSpacing: 1.2)),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                // Decorative section label (Stitch "Portfolio Assets" rhythm).
+                child: Text(
+                  l10n.t('portfolioAssets'),
+                  style: AppText.label.copyWith(
+                    color: palette.textFaint,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
-            )
-          else
-            const SizedBox(height: AppSpacing.sm),
-          Expanded(
-            child: filtered.isEmpty
-                ? EmptyState(
-                    icon: Icons.inventory_2_rounded,
-                    title: l10n.t('noMatchingAssets'),
-                    message: l10n.t('noMatchingAssetsSubtitle'),
-                    actionLabel: l10n.t('addAsset'),
-                    onAction: _addAsset,
-                    compact: true,
-                  )
-                : ListView.separated(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                        AppSpacing.xs, AppSpacing.screen, AppSpacing.xl),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) => FadeSlideIn(
-                      delay: Duration(milliseconds: 150 + 45 * math.min(i, 6)),
-                      child: _AssetTile(allocation: filtered[i], total: total),
-                    ),
+            ),
+          )
+        else
+          const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: filtered.isEmpty
+              ? EmptyState(
+                  icon: Icons.inventory_2_rounded,
+                  title: l10n.t('noMatchingAssets'),
+                  message: l10n.t('noMatchingAssetsSubtitle'),
+                  actionLabel: l10n.t('addAsset'),
+                  onAction: _addAsset,
+                  compact: true,
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    AppSpacing.xs,
+                    AppSpacing.screen,
+                    AppSpacing.xl,
                   ),
-          ),
-        ],
-      );
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  // No FadeSlideIn: recycled rows replay the entrance
+                  // every time they scroll back into view.
+                  itemBuilder: (context, i) =>
+                      _AssetTile(allocation: filtered[i], total: total),
+                ),
+        ),
+      ],
+    );
   }
 }
 
@@ -356,8 +404,11 @@ class _HeroSparklinePainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
-    canvas.drawCircle(at(values.length - 1), 3.5,
-        Paint()..color = AppColors.primaryGreen);
+    canvas.drawCircle(
+      at(values.length - 1),
+      3.5,
+      Paint()..color = AppColors.primaryGreen,
+    );
   }
 
   @override
@@ -388,32 +439,45 @@ class _AssetTile extends StatelessWidget {
                   color: allocation.color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.chip),
                 ),
-                child: Icon(_iconFor(allocation.label),
-                    color: allocation.color, size: 22),
+                child: Icon(
+                  _iconFor(allocation.label),
+                  color: allocation.color,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(allocation.label,
-                    style:
-                        AppText.subtitle.copyWith(color: palette.textPrimary)),
+                child: Text(
+                  allocation.localizedLabel(AppLocalizations.of(context)),
+                  style: AppText.subtitle.copyWith(color: palette.textPrimary),
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(formatInr(allocation.value),
-                      style: AppText.subtitle
-                          .copyWith(color: palette.textPrimary)),
+                  Text(
+                    formatInr(allocation.value),
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: allocation.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
-                    child: Text('${(pct * 100).toStringAsFixed(0)}%',
-                        style: AppText.label.copyWith(
-                            color: allocation.color, fontSize: 11)),
+                    child: Text(
+                      '${(pct * 100).toStringAsFixed(0)}%',
+                      style: AppText.label.copyWith(
+                        color: allocation.color,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
                 ],
               ),

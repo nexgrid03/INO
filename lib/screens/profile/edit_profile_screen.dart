@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
@@ -110,7 +111,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: ListView(
-              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
               children: [
@@ -234,6 +234,8 @@ class _AvatarEditor extends StatelessWidget {
                         fit: BoxFit.cover,
                         width: 92,
                         height: 92,
+                        cacheWidth: context.decodeWidthFor(92),
+                        cacheHeight: context.decodeWidthFor(92),
                         errorBuilder: (_, _, _) => _InitialsFill(
                           initials: initials,
                           gradient: accentGrad,

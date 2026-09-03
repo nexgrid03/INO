@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inoapp/data/reminder_repository.dart';
 import 'package:inoapp/data/reminder_store.dart';
 import 'package:inoapp/models/reminder_models.dart';
 import 'package:inoapp/models/user_profile.dart';
@@ -55,9 +56,51 @@ Reminder _reminder(
       date: dateOnly(DateTime.now()).add(Duration(days: dayOffset)),
     );
 
+/// In-memory backend: the store's add() now awaits the insert and rolls back on
+/// failure, so a widget test needs a repository that actually accepts rows.
+class _MemoryReminderRepository implements ReminderRepository {
+  final List<Reminder> rows = [];
+
+  @override
+  Future<ReminderData> load() async {
+    final today = dateOnly(DateTime.now());
+    return ReminderData(
+      today: today,
+      reminders: rows.where((r) => !r.completed).toList(),
+      completed: rows.where((r) => r.completed).toList(),
+      summary: const ReminderSummary(
+        dueToday: 0,
+        upcomingThisWeek: 0,
+        expiringSoon: 0,
+        completedThisMonth: 0,
+      ),
+    );
+  }
+
+  @override
+  Future<Reminder> add(Reminder reminder) async {
+    rows.add(reminder);
+    return reminder;
+  }
+
+  @override
+  Future<void> setCompleted(String id, bool completed) async {}
+
+  @override
+  Future<void> remove(String id) async => rows.removeWhere((r) => r.id == id);
+}
+
 void main() {
+  final memory = _MemoryReminderRepository();
+  final realRepo = ReminderRepository.instance;
+
   // Each test hydrates the shared store fresh for isolation.
-  setUp(() => ReminderStore.instance.reset());
+  setUp(() {
+    memory.rows.clear();
+    ReminderRepository.instance = memory;
+    ReminderStore.instance.reset();
+  });
+  tearDown(() => ReminderRepository.instance = realRepo);
 
   testWidgets('Empty by default: shows the placeholder, no dummy data',
       (tester) async {

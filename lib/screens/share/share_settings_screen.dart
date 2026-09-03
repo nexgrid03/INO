@@ -9,6 +9,7 @@ import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/share_settings.dart';
+import '../../models/view_once_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../repositories/view_once_repository.dart';
@@ -21,6 +22,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import 'qr_share_screen.dart';
 import 'view_once_share_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// How the selected documents are handed over.
 enum ShareMode {
@@ -54,6 +56,10 @@ class ShareSettingsScreen extends StatefulWidget {
 class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   ShareColorMode _color = ShareColorMode.original;
   ShareDuration _duration = ShareDuration.twentyFourHours;
+
+  /// How long a one-time document stays on screen once opened. Separate from
+  /// [_duration], which bounds how long the unopened link stays reachable.
+  ViewDuration _viewDuration = ViewDuration.thirtySeconds;
   ShareMode _mode = ShareMode.normal;
   bool _busy = false;
 
@@ -188,6 +194,7 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
       final share = await ViewOnceRepository.instance.create(
         documentId: doc.id,
         duration: _duration,
+        viewDuration: _viewDuration,
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -281,7 +288,6 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
               ),
               Expanded(
                 child: ListView(
-                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screen, 4, AppSpacing.screen, AppSpacing.lg),
                   children: [
@@ -357,6 +363,25 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
                       style:
                           AppText.caption.copyWith(color: palette.textFaint),
                     ),
+
+                    // Only meaningful for a one-time link: a normal share has
+                    // no single "look" to time.
+                    if (_isViewOnce) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      _sectionLabel(l10n.t('viewDurationLabel'), palette),
+                      const SizedBox(height: AppSpacing.sm),
+                      _ViewDurationPill(
+                        selected: _viewDuration,
+                        onSelected: (d) =>
+                            setState(() => _viewDuration = d),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        l10n.t('viewDurationHint'),
+                        style: AppText.caption
+                            .copyWith(color: palette.textFaint),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -771,6 +796,71 @@ class _ViewOnceWarning extends StatelessWidget {
   }
 }
 
+/// Segmented picker for how long a one-time document stays on screen once the
+/// recipient opens it.
+///
+/// Sits directly under the link-expiry picker and mirrors its shape on purpose:
+/// the two are the same *kind* of choice about time, and pairing them visually
+/// is what makes the distinction legible — the one above is about the link, the
+/// one here is about the look.
+class _ViewDurationPill extends StatelessWidget {
+  const _ViewDurationPill({required this.selected, required this.onSelected});
+
+  final ViewDuration selected;
+  final ValueChanged<ViewDuration> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        children: [
+          for (final d in ViewDuration.values)
+            Expanded(
+              child: PressableScale(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onSelected(d);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: d == selected
+                          ? AppColors.primaryGreen
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      d.label(l10n),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: d == selected
+                            ? Colors.white
+                            : palette.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExpiryPill extends StatelessWidget {
   const _ExpiryPill({
     required this.selected,
@@ -911,15 +1001,7 @@ class _ActionBar extends StatelessWidget {
                     ),
                     child: Center(
                       child: busy
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
-                              ),
-                            )
+                          ? const InoLoader(size: 22, color: Colors.white)
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

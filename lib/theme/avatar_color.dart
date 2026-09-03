@@ -48,12 +48,8 @@ class AvatarColor {
       case ThemeStyle.launcher:
         return launcherProfile;
       case ThemeStyle.aqua:
-      case ThemeStyle.aquaLight:
       case ThemeStyle.aquaMist:
-      case ThemeStyle.clay:
         return aquaProfile;
-      case ThemeStyle.classic:
-        return forKey(seed);
     }
   }
 

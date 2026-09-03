@@ -12,6 +12,7 @@ import '../../widgets/reminders/reminder_card.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
 import '../../widgets/reminders/reminder_filter_chips.dart';
 import 'reminder_calendar_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The full reminders list - everything the compact home screen defers to.
 ///
@@ -103,10 +104,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             builder: (context, _) {
               if (!_store.isLoaded) {
                 return Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.6,
-                    color: AppColors.primaryGreen,
-                  ),
+                  child: InoLoader(color: AppColors.primaryGreen),
                 );
               }
               final scoped =
@@ -125,29 +123,16 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   Expanded(
                     child: groups.isEmpty
                         ? const _EmptyList()
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.screen, 0, AppSpacing.screen, 120),
-                            physics: const BouncingScrollPhysics(),
-                            children: [
-                              for (final g in groups) ...[
-                                _GroupHeader(
-                                    labelKey: g.labelKey, count: g.items.length),
-                                for (final r in g.items)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        bottom: AppSpacing.xs),
-                                    child: ReminderCard(
-                                      reminder: r,
-                                      today: _store.today,
-                                      onTap: () =>
-                                          showReminderDetail(context, r),
-                                      onComplete: () => _store.complete(r),
-                                    ),
-                                  ),
-                                const SizedBox(height: AppSpacing.sm),
-                              ],
-                            ],
+                        // Flattened to rows so the list can build lazily. The
+                        // previous `ListView(children: [...])` constructed and
+                        // laid out a ReminderCard for every reminder the user
+                        // has on every rebuild — including the ones far below
+                        // the fold, and again on each filter tap.
+                        : _ReminderRows(
+                            groups: groups,
+                            today: _store.today,
+                            onOpen: (r) => showReminderDetail(context, r),
+                            onComplete: _store.complete,
                           ),
                   ),
                 ],
@@ -157,6 +142,94 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         ),
         ),
       ),
+    );
+  }
+}
+
+/// One row of the flattened All-Reminders list: either a group header or a
+/// single reminder. Flattening is what lets the list virtualise — a grouped
+/// `ListView(children: [...])` has to materialise every group and every card up
+/// front, however far off-screen they are.
+sealed class _Row {
+  const _Row();
+}
+
+class _HeaderRow extends _Row {
+  const _HeaderRow(this.labelKey, this.count);
+  final String labelKey;
+  final int count;
+}
+
+class _CardRow extends _Row {
+  const _CardRow(this.reminder);
+  final Reminder reminder;
+}
+
+/// Trailing gap that closed each group in the original layout.
+class _GapRow extends _Row {
+  const _GapRow();
+}
+
+/// Lazily-built grouped reminder list.
+///
+/// Renders exactly the same sequence of widgets the eager `ListView` did —
+/// header, cards each with an 8px bottom gap, then a 12px gap before the next
+/// group — but through a builder, so only the rows near the viewport are ever
+/// constructed, laid out or painted.
+class _ReminderRows extends StatelessWidget {
+  const _ReminderRows({
+    required this.groups,
+    required this.today,
+    required this.onOpen,
+    required this.onComplete,
+  });
+
+  final List<ReminderGroup> groups;
+  final DateTime today;
+  final void Function(Reminder) onOpen;
+  final void Function(Reminder) onComplete;
+
+  List<_Row> _flatten() {
+    final rows = <_Row>[];
+    for (final g in groups) {
+      rows.add(_HeaderRow(g.labelKey, g.items.length));
+      for (final r in g.items) {
+        rows.add(_CardRow(r));
+      }
+      rows.add(const _GapRow());
+    }
+    return rows;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _flatten();
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen, 0, AppSpacing.screen, 120),
+      // Extra build-ahead so a fast fling doesn't outrun the builder.
+      cacheExtent: 600.0,
+      itemCount: rows.length,
+      itemBuilder: (context, i) {
+        final row = rows[i];
+        switch (row) {
+          case _HeaderRow(:final labelKey, :final count):
+            return _GroupHeader(labelKey: labelKey, count: count);
+          case _GapRow():
+            return const SizedBox(height: AppSpacing.sm);
+          case _CardRow(:final reminder):
+            return Padding(
+              key: ValueKey(reminder.id),
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: ReminderCard(
+                reminder: reminder,
+                today: today,
+                onTap: () => onOpen(reminder),
+                onComplete: () => onComplete(reminder),
+              ),
+            );
+        }
+      },
     );
   }
 }

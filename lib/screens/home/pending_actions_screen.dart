@@ -14,6 +14,7 @@ import '../../widgets/common/liquid_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../navigation/wallet_module_router.dart';
 import '../shell/shell_controller.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// A pending item - either a due reminder or an expiring document.
 class _Pending {
@@ -52,13 +53,22 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
   List<_Pending>? _items;
   bool _error = false;
 
+  /// The locale the loaded items were built for - re-running the load when it
+  /// changes is what makes the due/expiry copy follow a language switch.
+  Locale? _loadedLocale;
+
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (_loadedLocale != locale) {
+      _loadedLocale = locale;
+      _load();
+    }
   }
 
   Future<void> _load() async {
+    final l10n = AppLocalizations.of(context);
     try {
       final items = <_Pending>[];
 
@@ -69,11 +79,13 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
         if (r.daysFrom(today) <= 7) {
           items.add(_Pending(
             title: r.title,
-            subtitle: r.subtitle.isEmpty ? r.category.label : r.subtitle,
+            subtitle: r.subtitle.isEmpty
+                ? r.category.localizedLabel(l10n)
+                : r.subtitle,
             icon: r.category.icon,
             accent: r.category.color,
             urgencyColor: reminderUrgencyColor(r, today),
-            urgency: r.dueLabel(today),
+            urgency: r.localizedDueLabel(today, l10n),
           ));
         }
       }
@@ -86,7 +98,7 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
           if (exp == null) continue;
           final days = exp.difference(DateTime.now()).inDays;
           if (days >= 0 && days <= 30) {
-            items.add(_pendingFromDoc(d, days));
+            items.add(_pendingFromDoc(d, days, l10n));
           }
         }
       } catch (_) {
@@ -104,13 +116,16 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
     }
   }
 
-  _Pending _pendingFromDoc(Document d, int days) => _Pending(
-        title: '${d.name} expires soon',
-        subtitle: '${d.category ?? 'Document'} · ${d.wallet}',
+  _Pending _pendingFromDoc(Document d, int days, AppLocalizations l10n) =>
+      _Pending(
+        title: l10n.t('notifDocExpiresSoon').replaceAll('{name}', d.name),
+        subtitle: '${d.category ?? l10n.t('document')} · ${d.wallet}',
         icon: Icons.event_busy_rounded,
         accent: AppColors.primaryGreen,
         urgencyColor: days <= 7 ? AppColors.critical : AppColors.warning,
-        urgency: days == 0 ? 'Expires today' : 'In $days days',
+        urgency: days == 0
+            ? l10n.t('notifExpiresToday')
+            : l10n.t('inDays').replaceAll('{n}', '$days'),
         wallet: d.wallet,
       );
 
@@ -137,7 +152,7 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
       child: _error
           ? ErrorRetry(onRetry: _load)
           : items == null
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2.4))
+              ? const Center(child: InoLoader())
               : items.isEmpty
                   ? EmptyState(
                       icon: Icons.task_alt_rounded,
@@ -148,8 +163,6 @@ class _PendingActionsScreenState extends State<PendingActionsScreen> {
                       color: AppColors.primaryGreen,
                       onRefresh: _load,
                       child: ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(
-                            parent: BouncingScrollPhysics()),
                         padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
                             AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
                         itemCount: items.length,

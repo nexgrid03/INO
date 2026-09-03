@@ -12,6 +12,16 @@
          system never shows them, which looks exactly like "push is broken". -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Exact-time reminders (flutter_local_notifications zonedSchedule).
+         SCHEDULE_EXACT_ALARM is user-granted on Android 13+; ReminderScheduler
+         asks for it when the first timed reminder is created and falls back to
+         an inexact alarm if refused. RECEIVE_BOOT_COMPLETED lets the plugin
+         re-arm pending reminders after a reboot - without it every scheduled
+         reminder is silently lost when the phone restarts. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Voice navigation: on-device speech recognition needs the microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -127,6 +137,40 @@
                 <data android:scheme="ino" android:host="viewonce" />
             </intent-filter>
         </activity>
+        <!-- Receivers that fire scheduled (exact-time) reminders and re-arm
+             them after a reboot / app update. Required by
+             flutter_local_notifications for zonedSchedule to work at all. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Receivers that fire scheduled (exact-time) reminders and re-arm
+             them after a reboot / app update. Required by
+             flutter_local_notifications for zonedSchedule to work at all. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

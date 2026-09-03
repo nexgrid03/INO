@@ -37,6 +37,18 @@ class FamilyVaultStore extends ChangeNotifier {
   List<VaultInvitation> get pendingInvites => List.unmodifiable(_pendingInvites);
   int get pendingInviteCount => _pendingInvites.length;
 
+  /// Join requests waiting on THIS user's decision (they own/admin the
+  /// family), and the user's own outgoing requests still waiting on an owner.
+  final List<VaultJoinRequest> _incomingRequests = [];
+  final List<VaultJoinRequest> _myRequests = [];
+  List<VaultJoinRequest> get incomingJoinRequests =>
+      List.unmodifiable(_incomingRequests);
+  List<VaultJoinRequest> get myJoinRequests => List.unmodifiable(_myRequests);
+
+  /// Everything that needs the user's attention on the Family Vault home.
+  int get pendingActionCount =>
+      _pendingInvites.length + _incomingRequests.length;
+
   String? _uid() {
     try {
       return Supabase.instance.client.auth.currentUser?.id;
@@ -181,6 +193,61 @@ class FamilyVaultStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('[FamilyVault] refreshPendingInvitations failed: $e');
     }
+    await refreshJoinRequests();
+  }
+
+  /// Refreshes both directions of join requests. Never throws (see above);
+  /// a failure here (e.g. the migration not applied yet) leaves the last
+  /// known lists in place.
+  Future<void> refreshJoinRequests() async {
+    if (!_remote) return;
+    try {
+      final results = await Future.wait([
+        FamilyVaultRepository.instance.incomingJoinRequests(),
+        FamilyVaultRepository.instance.myJoinRequests(),
+      ]);
+      _incomingRequests
+        ..clear()
+        ..addAll(results[0]);
+      _myRequests
+        ..clear()
+        ..addAll(results[1]);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[FamilyVault] refreshJoinRequests failed: $e');
+    }
+  }
+
+  /// Sends a request to join [vaultId] and shows it under "your requests".
+  /// Rethrows so the sheet can explain a rejection (already a member, …).
+  Future<VaultJoinRequest> requestToJoin(String vaultId) async {
+    final req = await FamilyVaultRepository.instance.requestToJoin(vaultId);
+    _myRequests.insert(0, req);
+    notifyListeners();
+    return req;
+  }
+
+  /// Approves an incoming request (owner/admin) with [role], then reloads the
+  /// vault list so the new member count is right. Rethrows.
+  Future<void> approveJoinRequest(String requestId, VaultRole role) async {
+    await FamilyVaultRepository.instance.approveJoinRequest(requestId, role);
+    _incomingRequests.removeWhere((r) => r.id == requestId);
+    notifyListeners();
+    await refreshJoinRequests();
+  }
+
+  /// Declines an incoming request. Rethrows.
+  Future<void> declineJoinRequest(String requestId) async {
+    await FamilyVaultRepository.instance.declineJoinRequest(requestId);
+    _incomingRequests.removeWhere((r) => r.id == requestId);
+    notifyListeners();
+  }
+
+  /// Withdraws one of the user's own pending requests. Rethrows.
+  Future<void> cancelJoinRequest(String requestId) async {
+    await FamilyVaultRepository.instance.cancelJoinRequest(requestId);
+    _myRequests.removeWhere((r) => r.id == requestId);
+    notifyListeners();
   }
 
   /// Accepts an invitation, then refreshes vaults (a new membership appeared)
@@ -245,6 +312,8 @@ class FamilyVaultStore extends ChangeNotifier {
     stopRealtime();
     _vaults.clear();
     _pendingInvites.clear();
+    _incomingRequests.clear();
+    _myRequests.clear();
     _loaded = false;
     _loading = false;
     _loadError = null;

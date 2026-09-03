@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/card_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../navigation/wallet_module_router.dart';
@@ -16,6 +17,27 @@ import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../shell/shell_controller.dart';
 import 'card_form_screen.dart';
+
+/// The user-facing name of a [CardKind] in the active language.
+///
+/// The enum's own `name` remains what is persisted - only the label the user
+/// reads is translated.
+String cardKindLabel(AppLocalizations l10n, CardKind kind) =>
+    l10n.t(switch (kind) {
+      CardKind.debit => 'cardKindDebit',
+      CardKind.credit => 'cardKindCredit',
+      CardKind.prepaid => 'cardKindPrepaid',
+      CardKind.forex => 'cardKindForex',
+    });
+
+/// The user-facing name of a [CardSort] option in the active language.
+String cardSortLabel(AppLocalizations l10n, CardSort sort) =>
+    l10n.t(switch (sort) {
+      CardSort.recent => 'cardSortRecent',
+      CardSort.bank => 'cardSortBank',
+      CardSort.expiry => 'cardSortExpiry',
+      CardSort.name => 'cardSortName',
+    });
 
 /// The Banking Wallet - the user's cards, rendered as cards.
 ///
@@ -63,8 +85,11 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
 
   List<SavedCard> get _visible {
     final filtered = _store.items
-        .where((c) =>
-            (_kindFilter == null || c.kind == _kindFilter) && c.matches(_query))
+        .where(
+          (c) =>
+              (_kindFilter == null || c.kind == _kindFilter) &&
+              c.matches(_query),
+        )
         .toList();
     return _sort.apply(filtered);
   }
@@ -75,43 +100,47 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
     );
     if (created == null || !mounted) return;
     setState(() => _expandedId = created.id);
-    await showSuccessBurst(context, 'Card added');
+    await showSuccessBurst(context, AppLocalizations.of(context).t('cardAdded'));
   }
 
   Future<void> _edit(SavedCard card) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CardFormScreen(existing: card)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => CardFormScreen(existing: card)));
   }
 
   Future<void> _delete(SavedCard card) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       context,
-      title: 'Delete card?',
-      message:
-          '"${card.name}" (•••• ${card.last4}) will be removed from this device.',
+      title: l10n.t('deleteCardTitle'),
+      message: l10n
+          .t('deleteCardMessage')
+          .replaceAll('{name}', card.name)
+          .replaceAll('{last4}', card.last4),
     );
     if (!ok || !mounted) return;
     await _store.remove(card.id);
     if (!mounted) return;
     setState(() => _expandedId = null);
-    showModuleToast(context, 'Card deleted');
+    showModuleToast(context, l10n.t('cardDeleted'));
   }
 
   void _copyLast4(SavedCard card) {
     Clipboard.setData(ClipboardData(text: card.last4));
     HapticFeedback.selectionClick();
     // Deliberately explicit: the user should know only 4 digits exist here.
-    showModuleToast(context, 'Last 4 digits copied');
+    showModuleToast(context, AppLocalizations.of(context).t('last4Copied'));
   }
 
   void _openDocuments() => openWalletDocuments(context, widget.category);
 
   Future<void> _openSort() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showModulePicker(
       context,
-      title: 'Sort cards',
-      labels: [for (final s in CardSort.values) s.label],
+      title: l10n.t('sortCards'),
+      labels: [for (final s in CardSort.values) cardSortLabel(l10n, s)],
       selectedIndex: CardSort.values.indexOf(_sort),
     );
     if (picked == null || !mounted) return;
@@ -121,9 +150,19 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final hasAny = _store.items.isNotEmpty;
     final visible = _visible;
     final attention = _store.needingAttention.length;
+    final cardCount = _store.count == 1
+        ? l10n.t('oneCard')
+        : l10n.t('nCards').replaceAll('{count}', '${_store.count}');
+    final creditCount = l10n
+        .t('nCredit')
+        .replaceAll('{count}', '${_store.countOf(CardKind.credit)}');
+    final debitCount = l10n
+        .t('nDebit')
+        .replaceAll('{count}', '${_store.countOf(CardKind.debit)}');
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -137,16 +176,16 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
           child: Column(
             children: [
               ModuleHeader(
-                title: 'My Cards',
+                title: l10n.t('myCards'),
                 subtitle: hasAny
-                    ? '${_store.count} card${_store.count == 1 ? '' : 's'} · ${_store.countOf(CardKind.credit)} credit · ${_store.countOf(CardKind.debit)} debit'
-                    : 'Debit & credit cards',
+                    ? '$cardCount · $creditCount · $debitCount'
+                    : l10n.t('debitAndCreditCards'),
                 icon: Icons.credit_card_rounded,
                 accent: AppColors.primaryGreen,
                 actions: [
                   ModuleIconButton(
                     icon: Icons.folder_shared_rounded,
-                    tooltip: 'Banking documents',
+                    tooltip: l10n.t('bankingDocuments'),
                     color: AppColors.primaryGreen,
                     size: 46,
                     iconSize: 26,
@@ -154,7 +193,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
                   ),
                   ModuleIconButton(
                     icon: Icons.add_rounded,
-                    tooltip: 'Add card',
+                    tooltip: l10n.t('addCard'),
                     color: AppColors.primaryGreen,
                     size: 46,
                     iconSize: 28,
@@ -164,216 +203,240 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
               ),
               Expanded(
                 child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics(),
-                  ),
                   slivers: [
-              if (!_store.isLoaded)
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: ModuleSkeleton(height: 88, count: 3),
-                  ),
-                )
-              else if (!hasAny)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ModuleEmptyState(
-                    icon: Icons.credit_card_rounded,
-                    title: 'No cards saved',
-                    message:
-                        'Keep track of the cards you carry. Only the last four '
-                        'digits are stored - never the full number, and never a CVV.',
-                    actionLabel: 'Add card',
-                    onAction: _add,
-                  ),
-                )
-              else ...[
-                if (attention > 0)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
-                      child: FadeSlideIn(
-                        child: _AttentionBanner(count: attention),
-                      ),
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 10),
-                    child: _CardsSearchBar(
-                      controller: _searchController,
-                      onChanged: (v) => setState(() => _query = v),
-                      onSort: _openSort,
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 48,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      clipBehavior: Clip.none,
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                      children: [
-                        _DocFilterChip(
-                          label: 'All',
-                          count: _store.count,
-                          selected: _kindFilter == null,
-                          onTap: () => setState(() => _kindFilter = null),
+                    if (!_store.isLoaded)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, AppSpacing.md, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: ModuleSkeleton(height: 88, count: 3),
                         ),
-                        for (final k in CardKind.values)
-                          if (_store.countOf(k) > 0) ...[
-                            const SizedBox(width: 8),
-                            _DocFilterChip(
-                              label: k.label,
-                              count: _store.countOf(k),
-                              selected: _kindFilter == k,
-                              onTap: () => setState(() => _kindFilter = k),
+                      )
+                    else if (!hasAny)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: ModuleEmptyState(
+                          icon: Icons.credit_card_rounded,
+                          title: l10n.t('noCardsSaved'),
+                          message: l10n.t('noCardsSavedMessage'),
+                          actionLabel: l10n.t('addCard'),
+                          onAction: _add,
+                        ),
+                      )
+                    else ...[
+                      if (attention > 0)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              16,
+                              AppSpacing.md,
+                              16,
+                              10,
                             ),
-                          ],
-                      ],
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 16, 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Cards · ${visible.length} of ${_store.count}',
-                            style: AppText.caption.copyWith(
-                              color: palette.textSecondary,
-                              fontWeight: FontWeight.w600,
+                            child: FadeSlideIn(
+                              child: _AttentionBanner(count: attention),
                             ),
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: _openSort,
-                          icon: Icon(Icons.swap_vert_rounded,
-                              size: 18, color: AppColors.primaryGreen),
-                          label: Text(
-                            'Sort',
-                            style: AppText.label.copyWith(
-                              color: AppColors.primaryGreen,
-                            ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            AppSpacing.md,
+                            16,
+                            10,
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            visualDensity: VisualDensity.compact,
+                          child: _CardsSearchBar(
+                            controller: _searchController,
+                            onChanged: (v) => setState(() => _query = v),
+                            onSort: _openSort,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (visible.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(
-                          'No cards match this search.',
-                          style: AppText.body
-                              .copyWith(color: palette.textSecondary),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList.separated(
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, i) {
-                        final card = visible[i];
-                        final expanded = _expandedId == card.id;
-                        return FadeSlideIn(
-                          delay:
-                              Duration(milliseconds: (i * 50).clamp(0, 300)),
-                          offset: 12,
-                          child: Column(
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: 48,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            clipBehavior: Clip.none,
+                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                             children: [
-                              _CardDocTile(
-                                card: card,
-                                selected: expanded,
-                                onTap: () => setState(() {
-                                  HapticFeedback.selectionClick();
-                                  _expandedId =
-                                      expanded ? null : card.id;
-                                }),
-                                onFavorite: () =>
-                                    _store.toggleFavorite(card.id),
+                              _DocFilterChip(
+                                label: l10n.t('all'),
+                                count: _store.count,
+                                selected: _kindFilter == null,
+                                onTap: () => setState(() => _kindFilter = null),
                               ),
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 240),
-                                curve: Curves.easeOutCubic,
-                                alignment: Alignment.topCenter,
-                                child: expanded
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(top: 10),
-                                        child: _CardActions(
-                                          onView: () => _edit(card),
-                                          onCopy: () => _copyLast4(card),
-                                          onEdit: () => _edit(card),
-                                          onDelete: () => _delete(card),
-                                        ),
+                              for (final k in CardKind.values)
+                                if (_store.countOf(k) > 0) ...[
+                                  const SizedBox(width: 8),
+                                  _DocFilterChip(
+                                    label: cardKindLabel(l10n, k),
+                                    count: _store.countOf(k),
+                                    selected: _kindFilter == k,
+                                    onTap: () =>
+                                        setState(() => _kindFilter = k),
+                                  ),
+                                ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 4, 16, 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  l10n
+                                      .t('cardsShownOfTotal')
+                                      .replaceAll(
+                                        '{shown}',
+                                        '${visible.length}',
                                       )
-                                    : const SizedBox(width: double.infinity),
+                                      .replaceAll('{total}', '${_store.count}'),
+                                  style: AppText.caption.copyWith(
+                                    color: palette.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: _openSort,
+                                icon: Icon(
+                                  Icons.swap_vert_rounded,
+                                  size: 18,
+                                  color: AppColors.primaryGreen,
+                                ),
+                                label: Text(
+                                  l10n.t('sort'),
+                                  style: AppText.label.copyWith(
+                                    color: AppColors.primaryGreen,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: palette.isDark
-                            ? palette.surfaceVariant
-                            : AppColors.tealFoam,
-                        borderRadius: BorderRadius.circular(AppRadius.card),
-                        border: Border.all(
-                          color: palette.isDark
-                              ? palette.border
-                              : AppColors.tealPale.withValues(alpha: 0.6),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.verified_user_outlined,
-                              size: 16, color: AppColors.primaryGreen),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Only the last 4 digits are stored on this device. '
-                              'No CVV, ever.',
-                              textAlign: TextAlign.center,
-                              style: AppText.caption.copyWith(
+                      if (visible.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: Text(
+                                l10n.t('noCardsMatchSearch'),
+                                style: AppText.body.copyWith(
                                   color: palette.textSecondary,
-                                  fontSize: 11.5),
+                                ),
+                              ),
                             ),
                           ),
-                        ],
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverList.separated(
+                            itemCount: visible.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            // No FadeSlideIn: recycled rows replay the entrance
+                            // every time they scroll back into view.
+                            itemBuilder: (context, i) {
+                              final card = visible[i];
+                              final expanded = _expandedId == card.id;
+                              return Column(
+                                key: ValueKey(card.id),
+                                children: [
+                                  _CardDocTile(
+                                    card: card,
+                                    selected: expanded,
+                                    onTap: () => setState(() {
+                                      HapticFeedback.selectionClick();
+                                      _expandedId = expanded ? null : card.id;
+                                    }),
+                                    onFavorite: () =>
+                                        _store.toggleFavorite(card.id),
+                                  ),
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 240),
+                                    curve: Curves.easeOutCubic,
+                                    alignment: Alignment.topCenter,
+                                    child: expanded
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 10,
+                                            ),
+                                            child: _CardActions(
+                                              onView: () => _edit(card),
+                                              onCopy: () => _copyLast4(card),
+                                              onEdit: () => _edit(card),
+                                              onDelete: () => _delete(card),
+                                            ),
+                                          )
+                                        : const SizedBox(
+                                            width: double.infinity,
+                                          ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: palette.isDark
+                                  ? palette.surfaceVariant
+                                  : AppColors.tealFoam,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.card,
+                              ),
+                              border: Border.all(
+                                color: palette.isDark
+                                    ? palette.border
+                                    : AppColors.tealPale.withValues(alpha: 0.6),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.verified_user_outlined,
+                                  size: 16,
+                                  color: AppColors.primaryGreen,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    l10n.t('cardsSecurityNote'),
+                                    textAlign: TextAlign.center,
+                                    style: AppText.caption.copyWith(
+                                      color: palette.textSecondary,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
-              ],
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                    ],
                   ],
                 ),
               ),
@@ -385,7 +448,7 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
       // bottom padding was pushing it into the security banner.
       floatingActionButton: hasAny
           ? GradientButton(
-              label: 'Add card',
+              label: l10n.t('addCard'),
               icon: Icons.add_rounded,
               expand: false,
               onTap: _add,
@@ -418,6 +481,7 @@ class _CardsSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final glass = divineGlassEnabled(context);
     final field = Row(
       children: [
@@ -431,7 +495,7 @@ class _CardsSearchBar extends StatelessWidget {
             style: AppText.body.copyWith(color: palette.textPrimary),
             cursorColor: AppColors.primaryGreen,
             decoration: InputDecoration(
-              hintText: 'Search cards',
+              hintText: l10n.t('searchCards'),
               hintStyle: AppText.body.copyWith(color: palette.textFaint),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
@@ -444,7 +508,7 @@ class _CardsSearchBar extends StatelessWidget {
         ),
         ModuleIconButton(
           icon: Icons.swap_vert_rounded,
-          tooltip: 'Sort',
+          tooltip: l10n.t('sort'),
           size: 34,
           onTap: onSort,
         ),
@@ -516,10 +580,13 @@ class _DocFilterChip extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: selected
-                  ? null
-                  : (palette.isDark ? palette.surface : Colors.white),
-              gradient: selected ? AppColors.vaultFillGradient(accent) : null,
+              // Gradient in both states — color↔gradient tweens dip through
+              // transparency and made the deselected chip blink.
+              gradient: selected
+                  ? AppColors.vaultFillGradient(accent)
+                  : AppColors.solidFillGradient(
+                      palette.isDark ? palette.surface : Colors.white,
+                    ),
               borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
                 color: selected ? Colors.transparent : palette.border,
@@ -566,11 +633,14 @@ class _CardDocTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     final accent = card.theme.top;
     final title = card.bank.isEmpty ? card.name : card.bank;
     final statusLabel = card.isExpired
-        ? 'Expired'
-        : (card.isExpiringSoon ? 'Expiring soon' : card.kind.label);
+        ? l10n.t('expired')
+        : (card.isExpiringSoon
+              ? l10n.t('expiringSoon')
+              : cardKindLabel(l10n, card.kind));
     final statusColor = card.isExpired
         ? AppColors.critical
         : (card.isExpiringSoon ? AppColors.warning : AppColors.primaryGreen);
@@ -627,14 +697,11 @@ class _CardDocTile extends StatelessWidget {
                 '${card.holderName.isEmpty ? '' : ' · ${card.holderName}'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(
-                  color: palette.textSecondary,
-                ),
+                style: AppText.caption.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: 7),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -655,17 +722,12 @@ class _CardDocTile extends StatelessWidget {
           onPressed: onFavorite,
           visualDensity: VisualDensity.compact,
           icon: Icon(
-            card.isFavorite
-                ? Icons.star_rounded
-                : Icons.star_outline_rounded,
+            card.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
             size: 20,
             color: card.isFavorite ? AppColors.warning : palette.textFaint,
           ),
         ),
-        Icon(
-          Icons.chevron_right_rounded,
-          color: palette.textFaint,
-        ),
+        Icon(Icons.chevron_right_rounded, color: palette.textFaint),
       ],
     );
 
@@ -708,10 +770,7 @@ class _CardDocTile extends StatelessWidget {
                       ),
                     ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: body,
-            ),
+            child: Padding(padding: const EdgeInsets.all(14), child: body),
           ),
         ),
       ),
@@ -738,6 +797,7 @@ class BankCardFace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = card.theme;
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -798,16 +858,19 @@ class BankCardFace extends StatelessWidget {
                         Flexible(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 9, vertical: 4),
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.22),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.pill),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.pill,
+                              ),
                             ),
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                '${card.kind.label.toUpperCase()} · ${card.network.label.toUpperCase()}',
+                                '${cardKindLabel(l10n, card.kind).toUpperCase()} · ${card.network.label.toUpperCase()}',
                                 maxLines: 1,
                                 softWrap: false,
                                 style: AppText.label.copyWith(
@@ -835,8 +898,7 @@ class BankCardFace extends StatelessWidget {
                                   width: 6,
                                   height: 6,
                                   decoration: BoxDecoration(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.88),
+                                    color: Colors.white.withValues(alpha: 0.88),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -864,7 +926,7 @@ class BankCardFace extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'CARD HOLDER',
+                                l10n.t('cardHolderCaps'),
                                 style: AppText.label.copyWith(
                                   color: Colors.white.withValues(alpha: 0.70),
                                   fontSize: 8.5,
@@ -889,7 +951,7 @@ class BankCardFace extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'EXPIRES',
+                              l10n.t('expiresCaps'),
                               style: AppText.label.copyWith(
                                 color: Colors.white.withValues(alpha: 0.70),
                                 fontSize: 8.5,
@@ -921,14 +983,18 @@ class BankCardFace extends StatelessWidget {
                   left: 18,
                   top: 44,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.28),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                     child: Text(
-                      card.isExpired ? 'EXPIRED' : 'EXPIRING SOON',
+                      l10n.t(
+                        card.isExpired ? 'expiredCaps' : 'expiringSoonCaps',
+                      ),
                       style: AppText.label.copyWith(
                         color: const Color(0xFFFFE2A8),
                         fontSize: 8.5,
@@ -950,7 +1016,8 @@ class BankCardFace extends StatelessWidget {
                           : Icons.star_outline_rounded,
                       size: 18,
                       color: Colors.white.withValues(
-                          alpha: card.isFavorite ? 1 : 0.55),
+                        alpha: card.isFavorite ? 1 : 0.55,
+                      ),
                     ),
                   ),
                 ),
@@ -978,14 +1045,8 @@ class _NetworkMark extends StatelessWidget {
           height: 24,
           child: Stack(
             children: [
-              Positioned(
-                left: 0,
-                child: _dot(const Color(0xFFEB5C4A)),
-              ),
-              Positioned(
-                left: 14,
-                child: _dot(const Color(0xFFF7A600)),
-              ),
+              Positioned(left: 0, child: _dot(const Color(0xFFEB5C4A))),
+              Positioned(left: 14, child: _dot(const Color(0xFFF7A600))),
             ],
           ),
         );
@@ -1008,13 +1069,13 @@ class _NetworkMark extends StatelessWidget {
   }
 
   Widget _dot(Color color) => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.92),
-          shape: BoxShape.circle,
-        ),
-      );
+    width: 24,
+    height: 24,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.92),
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 /// The row that slides out under an expanded card.
@@ -1033,17 +1094,26 @@ class _CardActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
-        _Action(icon: Icons.visibility_rounded, label: 'View', onTap: onView),
+        _Action(
+          icon: Icons.visibility_rounded,
+          label: l10n.t('view'),
+          onTap: onView,
+        ),
         const SizedBox(width: 8),
-        _Action(icon: Icons.copy_rounded, label: 'Copy No.', onTap: onCopy),
+        _Action(
+          icon: Icons.copy_rounded,
+          label: l10n.t('copyNumber'),
+          onTap: onCopy,
+        ),
         const SizedBox(width: 8),
-        _Action(icon: Icons.edit_rounded, label: 'Edit', onTap: onEdit),
+        _Action(icon: Icons.edit_rounded, label: l10n.t('edit'), onTap: onEdit),
         const SizedBox(width: 8),
         _Action(
           icon: Icons.delete_outline_rounded,
-          label: 'Delete',
+          label: l10n.t('delete'),
           onTap: onDelete,
           danger: true,
         ),
@@ -1107,6 +1177,7 @@ class _AttentionBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -1116,12 +1187,17 @@ class _AttentionBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded,
-              size: 18, color: AppColors.warning),
+          const Icon(
+            Icons.schedule_rounded,
+            size: 18,
+            color: AppColors.warning,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$count card${count == 1 ? '' : 's'} expired or expiring within 60 days',
+              l10n
+                  .t(count == 1 ? 'oneCardExpiring' : 'nCardsExpiring')
+                  .replaceAll('{count}', '$count'),
               style: AppText.caption.copyWith(color: palette.textPrimary),
             ),
           ),

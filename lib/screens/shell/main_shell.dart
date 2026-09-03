@@ -62,13 +62,18 @@ class _MainShellState extends State<MainShell>
   /// step. Threaded Home → WelcomeHeader → VoiceMicIconButton.
   final GlobalKey _voiceKey = GlobalKey();
 
-  /// Plays a brief fade + slide-in each time the destination changes. The
-  /// [IndexedStack] keeps every page alive (no rebuilds, scroll preserved); we
-  /// only animate the freshly-revealed page in from the right.
+  /// Plays a brief fade each time the destination changes. The [IndexedStack]
+  /// keeps every page alive (no rebuilds, scroll preserved); we only fade the
+  /// freshly-revealed page in — a single opacity layer over the existing
+  /// RepaintBoundary, so the transition costs almost nothing per frame.
   late final AnimationController _pageAnim = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 300),
+    duration: const Duration(milliseconds: 220),
     value: 1,
+  );
+  late final Animation<double> _pageFade = CurvedAnimation(
+    parent: _pageAnim,
+    curve: Curves.easeOut,
   );
 
   @override
@@ -136,11 +141,24 @@ class _MainShellState extends State<MainShell>
   /// System back at the shell root: step back through the visited tabs; only
   /// exit the app once there's no tab history left.
   void _handleBack() {
+    final routeName = ModalRoute.of(context)?.settings.name ?? 'MainShell';
+    final isFabOpen = InoBottomNav.isMenuOpen;
+    debugPrint('[Navigation] Android back pressed -> route: $routeName, currentTab: $_index, isFabMenuOpen: $isFabOpen');
+
+    // IF fabMenuExpanded == true -> collapse FAB menu and consume back event.
+    if (isFabOpen) {
+      debugPrint('[FAB Menu] Intercepted Android back -> closing FAB menu (currentTab: $_index)');
+      InoBottomNav.closeActiveMenu();
+      return; // DO NOT call Navigator.pop(), DO NOT change tabs, DO NOT change route!
+    }
+
     if (_tabHistory.isEmpty) {
+      debugPrint('[Navigation] No tab history left -> exiting app via SystemNavigator.pop()');
       SystemNavigator.pop();
       return;
     }
     final previous = _tabHistory.removeLast();
+    debugPrint('[Navigation] Retracing tab history -> moving to tab: $previous');
     // Set `_index` first so `_onTabChanged` sees no change and doesn't push
     // this hop back onto the history.
     setState(() => _index = previous);
@@ -279,10 +297,7 @@ class _MainShellState extends State<MainShell>
         _visitedTabs.contains(i)
             // Pause tickers on hidden tabs — InoBackground / skeletons keep
             // animating otherwise and burn GPU while the user is elsewhere.
-            ? TickerMode(
-                enabled: i == _index,
-                child: rawPages[i],
-              )
+            ? TickerMode(enabled: i == _index, child: rawPages[i])
             : const SizedBox.shrink(),
     ];
 
@@ -299,8 +314,11 @@ class _MainShellState extends State<MainShell>
       // No transient overlays here: the spoken greeting is muted from
       // Settings › Preferences › "Startup greeting" (a persistent switch), not
       // from a pill that appears and disappears while it plays.
-      body: RepaintBoundary(
-        child: IndexedStack(index: _index, children: pages),
+      body: FadeTransition(
+        opacity: _pageFade,
+        child: RepaintBoundary(
+          child: IndexedStack(index: _index, children: pages),
+        ),
       ),
       bottomNavigationBar: InoBottomNav(
         index: _index,

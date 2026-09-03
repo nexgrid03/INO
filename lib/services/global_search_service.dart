@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
+import '../l10n/app_localizations.dart';
 
 import '../data/reminder_store.dart';
 import '../models/document.dart';
@@ -102,7 +103,9 @@ class GlobalSearchService {
           hits.add(SearchHit(
             type: SearchHitType.category,
             title: category,
-            subtitle: 'Category',
+            // Results are rebuilt on every query, so a snapshot of the active
+            // language here always matches what the user is seeing.
+            subtitle: AppLocalizations.current.t('searchMatchCategory'),
             icon: Icons.folder_rounded,
             color: AppColors.skyBrandSecondary,
             wallet: d.wallet,
@@ -113,7 +116,7 @@ class GlobalSearchService {
             hits.add(SearchHit(
               type: SearchHitType.tag,
               title: '#$t',
-              subtitle: 'Tag',
+              subtitle: AppLocalizations.current.t('searchMatchTag'),
               icon: Icons.label_rounded,
               color: AppColors.skyBrandSecondary,
               wallet: d.wallet,

@@ -17,6 +17,7 @@ import 'add_expense_screen.dart';
 import 'tax_records_screen.dart';
 import 'tax_summary_screen.dart';
 import 'transaction_details_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// ITR-ready Transaction Vault - records + receipts organised by financial year,
 /// with a tax-document vault and a tax summary. Starts completely empty.
@@ -55,13 +56,14 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
     final years = <int>{
       for (var i = 0; i < 7; i++) base - i,
       for (final y in _store.availableYears) y.startYear,
-    }.toList()
-      ..sort((a, b) => b.compareTo(a));
+    }.toList()..sort((a, b) => b.compareTo(a));
     final picked = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -69,14 +71,18 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(l10n.t('financialYear'),
-                style: AppText.title.copyWith(color: palette.textPrimary)),
+            Text(
+              l10n.t('financialYear'),
+              style: AppText.title.copyWith(color: palette.textPrimary),
+            ),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -85,19 +91,26 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                   for (final y in years)
                     ListTile(
                       onTap: () => Navigator.of(context).pop(y),
-                      leading: Icon(Icons.calendar_month_rounded,
-                          color: y == _store.selectedYear.startYear
-                              ? AppColors.primaryGreen
-                              : palette.textFaint),
-                      title: Text('FY ${FinancialYear(y).label}',
-                          style: AppText.subtitle.copyWith(
-                              color: palette.textPrimary,
-                              fontWeight: y == _store.selectedYear.startYear
-                                  ? FontWeight.w800
-                                  : FontWeight.w600)),
+                      leading: Icon(
+                        Icons.calendar_month_rounded,
+                        color: y == _store.selectedYear.startYear
+                            ? AppColors.primaryGreen
+                            : palette.textFaint,
+                      ),
+                      title: Text(
+                        'FY ${FinancialYear(y).label}',
+                        style: AppText.subtitle.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight: y == _store.selectedYear.startYear
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                        ),
+                      ),
                       trailing: y == _store.selectedYear.startYear
-                          ?  Icon(Icons.check_circle_rounded,
-                              color: AppColors.primaryGreen)
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primaryGreen,
+                            )
                           : null,
                     ),
                 ],
@@ -124,8 +137,10 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                 blur: 12,
                 frost: 0.95,
                 shadow: false,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -138,8 +153,11 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.expand_more_rounded,
-                        size: 18, color: palette.textSecondary),
+                    Icon(
+                      Icons.expand_more_rounded,
+                      size: 18,
+                      color: palette.textSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -151,8 +169,10 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                 onTap: _pickYear,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -165,8 +185,11 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.expand_more_rounded,
-                          size: 18, color: palette.textSecondary),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 18,
+                        color: palette.textSecondary,
+                      ),
                     ],
                   ),
                 ),
@@ -227,19 +250,36 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
         final loading = _store.isLoading && !_store.isLoaded;
         final failed = _store.loadError != null && _store.isEmpty;
 
+        // One pass over the year's transactions. The previous per-month
+        // `.where(...).fold(...)` chains re-scanned the full list ~36 times on
+        // every build — including every search keystroke.
+        final credited = List.filled(12, 0.0);
+        final debited = List.filled(12, 0.0);
+        final counts = List.filled(12, 0);
+        for (final t in all) {
+          final index = (t.dateTime.month + 8) % 12; // Apr -> 0 … Mar -> 11
+          final expectedYear = t.dateTime.month >= 4
+              ? fy.startYear
+              : fy.startYear + 1;
+          if (t.dateTime.year != expectedYear) continue;
+          counts[index]++;
+          if (t.isCredited) {
+            credited[index] += t.amount;
+          } else {
+            debited[index] += t.amount;
+          }
+        }
         final monthlyData = List.generate(12, (index) {
-          final month = (index + 3) % 12 + 1; // index 0 -> 4 (Apr), index 11 -> 3 (Mar)
+          final month =
+              (index + 3) % 12 + 1; // index 0 -> 4 (Apr), index 11 -> 3 (Mar)
           final year = month >= 4 ? fy.startYear : fy.startYear + 1;
-          final txns = all.where((t) => t.dateTime.month == month && t.dateTime.year == year);
-          final credited = txns.where((t) => t.isCredited).fold(0.0, (sum, t) => sum + t.amount);
-          final debited = txns.where((t) => !t.isCredited).fold(0.0, (sum, t) => sum + t.amount);
           return (
             month: month,
             year: year,
-            credited: credited,
-            debited: debited,
-            total: debited - credited,
-            count: txns.length,
+            credited: credited[index],
+            debited: debited[index],
+            total: debited[index] - credited[index],
+            count: counts[index],
           );
         });
 
@@ -257,8 +297,12 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                   _header(palette, fy.label),
                   const SizedBox(height: AppSpacing.md),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                        AppSpacing.screen, AppSpacing.sm),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen,
+                      0,
+                      AppSpacing.screen,
+                      AppSpacing.sm,
+                    ),
                     child: _SummaryCard(
                       count: _store.countForYear(fy),
                       amount: _store.totalForYear(fy),
@@ -272,8 +316,12 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     const SizedBox(height: AppSpacing.md),
                   ],
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                        AppSpacing.screen, AppSpacing.sm),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screen,
+                      0,
+                      AppSpacing.screen,
+                      AppSpacing.sm,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -296,8 +344,12 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                   ),
                   if (!loading && !failed && !empty)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0,
-                          AppSpacing.screen, AppSpacing.sm),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screen,
+                        0,
+                        AppSpacing.screen,
+                        AppSpacing.sm,
+                      ),
                       child: _SearchBar(
                         controller: _search,
                         onChanged: (v) => setState(() => _query = v),
@@ -305,7 +357,7 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                     ),
                   Expanded(
                     child: loading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: InoLoader())
                         : RefreshIndicator(
                             color: AppColors.primaryGreen,
                             onRefresh: _store.reload,
@@ -315,15 +367,16 @@ class _ExpenseDashboardScreenState extends State<ExpenseDashboardScreen> {
                                     onRetry: _store.reload,
                                   )
                                 : empty
-                                    ? _EmptyState(
-                                        onAdd: () =>
-                                            _push(const AddExpenseScreen()))
-                                    : _List(
-                                        results: results,
-                                        onOpen: (t) => _push(
-                                            TransactionDetailsScreen(
-                                                id: t.id)),
-                                      ),
+                                ? _EmptyState(
+                                    onAdd: () =>
+                                        _push(const AddExpenseScreen()),
+                                  )
+                                : _List(
+                                    results: results,
+                                    onOpen: (t) => _push(
+                                      TransactionDetailsScreen(id: t.id),
+                                    ),
+                                  ),
                           ),
                   ),
                 ],
@@ -348,8 +401,10 @@ class _List extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     if (results.isEmpty) {
       return Center(
-        child: Text(l10n.t('noTransactionsMatch'),
-            style: AppText.body.copyWith(color: palette.textSecondary)),
+        child: Text(
+          l10n.t('noTransactionsMatch'),
+          style: AppText.body.copyWith(color: palette.textSecondary),
+        ),
       );
     }
     return Column(
@@ -357,20 +412,26 @@ class _List extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 2, 0, 2),
-          child: Text(l10n.t('recentTransactions'),
-              style: AppText.title.copyWith(color: palette.textPrimary)),
+          child: Text(
+            l10n.t('recentTransactions'),
+            style: AppText.title.copyWith(color: palette.textPrimary),
+          ),
         ),
         Expanded(
           child: ListView.separated(
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen, 2, AppSpacing.screen, 100),
+              AppSpacing.screen,
+              2,
+              AppSpacing.screen,
+              100,
+            ),
             itemCount: results.length,
             separatorBuilder: (_, _) =>
                 Divider(height: AppSpacing.md, color: palette.border),
-            itemBuilder: (context, i) =>
-                TransactionTile(txn: results[i], onTap: () => onOpen(results[i])),
+            itemBuilder: (context, i) => TransactionTile(
+              txn: results[i],
+              onTap: () => onOpen(results[i]),
+            ),
           ),
         ),
       ],
@@ -390,7 +451,6 @@ class _ErrorState extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -399,18 +459,24 @@ class _ErrorState extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.cloud_off_rounded,
-                      size: 56, color: palette.textFaint),
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 56,
+                    color: palette.textFaint,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  Text(l10n.t('couldntLoadTransactions'),
-                      style:
-                          AppText.title.copyWith(color: palette.textPrimary)),
+                  Text(
+                    l10n.t('couldntLoadTransactions'),
+                    style: AppText.title.copyWith(color: palette.textPrimary),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: AppText.body
-                        .copyWith(color: palette.textSecondary, height: 1.5),
+                    style: AppText.body.copyWith(
+                      color: palette.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   PressableScale(
@@ -418,23 +484,30 @@ class _ErrorState extends StatelessWidget {
                       onTap: onRetry,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg, vertical: 12),
+                          horizontal: AppSpacing.lg,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.button),
+                          borderRadius: BorderRadius.circular(AppRadius.button),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.refresh_rounded,
-                                color: Colors.white, size: 18),
+                            const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                             const SizedBox(width: 6),
-                            Text(l10n.t('tryAgain'),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            Text(
+                              l10n.t('tryAgain'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -462,7 +535,6 @@ class _EmptyState extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         // Always scrollable so pull-to-refresh works on the empty state too.
-        physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
           height: constraints.maxHeight,
           child: Center(
@@ -479,26 +551,34 @@ class _EmptyState extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.large + 6),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              AppColors.primaryGreen.withValues(alpha: 0.30),
+                          color: AppColors.primaryGreen.withValues(alpha: 0.30),
                           blurRadius: 26,
                           offset: const Offset(0, 12),
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.receipt_long_rounded,
-                        color: Colors.white, size: 44),
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: Colors.white,
+                      size: 44,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text(l10n.t('noTransactionsYet'),
-                      style: AppText.headline
-                          .copyWith(color: palette.textPrimary, fontSize: 20)),
+                  Text(
+                    l10n.t('noTransactionsYet'),
+                    style: AppText.headline.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 20,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     l10n.t('noTransactionsYetSubtitle'),
                     textAlign: TextAlign.center,
-                    style: AppText.body
-                        .copyWith(color: palette.textSecondary, height: 1.5),
+                    style: AppText.body.copyWith(
+                      color: palette.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   PressableScale(
@@ -506,15 +586,17 @@ class _EmptyState extends StatelessWidget {
                       onTap: onAdd,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.sm + 2),
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.sm + 2,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.brandGradient,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryGreen
-                                  .withValues(alpha: 0.35),
+                              color: AppColors.primaryGreen.withValues(
+                                alpha: 0.35,
+                              ),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
@@ -523,14 +605,20 @@ class _EmptyState extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.add_rounded,
-                                color: Colors.white, size: 20),
+                            const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             const SizedBox(width: 6),
-                            Text(l10n.t('addFirstTransaction'),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14.5)),
+                            Text(
+                              l10n.t('addFirstTransaction'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14.5,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -581,8 +669,10 @@ class _SummaryCard extends StatelessWidget {
           ResponsiveMetricText(
             rupees(amount.round()),
             textAlign: TextAlign.center,
-            style: AppText.bigNumber
-                .copyWith(color: palette.textPrimary, fontSize: 32),
+            style: AppText.bigNumber.copyWith(
+              color: palette.textPrimary,
+              fontSize: 32,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Container(
@@ -594,21 +684,25 @@ class _SummaryCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                 Icon(Icons.receipt_long_rounded,
-                    size: 13, color: AppColors.primaryGreen),
+                Icon(
+                  Icons.receipt_long_rounded,
+                  size: 13,
+                  color: AppColors.primaryGreen,
+                ),
                 const SizedBox(width: 5),
                 Text(
                   '$count · ${l10n.t('totalTransactions')} · FY $yearLabel',
                   style: AppText.label.copyWith(
-                      color: AppColors.primaryGreen, fontSize: 11.5),
+                    color: AppColors.primaryGreen,
+                    fontSize: 11.5,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: palette.surfaceVariant,
               borderRadius: BorderRadius.circular(AppRadius.chip + 2),
@@ -644,30 +738,45 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _stat(BuildContext context, String label, String value, IconData icon,
-      Color accent) {
+  Widget _stat(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color accent,
+  ) {
     final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Icon(icon, color: accent, size: 14),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(label,
+        Row(
+          children: [
+            Icon(icon, color: accent, size: 14),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.caption.copyWith(
-                    color: palette.textSecondary, fontSize: 11.5)),
-          ),
-        ]),
+                  color: palette.textSecondary,
+                  fontSize: 11.5,
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(value,
-              style: AppText.title
-                  .copyWith(color: palette.textPrimary, fontSize: 17)),
+          child: Text(
+            value,
+            style: AppText.title.copyWith(
+              color: palette.textPrimary,
+              fontSize: 17,
+            ),
+          ),
         ),
       ],
     );
@@ -675,8 +784,11 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _ActionChip extends StatelessWidget {
-  const _ActionChip(
-      {required this.icon, required this.label, required this.onTap});
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -703,8 +815,10 @@ class _ActionChip extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppText.subtitle
-                .copyWith(color: palette.textPrimary, fontSize: 13.5),
+            style: AppText.subtitle.copyWith(
+              color: palette.textPrimary,
+              fontSize: 13.5,
+            ),
           ),
         ),
         Icon(Icons.chevron_right_rounded, size: 18, color: palette.textFaint),
@@ -754,9 +868,9 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     OutlineInputBorder border(Color c) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
-          borderSide: BorderSide(color: c),
-        );
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      borderSide: BorderSide(color: c),
+    );
     return TextField(
       controller: controller,
       onChanged: onChanged,
@@ -787,7 +901,9 @@ class _AddButton extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm + 2,
+          ),
           decoration: BoxDecoration(
             gradient: AppColors.brandGradient,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -804,11 +920,14 @@ class _AddButton extends StatelessWidget {
             children: [
               const Icon(Icons.add_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 6),
-              Text(AppLocalizations.of(context).t('addTransaction'),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14)),
+              Text(
+                AppLocalizations.of(context).t('addTransaction'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -820,47 +939,69 @@ class _AddButton extends StatelessWidget {
 class _MonthlyBreakdown extends StatelessWidget {
   const _MonthlyBreakdown({required this.monthlyData});
 
-  final List<({
-    int month,
-    int year,
-    double credited,
-    double debited,
-    double total,
-    int count,
-  })> monthlyData;
+  final List<
+    ({
+      int month,
+      int year,
+      double credited,
+      double debited,
+      double total,
+      int count,
+    })
+  >
+  monthlyData;
 
   static const _monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, AppSpacing.xs),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            0,
+            AppSpacing.screen,
+            AppSpacing.xs,
+          ),
           child: Text(
             l10n.t('monthlyTracking'),
-            style: AppText.title.copyWith(color: palette.textPrimary, fontSize: 16),
+            style: AppText.title.copyWith(
+              color: palette.textPrimary,
+              fontSize: 16,
+            ),
           ),
         ),
         SizedBox(
           height: 108,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen - 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screen - 4,
+            ),
             itemCount: monthlyData.length,
             itemBuilder: (context, index) {
               final data = monthlyData[index];
               final hasTxns = data.count > 0;
               final monthLabel = _monthNames[data.month - 1];
-              
+
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 child: AdaptiveGlassCard(
@@ -900,18 +1041,24 @@ class _MonthlyBreakdown extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.subtitle.copyWith(
-                            color: hasTxns ? AppColors.negative : palette.textFaint,
+                            color: hasTxns
+                                ? AppColors.negative
+                                : palette.textFaint,
                             fontWeight: FontWeight.w700,
                             fontSize: 14.5,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          hasTxns ? '+${rupees(data.credited.round())}' : 'No activity',
+                          hasTxns
+                              ? '+${rupees(data.credited.round())}'
+                              : 'No activity',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.caption.copyWith(
-                            color: hasTxns ? AppColors.positive : palette.textFaint,
+                            color: hasTxns
+                                ? AppColors.positive
+                                : palette.textFaint,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -928,4 +1075,3 @@ class _MonthlyBreakdown extends StatelessWidget {
     );
   }
 }
-
