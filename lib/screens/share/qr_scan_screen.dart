@@ -7,6 +7,7 @@ import '../../services/share_codec_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import 'shared_documents_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 enum _ScanStatus { scanning, resolving, error }
 
@@ -113,12 +114,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       appBar: AppBar(title: const Text('Scan share QR')),
       body: switch (_status) {
         _ScanStatus.scanning => _buildScanner(),
-        _ScanStatus.resolving => Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.6,
-              color: AppColors.primaryGreen,
-            ),
-          ),
+        _ScanStatus.resolving => const Center(child: InoLoader()),
         _ScanStatus.error => _ErrorView(
             message: _error ?? 'Something went wrong.',
             onRetry: _rescan,

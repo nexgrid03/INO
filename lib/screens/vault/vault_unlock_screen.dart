@@ -4,6 +4,7 @@ import '../../state/vault_controller.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/vault/password_strength_bar.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The vault gate's content when it is locked or not yet set up. Handles both:
 ///   • First-time SETUP — choose + confirm a master password.
@@ -132,12 +133,7 @@ class _VaultLockViewState extends State<VaultLockView> {
                 child: ElevatedButton(
                   onPressed: _busy ? null : _submit,
                   child: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.4, color: Colors.white),
-                        )
+                      ? const InoLoader(size: 20, color: Colors.white)
                       : Text(widget.isSetup ? 'Create vault' : 'Unlock'),
                 ),
               ),

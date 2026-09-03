@@ -6,6 +6,7 @@ import '../../state/vault_controller.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/vault/password_strength_bar.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// Create or edit a vault entry. Returns `true` via [Navigator.pop] when a
 /// change was saved.
@@ -204,12 +205,7 @@ class _AddEditVaultItemScreenState extends State<AddEditVaultItemScreen> {
                 child: ElevatedButton(
                   onPressed: _busy ? null : _save,
                   child: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.4, color: Colors.white),
-                        )
+                      ? const InoLoader(size: 20, color: Colors.white)
                       : Text(widget.isEdit ? 'Save changes' : 'Save password'),
                 ),
               ),

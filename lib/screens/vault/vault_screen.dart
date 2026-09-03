@@ -8,6 +8,7 @@ import '../../widgets/vault/vault_item_tile.dart';
 import 'add_edit_vault_item_screen.dart';
 import 'vault_item_detail_screen.dart';
 import 'vault_unlock_screen.dart';
+import '../../widgets/common/ino_loader.dart';
 
 /// The Password Vault entry point. A single screen that renders the right state
 /// (loading / setup / unlock / list / error) from [VaultController].
@@ -106,10 +107,7 @@ class _VaultScreenState extends State<VaultScreen> {
         builder: (context, _) {
           switch (_controller.status) {
             case VaultStatus.loading:
-              return Center(
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.6, color: AppColors.primaryGreen),
-              );
+              return const Center(child: InoLoader());
             case VaultStatus.needsSetup:
               return const VaultLockView(isSetup: true);
             case VaultStatus.locked:
