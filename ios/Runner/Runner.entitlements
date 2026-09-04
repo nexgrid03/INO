@@ -21,7 +21,7 @@
 	     ================================================================== -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:share.inoapp.in</string>
+		<string>applinks:share.inoapp.com</string>
 	</array>
 </dict>
 </plist>

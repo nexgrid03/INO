@@ -46,6 +46,8 @@ class ShareLinkValidator {
 
   /// Set of approved domain hosts for INO share URLs.
   static const Set<String> _staticApprovedHosts = {
+    'share.inoapp.com',
+    'share.inoapp.in',
     'ino.app',
     'share.ino.app',
     'staging.ino.app',
@@ -195,8 +197,11 @@ class ShareLinkValidator {
     // Regular share links (/s/<token> or /share/<token>)
     if (token == null) {
       final sIdx = segs.indexOf('s');
+      final shareIdx = segs.indexOf('share');
       if (sIdx >= 0 && sIdx + 1 < segs.length) {
         token = segs[sIdx + 1];
+      } else if (shareIdx >= 0 && shareIdx + 1 < segs.length) {
+        token = segs[shareIdx + 1];
       } else {
         for (final seg in segs) {
           if (seg.startsWith('share_')) {

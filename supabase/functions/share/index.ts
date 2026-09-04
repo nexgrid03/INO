@@ -119,15 +119,24 @@ setInterval(() => {
 }, 60000);
 
 function getClientIp(req: Request): string {
+  // 1. Preferred: platform-provided cf-connecting-ip (Cloudflare / edge platform header)
+  const cfIp = req.headers.get("cf-connecting-ip");
+  if (cfIp && cfIp.trim()) return cfIp.trim();
+
+  // 2. Fallback: x-real-ip if provided by trusted upstream
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp && realIp.trim()) return realIp.trim();
+
+  // 3. Fallback: LAST forwarded hop from x-forwarded-for.
+  // Never trust the first forwarded hop which attacker controls!
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0].trim();
-    if (first) return first;
+    const hops = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length > 0) {
+      return hops[hops.length - 1];
+    }
   }
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  const cfIp = req.headers.get("cf-connecting-ip");
-  if (cfIp) return cfIp.trim();
+
   return "unknown";
 }
 
@@ -143,7 +152,30 @@ function checkIpRateLimit(ip: string): boolean {
   return record.count <= 60;
 }
 
-function isPasswordLocked(ip: string, shareId: string): boolean {
+async function isPasswordLocked(ip: string, shareId: string): Promise<boolean> {
+  try {
+    const { data, error } = await admin.rpc("check_share_password_lock", {
+      p_ip: ip,
+      p_token: shareId,
+    });
+    if (!error && data && data.length > 0) {
+      return Boolean(data[0].is_locked);
+    }
+    // Direct table fallback if RPC unavailable
+    const { data: row } = await admin
+      .from("share_rate_limits")
+      .select("lock_until")
+      .eq("ip", ip)
+      .eq("token", shareId)
+      .maybeSingle();
+    if (row && row.lock_until) {
+      return new Date(row.lock_until).getTime() > Date.now();
+    }
+  } catch (e) {
+    console.error("[share] isPasswordLocked error:", e);
+  }
+
+  // In-memory fallback
   const key = `${ip}:${shareId}`;
   const record = passwordFailMap.get(key);
   if (!record) return false;
@@ -154,7 +186,36 @@ function isPasswordLocked(ip: string, shareId: string): boolean {
   return record.count >= 5;
 }
 
-function recordPasswordFailure(ip: string, shareId: string): void {
+async function recordPasswordFailure(ip: string, shareId: string): Promise<void> {
+  try {
+    const { error } = await admin.rpc("record_share_password_attempt", {
+      p_ip: ip,
+      p_token: shareId,
+      p_success: false,
+    });
+    if (error) {
+      const { data: existing } = await admin
+        .from("share_rate_limits")
+        .select("attempts")
+        .eq("ip", ip)
+        .eq("token", shareId)
+        .maybeSingle();
+      const attempts = (existing?.attempts ?? 0) + 1;
+      const locked = attempts >= 5;
+      const lockUntil = locked ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+      await admin.from("share_rate_limits").upsert({
+        ip,
+        token: shareId,
+        attempts,
+        last_attempt: new Date().toISOString(),
+        lock_until: lockUntil,
+      }, { onConflict: "ip,token" });
+    }
+  } catch (e) {
+    console.error("[share] recordPasswordFailure error:", e);
+  }
+
+  // Also maintain in-memory fallback
   const key = `${ip}:${shareId}`;
   const now = Date.now();
   let record = passwordFailMap.get(key);
@@ -166,7 +227,18 @@ function recordPasswordFailure(ip: string, shareId: string): void {
   passwordFailMap.set(key, record);
 }
 
-function clearPasswordFailures(ip: string, shareId: string): void {
+async function clearPasswordFailures(ip: string, shareId: string): Promise<void> {
+  try {
+    await admin.rpc("record_share_password_attempt", {
+      p_ip: ip,
+      p_token: shareId,
+      p_success: true,
+    });
+  } catch {
+    try {
+      await admin.from("share_rate_limits").delete().match({ ip, token: shareId });
+    } catch {}
+  }
   passwordFailMap.delete(`${ip}:${shareId}`);
 }
 
@@ -463,7 +535,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
-/** Verifies password using bcrypt (`crypt(p_password, gen_salt('bf'))`) with SHA-256 legacy fallback. */
+/** Verifies password using bcrypt (`crypt(p_password, gen_salt('bf'))`). Only bcrypt hashes are accepted. */
 async function passwordAccepted(share: ShareRow, provided: string | null): Promise<boolean> {
   const expected = (share.password_hash ?? "").trim();
   if (!expected) return true;
@@ -471,8 +543,8 @@ async function passwordAccepted(share: ShareRow, provided: string | null): Promi
   const raw = provided.trim();
   if (!raw) return false;
 
-  // Check if expected hash is bcrypt
-  if (expected.startsWith("$2a$") || expected.startsWith("$2b$") || expected.startsWith("$2y$")) {
+  // Enforce bcrypt hash format ($2a$, $2b$, $2y$, or generally $2)
+  if (expected.startsWith("$2a$") || expected.startsWith("$2b$") || expected.startsWith("$2y$") || expected.startsWith("$2")) {
     try {
       return bcrypt.compareSync(raw, expected);
     } catch {
@@ -480,9 +552,8 @@ async function passwordAccepted(share: ShareRow, provided: string | null): Promi
     }
   }
 
-  // Legacy SHA-256 check
-  const hashed = (await sha256Hex(raw)).toLowerCase();
-  return timingSafeEqual(raw.toLowerCase(), expected.toLowerCase()) || timingSafeEqual(hashed, expected.toLowerCase());
+  // Strictly reject non-bcrypt hashes: NO plain equality, NO hash replay, NO SHA-256 fallback
+  return false;
 }
 
 function passwordDenied(req: Request, wrong: boolean, locked = false): Response {
@@ -500,7 +571,7 @@ async function handleUnlockShare(shareId: string, req: Request, clientIp: string
   if (res.kind !== "active") return json({ status: res.kind, message: MESSAGES[res.kind] }, STATUS[res.kind]);
   const share = res.share;
 
-  if (isPasswordLocked(clientIp, share.share_id)) {
+  if (await isPasswordLocked(clientIp, share.share_id)) {
     return passwordDenied(req, true, true);
   }
 
@@ -514,11 +585,12 @@ async function handleUnlockShare(shareId: string, req: Request, clientIp: string
 
   const accepted = await passwordAccepted(share, bodyPassword);
   if (!accepted) {
-    recordPasswordFailure(clientIp, share.share_id);
-    return passwordDenied(req, true, false);
+    await recordPasswordFailure(clientIp, share.share_id);
+    const lockedNow = await isPasswordLocked(clientIp, share.share_id);
+    return passwordDenied(req, true, lockedNow);
   }
 
-  clearPasswordFailures(clientIp, share.share_id);
+  await clearPasswordFailures(clientIp, share.share_id);
   const unlockToken = await createUnlockToken(share.share_id);
   const cards = await loadCards(share);
 
@@ -595,7 +667,8 @@ async function serveShare(shareId: string, req: Request): Promise<Response> {
   if (share.password_hash) {
     const isUnlocked = await verifyUnlockToken(req, share.share_id);
     if (!isUnlocked) {
-      return passwordDenied(req, false, isPasswordLocked(clientIp, share.share_id));
+      const locked = await isPasswordLocked(clientIp, share.share_id);
+      return passwordDenied(req, false, locked);
     }
   }
 

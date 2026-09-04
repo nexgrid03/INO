@@ -20,10 +20,9 @@ class ShareConfig {
   /// Public share link base (no trailing slash). Point this at your deployed
   /// share web frontend. Change here → every new QR/link follows.
   ///
-  /// Canonical host for [INO-Share-Web](https://github.com/nexgrid03/INO-Share-Web):
-  /// `https://ino-share-web.vercel.app/s/{token}` — keep in sync with
-  /// `NEXT_PUBLIC_SHARE_BASE_URL` on Vercel.
-  static const String publicBase = 'https://ino-share-web.vercel.app/s';
+  /// Canonical share host:
+  /// `https://share.inoapp.com/s/{token}`
+  static const String publicBase = 'https://share.inoapp.com/s';
 
   static String get _projectRef => Uri.parse(SupabaseConfig.url).host.split('.').first;
 

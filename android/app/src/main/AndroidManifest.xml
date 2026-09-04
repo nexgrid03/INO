@@ -129,20 +129,29 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="ilfzppryyojoponkomrw.functions.supabase.co"
-                    android:pathPrefix="/share/" />
+                    android:host="share.inoapp.com"
+                    android:pathPrefix="/s/" />
             </intent-filter>
 
-            <!-- Optional custom domain (uncomment + set your host once you route
-                 it to the Edge Function and host assetlinks.json there):
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="ino.app"
-                      android:pathPrefix="/share/" />
+                <data
+                    android:scheme="https"
+                    android:host="share.inoapp.com"
+                    android:pathPrefix="/v/" />
             </intent-filter>
-            -->
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="share.inoapp.com"
+                    android:pathPrefix="/share/" />
+            </intent-filter>
 
             <!-- Custom-scheme fallback - ALWAYS opens the app (no domain
                  verification needed). Used for testing and any non-web trigger:

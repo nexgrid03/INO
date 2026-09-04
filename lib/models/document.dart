@@ -1,3 +1,6 @@
+import '../utils/identifier_masker.dart';
+import 'document_extraction.dart';
+
 /// A Dart representation of one row in the `public.documents` table.
 ///
 /// Same idea as [UserProfile]: a type-safe object mirroring the database
@@ -36,6 +39,25 @@ class Document {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  static String? _resolveRecordNumber(String? raw, String? notes) {
+    if (raw != null && !IdentifierMasker.isMasked(raw) && raw.trim().isNotEmpty) {
+      return raw;
+    }
+    if (notes != null && notes.isNotEmpty) {
+      try {
+        final extraction = DocumentExtraction.decode(notes);
+        final unmasked = extraction.data['number'] ??
+            extraction.data['registrationNumber'] ??
+            extraction.data['epicNumber'] ??
+            extraction.data['policyNumber'];
+        if (unmasked != null && unmasked.trim().isNotEmpty && !IdentifierMasker.isMasked(unmasked)) {
+          return unmasked.trim();
+        }
+      } catch (_) {}
+    }
+    return raw;
+  }
+
   /// Builds a [Document] from a row returned by Supabase (a `Map`).
   /// The keys are the exact column names from the database.
   ///
@@ -43,15 +65,17 @@ class Document {
   /// table have no `wallet` column - the table IS the wallet - so the caller
   /// supplies it; rows from the `documents` union view carry their own.
   factory Document.fromMap(Map<String, dynamic> map, {String? wallet}) {
+    final notes = map['notes'] as String?;
+    final rawNumber = map['record_number'] as String?;
     return Document(
       id: map['id'] as String,
       wallet: (map['wallet'] as String?) ?? wallet ?? '',
       name: map['name'] as String,
       category: map['category'] as String?,
-      recordNumber: map['record_number'] as String?,
+      recordNumber: _resolveRecordNumber(rawNumber, notes),
       status: (map['status'] as String?) ?? 'active',
       tags: (map['tags'] as List?)?.cast<String>() ?? const [],
-      notes: map['notes'] as String?,
+      notes: notes,
       isFavorite: (map['is_favorite'] as bool?) ?? false,
       expiresAt: map['expires_at'] == null
           ? null

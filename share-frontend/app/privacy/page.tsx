@@ -41,22 +41,44 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-white">4. Third-Party Services</h2>
+          <h2 className="text-xl font-semibold text-white">4. Third-Party Services & Sub-processors</h2>
           <p className="text-gray-300 leading-relaxed">
-            We partner with trusted service providers: Supabase (Auth, DB, Storage), Firebase FCM (Notifications), Google Sign-In & ML Kit (Auth & local OCR), Google Fonts, Vercel (Web hosting), Swissquote & Frankfurter API (Forex rates), OS Speech Recognition.
+            We partner with trusted enterprise service providers to operate INO:
+          </p>
+          <ul className="list-disc pl-5 text-gray-300 space-y-2">
+            <li><strong>Supabase:</strong> Cloud database, authentication, row-level security, and encrypted storage buckets.</li>
+            <li><strong>Firebase Cloud Messaging (FCM):</strong> Push notification delivery.</li>
+            <li><strong>Google Sign-In:</strong> OAuth authentication with nonce replay protection.</li>
+            <li><strong>Google ML Kit:</strong> On-device local Optical Character Recognition (OCR). No document images leave your device for OCR.</li>
+            <li><strong>OS Speech Recognition:</strong> Built-in platform speech-to-text for search and voice inputs.</li>
+            <li><strong>Vercel:</strong> Web hosting for sharing portal and legal compliance pages.</li>
+          </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-white">5. Data Retention & Deletion Policy</h2>
+          <p className="text-gray-300 leading-relaxed">
+            Personal data, documents, and credentials are retained only as long as your account remains active. Upon initiating an account deletion request (either in-app or via our web portal), all database rows, storage objects, files, and auth records are permanently and irreversibly purged within a single atomic transaction.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-white">5. Your Rights & Compliance</h2>
+          <h2 className="text-xl font-semibold text-white">6. Your Rights & Compliance (DPDP Act & GDPR)</h2>
           <p className="text-gray-300 leading-relaxed">
-            We comply with India's <strong>DPDP Act 2023</strong> and the <strong>EU GDPR</strong>. You have rights to access, correct, export your data, withdraw consent, and permanently delete your account at any time.
+            In compliance with India's <strong>Digital Personal Data Protection Act, 2023 (DPDP Act)</strong> and the <strong>EU General Data Protection Regulation (GDPR)</strong>, you have the right to:
           </p>
+          <ul className="list-disc pl-5 text-gray-300 space-y-1">
+            <li>Access and review all personal data and document records associated with your account.</li>
+            <li>View and download individual document attachments and files at any time.</li>
+            <li>Correct inaccurate, incomplete, or outdated document metadata.</li>
+            <li>Withdraw consent for optional services (such as push notifications or sharing).</li>
+            <li>Permanently delete your account and all associated data.</li>
+          </ul>
         </section>
 
         <section className="space-y-3 border-t border-gray-800 pt-6">
           <p className="text-gray-400 text-sm">
-            For account deletion requests, visit our <a href="/delete-account" className="text-emerald-400 underline font-medium">Account Deletion Page</a>.
+            For account deletion requests, visit our <a href="/account-deletion" className="text-emerald-400 underline font-medium">Account Deletion Page</a> (or <a href="/delete-account" className="text-emerald-400 underline">/delete-account</a>).
           </p>
         </section>
       </div>

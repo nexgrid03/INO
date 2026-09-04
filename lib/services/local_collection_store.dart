@@ -115,6 +115,21 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
   bool get isLoading => _loading;
   bool get isEmpty => items.isEmpty;
   int get count => items.length;
+  String? get loadedUid => _loadedUid;
+
+  @protected
+  void markUnloaded() {
+    _loaded = false;
+    _loading = false;
+    _loadedUid = null;
+  }
+
+  @protected
+  void setLoadedState({required bool loaded, required bool loading, String? uid}) {
+    _loaded = loaded;
+    _loading = loading;
+    if (uid != null) _loadedUid = uid;
+  }
 
   String _keyFor(String? uid) => '${storageKey}_${uid ?? 'local'}';
 
