@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/share/shared_documents_screen.dart';
 import '../screens/share/view_once_viewer_screen.dart';
+import '../utils/share_link_validator.dart';
 
 /// Handles incoming share deep links (Android App Links + the `ino://` scheme)
 /// and routes them to [SharedDocumentsScreen].
@@ -146,79 +147,24 @@ class DeepLinkService {
   }
 
   /// Defense-in-depth allow-list regex:
-  /// Matches tokens generated as (share_)?[0-9a-zA-Z]{6,32}
-  /// Strictly rejects commas, parentheses, dots, or SQL/PostgREST injection chars.
-  static final RegExp _validShareRefRe = RegExp(r'^(?:share_)?[0-9a-zA-Z]{3,32}$');
-  static final RegExp _validViewOnceTokenRe = RegExp(r'^[0-9a-zA-Z]{3,32}$');
-
   /// Extracts the share token (or legacy share_id) from a deep-link [uri].
   /// Returns null when it isn't a valid share link.
-  ///
-  /// Handles every shape it can arrive in:
-  ///   • `https://ino-share-web.vercel.app/s/<token>`         → `<token>`
-  ///   • `https://<ref>.functions.supabase.co/share/share_x`   → `share_x`
-  ///   • `https://<ref>.functions.supabase.co/functions/v1/share/share_x` → `share_x`
-  ///   • `ino://share/<token>`                                 → `<token>`
   static String? parseShareId(Uri? uri) {
     if (uri == null) return null;
-    final segs = uri.pathSegments;
-
-    String? candidate;
-
-    // New public links: /s/<token>
-    final sIdx = segs.indexOf('s');
-    if (sIdx >= 0 && sIdx + 1 < segs.length && segs[sIdx + 1].isNotEmpty) {
-      candidate = segs[sIdx + 1];
-    } else {
-      // Legacy internal links: /share/<share_…>
-      for (final seg in segs) {
-        if (seg.startsWith('share_')) {
-          candidate = seg;
-          break;
-        }
-      }
-    }
-
-    // Custom scheme `ino://share/<token>`.
-    if (candidate == null && uri.host == 'share' && segs.isNotEmpty && segs.first.isNotEmpty) {
-      candidate = segs.first;
-    }
-
-    if (candidate != null && _validShareRefRe.hasMatch(candidate)) {
-      return candidate;
+    final res = ShareLinkValidator.validateUri(uri);
+    if (res.isValid && !res.isViewOnce) {
+      return res.token;
     }
     return null;
   }
 
   /// Extracts a **view-once** token from a deep-link [uri], or null when it
   /// isn't a valid one-time link.
-  ///
-  /// One-time links live under `/v/` (regular shares use `/s/`), so the two can
-  /// never be confused:
-  ///   • `https://ino-share-web.vercel.app/v/<token>`       → `<token>`
-  ///   • `https://<ref>.functions.supabase.co/share/v/<t>`  → `<t>`
-  ///   • `ino://viewonce/<token>`                           → `<t>`
   static String? parseViewOnceToken(Uri? uri) {
     if (uri == null) return null;
-    final segs = uri.pathSegments;
-
-    String? candidate;
-
-    // Match the LAST `v` segment so both `/v/<t>` and `/share/v/<t>` resolve.
-    for (var i = segs.length - 2; i >= 0; i--) {
-      if (segs[i] == 'v' && segs[i + 1].isNotEmpty) {
-        candidate = segs[i + 1];
-        break;
-      }
-    }
-
-    // Custom scheme `ino://viewonce/<token>`.
-    if (candidate == null && uri.host == 'viewonce' && segs.isNotEmpty && segs.first.isNotEmpty) {
-      candidate = segs.first;
-    }
-
-    if (candidate != null && _validViewOnceTokenRe.hasMatch(candidate)) {
-      return candidate;
+    final res = ShareLinkValidator.validateUri(uri);
+    if (res.isValid && res.isViewOnce) {
+      return res.token;
     }
     return null;
   }

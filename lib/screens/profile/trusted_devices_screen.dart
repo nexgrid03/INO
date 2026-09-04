@@ -9,8 +9,7 @@ import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/security/biometric_ux.dart';
 import '../../widgets/common/ino_loader.dart';
 
-/// Trusted Devices - the devices this install has recorded, with their last
-/// active time and a "forget" action for anything but the current device.
+/// Active Sessions - server-backed real device session management.
 class TrustedDevicesScreen extends StatefulWidget {
   const TrustedDevicesScreen({super.key});
 
@@ -20,6 +19,7 @@ class TrustedDevicesScreen extends StatefulWidget {
 
 class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
   List<TrustedDevice>? _devices;
+  bool _actionLoading = false;
 
   @override
   void initState() {
@@ -48,20 +48,68 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
     }
   }
 
+  Future<void> _signOutOtherDevices() async {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: Text(
+          l10n.t('signOutOtherDevices'),
+          style: TextStyle(color: palette.textPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to sign out of all other devices?',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sign Out', style: TextStyle(color: AppColors.critical)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _actionLoading = true);
+    final ok = await TrustedDeviceService.instance.signOutOtherDevices();
+    if (!mounted) return;
+    setState(() => _actionLoading = false);
+
+    if (ok) {
+      BiometricUx.successSnack(
+        context,
+        'Signed out of all other devices',
+      );
+      _load();
+    } else {
+      BiometricUx.errorSnack(context, 'Failed to sign out other devices');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final l10n = AppLocalizations.of(context);
     final devices = _devices;
+    final otherDevicesExist = devices?.any((d) => !d.isCurrent) ?? false;
+
     return SettingsScaffold(
-      title: l10n.t('trustedDevices'),
+      title: 'Active Sessions',
       actions: [
         IconButton(
           icon: Icon(Icons.refresh_rounded, color: palette.textPrimary),
           onPressed: _load,
         ),
       ],
-      child: devices == null
+      child: devices == null || _actionLoading
           ? const Center(child: InoLoader())
           : RefreshIndicator(
               onRefresh: _load,
@@ -71,7 +119,7 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
                     AppSpacing.md, AppSpacing.screen, AppSpacing.xl),
                 children: [
                   Text(
-                    l10n.t('trustedDevicesIntro'),
+                    'Active device sessions registered on your account. Revoking a session signs out that device remotely.',
                     style: AppText.body.copyWith(
                       color: palette.textPrimary,
                       height: 1.5,
@@ -79,6 +127,25 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  if (otherDevicesExist) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.critical,
+                        side: const BorderSide(color: AppColors.critical),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                        ),
+                      ),
+                      onPressed: _signOutOtherDevices,
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text(
+                        'Sign Out Other Devices',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                   for (final d in devices) ...[
                     _DeviceTile(device: d, onRemove: () => _remove(d)),
                     const SizedBox(height: AppSpacing.sm),
@@ -145,7 +212,7 @@ class _DeviceTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(l10n.t('thisDevice'),
-                            style:  TextStyle(
+                            style: TextStyle(
                                 color: AppColors.primaryGreen,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700)),
@@ -169,7 +236,7 @@ class _DeviceTile extends StatelessWidget {
               icon: const Icon(Icons.logout_rounded,
                   color: AppColors.critical, size: 20),
               onPressed: onRemove,
-              tooltip: l10n.t('removeDevice'),
+              tooltip: 'Revoke session & sign out',
             )
           else
             const SizedBox(width: 8),

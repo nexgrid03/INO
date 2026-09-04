@@ -77,6 +77,8 @@ dependencies:
 
   cryptography: ^2.9.0
 
+  crypto: ^3.0.3
+
   google_fonts: ^6.2.1
 
   flutter_svg: ^2.3.0

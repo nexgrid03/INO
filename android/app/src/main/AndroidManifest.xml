@@ -90,6 +90,11 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/ino_notification_accent" />
+
+        <!-- Explicitly deactivate Firebase Analytics auto-collection (Analytics SDK not used) -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

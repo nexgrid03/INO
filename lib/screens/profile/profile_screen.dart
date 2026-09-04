@@ -18,6 +18,7 @@ import '../../services/push_service.dart';
 import '../../services/data_export_service.dart';
 import '../../services/session_reset.dart';
 import '../../services/storage_stats_service.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/avatar_color.dart';
@@ -651,6 +652,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _switchAccount(SavedAccount account) async {
     final l10n = AppLocalizations.of(context);
+    final unlocked = await VaultGuard.instance.ensureUnlocked(
+      context,
+      reason: 'Authenticate to switch account',
+      force: true,
+    );
+    if (!unlocked) return;
+
     final ok = await AccountSwitcher.instance.switchTo(account);
     if (!mounted) return;
     if (!ok) {

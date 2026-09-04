@@ -763,7 +763,7 @@ async function serveFile(
       ...SECURE_HEADERS,
       "content-type": finalMime,
       "cache-control": "no-store",
-      "content-disposition": `${finalDisposition}; filename="${filename}"`,
+      "content-disposition": formatContentDisposition(finalDisposition, filename),
     },
   });
 }
@@ -934,7 +934,7 @@ async function serveViewOnceFile(token: string, accessKey: string | null): Promi
       ...SECURE_HEADERS,
       "content-type": validation.detectedMime,
       "cache-control": "no-store, no-cache, must-revalidate, private",
-      "content-disposition": `inline; filename="${filename}"`,
+      "content-disposition": formatContentDisposition("inline", filename),
     },
   });
 }
@@ -1140,6 +1140,23 @@ function downloadName(name: string, filePath: string): string {
   if (/\.[a-z0-9]{1,5}$/i.test(safe)) return safe;
   const ext = filePath.includes(".") ? filePath.split(".").pop() : "";
   return ext ? `${safe}.${ext}` : safe;
+}
+
+export function formatContentDisposition(disposition: string, filename: string): string {
+  const extMatch = filename.match(/\.([a-z0-9]{1,5})$/i);
+  const ext = extMatch ? `.${extMatch[1]}` : "";
+
+  let safeAscii = filename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "").trim();
+  const asciiBase = safeAscii.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/^_+$/, "").trim();
+  if (!asciiBase) {
+    safeAscii = `document${ext}`;
+  }
+
+  const encodedUtf8 = encodeURIComponent(filename)
+    .replace(/['()]/g, escape)
+    .replace(/\*/g, "%2A");
+
+  return `${disposition}; filename="${safeAscii}"; filename*=UTF-8''${encodedUtf8}`;
 }
 
 function mimeFromPath(path: string): string {

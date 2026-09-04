@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -568,12 +568,26 @@ class ShareRepository {
     );
   }
 
+  @visibleForTesting
+  String filenameFromForTest(String? disposition, SharedDoc doc, String mime) =>
+      _filenameFrom(disposition, doc, mime);
+
   /// Derives a safe local filename from the response's `content-disposition`
-  /// header, falling back to the document name + an extension guessed from the
-  /// MIME type.
+  /// header (supporting RFC 5987 UTF-8 names), falling back to document name.
   String _filenameFrom(String? disposition, SharedDoc doc, String mime) {
     if (disposition != null) {
-      final m = RegExp('filename="?([^"]+)"?').firstMatch(disposition);
+      final rfcMatch = RegExp(r"filename\*\s*=\s*UTF-8''([^;]+)", caseSensitive: false)
+          .firstMatch(disposition);
+      if (rfcMatch != null) {
+        final raw = rfcMatch.group(1)?.trim();
+        if (raw != null && raw.isNotEmpty) {
+          try {
+            final decoded = Uri.decodeComponent(raw);
+            if (decoded.trim().isNotEmpty) return _sanitize(decoded);
+          } catch (_) {}
+        }
+      }
+      final m = RegExp('filename="?([^";]+)"?').firstMatch(disposition);
       final name = m?.group(1)?.trim();
       if (name != null && name.isNotEmpty) return _sanitize(name);
     }

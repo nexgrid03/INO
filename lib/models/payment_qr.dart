@@ -20,6 +20,8 @@
 /// schemes are rewritten rather than passed through.
 library;
 
+import '../utils/share_link_validator.dart';
+
 /// What a scanned QR turned out to be, which decides what the scanner does next.
 enum ScannedQrKind {
   /// A UPI/BharatQR payment request → offer the payment-app picker.
@@ -63,22 +65,14 @@ class ScannedQr {
           raw: value, kind: ScannedQrKind.payment, payment: payment);
     }
 
+    final shareVal = ShareLinkValidator.validateUrl(value);
+    if (shareVal.isValid) {
+      return ScannedQr(raw: value, kind: ScannedQrKind.inoShare);
+    }
+
     final uri = Uri.tryParse(value);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      // `/s/<token>` and `/v/<token>` are INO's own share links - those belong
-      // in the in-app viewer, not a browser.
-      final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-      final i = segs.lastIndexOf('s') >= 0 ? segs.lastIndexOf('s') : -1;
-      final v = segs.lastIndexOf('v');
-      final isShare = (i >= 0 && i + 1 < segs.length) ||
-          (v >= 0 && v + 1 < segs.length);
-      return ScannedQr(
-        raw: value,
-        kind: isShare ? ScannedQrKind.inoShare : ScannedQrKind.link,
-      );
-    }
-    if (uri != null && uri.scheme == 'ino') {
-      return ScannedQr(raw: value, kind: ScannedQrKind.inoShare);
+      return ScannedQr(raw: value, kind: ScannedQrKind.link);
     }
     return ScannedQr(raw: value, kind: ScannedQrKind.text);
   }

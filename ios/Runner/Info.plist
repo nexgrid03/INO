@@ -134,9 +134,15 @@
 		</dict>
 	</array>
 
-	<!-- Export-compliance: the app uses only standard HTTPS/TLS, which is -->
-	<!-- exempt. Declaring this stops the prompt on every TestFlight upload. -->
+	<!-- Export compliance: INO uses standard AES-256-GCM (local vault storage), -->
+	<!-- iOS Keychain (secure credentials), and TLS 1.2+ (HTTPS endpoints).      -->
+	<!-- All encryption qualifies as exempt under US EAR Category 5 Part 2 Note 4 -->
+	<!-- (standard mass-market data protection and authentication).              -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+
+	<!-- Disable unused Firebase Analytics auto-collection. -->
+	<key>FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED</key>
+	<true/>
 </dict>
 </plist>

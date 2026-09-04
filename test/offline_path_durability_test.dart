@@ -118,6 +118,6 @@ void main() {
   test('the offline folder name is the one the paths are built from', () {
     // `relPath` recovery keys off this exact segment; renaming the folder
     // without migrating would orphan every saved document.
-    expect(OfflineDocumentStore.dirName, 'offline_docs');
+    expect(OfflineDocumentStore.dirName, 'offline');
   });
 }

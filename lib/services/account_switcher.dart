@@ -7,8 +7,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
+import 'push_service.dart';
 import 'session_reset.dart';
 import 'two_factor_service.dart';
+import 'vault_guard.dart';
 import '../screens/auth/auth_flow.dart';
 
 /// One account remembered on this device, switchable from Profile → Accounts.
@@ -185,6 +187,9 @@ class AccountSwitcher extends ChangeNotifier {
   Future<bool> switchTo(SavedAccount account) async {
     if (account.id == currentUserId) return true;
 
+    // Lock vault when switching account
+    VaultGuard.instance.lock();
+
     // Keep the account we're leaving re-openable.
     await saveCurrent();
 
@@ -213,6 +218,7 @@ class AccountSwitcher extends ChangeNotifier {
 
     // Adopt the rotated refresh token for the account we just entered.
     await saveCurrent();
+    await PushService.instance.registerToken();
     developer.log('switched to ${account.email}', name: 'accounts');
     return true;
   }

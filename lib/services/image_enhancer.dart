@@ -100,7 +100,7 @@ class ImageEnhancer {
       im = _capLongestSide(im, _kMaxDim);
       var out = img.grayscale(im);
       out = img.adjustColor(out, contrast: 1.18, brightness: 1.04);
-      return _writeJpg(path, out, 'enhanced', 90);
+      return await _writeJpg(path, out, 'enhanced', 90);
     } catch (_) {
       return path;
     }
@@ -146,7 +146,7 @@ class ImageEnhancer {
         );
         out = e;
       }
-      return _writeJpg(
+      return await _writeJpg(
           path, out, ScanColorMode.values[modeIdx].name, 90);
     } catch (_) {
       return path;
@@ -166,7 +166,7 @@ class ImageEnhancer {
       if (im == null) return path;
       im = img.bakeOrientation(im);
       im = _capLongestSide(im, _kMaxDim);
-      return _writeJpg(path, im, 'pdfpage', 86);
+      return await _writeJpg(path, im, 'pdfpage', 86);
     } catch (_) {
       return path;
     }
@@ -186,7 +186,7 @@ class ImageEnhancer {
       im = _capLongestSide(im, _kMaxDim);
       final rotated =
           img.copyRotate(im, angle: 90, interpolation: img.Interpolation.cubic);
-      return _writeJpg(path, rotated, 'rot', 95);
+      return await _writeJpg(path, rotated, 'rot', 95);
     } catch (_) {
       return path;
     }

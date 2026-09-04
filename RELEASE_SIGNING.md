@@ -129,16 +129,28 @@ You can add **multiple** SHA-1s to one Android OAuth client - add all of the abo
 
 ---
 
-## Step 6 - Release build commands
+## Step 6 - Release build commands (Obfuscated)
+
+Release builds MUST use code obfuscation and debug symbol splitting to harden binary security and prevent reverse engineering.
 
 ```powershell
-flutter build appbundle --release   # → build/app/outputs/bundle/release/app-release.aab  (Play upload)
-flutter build apk --release         # → build/app/outputs/flutter-apk/app-release.apk      (direct install)
+flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info
+flutter build apk --release --obfuscate --split-debug-info=build/debug-info
 ```
+
 With `android/key.properties` present these are signed with your **release key**.
 Verify what a build was signed with:
 ```powershell
 keytool -printcert -jarfile build\app\outputs\flutter-apk\app-release.apk
+```
+
+### Symbol Recovery Process
+When obfuscated release builds crash, stack traces will contain obfuscated symbols.
+Store symbol files from `build/debug-info` securely for every production release.
+
+To de-obfuscate a crash stack trace, run:
+```powershell
+flutter symbolize -i <obfuscated_stacktrace.txt> -d build/debug-info/app.android-arm64.symbols
 ```
 
 ---

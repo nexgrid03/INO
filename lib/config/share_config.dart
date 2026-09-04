@@ -1,3 +1,4 @@
+import '../utils/share_link_validator.dart';
 import 'supabase_config.dart';
 
 /// Configuration for Secure Document Sharing.
@@ -30,10 +31,20 @@ class ShareConfig {
   static String get apiBase => 'https://$_projectRef.functions.supabase.co/share';
 
   /// The public, shareable URL for a share [token] (what the QR encodes).
-  static String publicUrl(String token) => '$publicBase/$token';
+  static String publicUrl(String token) {
+    if (!ShareLinkValidator.isValidToken(token)) {
+      throw FormatException('Invalid share token format: $token');
+    }
+    return '$publicBase/$token';
+  }
 
   /// The Edge Function URL for a share [token] (app-side JSON/bytes fetch).
-  static String apiUrl(String token) => '$apiBase/$token';
+  static String apiUrl(String token) {
+    if (!ShareLinkValidator.isValidToken(token)) {
+      throw FormatException('Invalid share token format: $token');
+    }
+    return '$apiBase/$token';
+  }
 
   // ---- View Once ----------------------------------------------------------
   // One-time links live under `/v/<token>` instead of `/s/<token>`, on the same
@@ -50,8 +61,18 @@ class ShareConfig {
   }
 
   /// The public, shareable one-time URL (what the view-once QR encodes).
-  static String viewOncePublicUrl(String token) => '$viewOncePublicBase/$token';
+  static String viewOncePublicUrl(String token) {
+    if (!ShareLinkValidator.isValidToken(token)) {
+      throw FormatException('Invalid view-once token format: $token');
+    }
+    return '$viewOncePublicBase/$token';
+  }
 
   /// The Edge Function base for a one-time [token] (app-side peek/claim/bytes).
-  static String viewOnceApiUrl(String token) => '$apiBase/v/$token';
+  static String viewOnceApiUrl(String token) {
+    if (!ShareLinkValidator.isValidToken(token)) {
+      throw FormatException('Invalid view-once token format: $token');
+    }
+    return '$apiBase/v/$token';
+  }
 }

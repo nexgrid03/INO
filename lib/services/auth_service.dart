@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -7,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import '../core/net/net_guard.dart';
+import '../utils/secure_logger.dart';
 import 'account_switcher.dart';
 import 'biometric_service.dart';
 import 'push_service.dart';
@@ -199,16 +202,17 @@ class AuthService {
   // --- Google (native account picker) --------------------------------------
 
   bool _googleReady = false;
+  String? _lastNonce;
 
-  Future<void> _ensureGoogleInitialized() async {
-    if (_googleReady) return;
+  Future<void> _ensureGoogleInitialized({String? nonce}) async {
+    if (_googleReady && nonce == _lastNonce) return;
     await GoogleSignIn.instance.initialize(
-      // clientId is needed on iOS/web; on Android it's null (the SHA-1 +
-      // serverClientId combination is what authenticates the app there).
       clientId: _platformClientId,
       serverClientId: SupabaseConfig.googleWebClientId,
+      nonce: nonce,
     );
     _googleReady = true;
+    _lastNonce = nonce;
   }
 
   String? get _platformClientId {
@@ -240,7 +244,11 @@ class AuthService {
       );
     }
 
-    await _ensureGoogleInitialized();
+    final rawNonce = _client.auth.generateRawNonce();
+    final bytes = utf8.encode(rawNonce);
+    final hashedNonce = sha256.convert(bytes).toString();
+
+    await _ensureGoogleInitialized(nonce: hashedNonce);
 
     final GoogleSignInAccount googleUser;
     try {
@@ -257,8 +265,7 @@ class AuthService {
           name: 'auth', error: e);
       rethrow;
     }
-    developer.log('Google account selected: ${googleUser.email}',
-        name: 'auth');
+    SecureLogger.sensitive('Google account selected', googleUser.email, name: 'auth');
 
     final idToken = googleUser.authentication.idToken;
     if (idToken == null) {
@@ -277,7 +284,7 @@ class AuthService {
       // Non-fatal: proceed with just the ID token.
     }
 
-    developer.log('Exchanging Google ID token for a Supabase session',
+    developer.log('Exchanging Google ID token for a Supabase session with nonce',
         name: 'auth');
     // Time-capped: the token exchange is a plain server round-trip, and a hang
     // here left the user staring at the picker's afterglow with no error.
@@ -288,6 +295,7 @@ class AuthService {
           provider: OAuthProvider.google,
           idToken: idToken,
           accessToken: accessToken,
+          nonce: rawNonce,
         )
         .timeout(NetGuard.auth);
     developer.log(

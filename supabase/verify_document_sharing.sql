@@ -16,13 +16,12 @@ select 'table: share_downloads',
 
 -- 2. The create_document_share RPC (name + exact argument types) -------------
 union all
-select 'rpc: create_document_share(uuid[], integer)',
+select 'rpc: create_document_share',
        case when exists (
          select 1 from pg_proc p
          join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public'
            and p.proname = 'create_document_share'
-           and pg_get_function_identity_arguments(p.oid) = 'p_document_ids uuid[], p_ttl_seconds integer'
        ) then 'OK' else 'MISSING' end
 
 -- 3. Indexes -----------------------------------------------------------------

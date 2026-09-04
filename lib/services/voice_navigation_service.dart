@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -7,9 +5,10 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../models/voice_command.dart';
+import '../utils/secure_logger.dart';
 import 'voice_manager.dart';
 
-void _log(String message) => developer.log(message, name: 'voice');
+void _log(String message) => SecureLogger.log(message, name: 'voice');
 
 /// The lifecycle of one voice-command session, driving the mic sheet UI.
 enum VoiceStatus {

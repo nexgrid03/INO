@@ -115,8 +115,8 @@ class OfflineDoc {
   /// Recovers the relative tail of a legacy absolute path, so entries written
   /// before [relPath] existed are migrated instead of thrown away.
   static String _relFromAbsolute(String abs) {
-    const marker = '/${OfflineDocumentStore.dirName}/';
-    final at = abs.lastIndexOf(marker);
+    var at = abs.lastIndexOf('/${OfflineDocumentStore.dirName}/');
+    if (at < 0) at = abs.lastIndexOf('/offline_docs/');
     return at < 0 ? '' : abs.substring(at + 1);
   }
 
@@ -147,7 +147,7 @@ class OfflineDocumentStore extends ChangeNotifier {
   static final OfflineDocumentStore instance = OfflineDocumentStore._();
 
   /// Folder under the app documents directory that holds every offline copy.
-  static const String dirName = 'offline_docs';
+  static const String dirName = 'offline';
 
   static const String _keyPrefix = 'ino_offline_docs';
   static const String _kLastUidKey = 'ino_offline_docs_last_uid';
@@ -178,7 +178,7 @@ class OfflineDocumentStore extends ChangeNotifier {
     }
   }
 
-  String _prefsKey(String? uid) => '${_keyPrefix}_${uid ?? 'local'}';
+  String _prefsKey(String uid) => '${_keyPrefix}_$uid';
 
   bool isSaved(String docId) => _docs.any((d) => d.id == docId);
 
@@ -190,9 +190,6 @@ class OfflineDocumentStore extends ChangeNotifier {
   }
 
   /// The app documents directory, resolved once per launch.
-  ///
-  /// Deliberately never persisted: its value is the thing that changes across
-  /// app updates, which is precisely why [OfflineDoc.relPath] exists.
   Future<String?> _baseDir() async {
     final cached = _baseDirPath;
     if (cached != null) return cached;
@@ -200,7 +197,6 @@ class OfflineDocumentStore extends ChangeNotifier {
       final dir = await getApplicationDocumentsDirectory();
       return _baseDirPath = OfflineDoc._slashes(dir.path);
     } catch (_) {
-      // No plugin (tests) - callers degrade to the stored absolute path.
       return null;
     }
   }
@@ -213,38 +209,33 @@ class OfflineDocumentStore extends ChangeNotifier {
     if (liveUid != null && liveUid.isNotEmpty) {
       await p.setString(_kLastUidKey, liveUid);
     }
-    // Offline cold start: Supabase restores the session in the background and
-    // may not have produced a user yet (and never will without network), so the
-    // uid the library was saved under is remembered separately. Without this
-    // the list reads an empty per-uid key and the offline screen looks empty
-    // exactly when it is the only screen the user has.
-    final uid = liveUid ?? p.getString(_kLastUidKey);
+    final uid = (liveUid != null && liveUid.isNotEmpty)
+        ? liveUid
+        : p.getString(_kLastUidKey);
+
+    if (uid == null || uid.isEmpty) {
+      _docs.clear();
+      _loaded = true;
+      _loadedUid = null;
+      notifyListeners();
+      return;
+    }
+
     if (!force && _loaded && uid == _loadedUid) return;
 
     final base = await _baseDir();
     final loaded = <OfflineDoc>[];
     var repaired = false;
     try {
-      // This user's keys, plus the uid-less key that saves fall back to when
-      // the session has not resolved yet. Deliberately NOT every offline key on
-      // the device: that would hand one account another account's documents.
-      final keysToTry = <String>{
-        _prefsKey(uid),
-        if (liveUid != null) _prefsKey(liveUid),
-        _prefsKey(null),
-      };
-
-      final seenIds = <String>{};
-      for (final key in keysToTry) {
-        final list = p.getStringList(key);
-        if (list == null) continue;
+      final key = _prefsKey(uid);
+      final list = p.getStringList(key);
+      if (list != null) {
+        final seenIds = <String>{};
         for (final raw in list) {
           try {
             final stored =
                 OfflineDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
             if (stored.id.isEmpty || seenIds.contains(stored.id)) continue;
-            // An entry whose file really is gone (storage cleared) is useless -
-            // drop it so the list never advertises a doc it cannot open.
             final doc = await _locate(stored, base);
             if (doc == null) continue;
             if (doc.localPath != stored.localPath ||
@@ -254,12 +245,12 @@ class OfflineDocumentStore extends ChangeNotifier {
             seenIds.add(doc.id);
             loaded.add(doc);
           } catch (_) {
-            // Skip a corrupt entry rather than losing the whole library.
+            // Skip corrupt entry
           }
         }
       }
     } catch (_) {
-      // No plugin (tests) → empty, never throw.
+      // No plugin (tests) → empty
     }
     _docs
       ..clear()
@@ -268,23 +259,13 @@ class OfflineDocumentStore extends ChangeNotifier {
     _loadedUid = uid;
     notifyListeners();
 
-    // Rewrite entries whose paths moved, so the repair happens once instead of
-    // on every launch.
     if (repaired) await _persist();
 
-    // Background sync: push any locally cached documents to Supabase so
-    // existing offline records populate the server-side table.
-    if (liveUid != null && _docs.isNotEmpty) {
+    if (liveUid != null && liveUid.isNotEmpty && _docs.isNotEmpty) {
       _syncToSupabase(liveUid);
     }
   }
 
-  /// Finds [doc]'s file in the container of this run, or null when it is
-  /// genuinely gone.
-  ///
-  /// The relative path is tried first (the durable one), then the absolute path
-  /// exactly as stored - which covers a legacy entry whose file sits outside
-  /// the `offline_docs` tree, where no relative path can be derived.
   Future<OfflineDoc?> _locate(OfflineDoc doc, String? base) async {
     if (base != null && doc.relPath.isNotEmpty) {
       final resolved = doc.resolvedIn(base);
@@ -296,21 +277,17 @@ class OfflineDocumentStore extends ChangeNotifier {
     return null;
   }
 
-  /// The durable folder for the current user's offline files.
+  /// The durable folder for the current user's offline files (`offline/<uid>/documents`).
   Future<Directory> _dirFor(String uid) async {
+    if (uid.isEmpty) throw StateError('User ID required for offline directory');
     final base = await _baseDir();
     if (base == null) throw const FileSystemException('no documents directory');
-    final dir = Directory('$base/$dirName/$uid');
+    final dir = Directory('$base/$dirName/$uid/documents');
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
 
-  /// Saves a document for offline viewing.
-  ///
-  /// [sourceFile] is an already-local copy when the caller has one (the viewer
-  /// always does - it's the file being displayed), which makes saving instant
-  /// and network-free. Without one, the file is downloaded once from Storage.
-  /// Returns the entry, or null on failure (signed out, download failed).
+  /// Saves a document for offline viewing. Rejects save if user_id is unavailable.
   Future<OfflineDoc?> save({
     required String docId,
     required String name,
@@ -320,7 +297,11 @@ class OfflineDocumentStore extends ChangeNotifier {
     File? sourceFile,
   }) async {
     final p = await SharedPrefsCache.instance.prefsAsync;
-    final uid = _uid() ?? p.getString(_kLastUidKey) ?? 'local';
+    final uid = _uid() ?? p.getString(_kLastUidKey);
+    if (uid == null || uid.isEmpty) {
+      developer.log('Offline save rejected: active user ID required', name: 'offline');
+      throw StateError('Offline document storage requires an active user ID.');
+    }
     await ensureLoaded();
 
     try {
@@ -339,7 +320,7 @@ class OfflineDocumentStore extends ChangeNotifier {
         name: name,
         wallet: wallet,
         category: category,
-        relPath: '$dirName/$uid/$safeId.$ext',
+        relPath: '$dirName/$uid/documents/$safeId.$ext',
         localPath: OfflineDoc._slashes(target.path),
         objectPath: objectPath,
         sizeBytes: encryptedBytes.length,
@@ -352,10 +333,7 @@ class OfflineDocumentStore extends ChangeNotifier {
       developer.log('saved offline: $name (${entry.sizeLabel})',
           name: 'offline');
 
-      // Best-effort sync to Supabase table
-      if (uid != 'local') {
-        _upsertToSupabase(uid, entry);
-      }
+      _upsertToSupabase(uid, entry);
 
       return entry;
     } catch (e) {
@@ -376,8 +354,6 @@ class OfflineDocumentStore extends ChangeNotifier {
       final f = File(entry.localPath);
       if (await f.exists()) await f.delete();
     } catch (e) {
-      // The entry is gone from the list either way; an orphaned file is
-      // reclaimed the next time the same doc is saved (same target name).
       developer.log('offline file delete failed: $e', name: 'offline');
     }
 
@@ -386,24 +362,19 @@ class OfflineDocumentStore extends ChangeNotifier {
     }
   }
 
-  /// When the underlying document is deleted from a wallet, its offline copy
-  /// no longer has an owner - drop it too. No-op when it wasn't saved.
   Future<void> handleDocumentDeleted(String docId) => remove(docId);
 
   Future<void> _persist() async {
     try {
+      final uid = _loadedUid ?? _uid();
+      if (uid == null || uid.isEmpty) return;
       final p = await SharedPrefsCache.instance.prefsAsync;
-      final uid = _loadedUid ?? _uid() ?? p.getString(_kLastUidKey);
       await p.setStringList(
         _prefsKey(uid),
         [for (final d in _docs) jsonEncode(d.toJson())],
       );
-      if (uid != null && uid != 'local') {
-        await p.setString(_kLastUidKey, uid);
-      }
-    } catch (_) {
-      // Best-effort; the in-memory list stays correct for this session.
-    }
+      await p.setString(_kLastUidKey, uid);
+    } catch (_) {}
   }
 
   Future<void> _syncToSupabase(String uid) async {

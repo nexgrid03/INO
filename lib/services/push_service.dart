@@ -314,7 +314,12 @@ class PushService {
     }
 
     try {
-      await Supabase.instance.client.from(_table).upsert({
+      // Token rotation improvement: delete old token entry first then insert new token for uid
+      try {
+        await Supabase.instance.client.from(_table).delete().eq('token', token);
+      } catch (_) {}
+
+      await Supabase.instance.client.from(_table).insert({
         'token': token,
         'auth_user_id': uid,
         'platform': _platformName,

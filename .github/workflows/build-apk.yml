@@ -29,15 +29,26 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.44.8"
+          flutter-version-file: ".flutter-version"
           channel: stable
           cache: true
+
+      - name: Verify Flutter Version
+        run: |
+          REQUIRED_VERSION=$(cat .flutter-version | tr -d '\r\n ')
+          INSTALLED_VERSION=$(flutter --version | head -n 1 | awk '{print $2}')
+          echo "Required Flutter version: $REQUIRED_VERSION"
+          echo "Installed Flutter version: $INSTALLED_VERSION"
+          if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
+            echo "ERROR: Flutter version mismatch! Expected $REQUIRED_VERSION but found $INSTALLED_VERSION"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release APK (Obfuscated)
+        run: flutter build apk --release --obfuscate --split-debug-info=build/debug-info
 
       - name: Rename APK
         run: |
@@ -50,6 +61,13 @@ jobs:
           name: INO-apk
           path: dist/*.apk
           retention-days: 30
+
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-symbols
+          path: build/debug-info/*
+          retention-days: 90
 
       - name: Create/update GitHub Release
         uses: softprops/action-gh-release@v2

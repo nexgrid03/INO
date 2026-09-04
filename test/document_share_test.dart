@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/config/share_config.dart';
 import 'package:inoapp/models/document_share.dart';
+import 'package:inoapp/models/public_share.dart';
 import 'package:inoapp/repositories/share_repository.dart';
 
 DocumentShare _make({
@@ -131,6 +132,29 @@ void main() {
     test('api URL points at the Edge Function with the token', () {
       expect(ShareConfig.apiUrl('a8f9x2k40b1c'),
           'https://ilfzppryyojoponkomrw.functions.supabase.co/share/a8f9x2k40b1c');
+    });
+  });
+
+  group('RFC 5987 Non-Latin Filename Parsing', () {
+    test('parses RFC 5987 UTF-8 encoded filenames correctly', () {
+      final repo = ShareRepository.instance;
+      final doc = SharedDoc.fromJson({'id': '1', 'name': 'Doc.pdf', 'type': 'PDF', 'kind': 'pdf', 'mime': 'application/pdf'});
+
+      // Telugu
+      const teluguHeader = "attachment; filename=\"document.pdf\"; filename*=UTF-8''%E0%B0%A1%E0%B0%BE%E0%B0%95%E0%B1%8D%E0%B0%AF%E0%B1%81%E0%B0%AE%E0%B1%86%E0%B0%82%E0%B0%9F.pdf";
+      expect(repo.filenameFromForTest(teluguHeader, doc, 'application/pdf'), 'డాక్యుమెంట.pdf');
+
+      // Hindi
+      const hindiHeader = "attachment; filename=\"document.pdf\"; filename*=UTF-8''%E0%A4%A6%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A4%BE%E0%A4%B5%E0%A5%87%E0%A4%9C.pdf";
+      expect(repo.filenameFromForTest(hindiHeader, doc, 'application/pdf'), 'दस्तावेज.pdf');
+
+      // Chinese
+      const chineseHeader = "attachment; filename=\"document.pdf\"; filename*=UTF-8''%E6%96%87%E6%A1%A3.pdf";
+      expect(repo.filenameFromForTest(chineseHeader, doc, 'application/pdf'), '文档.pdf');
+
+      // Emoji
+      const emojiHeader = "attachment; filename=\"document.pdf\"; filename*=UTF-8''%F0%9F%93%84doc.pdf";
+      expect(repo.filenameFromForTest(emojiHeader, doc, 'application/pdf'), '📄doc.pdf');
     });
   });
 }
