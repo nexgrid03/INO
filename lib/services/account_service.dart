@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/app_localizations.dart';
 import '../repositories/document_repository.dart';
 import 'auth_service.dart';
+import 'session_reset.dart';
 
 /// A coarse password-strength score for the Change Password meter.
 enum PasswordStrength { weak, fair, good, strong }
@@ -36,7 +37,13 @@ class AccountService {
   AccountService._();
   static final AccountService instance = AccountService._();
 
-  SupabaseClient get _client => Supabase.instance.client;
+  SupabaseClient? get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Scores a candidate password: length + character-class variety.
   static PasswordStrength scorePassword(String password) {
@@ -63,8 +70,12 @@ class AccountService {
     required String email,
     required String password,
   }) async {
+    final client = _client;
+    if (client == null) {
+      throw const AuthException('You must be signed in to perform this action.');
+    }
     developer.log('reauthenticate: verifying current password', name: 'account');
-    await _client.auth.signInWithPassword(email: email, password: password);
+    await client.auth.signInWithPassword(email: email, password: password);
   }
 
   /// Verifies the current password, then updates it in Supabase Auth.
@@ -73,24 +84,31 @@ class AccountService {
     required String currentPassword,
     required String newPassword,
   }) async {
+    final client = _client;
+    if (client == null) {
+      throw const AuthException('You must be signed in to perform this action.');
+    }
     await reauthenticate(email: email, password: currentPassword);
     developer.log('changePassword: updating credential', name: 'account');
-    await _client.auth.updateUser(UserAttributes(password: newPassword));
+    await client.auth.updateUser(UserAttributes(password: newPassword));
     developer.log('changePassword: success', name: 'account');
   }
 
-  /// Permanently deletes the user's data and signs them out.
+  /// Permanently deletes the user's account (server-side data, storage objects,
+  /// and auth user row) and clears local session state.
   ///
-  /// Order matters: remove Storage objects, then document rows, then the profile
-  /// row, then attempt a server-side auth-user deletion RPC (if the project
-  /// defines one), and finally sign out. Client SDKs can't delete the auth user
-  /// directly (that needs the service role), so the optional `delete_account`
-  /// RPC is the supported hook - its absence is non-fatal.
+  /// MUST NOT swallow errors. If the server-side RPC `delete_account` fails, an
+  /// exception is thrown, aborting local cleanup and sign-out so the user is not
+  /// misled into thinking their account was deleted when it was not.
   Future<void> deleteAccount() async {
-    final userId = _client.auth.currentUser?.id;
-    developer.log('deleteAccount: starting for $userId', name: 'account');
+    final client = _client;
+    if (client == null || client.auth.currentUser?.id == null) {
+      throw const AuthException('You must be signed in to delete your account.');
+    }
+    final userId = client.auth.currentUser!.id;
+    developer.log('deleteAccount: starting deletion for $userId', name: 'account');
 
-    // 1. Storage objects (documents + backups).
+    // 1. Client-side storage cleanup prior to RPC (best-effort)
     try {
       final repo = DocumentRepository.instance;
       final files = await repo.listUserObjects();
@@ -99,42 +117,20 @@ class AccountService {
         for (final f in files) '$userId/${f.name}',
         for (final b in backups) '$userId/backups/${b.name}',
       ];
-      await repo.removeObjects(paths);
-      developer.log('deleteAccount: removed ${paths.length} objects',
-          name: 'account');
-    } catch (e) {
-      developer.log('deleteAccount: storage cleanup failed: $e',
-          name: 'account');
-    }
-
-    // 2. Document rows.
-    try {
-      await DocumentRepository.instance.deleteAllRowsForUser();
-    } catch (e) {
-      developer.log('deleteAccount: row cleanup failed: $e', name: 'account');
-    }
-
-    // 3. Profile row.
-    try {
-      if (userId != null) {
-        await _client.from('users').delete().eq('auth_user_id', userId);
+      if (paths.isNotEmpty) {
+        await repo.removeObjects(paths);
       }
     } catch (e) {
-      developer.log('deleteAccount: profile cleanup failed: $e',
-          name: 'account');
+      developer.log('deleteAccount: client storage pre-cleanup note: $e', name: 'account');
     }
 
-    // 4. Best-effort server-side auth-user deletion via an RPC, if present.
-    try {
-      await _client.rpc('delete_account');
-      developer.log('deleteAccount: delete_account RPC ok', name: 'account');
-    } catch (e) {
-      developer.log('deleteAccount: delete_account RPC unavailable: $e',
-          name: 'account');
-    }
+    // 2. Execute server-side delete_account RPC. Throws on failure (do NOT swallow!).
+    await client.rpc('delete_account');
+    developer.log('deleteAccount: delete_account RPC executed successfully', name: 'account');
 
-    // 5. Sign out locally (also drops the biometric lock).
+    // 3. Clear local session & in-memory caches strictly AFTER RPC succeeds
+    await SessionReset.instance.clear();
     await AuthService.instance.signOut();
-    developer.log('deleteAccount: complete', name: 'account');
+    developer.log('deleteAccount: account deleted & signed out', name: 'account');
   }
 }

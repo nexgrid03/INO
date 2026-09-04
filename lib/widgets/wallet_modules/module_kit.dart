@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -174,13 +175,8 @@ class DetailRow extends StatelessWidget {
               icon: Icons.copy_rounded,
               tooltip: l10n.t('copy'),
               onTap: () {
-                Clipboard.setData(ClipboardData(text: v));
+                SecureClipboard.copy(context, v, label: label);
                 HapticFeedback.selectionClick();
-                showModuleToast(
-                  context,
-                  copyMessage ??
-                      l10n.t('copiedLabel').replaceAll('{label}', label),
-                );
               },
             ),
           ],

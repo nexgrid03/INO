@@ -208,6 +208,7 @@ class _ReminderRows extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen, 0, AppSpacing.screen, 120),
       // Extra build-ahead so a fast fling doesn't outrun the builder.
+      // ignore: deprecated_member_use
       cacheExtent: 600.0,
       itemCount: rows.length,
       itemBuilder: (context, i) {

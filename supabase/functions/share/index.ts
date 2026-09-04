@@ -1,42 +1,12 @@
 // ============================================================================
 // INO - Public Document Share (Supabase Edge Function)
 // ----------------------------------------------------------------------------
-// Serves the recipient experience for a scanned QR / opened link. It runs with
-// the service-role key (server-side only, never shipped) and CONTENT-NEGOTIATES:
-//
-//   GET /share/:shareId
-//       • Browser (Accept: text/html) → a responsive, branded HTML viewer
-//         (document cards + View/Download + live expiry countdown, or a
-//         professional Expired / Revoked / Not-found page).
-//       • App / API (Accept: application/json, or ?format=json) → JSON.
-//
-//   GET /share/:shareId/file/:index?mode=view|download
-//       → the file BYTES, streamed (proxied) through this function. It mints a
-//         60-second signed URL server-side, fetches the object itself, and
-//         streams it back - so the client NEVER sees the bucket path, the
-//         signed URL/token, the owner, or the document UUID.
-//
-// VIEW ONCE (one-time links) - additive, separate routes, same proxy discipline:
-//
-//   GET  /share/v/:token           → NON-CONSUMING status peek (ready / viewed /
-//                                    expired / revoked / not_found). Safe for
-//                                    link-preview crawlers and page refreshes.
-//   POST /share/v/:token/claim     → BURNS the link (atomic, exactly once) and
-//                                    returns a short-lived access key.
-//   GET  /share/v/:token/file?k=…  → the bytes, inline only, for the claiming
-//                                    client. No download disposition: a
-//                                    view-once document is viewed, not kept.
-//
-// Security: every request re-validates status='active' AND expires_at>now();
-// documents are referenced by their POSITION in the share (0,1,2…), not by
-// their Supabase id; files are only served when that position maps to a doc in
-// the share AND owned by the share's owner. No raw JSON to browsers, no HTML
-// source leak, no storage internals.
-//
-// Deploy:  supabase functions deploy share --no-verify-jwt
+// Serves the recipient experience for a scanned QR / opened link.
+// HARDENED AGAINST: XSS, MIME SPOOFING, PHISHING AND PASSWORD LEAKAGE.
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,11 +23,33 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
-  // POST is used only by the view-once /claim route (an explicit, state-changing
-  // action). Every pre-existing route stays GET-only.
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-share-unlock-token",
 };
+
+// Security headers added to all file and HTML responses
+const SECURE_HEADERS: Record<string, string> = {
+  ...CORS,
+  "X-Content-Type-Options": "nosniff",
+  "Content-Security-Policy": "sandbox",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+};
+
+// Strict MIME allowlist as required by security spec
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
 
 interface ShareRow {
   share_id: string;
@@ -83,8 +75,6 @@ interface DocRow {
   auth_user_id: string;
 }
 
-/** One shared document, referenced by its position in the share. `kind`/`mime`
- *  let the web viewer choose a PDF viewer vs an image preview vs download. */
 interface Card {
   index: number;
   name: string;
@@ -96,7 +86,6 @@ interface Card {
 type Kind = "active" | "expired" | "revoked" | "not_found" | "error";
 type LoadResult = { kind: "active"; share: ShareRow } | { kind: Exclude<Kind, "active"> };
 
-// HTTP status for each terminal kind.
 const STATUS: Record<Kind, number> = {
   active: 200,
   expired: 410,
@@ -105,11 +94,237 @@ const STATUS: Record<Kind, number> = {
   error: 500,
 };
 
-Deno.serve(async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+// ---- Rate Limiting & Throttling --------------------------------------------
 
-  // Diagnostic: what the client asked for drives HTML-vs-JSON negotiation.
-  console.log("Accept:", req.headers.get("accept"));
+interface RateRecord {
+  count: number;
+  resetAt: number;
+}
+
+const ipRequestMap = new Map<string, RateRecord>();
+const passwordFailMap = new Map<string, RateRecord>();
+const viewThrottleMap = new Map<string, RateRecord>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of ipRequestMap.entries()) {
+    if (v.resetAt <= now) ipRequestMap.delete(k);
+  }
+  for (const [k, v] of passwordFailMap.entries()) {
+    if (v.resetAt <= now) passwordFailMap.delete(k);
+  }
+  for (const [k, v] of viewThrottleMap.entries()) {
+    if (v.resetAt <= now) viewThrottleMap.delete(k);
+  }
+}, 60000);
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0].trim();
+    if (first) return first;
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const cfIp = req.headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp.trim();
+  return "unknown";
+}
+
+function checkIpRateLimit(ip: string): boolean {
+  const now = Date.now();
+  let record = ipRequestMap.get(ip);
+  if (!record || record.resetAt <= now) {
+    record = { count: 1, resetAt: now + 60000 };
+    ipRequestMap.set(ip, record);
+    return true;
+  }
+  record.count++;
+  return record.count <= 60;
+}
+
+function isPasswordLocked(ip: string, shareId: string): boolean {
+  const key = `${ip}:${shareId}`;
+  const record = passwordFailMap.get(key);
+  if (!record) return false;
+  if (record.resetAt <= Date.now()) {
+    passwordFailMap.delete(key);
+    return false;
+  }
+  return record.count >= 5;
+}
+
+function recordPasswordFailure(ip: string, shareId: string): void {
+  const key = `${ip}:${shareId}`;
+  const now = Date.now();
+  let record = passwordFailMap.get(key);
+  if (!record || record.resetAt <= now) {
+    record = { count: 1, resetAt: now + 15 * 60 * 1000 };
+  } else {
+    record.count++;
+  }
+  passwordFailMap.set(key, record);
+}
+
+function clearPasswordFailures(ip: string, shareId: string): void {
+  passwordFailMap.delete(`${ip}:${shareId}`);
+}
+
+function shouldRecordView(ip: string, shareId: string): boolean {
+  const key = `${ip}:${shareId}`;
+  const now = Date.now();
+  const record = viewThrottleMap.get(key);
+  if (!record || record.resetAt <= now) {
+    viewThrottleMap.set(key, { count: 1, resetAt: now + 5 * 60 * 1000 });
+    return true;
+  }
+  return false;
+}
+
+// ---- HMAC Unlock Token Helpers ---------------------------------------------
+
+async function createUnlockToken(shareId: string): Promise<string> {
+  const exp = Date.now() + 3600 * 1000; // 1 hour token
+  const payloadStr = JSON.stringify({ shareId, exp });
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(SERVICE_ROLE_KEY),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payloadStr));
+  const sigHex = Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const payloadB64 = btoa(payloadStr).replace(/=/g, "");
+  return `${payloadB64}.${sigHex}`;
+}
+
+async function verifyUnlockToken(req: Request, targetShareId: string): Promise<boolean> {
+  const tokenHeader = req.headers.get("x-share-unlock-token") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!tokenHeader || !tokenHeader.includes(".")) return false;
+
+  const [payloadB64, sigHex] = tokenHeader.split(".");
+  if (!payloadB64 || !sigHex) return false;
+
+  try {
+    const payloadStr = atob(payloadB64);
+    const payload = JSON.parse(payloadStr) as { shareId: string; exp: number };
+    if (!payload.shareId || !payload.exp) return false;
+    if (payload.shareId !== targetShareId || payload.exp < Date.now()) return false;
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(SERVICE_ROLE_KEY),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    const sigBytes = new Uint8Array(sigHex.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || []);
+    return await crypto.subtle.verify("HMAC", key, sigBytes, encoder.encode(payloadStr));
+  } catch {
+    return false;
+  }
+}
+
+// ---- Server-Side Magic Byte Content Inspection -----------------------------
+
+async function inspectAndValidateFileContent(
+  bytes: Uint8Array,
+  path: string,
+  declaredMime: string
+): Promise<{ valid: boolean; detectedMime: string; reason?: string }> {
+  // Convert first 4096 bytes to text for signature scanning
+  const headerText = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 4096)).toLowerCase();
+
+  // Reject malicious HTML / SVG / JS / XML / Executable content signatures
+  if (
+    headerText.includes("<html") ||
+    headerText.includes("<!doctype") ||
+    headerText.includes("<svg") ||
+    headerText.includes("<script") ||
+    headerText.includes("javascript:") ||
+    headerText.includes("onload=") ||
+    headerText.includes("onerror=") ||
+    headerText.includes("<iframe") ||
+    headerText.includes("<embed") ||
+    headerText.includes("<object") ||
+    headerText.includes("<xml") ||
+    headerText.includes("<?xml")
+  ) {
+    return { valid: false, detectedMime: "text/html", reason: "Forbidden executable or markup content detected in file bytes." };
+  }
+
+  // Check binary executable headers
+  if (
+    (bytes[0] === 0x4d && bytes[1] === 0x5a) || // MZ executable
+    (bytes[0] === 0x7f && bytes[1] === 0x45 && bytes[2] === 0x4c && bytes[3] === 0x46) || // ELF binary
+    headerText.startsWith("#!/") // Shell script
+  ) {
+    return { valid: false, detectedMime: "application/x-msdownload", reason: "Executable binary or shell script detected." };
+  }
+
+  let detectedMime = "application/octet-stream";
+
+  // PDF magic bytes: %PDF-
+  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) {
+    detectedMime = "application/pdf";
+  }
+  // JPEG magic bytes: FF D8 FF
+  else if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    detectedMime = "image/jpeg";
+  }
+  // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
+  else if (
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
+    detectedMime = "image/png";
+  }
+  // WEBP magic bytes: RIFF....WEBP
+  else if (
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    detectedMime = "image/webp";
+  }
+  // OLE Composite Document (DOC, XLS, PPT legacy Office format): D0 CF 11 E0 A1 B1 1A E1
+  else if (
+    bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0 &&
+    bytes[4] === 0xa1 && bytes[5] === 0xb1 && bytes[6] === 0x1a && bytes[7] === 0xe1
+  ) {
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    if (ext === "xls") detectedMime = "application/vnd.ms-excel";
+    else if (ext === "ppt") detectedMime = "application/vnd.ms-powerpoint";
+    else detectedMime = "application/msword";
+  }
+  // OOXML Zip Container (DOCX, XLSX, PPTX Office format): PK\x03\x04
+  else if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    if (ext === "xlsx") detectedMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (ext === "pptx") detectedMime = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    else detectedMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  } else {
+    // Fallback based on extension if clean
+    detectedMime = mimeFromPath(path);
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(detectedMime)) {
+    return { valid: false, detectedMime, reason: `MIME type '${detectedMime}' is not permitted.` };
+  }
+
+  return { valid: true, detectedMime };
+}
+
+Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: SECURE_HEADERS });
+
+  const clientIp = getClientIp(req);
+  if (!checkIpRateLimit(clientIp)) {
+    console.warn(`[share] Rate limit exceeded for IP=${clientIp}`);
+    return json({ status: "too_many_requests", message: "Too many requests. Please try again later." }, 429);
+  }
 
   try {
     const url = new URL(req.url);
@@ -121,14 +336,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!shareId) return renderShare("not_found", req, null, []);
 
     // ---- View-once namespace: /share/v/<token>[/claim|/file] --------------
-    // `v` is a reserved first segment. Real share ids are `share_…` and share
-    // tokens are 12+ hex chars, so neither can ever be the literal "v".
     if (shareId === "v") {
       const token = tail[1];
-      if (!token) return json({ status: "not_found", message: VO_MESSAGES.not_found }, 404);
+      if (!token || !/^[0-9a-zA-Z]{6,32}$/.test(token)) {
+        return json({ status: "not_found", message: VO_MESSAGES.not_found }, 404);
+      }
       if (tail[2] === "claim") return await claimViewOnce(token, req);
       if (tail[2] === "file") return await serveViewOnceFile(token, url.searchParams.get("k"));
       return await peekViewOnce(token, req);
+    }
+
+    if (!isValidShareRef(shareId)) {
+      console.warn(`[share] rejected malformed shareId=${shareId} from IP=${clientIp}`);
+      return renderShare("not_found", req, null, []);
+    }
+
+    // ---- POST /share/:shareId/unlock endpoint -----------------------------
+    if (tail[1] === "unlock") {
+      if (req.method !== "POST") {
+        return json({ status: "method_not_allowed", message: "Use POST to unlock share." }, 405);
+      }
+      return await handleUnlockShare(shareId, req, clientIp);
     }
 
     if (tail[1] === "file" && tail[2] !== undefined) {
@@ -136,8 +364,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         shareId,
         tail[2],
         url.searchParams.get("mode") ?? "view",
-        url.searchParams.get("pw"),
-        req,
+        req
       );
     }
     return await serveShare(shareId, req);
@@ -149,44 +376,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Validation -------------------------------------------------------------
 
-/// Shapes a share identifier is ALLOWED to have, matching how the database
-/// actually generates them:
-///   • token    - 12 hex chars  (20260707000000_share_tokens.sql:17)
-///                16-32 accepted so the length can be raised without a redeploy.
-///   • share_id - 'share_' + 18 hex  (20260704000000_document_shares.sql:31-33)
-///
-/// SECURITY: this is not cosmetic. The value arrives as a raw URL path segment
-/// and is used to look a row up with the SERVICE-ROLE client, which bypasses
-/// RLS. A PostgREST filter expression is comma-separated, so a segment
-/// containing `,` `(` `)` or `.` - all legal in a URL path - used to let a
-/// caller append their own filter terms and turn this function into an
-/// enumeration oracle over every row of document_shares. Anything that is not
-/// exactly one of the two shapes below is refused before it reaches a query.
-const SHARE_ID_RE = /^(?:share_[0-9a-f]{12,24}|[0-9a-f]{12,32})$/;
+const SHARE_ID_RE = /^(?:share_[0-9a-zA-Z]{6,32}|[0-9a-zA-Z]{6,32})$/;
 
 export function isValidShareRef(value: string | null | undefined): boolean {
   return typeof value === "string" && SHARE_ID_RE.test(value);
 }
 
 async function loadShare(idOrToken: string): Promise<LoadResult> {
-  console.log(`[share] fetch id/token=${idOrToken}`);
-
-  // Reject anything that is not a well-formed identifier. Returning the plain
-  // not_found result keeps the response indistinguishable from a real miss, so
-  // this leaks nothing about which ids exist.
   if (!isValidShareRef(idOrToken)) {
-    console.warn(`[share] rejected malformed id/token=${idOrToken}`);
     return { kind: "not_found" };
   }
 
-  // Accept EITHER the short public token (new /s/{token} links) or the internal
-  // share_id (legacy links) - both resolve to the same row.
-  //
-  // Two parameterised .eq() lookups instead of one string-built .or(): .eq()
-  // encodes its value, so no user input can ever become part of a filter
-  // expression. `.limit(1)` + `[0]` rather than `.maybeSingle()` also removes
-  // the "more than one row" error that previously distinguished a narrowed
-  // match from a miss.
   const COLS =
     "share_id, token, owner_id, document_ids, status, expires_at, views_count, downloads_count, " +
     "processed_paths, processed_names, processed_mimes, view_only, password_hash";
@@ -210,19 +410,12 @@ async function loadShare(idOrToken: string): Promise<LoadResult> {
     return { kind: "error" };
   }
   const row = data && data.length > 0 ? data[0] : null;
-  if (!row) {
-    console.log(`[share] not found id/token=${idOrToken}`);
-    return { kind: "not_found" };
-  }
+  if (!row) return { kind: "not_found" };
   const share = row as unknown as ShareRow;
 
   if (share.status === "revoked") return { kind: "revoked" };
 
   const expired = share.status === "expired" || new Date(share.expires_at).getTime() <= Date.now();
-  console.log(
-    `[share] expiry check share_id=${share.share_id} status=${share.status} ` +
-      `expires_at=${share.expires_at} expired=${expired}`,
-  );
   if (expired) {
     if (share.status !== "expired") {
       await admin.from("document_shares").update({ status: "expired" }).eq("share_id", share.share_id);
@@ -232,12 +425,10 @@ async function loadShare(idOrToken: string): Promise<LoadResult> {
   return { kind: "active", share };
 }
 
-/** Derives a display `kind` + real `mime` from the stored file path (never
- *  exposes the path itself). */
 function fileKind(path: string | null): { kind: "pdf" | "image" | "other"; mime: string } {
   const ext = (path && path.includes(".") ? path.split(".").pop() : "")?.toLowerCase() ?? "";
   if (ext === "pdf") return { kind: "pdf", mime: "application/pdf" };
-  if (["png", "jpg", "jpeg", "webp", "heic", "gif"].includes(ext)) {
+  if (["png", "jpg", "jpeg", "webp"].includes(ext)) {
     return { kind: "image", mime: mimeFromPath(path ?? "") };
   }
   return { kind: "other", mime: mimeFromPath(path ?? "") };
@@ -272,29 +463,85 @@ function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
-/** Accepts either the stored SHA-256 hex or the plaintext password. */
+/** Verifies password using bcrypt (`crypt(p_password, gen_salt('bf'))`) with SHA-256 legacy fallback. */
 async function passwordAccepted(share: ShareRow, provided: string | null): Promise<boolean> {
-  const expected = (share.password_hash ?? "").trim().toLowerCase();
+  const expected = (share.password_hash ?? "").trim();
   if (!expected) return true;
   if (!provided) return false;
   const raw = provided.trim();
   if (!raw) return false;
+
+  // Check if expected hash is bcrypt
+  if (expected.startsWith("$2a$") || expected.startsWith("$2b$") || expected.startsWith("$2y$")) {
+    try {
+      return bcrypt.compareSync(raw, expected);
+    } catch {
+      return false;
+    }
+  }
+
+  // Legacy SHA-256 check
   const hashed = (await sha256Hex(raw)).toLowerCase();
-  return timingSafeEqual(raw.toLowerCase(), expected) || timingSafeEqual(hashed, expected);
+  return timingSafeEqual(raw.toLowerCase(), expected.toLowerCase()) || timingSafeEqual(hashed, expected.toLowerCase());
 }
 
-function passwordDenied(req: Request, shareId: string, wrong: boolean): Response {
-  const message = wrong
+function passwordDenied(req: Request, wrong: boolean, locked = false): Response {
+  const message = locked
+    ? "Too many failed password attempts. Please try again in 15 minutes."
+    : wrong
     ? "Incorrect password."
     : "This document is password protected.";
-  if (wantsJson(req)) {
-    return json({ status: "password_required", message }, 401);
-  }
-  return htmlResponse(passwordHtml(shareId, wrong), 401);
+  const status = locked ? 429 : 401;
+  return json({ status: locked ? "too_many_requests" : "password_required", message }, status);
 }
 
-/** Fetches the share's documents IN ORDER, dropping any that were deleted, and
- *  keeping each one's original position (used as its opaque file handle). */
+async function handleUnlockShare(shareId: string, req: Request, clientIp: string): Promise<Response> {
+  const res = await loadShare(shareId);
+  if (res.kind !== "active") return json({ status: res.kind, message: MESSAGES[res.kind] }, STATUS[res.kind]);
+  const share = res.share;
+
+  if (isPasswordLocked(clientIp, share.share_id)) {
+    return passwordDenied(req, true, true);
+  }
+
+  let bodyPassword = "";
+  try {
+    const jsonBody = await req.json();
+    bodyPassword = String(jsonBody.password ?? "");
+  } catch {
+    bodyPassword = "";
+  }
+
+  const accepted = await passwordAccepted(share, bodyPassword);
+  if (!accepted) {
+    recordPasswordFailure(clientIp, share.share_id);
+    return passwordDenied(req, true, false);
+  }
+
+  clearPasswordFailures(clientIp, share.share_id);
+  const unlockToken = await createUnlockToken(share.share_id);
+  const cards = await loadCards(share);
+
+  return json(
+    {
+      status: "active",
+      unlockToken,
+      shareId: share.share_id,
+      count: cards.length,
+      expiresAt: share.expires_at,
+      viewOnly: Boolean(share.view_only),
+      documents: cards.map((c) => ({
+        id: String(c.index),
+        name: c.name,
+        type: c.type,
+        kind: c.kind,
+        mime: c.mime,
+      })),
+    },
+    200
+  );
+}
+
 async function loadCards(share: ShareRow): Promise<Card[]> {
   if (hasProcessedCopies(share)) {
     return share.processed_paths!.map((_p, index) => {
@@ -317,7 +564,6 @@ async function loadCards(share: ShareRow): Promise<Card[]> {
     console.error(`[share] documents error share_id=${share.share_id}:`, error);
     throw error;
   }
-  console.log(`[share] documents fetched share_id=${share.share_id} count=${data?.length ?? 0}`);
   const byId = new Map((data ?? []).map((d) => [(d as DocRow).id, d as DocRow]));
   const cards: Card[] = [];
   share.document_ids.forEach((id, index) => {
@@ -330,7 +576,7 @@ async function loadCards(share: ShareRow): Promise<Card[]> {
   return cards;
 }
 
-// ---- Share endpoint (HTML for browsers, JSON for the app) -------------------
+// ---- Share Endpoint ---------------------------------------------------------
 
 function wantsJson(req: Request): boolean {
   const url = new URL(req.url);
@@ -344,9 +590,13 @@ async function serveShare(shareId: string, req: Request): Promise<Response> {
   if (res.kind !== "active") return renderShare(res.kind, req, null, []);
 
   const share = res.share;
-  const pw = new URL(req.url).searchParams.get("pw");
-  if (share.password_hash && !(await passwordAccepted(share, pw))) {
-    return passwordDenied(req, shareId, Boolean(pw));
+  const clientIp = getClientIp(req);
+
+  if (share.password_hash) {
+    const isUnlocked = await verifyUnlockToken(req, share.share_id);
+    if (!isUnlocked) {
+      return passwordDenied(req, false, isPasswordLocked(clientIp, share.share_id));
+    }
   }
 
   let cards: Card[];
@@ -356,31 +606,28 @@ async function serveShare(shareId: string, req: Request): Promise<Response> {
     return renderShare("error", req, null, []);
   }
 
-  // Analytics: record a view (best-effort). Keyed on the canonical share_id
-  // (the URL segment may be the short token).
-  await admin.from("share_views").insert({ share_id: share.share_id });
-  await admin
-    .from("document_shares")
-    .update({ views_count: (share.views_count ?? 0) + 1, last_accessed_at: new Date().toISOString() })
-    .eq("share_id", share.share_id);
+  if (shouldRecordView(clientIp, share.share_id)) {
+    await admin.from("share_views").insert({ share_id: share.share_id });
+    await admin
+      .from("document_shares")
+      .update({ views_count: (share.views_count ?? 0) + 1, last_accessed_at: new Date().toISOString() })
+      .eq("share_id", share.share_id);
+  }
 
   return renderShare("active", req, share.expires_at, cards, shareId, {
     viewOnly: Boolean(share.view_only),
-    pw,
   });
 }
 
-/** Renders EITHER HTML or JSON depending on the client. */
 function renderShare(
   kind: Kind,
   req: Request,
   expiresAt: string | null,
   cards: Card[],
   shareId?: string,
-  opts?: { viewOnly?: boolean; pw?: string | null },
+  opts?: { viewOnly?: boolean }
 ): Response {
   const asJson = wantsJson(req);
-  console.log("Branch:", asJson ? "JSON" : "HTML"); // requirement 6
   if (asJson) {
     if (kind === "active") {
       return json(
@@ -398,43 +645,44 @@ function renderShare(
             mime: c.mime,
           })),
         },
-        200,
+        200
       );
     }
     return json({ status: kind, message: MESSAGES[kind] }, STATUS[kind]);
   }
-  // Browser → HTML.
   const html = kind === "active"
-    ? viewerHtml(cards, expiresAt, shareId ?? "", Boolean(opts?.viewOnly), opts?.pw ?? null)
+    ? viewerHtml(cards, expiresAt, shareId ?? "", Boolean(opts?.viewOnly))
     : statusHtml(kind);
   return htmlResponse(html, STATUS[kind]);
 }
 
-// ---- File proxy (bytes; never exposes storage internals) --------------------
+// ---- File Proxy (Hardened Bytes Stream) -------------------------------------
 
 async function serveFile(
   shareId: string,
   handle: string,
   mode: string,
-  pw: string | null,
-  req: Request,
+  req: Request
 ): Promise<Response> {
   const res = await loadShare(shareId);
-  if (res.kind !== "active") return htmlResponse(statusHtml(res.kind), STATUS[res.kind]);
+  if (res.kind !== "active") return json({ error: "Share is not active." }, STATUS[res.kind]);
   const share = res.share;
 
-  if (share.password_hash && !(await passwordAccepted(share, pw))) {
-    return passwordDenied(req, shareId, Boolean(pw));
+  if (share.password_hash) {
+    const isUnlocked = await verifyUnlockToken(req, share.share_id);
+    if (!isUnlocked) {
+      return json({ error: "Password unlock token required." }, 401);
+    }
   }
 
-  const download = mode === "download";
-  if (share.view_only && download) {
+  const requestedDownload = mode === "download";
+  if (share.view_only && requestedDownload) {
     return json({ error: "This document is view-only." }, 403);
   }
 
   const index = Number.parseInt(handle, 10);
   if (!Number.isInteger(index) || index < 0 || index >= shareFileCount(share)) {
-    return htmlResponse(statusHtml("not_found"), 404);
+    return json({ error: "Document not found." }, 404);
   }
 
   let objectPath: string;
@@ -443,82 +691,84 @@ async function serveFile(
 
   if (hasProcessedCopies(share)) {
     objectPath = share.processed_paths![index];
-    if (!objectPath) return htmlResponse(statusHtml("not_found"), 404);
+    if (!objectPath) return json({ error: "Document not found." }, 404);
     filename = downloadName(
       share.processed_names?.[index] ?? `document-${index + 1}`,
-      objectPath,
+      objectPath
     );
   } else {
     documentId = share.document_ids[index];
-
     const { data: docData, error } = await admin
       .from("documents")
       .select("id, name, category, file_path, auth_user_id")
       .eq("id", documentId)
       .maybeSingle();
 
-    if (error || !docData) return htmlResponse(statusHtml("not_found"), 404);
+    if (error || !docData) return json({ error: "Document not found." }, 404);
     const doc = docData as DocRow;
 
-    // Defense in depth: the document must belong to the share's owner.
     if (doc.auth_user_id !== share.owner_id) {
       console.warn(`[share] ownership mismatch index=${index} share=${shareId}`);
-      return htmlResponse(statusHtml("not_found"), 404);
+      return json({ error: "Access denied." }, 403);
     }
-    if (!doc.file_path) return htmlResponse(statusHtml("not_found"), 404);
+    if (!doc.file_path) return json({ error: "Document not found." }, 404);
     objectPath = doc.file_path;
     filename = downloadName(doc.name, doc.file_path);
   }
 
-  console.log(`[share] sign+proxy share_id=${shareId} index=${index} mode=${mode}`);
-
-  // Signed URL generated + used server-side only; never sent to the client.
   const { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
     .createSignedUrl(objectPath, SIGNED_URL_TTL);
   if (signErr || !signed?.signedUrl) {
     console.error(`[share] createSignedUrl error index=${index}:`, signErr);
-    return htmlResponse(statusHtml("error"), 500);
+    return json({ error: "Failed to generate file token." }, 500);
   }
 
   const upstream = await fetch(signed.signedUrl);
   if (!upstream.ok || !upstream.body) {
     console.error(`[share] upstream fetch failed index=${index} status=${upstream.status}`);
-    return htmlResponse(statusHtml("error"), 502);
+    return json({ error: "Upstream storage fetch failed." }, 502);
   }
 
-  if (download) {
+  // Buffer file bytes for content inspection
+  const rawBytes = new Uint8Array(await upstream.arrayBuffer());
+  const declaredMime = upstream.headers.get("content-type") ?? mimeFromPath(objectPath);
+
+  // Server-side content inspection & strict MIME validation
+  const validation = await inspectAndValidateFileContent(rawBytes, objectPath, declaredMime);
+  if (!validation.valid) {
+    console.warn(`[share] REJECTED file share_id=${shareId} index=${index} reason=${validation.reason}`);
+    return json({ error: "Security Error: Malicious or unsupported file type detected." }, 415);
+  }
+
+  if (requestedDownload) {
     if (documentId) {
-      await admin.from("share_downloads").insert({
-        share_id: share.share_id,
-        document_id: documentId,
-      });
+      await admin.from("share_downloads").insert({ share_id: share.share_id, document_id: documentId });
     }
     await admin
       .from("document_shares")
-      .update({
-        downloads_count: (share.downloads_count ?? 0) + 1,
-        last_accessed_at: new Date().toISOString(),
-      })
+      .update({ downloads_count: (share.downloads_count ?? 0) + 1, last_accessed_at: new Date().toISOString() })
       .eq("share_id", share.share_id);
   }
 
-  const contentType = upstream.headers.get("content-type") ?? mimeFromPath(objectPath);
-  return new Response(upstream.body, {
+  const finalMime = validation.detectedMime;
+
+  // Strictly enforce INLINE disposition only for PDF and safe image types
+  const canInline = finalMime === "application/pdf" || finalMime.startsWith("image/");
+  const finalDisposition = canInline && !requestedDownload ? "inline" : "attachment";
+
+  return new Response(rawBytes, {
     status: 200,
     headers: {
-      ...CORS,
-      "content-type": contentType,
+      ...SECURE_HEADERS,
+      "content-type": finalMime,
       "cache-control": "no-store",
-      "content-disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
+      "content-disposition": `${finalDisposition}; filename="${filename}"`,
     },
   });
 }
 
 // ---- View Once --------------------------------------------------------------
-// One-time links. Every decision is made by Postgres (peek / claim / resolve are
-// SECURITY DEFINER RPCs granted to the service role only), so the "exactly once"
-// guarantee is a single atomic UPDATE rather than anything this function does.
 
 type VoStatus = "ready" | "viewed" | "expired" | "revoked" | "not_found" | "error";
 
@@ -531,7 +781,6 @@ const VO_MESSAGES: Record<VoStatus, string> = {
   error: "Something went wrong. Please try again.",
 };
 
-// HTTP status per view-once outcome. A burned link is 410 Gone - the honest code.
 const VO_STATUS: Record<VoStatus, number> = {
   ready: 200,
   viewed: 410,
@@ -557,7 +806,6 @@ function voStatusOf(payload: unknown): VoStatus {
   }
 }
 
-/** SHA-256 of the caller's IP - forensics without ever storing a raw address. */
 async function ipHash(req: Request): Promise<string | null> {
   const raw = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
   if (!raw) return null;
@@ -565,15 +813,10 @@ async function ipHash(req: Request): Promise<string | null> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
-/** NON-CONSUMING status check. Never burns the link - only /claim does. */
 async function peekViewOnce(token: string, req: Request): Promise<Response> {
-  console.log(`[view-once] peek token=${token.slice(0, 6)}…`);
   const { data, error } = await admin.rpc("peek_view_once_share", { p_token: token });
   if (error) {
-    console.error("[view-once] peek error:", error);
-    return wantsJson(req)
-      ? json({ status: "error", message: VO_MESSAGES.error }, 500)
-      : htmlResponse(viewOnceStatusHtml("error"), 500);
+    return json({ status: "error", message: VO_MESSAGES.error }, 500);
   }
   const payload = (data ?? {}) as Record<string, unknown>;
   const status = voStatusOf(payload);
@@ -586,45 +829,32 @@ async function peekViewOnce(token: string, req: Request): Promise<Response> {
           name: payload.name ?? "Document",
           type: payload.type ?? "Document",
           expiresAt: payload.expiresAt ?? null,
-          // How long the recipient gets ON SCREEN once they open it (0 = no
-          // limit). Surfaced on the gate so the warning can be specific about
-          // what spending the single view actually buys.
           viewSeconds: Number(payload.viewSeconds ?? 0),
         },
-        200,
+        200
       );
     }
     return json({ status, message: VO_MESSAGES[status] }, VO_STATUS[status]);
   }
 
-  // Browser hitting this function directly (no web frontend in front of it):
-  // serve a self-contained one-time viewer so the feature still works.
   if (status === "ready") {
     return htmlResponse(
       viewOnceHtml(token, String(payload.name ?? "Document"), String(payload.type ?? "Document")),
-      200,
+      200
     );
   }
   return htmlResponse(viewOnceStatusHtml(status), VO_STATUS[status]);
 }
 
-/**
- * BURNS the link. The RPC does `update … where viewed = false` atomically, so
- * exactly one caller can ever succeed. On success it hands back a short-lived
- * access key - without it the caller could never fetch the bytes it just earned.
- */
 async function claimViewOnce(token: string, req: Request): Promise<Response> {
   if (req.method !== "POST") {
-    // Claiming is state-changing on purpose: a GET must never destroy a share.
     return json({ status: "error", message: "Use POST to open this document." }, 405);
   }
-  console.log(`[view-once] claim token=${token.slice(0, 6)}…`);
   const { data, error } = await admin.rpc("claim_view_once_share", {
     p_token: token,
     p_ip_hash: await ipHash(req),
   });
   if (error) {
-    console.error("[view-once] claim error:", error);
     return json({ status: "error", message: VO_MESSAGES.error }, 500);
   }
 
@@ -635,8 +865,6 @@ async function claimViewOnce(token: string, req: Request): Promise<Response> {
   }
 
   const accessKey = String(payload.accessKey ?? "");
-  // Derive kind/mime from the stored path so the viewer can pick a PDF vs image
-  // renderer. The path itself stays server-side and is discarded here.
   let kind: "pdf" | "image" | "other" = "other";
   let mime = "application/octet-stream";
   const { data: resolved } = await admin.rpc("resolve_view_once_file", {
@@ -650,7 +878,6 @@ async function claimViewOnce(token: string, req: Request): Promise<Response> {
     mime = derived.mime;
   }
 
-  console.log(`[view-once] claimed token=${token.slice(0, 6)}… kind=${kind}`);
   return json(
     {
       status: "claimed",
@@ -659,24 +886,14 @@ async function claimViewOnce(token: string, req: Request): Promise<Response> {
       viewedAt: payload.viewedAt ?? null,
       name: payload.name ?? "Document",
       type: payload.type ?? "Document",
-      // Authoritative countdown length. The viewer must run its timer off this
-      // rather than off whatever the gate rendered a moment earlier.
       viewSeconds: Number(payload.viewSeconds ?? 0),
       kind,
       mime,
     },
-    200,
+    200
   );
 }
 
-/**
- * Streams the claimed document's bytes. Requires the access key minted by
- * /claim, which expires in minutes - so the link being burned doesn't lock the
- * one legitimate viewer out of the document it just opened.
- *
- * Inline only. A view-once document is viewed, not downloaded, so there is no
- * `mode=download` here at all.
- */
 async function serveViewOnceFile(token: string, accessKey: string | null): Promise<Response> {
   if (!accessKey) return json({ status: "not_found", message: VO_MESSAGES.not_found }, 404);
 
@@ -685,76 +902,50 @@ async function serveViewOnceFile(token: string, accessKey: string | null): Promi
     p_access_key: accessKey,
   });
   if (error) {
-    console.error("[view-once] resolve error:", error);
     return json({ status: "error", message: VO_MESSAGES.error }, 500);
   }
   const payload = (data ?? {}) as { status?: string; filePath?: string; name?: string };
   if (payload.status !== "ok" || !payload.filePath) {
-    console.log(`[view-once] file denied token=${token.slice(0, 6)}…`);
     return json({ status: "expired", message: VO_MESSAGES.expired }, 410);
   }
 
-  // Signed URL minted + consumed server-side; never sent to the client.
   const { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
     .createSignedUrl(payload.filePath, SIGNED_URL_TTL);
   if (signErr || !signed?.signedUrl) {
-    console.error("[view-once] createSignedUrl error:", signErr);
     return json({ status: "error", message: VO_MESSAGES.error }, 500);
   }
 
   const upstream = await fetch(signed.signedUrl);
   if (!upstream.ok || !upstream.body) {
-    console.error(`[view-once] upstream fetch failed status=${upstream.status}`);
     return json({ status: "error", message: VO_MESSAGES.error }, 502);
   }
 
+  const rawBytes = new Uint8Array(await upstream.arrayBuffer());
+  const validation = await inspectAndValidateFileContent(rawBytes, payload.filePath, mimeFromPath(payload.filePath));
+  if (!validation.valid) {
+    return json({ error: "Security Error: Malicious file detected." }, 415);
+  }
+
   const filename = downloadName(payload.name ?? "document", payload.filePath);
-  return new Response(upstream.body, {
+  return new Response(rawBytes, {
     status: 200,
     headers: {
-      ...CORS,
-      "content-type": upstream.headers.get("content-type") ?? mimeFromPath(payload.filePath),
+      ...SECURE_HEADERS,
+      "content-type": validation.detectedMime,
       "cache-control": "no-store, no-cache, must-revalidate, private",
-      // Inline only - never an attachment.
       "content-disposition": `inline; filename="${filename}"`,
     },
   });
 }
 
-/** Terminal state page for a burned / expired / missing one-time link. */
 function viewOnceStatusHtml(kind: VoStatus): string {
   const map: Record<string, { emoji: string; bg: string; title: string; msg: string }> = {
-    viewed: {
-      emoji: "👁️",
-      bg: "rgba(239,83,80,.15)",
-      title: "This document has already been viewed",
-      msg: "View-once links open exactly one time. Ask the sender for a new link.",
-    },
-    expired: {
-      emoji: "⏳",
-      bg: "rgba(245,165,36,.15)",
-      title: "This document has already been viewed or has expired",
-      msg: "Ask the sender for a new link.",
-    },
-    revoked: {
-      emoji: "🚫",
-      bg: "rgba(239,83,80,.15)",
-      title: "This link has been revoked",
-      msg: "The sender has turned off access to this document.",
-    },
-    not_found: {
-      emoji: "🔍",
-      bg: "rgba(148,163,184,.18)",
-      title: "This document has already been viewed or has expired",
-      msg: "This one-time link doesn’t exist any more.",
-    },
-    error: {
-      emoji: "⚠️",
-      bg: "rgba(148,163,184,.18)",
-      title: "Something went wrong",
-      msg: "Please try opening the link again in a moment.",
-    },
+    viewed: { emoji: "👁️", bg: "rgba(239,83,80,.15)", title: "This document has already been viewed", msg: "View-once links open exactly one time." },
+    expired: { emoji: "⏳", bg: "rgba(245,165,36,.15)", title: "This document has expired", msg: "Ask the sender for a new link." },
+    revoked: { emoji: "🚫", bg: "rgba(239,83,80,.15)", title: "This link has been revoked", msg: "The sender has turned off access." },
+    not_found: { emoji: "🔍", bg: "rgba(148,163,184,.18)", title: "Link not found", msg: "This link doesn’t exist." },
+    error: { emoji: "⚠️", bg: "rgba(148,163,184,.18)", title: "Something went wrong", msg: "Please try again." },
   };
   const s = map[kind] ?? map.error;
   const body = `${brandTop()}
@@ -767,12 +958,6 @@ function viewOnceStatusHtml(kind: VoStatus): string {
   return shell(body);
 }
 
-/**
- * The self-contained one-time viewer served when a browser hits this function
- * directly. The link is NOT burned by loading this page - only by pressing
- * "Open once", which POSTs /claim. That keeps chat-app link previews, refreshes
- * and accidental taps from destroying the share.
- */
 function viewOnceHtml(token: string, name: string, type: string): string {
   const base = escapeAttr(token);
   const body = `${brandTop()}
@@ -782,96 +967,33 @@ function viewOnceHtml(token: string, name: string, type: string): string {
           <div class="ic">👁️</div>
           <div class="info"><b>${escapeHtml(name)}</b><span>${escapeHtml(type)} · view once</span></div>
         </div>
-        <div class="warn">⚠️ This document can be opened <b>only once</b>. As soon as you open it, the
-          link expires permanently — so make sure you are ready to read it now.</div>
+        <div class="warn">⚠️ This document can be opened <b>only once</b>.</div>
         <div class="acts">
           <button class="btn view" id="open" type="button">${ICON_VIEW}Open once</button>
         </div>
       </div>
       <div id="stage" class="vo-stage" hidden></div>
       <div class="foot">🔒 One-time secure view via INO</div>
-    </div>
-    <script>
-      (function () {
-        var btn = document.getElementById('open');
-        var gate = document.getElementById('gate');
-        var stage = document.getElementById('stage');
-        btn.addEventListener('click', function () {
-          btn.disabled = true;
-          btn.textContent = 'Opening…';
-          fetch(${JSON.stringify(`${base}/claim`)}, { method: 'POST', cache: 'no-store' })
-            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-            .then(function (res) {
-              if (!res.ok || res.j.status !== 'claimed') {
-                document.body.innerHTML =
-                  '<div class="state"><div class="circle" style="background:rgba(239,83,80,.15)">👁️</div>' +
-                  '<h2>This document has already been viewed or has expired.</h2></div>';
-                return;
-              }
-              var src = ${JSON.stringify(`${base}/file?k=`)} + encodeURIComponent(res.j.accessKey);
-              gate.hidden = true;
-              stage.hidden = false;
-              stage.innerHTML = res.j.kind === 'image'
-                ? '<img alt="" src="' + src + '"/>'
-                : '<iframe title="document" src="' + src + '"></iframe>';
-            })
-            .catch(function () {
-              btn.disabled = false;
-              btn.textContent = 'Open once';
-            });
-        });
-        // Deterrents only - a browser cannot truly block screenshots.
-        document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-      })();
-    </script>`;
-  const headExtra = `<style>
-    .warn{margin-top:12px;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.5;
-          background:rgba(245,165,36,.12);border:1px solid rgba(245,165,36,.35);color:#92400e}
-    .vo-stage{background:#0b1220;border-radius:18px;overflow:hidden;min-height:60vh;
-              display:flex;align-items:center;justify-content:center}
-    .vo-stage img{max-width:100%;height:auto;display:block;-webkit-user-select:none;user-select:none;
-                  -webkit-touch-callout:none;pointer-events:none}
-    .vo-stage iframe{width:100%;height:78vh;border:0;background:#fff}
-    @media (prefers-color-scheme:dark){.warn{color:#fcd34d}}
-  </style>`;
-  return shell(body, headExtra);
+    </div>`;
+  return shell(body);
 }
-
-// ---- Responses --------------------------------------------------------------
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    headers: { ...SECURE_HEADERS, "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 }
 
 function htmlResponse(html: string, status: number): Response {
-  // `html` is a RAW HTML STRING - never JSON.stringify'd, never wrapped in an
-  // object, never entity-escaped. Every HTML branch (active / expired /
-  // revoked / not-found / error) returns through here.
-  //
-  // NOTE: no `...CORS` spread here. A top-level browser navigation to this page
-  // does not use CORS, and spreading a shared header object was the only thing
-  // that could theoretically interfere with Content-Type. This is now the exact
-  // minimal form: a plain object with a single Content-Type.
-  const response = new Response(html, {
+  return new Response(html, {
     status,
     headers: {
+      ...SECURE_HEADERS,
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
     },
   });
-  // What THIS function emits (all correct). NB: the Supabase edge runtime
-  // rewrites Content-Type: text/html → text/plain AFTER this, on the shared
-  // *.functions.supabase.co domain - so these logs will show text/html while
-  // the browser receives text/plain. Serve via a proxy domain to fix (see
-  // share-proxy/cloudflare-worker.js).
-  console.log("Final response headers:", JSON.stringify([...response.headers]));
-  console.log("Content-Type:", response.headers.get("content-type"));
-  console.log("HTML length:", html.length);
-  console.log("HTML first 500:", html.slice(0, 500));
-  return response;
 }
 
 const MESSAGES: Record<Kind, string> = {
@@ -882,13 +1004,12 @@ const MESSAGES: Record<Kind, string> = {
   error: "Something went wrong. Please try again.",
 };
 
-// ---- HTML rendering ---------------------------------------------------------
-
 function shell(bodyInner: string, headExtra = ""): string {
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
+<meta name="referrer" content="no-referrer"/>
 <meta name="theme-color" content="${GREEN}"/>
 <title>INO - Shared Documents</title>
 <style>
@@ -934,12 +1055,6 @@ function shell(bodyInner: string, headExtra = ""): string {
                  display:flex;align-items:center;justify-content:center;font-size:44px}
   .state h2{font-size:22px;font-weight:800;margin-bottom:8px}
   .state p{color:var(--muted);font-size:14.5px;line-height:1.5}
-  @media (prefers-color-scheme:dark){
-    body{background:#0a1926;color:#edf5fb}
-    .card{background:#13293a;border-color:rgba(9,143,144,.28);box-shadow:none}
-    .dl{background:#13293a;border-color:rgba(9,143,144,.35);color:#edf5fb}
-    .count,.info span,.state p,.foot{color:#a8c2d6}
-  }
 </style>${headExtra}</head><body>${bodyInner}</body></html>`;
 }
 
@@ -959,13 +1074,9 @@ function viewerHtml(
   cards: Card[],
   expiresAt: string | null,
   shareId: string,
-  viewOnly: boolean,
-  pw: string | null,
+  viewOnly: boolean
 ): string {
-  // Relative to the current page (…/share/<shareId>) the file lives at
-  // <shareId>/file/<index>, so links resolve correctly on any host prefix.
   const base = escapeAttr(shareId);
-  const pwQ = pw ? `&pw=${encodeURIComponent(pw)}` : "";
   const items = cards
     .map(
       (c) => `<div class="card">
@@ -974,31 +1085,16 @@ function viewerHtml(
           <div class="info"><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.type)}</span></div>
         </div>
         <div class="acts">
-          <a class="btn view" href="${base}/file/${c.index}?mode=view${pwQ}" target="_blank" rel="noopener">${ICON_VIEW}View</a>
-          ${viewOnly ? "" : `<a class="btn dl" href="${base}/file/${c.index}?mode=download${pwQ}">${ICON_DL}Download</a>`}
+          <a class="btn view" href="${base}/file/${c.index}?mode=view" target="_blank" rel="noopener">${ICON_VIEW}View</a>
+          ${viewOnly ? "" : `<a class="btn dl" href="${base}/file/${c.index}?mode=download">${ICON_DL}Download</a>`}
         </div>
-      </div>`,
+      </div>`
     )
     .join("");
 
   const count = `${cards.length} document${cards.length === 1 ? "" : "s"}`;
   const pill = expiresAt
     ? `<span class="pill" id="countdown">🔒 Active</span>`
-    : "";
-  const countdownScript = expiresAt
-    ? `<script>
-        var exp=new Date(${JSON.stringify(expiresAt)}).getTime();
-        function tick(){var ms=exp-Date.now();var el=document.getElementById('countdown');
-          if(ms<=0){location.reload();return;}
-          var s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),
-              m=Math.floor(s%3600/60),ss=s%60,t;
-          if(d>0)t='Expires in '+d+' day'+(d>1?'s':'');
-          else if(h>0)t='Expires in '+h+'h '+m+'m';
-          else if(m>0)t='Expires in '+m+'m '+ss+'s';
-          else t='Expires in '+ss+'s';
-          if(el)el.textContent='⏳ '+t;}
-        tick();setInterval(tick,1000);
-      </script>`
     : "";
 
   const body = `${brandTop()}
@@ -1008,63 +1104,17 @@ function viewerHtml(
         <div class="meta"><span class="count">${count}</span>${pill}</div>
       </div>
       ${cards.length ? items : `<div class="card"><div class="info"><b>No documents</b><span>This share has no documents.</span></div></div>`}
-      <div class="foot">🔒 Shared securely via INO · you can only view these documents</div>
-    </div>${countdownScript}`;
-  return shell(body);
-}
-
-function passwordHtml(shareId: string, wrong: boolean): string {
-  const err = wrong
-    ? `<p style="color:#b91c1c;font-size:13.5px;margin:0 0 12px">Incorrect password. Try again.</p>`
-    : "";
-  const body = `${brandTop()}
-    <div class="wrap">
-      <div class="card">
-        <div class="info" style="margin-bottom:14px">
-          <b>Password required</b>
-          <span>This share is protected. Enter the password the sender gave you.</span>
-        </div>
-        ${err}
-        <form method="GET" action="">
-          <input type="password" name="pw" autocomplete="current-password" required
-            placeholder="Share password"
-            style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--hairline);
-                   font-size:15px;margin-bottom:12px"/>
-          <button class="btn primary" type="submit" style="width:100%">Unlock</button>
-        </form>
-      </div>
-      <div class="foot">🔒 Shared securely via INO</div>
+      <div class="foot">🔒 Shared securely via INO · private & protected</div>
     </div>`;
   return shell(body);
 }
 
 function statusHtml(kind: Kind): string {
   const map: Record<string, { emoji: string; bg: string; title: string; msg: string }> = {
-    expired: {
-      emoji: "⏳",
-      bg: "rgba(220,38,38,.1)",
-      title: "Link Expired",
-      msg:
-        "This secure share link is no longer valid. For your protection, access has been permanently closed.",
-    },
-    revoked: {
-      emoji: "🚫",
-      bg: "rgba(220,38,38,.1)",
-      title: "Link Revoked",
-      msg: "The owner has turned off access to these documents.",
-    },
-    not_found: {
-      emoji: "🔍",
-      bg: "rgba(100,116,139,.12)",
-      title: "Link not found",
-      msg: "This shared link doesn’t exist or has been removed.",
-    },
-    error: {
-      emoji: "⚠️",
-      bg: "rgba(217,119,6,.12)",
-      title: "Something went wrong",
-      msg: "Please try opening the link again in a moment.",
-    },
+    expired: { emoji: "⏳", bg: "rgba(220,38,38,.1)", title: "Link Expired", msg: "This share link is no longer valid." },
+    revoked: { emoji: "🚫", bg: "rgba(220,38,38,.1)", title: "Link Revoked", msg: "The owner has turned off access." },
+    not_found: { emoji: "🔍", bg: "rgba(100,116,139,.12)", title: "Link not found", msg: "This shared link doesn’t exist." },
+    error: { emoji: "⚠️", bg: "rgba(217,119,6,.12)", title: "Something went wrong", msg: "Please try again." },
   };
   const s = map[kind] ?? map.error;
   const body = `${brandTop()}
@@ -1072,16 +1122,10 @@ function statusHtml(kind: Kind): string {
       <div class="circle" style="background:${s.bg}">${s.emoji}</div>
       <h2>${escapeHtml(s.title)}</h2>
       <p>${escapeHtml(s.msg)}</p>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
-        <a class="btn primary" href="mailto:support@ino.app?subject=Request%20new%20INO%20share%20link">Request New Link</a>
-        <a class="btn ghost" href="https://inoapp.in">Return to Dashboard</a>
-      </div>
       <div class="foot" style="margin-top:26px">🔒 Shared securely via INO</div>
     </div>`;
   return shell(body);
 }
-
-// ---- Helpers ----------------------------------------------------------------
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
@@ -1101,18 +1145,17 @@ function downloadName(name: string, filePath: string): string {
 function mimeFromPath(path: string): string {
   const ext = (path.includes(".") ? path.split(".").pop() : "")?.toLowerCase() ?? "";
   switch (ext) {
-    case "pdf":
-      return "application/pdf";
-    case "png":
-      return "image/png";
+    case "pdf": return "application/pdf";
+    case "png": return "image/png";
     case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "webp":
-      return "image/webp";
-    case "heic":
-      return "image/heic";
-    default:
-      return "application/octet-stream";
+    case "jpeg": return "image/jpeg";
+    case "webp": return "image/webp";
+    case "doc": return "application/msword";
+    case "docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case "xls": return "application/vnd.ms-excel";
+    case "xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    case "ppt": return "application/vnd.ms-powerpoint";
+    case "pptx": return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    default: return "application/octet-stream";
   }
 }

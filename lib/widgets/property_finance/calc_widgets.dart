@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -15,17 +16,8 @@ import '../pressable_scale.dart';
 /// Copies [text] to the clipboard with haptic + snackbar feedback. Shared by
 /// every calculator's result card.
 void copyToClipboard(BuildContext context, String text, {String? message}) {
-  Clipboard.setData(ClipboardData(text: text));
+  SecureClipboard.copy(context, text);
   HapticFeedback.selectionClick();
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message ?? AppLocalizations.of(context).t('copied')),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryGreen,
-      ),
-    );
 }
 
 /// A consistent header + scrollable body used by every calculator screen.

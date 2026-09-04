@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/identifier_masker.dart';
 import '../common/shiny_icon.dart';
 import '../dashboard/ino_card.dart';
 import '../divine_glass/divine_glass.dart';
@@ -456,22 +457,8 @@ class _ExtractedSummary extends StatelessWidget {
   final DocumentRecord record;
   final Color? accent;
 
-  /// Compiled once. Built inline this was re-compiled for every card carrying
-  /// a document number, on every build.
-  static final RegExp _nonDigit = RegExp(r'\D');
-
-  /// Masks the document number for a list view: the last 4 stay visible, the
-  /// rest are hidden. A 12-digit Aadhaar keeps its familiar "XXXX XXXX 1234"
-  /// grouping.
-  static String _maskedNumber(String raw) {
-    final v = raw.trim();
-    if (v.isEmpty) return '';
-    final digits = v.replaceAll(_nonDigit, '');
-    if (digits.length == 12) return 'XXXX XXXX ${digits.substring(8)}';
-    if (v.length > 4) {
-      return '${'•' * (v.length - 4)}${v.substring(v.length - 4)}';
-    }
-    return v;
+  static String _maskedNumber(String raw, {String? docType}) {
+    return IdentifierMasker.mask(raw, docType: docType);
   }
 
   @override
@@ -492,7 +479,10 @@ class _ExtractedSummary extends StatelessWidget {
     add(Icons.person_rounded, data['name']);
     add(Icons.event_rounded, data['dob']);
     final number = data['number'];
-    if (number != null) add(Icons.tag_rounded, _maskedNumber(number));
+    if (number != null) {
+      final typeHint = record.category.isNotEmpty ? record.category : record.extraction.documentType;
+      add(Icons.tag_rounded, _maskedNumber(number, docType: typeHint));
+    }
 
     if (chips.isEmpty) return const SizedBox.shrink();
     return Padding(

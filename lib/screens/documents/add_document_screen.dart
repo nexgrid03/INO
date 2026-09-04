@@ -16,11 +16,13 @@ import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/reminder_scheduler.dart';
+import '../../services/screen_security_service.dart';
 import '../../services/storage_stats_service.dart';
 import '../shell/shell_controller.dart';
 
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
+import '../../utils/identifier_masker.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
@@ -170,6 +172,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _localFilePath = widget.initialFilePath;
     // Pre-select a wallet passed in by the launcher (e.g. from a wallet page).
     if (widget.initialWallet != null &&
@@ -204,8 +207,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       if (prefill.notes.isNotEmpty) {
         _notesController.text = prefill.notes;
       }
-      _expiry = prefill.expiryDate;
-      _recordNumber = prefill.documentNumber;
+      final typeHint = prefill.category.isNotEmpty ? prefill.category : prefill.detectedType;
+      _recordNumber = IdentifierMasker.mask(prefill.documentNumber, docType: typeHint);
 
       // Capture the structured extraction so it persists with the document.
       // Seed from the full extracted-field set (which includes type-specific
@@ -223,7 +226,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       }
 
       put('name', prefill.fullName);
-      put('number', prefill.documentNumber);
+      put('number', IdentifierMasker.mask(prefill.documentNumber, docType: typeHint));
       put('dob', prefill.dob);
       put('gender', prefill.gender);
       put('fatherName', prefill.fatherName);
@@ -237,6 +240,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _nameController.dispose();
     _tagsController.dispose();
     _notesController.dispose();

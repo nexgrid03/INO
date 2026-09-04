@@ -60,7 +60,7 @@ not reapply them early, and do not treat their absence as an oversight.
 
 == DECISIONS ALREADY MADE ==
 
-- The Android application ID will become in.inoapp.app (currently com.example.inoapp).
+- The Android application ID is com.ino.app.
 - The privacy policy and account-deletion page will be hosted on inoapp.in.
 
 == THE WORK ==

@@ -15,6 +15,8 @@ import '../../l10n/app_localizations.dart';
 import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -65,6 +67,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     developer.log(
       'QR share opened → id=${_share.shareId} url=${_share.url} '
       'docs=${_share.documentCount} expires=${_share.expiresAt.toIso8601String()}',
@@ -81,6 +84,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _ticker?.cancel();
     _ticker = null;
     super.dispose();
@@ -100,10 +104,8 @@ class _QrShareScreenState extends State<QrShareScreen> {
   }
 
   Future<void> _copyLink() async {
-    final l10n = AppLocalizations.of(context);
-    await Clipboard.setData(ClipboardData(text: _share.url));
+    await SecureClipboard.copy(context, _share.url, label: 'Share Link');
     HapticFeedback.selectionClick();
-    _toast(l10n.t('linkCopied'));
   }
 
   Future<void> _shareLink() async {

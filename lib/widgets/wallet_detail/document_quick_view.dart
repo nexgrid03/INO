@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_clipboard.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -239,17 +240,8 @@ class _QuickRow extends StatelessWidget {
             InkResponse(
               radius: 18,
               onTap: () {
-                Clipboard.setData(ClipboardData(text: value));
+                SecureClipboard.copy(context, value, label: label);
                 HapticFeedback.selectionClick();
-                ScaffoldMessenger.of(context)
-                  ..hideCurrentSnackBar()
-                  ..showSnackBar(SnackBar(
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: AppColors.primaryGreen,
-                    content: Text(AppLocalizations.of(context)
-                        .t('copiedLabel')
-                        .replaceAll('{label}', label)),
-                  ));
               },
               child: Padding(
                 padding: const EdgeInsets.only(left: 8, top: 1),

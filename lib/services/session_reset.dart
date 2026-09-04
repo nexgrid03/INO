@@ -16,8 +16,11 @@ import 'investment_store.dart';
 import 'net_worth_service.dart';
 import 'notes_store.dart';
 import 'notification_center.dart';
+import 'document_file_service.dart';
+import 'offline_document_store.dart';
 import 'password_store.dart';
 import 'property_store.dart';
+import 'secure_clipboard.dart';
 import 'vault_crypto.dart';
 import 'voice_greeting_service.dart';
 import 'wallet_store.dart';
@@ -79,6 +82,9 @@ class SessionReset {
     // user's credentials with it.
     await _guard('vaultKey', () async => VaultCrypto.instance.lock());
 
+    // Clear system clipboard to prevent leak to next user.
+    await _guard('clipboard', () async => SecureClipboard.instance.clearImmediately());
+
     // In-memory document cache + persisted recent-search history.
     await _guard('search', () => GlobalSearchService.instance.clear());
 
@@ -109,10 +115,14 @@ class SessionReset {
     // device preference and is intentionally preserved.
     await _guard('settings', () => AppSettings.instance.resetAccountScoped());
 
-    // Clear DocumentRepository & UserRepository in-memory caches so Account B
+    // Clear DocumentRepository & UserRepository memory and disk caches so Account B
     // never inherits Account A's cached documents or profile snapshot.
-    await _guard('documentRepository', () async => DocumentRepository.instance.clearCache());
-    await _guard('userRepository', () async => UserRepository.instance.clearCache());
+    await _guard('documentRepository', () async => DocumentRepository.instance.clearDiskCache());
+    await _guard('userRepository', () async => UserRepository.instance.clearDiskCache());
+
+    // Purge offline documents, metadata, and temporary document view files on sign-out.
+    await _guard('offlineDocs', () async => OfflineDocumentStore.instance.clear());
+    await _guard('documentFiles', () async => DocumentFileService.instance.clearCache());
 
     // Net-worth history + its once-per-session hydration guard. The holdings
     // behind it were just cleared, so the cached chart is the previous user's.

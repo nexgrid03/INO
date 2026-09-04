@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../utils/identifier_masker.dart';
 
 /// Structured data extracted from a scanned/uploaded document (OCR), persisted
 /// alongside the document so it is ALWAYS visible again when the document is
@@ -35,7 +36,9 @@ class DocumentExtraction {
 
   /// One string combining every extracted value + notes - used for search.
   String get searchableText =>
-      [...data.values, userNotes].where((s) => s.trim().isNotEmpty).join(' ');
+      [...data.entries.map((e) => e.key == 'number' ? IdentifierMasker.mask(e.value, docType: documentType) : e.value), userNotes]
+          .where((s) => s.trim().isNotEmpty)
+          .join(' ');
 
   static const _marker = '_ino';
 
@@ -134,7 +137,13 @@ class DocumentExtraction {
       ...data.keys.where((k) => !order.contains(k)),
     ];
     return [
-      for (final k in keys) (label: labelFor(documentType, k), value: data[k]!),
+      for (final k in keys)
+        (
+          label: labelFor(documentType, k),
+          value: (k == 'number' || k == 'registrationNumber' || k == 'epicNumber' || k == 'policyNumber')
+              ? IdentifierMasker.mask(data[k]!, docType: documentType)
+              : data[k]!
+        ),
     ];
   }
 

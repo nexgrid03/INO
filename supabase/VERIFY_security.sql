@@ -10,8 +10,8 @@
 -- ----------------------------------------------------------------------------
 -- QUERY 1 — THE IMPORTANT ONE. Storage folder isolation.
 --
--- The per-user folder policy on the `documents` bucket exists only in this
--- dashboard, not in any migration, so it could not be audited from the source.
+-- The per-user folder policy on the `documents` bucket is declared in
+-- `supabase/migrations/20260904030000_storage_documents_rls.sql`.
 -- It is the single control stopping one user from reading another user's files.
 --
 -- WHAT YOU WANT TO SEE: every row whose policy touches the documents bucket has

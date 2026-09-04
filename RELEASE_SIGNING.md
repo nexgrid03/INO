@@ -42,24 +42,10 @@ SHAs registered.** This document is that setup.
 
 ---
 
-## 🚫 Production blocker: the package name
+## ✅ Production package name configured
 
-`applicationId` / `namespace` are the placeholder **`com.example.inoapp`**.
-Google Play **rejects `com.example.*`**, and you don't own that namespace. Pick a
-real, reverse-domain package **before your first production/Play upload** (e.g.
-`in.inoapp.app` or `com.yourcompany.ino`). It is **permanent** once published.
-
-**Rename steps (infra only):**
-1. `android/app/build.gradle.kts` → set `namespace` and `applicationId` to the new id.
-2. Move `android/app/src/main/kotlin/com/example/inoapp/MainActivity.kt` to the
-   new package folders and update its `package` line.
-3. `AndroidManifest.xml` uses `.MainActivity` (relative) - no change needed.
-4. **Re-register** the new package name + your SHA-1s in the Android OAuth client
-   (below). The OAuth client's package must exactly match the installed
-   `applicationId`.
-
-> You can keep `com.example.inoapp` for **internal testing** today (it already
-> works on your device), but you must migrate before production.
+`applicationId` / `namespace` are set to production package **`com.ino.app`**.
+All native Android files, Kotlin package structures, Firebase configurations, iOS settings, and App Links are configured to `com.ino.app`.
 
 ---
 
@@ -123,7 +109,7 @@ Debug SHA-256: EC:37:23:6C:C2:09:86:E3:A6:88:75:90:DE:97:E9:D3:F6:95:4F:D8:8E:16
 
 **Where:** Google Cloud Console → project **535920485088** →
 **APIs & Services → Credentials** → open the OAuth 2.0 client of type
-**Android** (package `com.example.inoapp`, or your new package) → add each SHA-1
+**Android** (package `com.ino.app`) → add each SHA-1
 under *SHA-1 certificate fingerprints* → **Save** (≈5 min to propagate).
 > If Google was configured via **Firebase**: Firebase Console → Project settings
 > → Your apps → (Android) → **SHA certificate fingerprints → Add fingerprint**.

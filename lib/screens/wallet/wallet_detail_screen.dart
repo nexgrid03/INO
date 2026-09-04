@@ -10,6 +10,7 @@ import '../../models/wallet_models.dart' show WalletCategory;
 import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
+import '../../services/screen_security_service.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -91,6 +92,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     // Hydrate the offline library (local read) so the action sheet can show
     // "Save to app" vs "Remove offline copy" correctly on first open.
     OfflineDocumentStore.instance.ensureLoaded();
@@ -118,6 +120,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -908,6 +911,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             // the default left visible gaps at the leading edge.
                             // Cards are cheap now that thumbnails decode small
                             // and `extraction` no longer re-parses JSON.
+                            // ignore: deprecated_member_use
                             cacheExtent: 600.0,
                             slivers: [
                               if (data == null)

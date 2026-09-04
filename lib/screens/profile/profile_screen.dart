@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:share_plus/share_plus.dart';
+
 import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
@@ -12,6 +14,8 @@ import '../../services/account_switcher.dart';
 import '../../services/app_settings.dart';
 import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
+import '../../services/push_service.dart';
+import '../../services/data_export_service.dart';
 import '../../services/session_reset.dart';
 import '../../services/storage_stats_service.dart';
 import '../../theme/app_dimens.dart';
@@ -37,6 +41,7 @@ import 'contact_support_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
+import 'trusted_devices_screen.dart';
 
 /// The Profile screen - a premium, grouped **settings** page (Apple Settings /
 /// Google Account), NOT a dashboard.
@@ -116,12 +121,17 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _onDocsChanged() => _loadStorage();
 
   Future<void> _loadStorage() async {
-    final usage = await StorageStatsService.instance.load();
-    if (!mounted) return;
-    setState(() {
-      _storage = usage;
-      _storageLoading = false;
-    });
+    try {
+      final usage = await StorageStatsService.instance.load();
+      if (!mounted) return;
+      setState(() {
+        _storage = usage;
+        _storageLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _storageLoading = false);
+    }
   }
 
   static String _languageLabel(String code) {
@@ -221,6 +231,15 @@ class _ProfileScreenState extends State<ProfileScreen>
     final l10n = AppLocalizations.of(context);
     setState(() => _notifications = value);
     await AppSettings.instance.setNotifications(value);
+    if (!value) {
+      await PushService.instance.unregisterToken();
+    } else {
+      final granted = await PushService.instance.requestPermission();
+      if (!granted && mounted) {
+        _toast(l10n.t('notificationsPermissionDeniedToast'), error: true);
+      }
+    }
+    if (!mounted) return;
     _toast(value
         ? l10n.t('notificationsEnabledToast')
         : l10n.t('notificationsOffToast'));
@@ -439,6 +458,23 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _openChangePassword() async {
     await _push(ChangePasswordScreen(email: _profile.email));
+  }
+
+  Future<void> _exportData() async {
+    final l10n = AppLocalizations.of(context);
+    _toast(l10n.t('exportData'));
+    try {
+      final archive = await DataExportService.instance.build(profile: _profile);
+      if (!mounted) return;
+      await Share.shareXFiles(
+        [XFile(archive.file.path)],
+        subject: 'INO Data Export',
+        text: 'INO Account Backup Export - ${_profile.fullName}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast(l10n.t('exportFailed'));
+    }
   }
 
   // ---- Destructive actions -------------------------------------------------
@@ -726,6 +762,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: _openChangePassword,
           ),
           SettingsRow(
+            icon: Icons.devices_rounded,
+            title: l10n.t('trustedDevices'),
+            onTap: () => _push(const TrustedDevicesScreen()),
+          ),
+          SettingsRow(
             icon: Icons.account_balance_wallet_rounded,
             title: l10n.t('paymentAppsPermission'),
             subtitle: l10n.t('paymentAppsPermissionDesc'),
@@ -819,6 +860,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.description_rounded,
             title: l10n.t('termsConditions'),
             onTap: () => _push(LegalDocumentScreen.terms()),
+          ),
+          SettingsRow(
+            icon: Icons.download_rounded,
+            title: l10n.t('exportData'),
+            onTap: _exportData,
           ),
         ],
       ),

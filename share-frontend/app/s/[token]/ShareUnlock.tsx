@@ -5,16 +5,6 @@ import Brand from "@/components/Brand";
 import type { SharedDoc } from "@/lib/config";
 import ShareView from "./ShareView";
 
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 export default function ShareUnlock({ token }: { token: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +13,7 @@ export default function ShareUnlock({ token }: { token: string }) {
     documents: SharedDoc[];
     expiresAt: string | null;
     viewOnly: boolean;
-    pwHash: string;
+    unlockToken: string;
   } | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
@@ -32,18 +22,19 @@ export default function ShareUnlock({ token }: { token: string }) {
     setBusy(true);
     setError(null);
     try {
-      const pwHash = await sha256Hex(password.trim());
-      const res = await fetch(
-        `/api/s/${encodeURIComponent(token)}?pw=${encodeURIComponent(pwHash)}`,
-        { cache: "no-store" },
-      );
+      const res = await fetch(`/api/s/${encodeURIComponent(token)}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password.trim() }),
+        cache: "no-store",
+      });
       const json = await res.json();
-      if (json.status === "active" && Array.isArray(json.documents)) {
+      if (json.status === "active" && Array.isArray(json.documents) && json.unlockToken) {
         setUnlocked({
           documents: json.documents,
           expiresAt: json.expiresAt ?? null,
           viewOnly: Boolean(json.viewOnly),
-          pwHash,
+          unlockToken: json.unlockToken,
         });
         return;
       }
@@ -62,7 +53,7 @@ export default function ShareUnlock({ token }: { token: string }) {
         documents={unlocked.documents}
         expiresAt={unlocked.expiresAt}
         viewOnly={unlocked.viewOnly}
-        pwHash={unlocked.pwHash}
+        unlockToken={unlocked.unlockToken}
       />
     );
   }

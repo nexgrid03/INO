@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
 import '../models/user_profile.dart';
 import '../repositories/document_repository.dart';
+import '../utils/identifier_masker.dart';
 import 'app_settings.dart';
 import 'biometric_service.dart';
 import 'document_protection_store.dart';
@@ -94,7 +95,7 @@ class DataExportService {
             'wallet': d.wallet,
             'name': d.name,
             'category': d.category,
-            'record_number': d.recordNumber,
+            'record_number': IdentifierMasker.mask(d.recordNumber, docType: d.category),
             'status': d.status,
             'tags': d.tags,
             'notes': d.notes,

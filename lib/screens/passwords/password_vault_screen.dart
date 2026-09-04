@@ -7,6 +7,8 @@ import '../../l10n/app_localizations.dart';
 import '../../models/password_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../services/password_store.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../services/vault_crypto.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
@@ -81,6 +83,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _store.ensureLoaded();
     _store.addListener(_onChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
@@ -88,6 +91,7 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _store.removeListener(_onChanged);
     _searchController.dispose();
     super.dispose();
@@ -221,12 +225,8 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
 
   /// [label] must already be localized - it is shown to the user.
   void _copy(String label, String value) {
-    Clipboard.setData(ClipboardData(text: value));
+    SecureClipboard.copy(context, value, label: label);
     HapticFeedback.selectionClick();
-    showModuleToast(
-      context,
-      AppLocalizations.of(context).t('copiedLabel').replaceAll('{label}', label),
-    );
   }
 
   /// Revealing a password re-checks the biometric session first - a phone left

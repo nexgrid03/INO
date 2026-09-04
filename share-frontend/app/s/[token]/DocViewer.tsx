@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-// Text/annotation layers are disabled below, so their CSS isn't needed.
 import {
   TransformWrapper,
   TransformComponent,
@@ -11,7 +10,6 @@ import {
 import { FileTextIcon } from "@/components/icons";
 import type { SharedDoc } from "@/lib/config";
 
-// Load the pdf.js worker from a CDN matching the bundled version.
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const DL_ICON = (
@@ -27,31 +25,50 @@ interface Props {
   doc: SharedDoc;
   onBack?: () => void;
   viewOnly?: boolean;
-  pwHash?: string;
+  unlockToken?: string;
 }
 
-export default function DocViewer({ token, doc, onBack, viewOnly, pwHash }: Props) {
-  const pwQ = pwHash ? `&pw=${encodeURIComponent(pwHash)}` : "";
-  const view = `/api/s/${token}/file/${doc.id}?mode=view${pwQ}`;
-  const download = viewOnly ? undefined : `/api/s/${token}/file/${doc.id}?mode=download${pwQ}`;
+export default function DocViewer({ token, doc, onBack, viewOnly, unlockToken }: Props) {
+  const viewUrl = `/api/s/${token}/file/${doc.id}?mode=view`;
+
+  const handleDownload = async () => {
+    if (viewOnly) return;
+    try {
+      const headers: Record<string, string> = {};
+      if (unlockToken) headers["x-share-unlock-token"] = unlockToken;
+
+      const res = await fetch(`/api/s/${token}/file/${doc.id}?mode=download`, { headers });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Download failed.");
+    }
+  };
+
   const inner =
     doc.kind === "image" ? (
-      <ImageView src={view} name={doc.name} download={download} onBack={onBack} />
+      <ImageView src={viewUrl} name={doc.name} unlockToken={unlockToken} onDownload={viewOnly ? undefined : handleDownload} onBack={onBack} />
     ) : doc.kind === "pdf" ? (
-      <PdfView src={view} name={doc.name} download={download} onBack={onBack} />
+      <PdfView src={viewUrl} name={doc.name} unlockToken={unlockToken} onDownload={viewOnly ? undefined : handleDownload} onBack={onBack} />
     ) : (
-      <OtherView name={doc.name} type={doc.type} download={download} onBack={onBack} />
+      <OtherView name={doc.name} type={doc.type} onDownload={viewOnly ? undefined : handleDownload} onBack={onBack} />
     );
   return inner;
 }
 
-/* ---- shared chrome -------------------------------------------------------- */
-
 function Bar(props: {
   name: string;
-  download?: string;
+  onDownload?: () => void;
   onBack?: () => void;
-  children?: React.ReactNode; // zoom controls
+  children?: React.ReactNode;
 }) {
   return (
     <div className="viewer-bar">
@@ -63,58 +80,80 @@ function Bar(props: {
       <div className="name">{props.name}</div>
       <div className="spacer" />
       {props.children}
-      {props.download && (
-        <a className="btn primary" href={props.download} aria-label="Download">
+      {props.onDownload && (
+        <button className="btn primary" onClick={props.onDownload} aria-label="Download">
           {DL_ICON}
           <span>Download</span>
-        </a>
+        </button>
       )}
     </div>
   );
 }
 
-/* ---- image (pinch / double-tap zoom) -------------------------------------- */
-
-function ImageView({ src, name, download, onBack }: { src: string; name: string; download?: string; onBack?: () => void }) {
+function ImageView({ src, name, unlockToken, onDownload, onBack }: { src: string; name: string; unlockToken?: string; onDownload?: () => void; onBack?: () => void }) {
   const ref = useRef<ReactZoomPanPinchRef>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const headers: Record<string, string> = {};
+    if (unlockToken) headers["x-share-unlock-token"] = unlockToken;
+
+    fetch(src, { headers })
+      .then((r) => {
+        if (!r.ok) throw new Error("Image fetch failed");
+        return r.blob();
+      })
+      .then((b) => {
+        if (active) setBlobUrl(URL.createObjectURL(b));
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [src, unlockToken]);
+
   return (
     <div className="viewer">
-      <Bar name={name} download={download} onBack={onBack}>
+      <Bar name={name} onDownload={onDownload} onBack={onBack}>
         <button className="iconbtn" onClick={() => ref.current?.zoomOut()} aria-label="Zoom out">−</button>
         <button className="iconbtn" onClick={() => ref.current?.zoomIn()} aria-label="Zoom in">+</button>
         <button className="iconbtn" onClick={() => ref.current?.resetTransform()} aria-label="Reset">⤢</button>
       </Bar>
       <div className="stage">
         {failed ? (
-          <Fallback download={download} />
-        ) : (
+          <Fallback onDownload={onDownload} />
+        ) : blobUrl ? (
           <TransformWrapper ref={ref} doubleClick={{ mode: "toggle", step: 2 }} minScale={1} maxScale={6}>
             <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={name}
-                onLoad={() => setLoaded(true)}
-                onError={() => setFailed(true)}
-              />
+              <img src={blobUrl} alt={name} />
             </TransformComponent>
           </TransformWrapper>
+        ) : (
+          <Loading />
         )}
-        {!loaded && !failed && <Loading />}
       </div>
     </div>
   );
 }
 
-/* ---- pdf (page render + zoom) --------------------------------------------- */
-
-function PdfView({ src, name, download, onBack }: { src: string; name: string; download?: string; onBack?: () => void }) {
+function PdfView({ src, name, unlockToken, onDownload, onBack }: { src: string; name: string; unlockToken?: string; onDownload?: () => void; onBack?: () => void }) {
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(800);
   const [failed, setFailed] = useState(false);
+
+  const fileProp = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (unlockToken) headers["x-share-unlock-token"] = unlockToken;
+    return { url: src, httpHeaders: headers };
+  }, [src, unlockToken]);
 
   useEffect(() => {
     const measure = () => setWidth(Math.min(820, window.innerWidth) - 24);
@@ -125,18 +164,18 @@ function PdfView({ src, name, download, onBack }: { src: string; name: string; d
 
   return (
     <div className="viewer">
-      <Bar name={name} download={download} onBack={onBack}>
+      <Bar name={name} onDownload={onDownload} onBack={onBack}>
         <button className="iconbtn" onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))} aria-label="Zoom out">−</button>
         <button className="iconbtn" onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))} aria-label="Zoom in">+</button>
       </Bar>
       <div className="stage" style={{ display: "block", padding: "0 4px" }}>
         {failed ? (
-          <Fallback download={download} />
+          <Fallback onDownload={onDownload} />
         ) : (
           <Document
-            file={src}
+            file={fileProp}
             loading={<Loading />}
-            error={<Fallback download={download} />}
+            error={<Fallback onDownload={onDownload} />}
             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
             onLoadError={() => setFailed(true)}
           >
@@ -157,12 +196,10 @@ function PdfView({ src, name, download, onBack }: { src: string; name: string; d
   );
 }
 
-/* ---- other (no inline preview) -------------------------------------------- */
-
-function OtherView({ name, type, download, onBack }: { name: string; type: string; download?: string; onBack?: () => void }) {
+function OtherView({ name, type, onDownload, onBack }: { name: string; type: string; onDownload?: () => void; onBack?: () => void }) {
   return (
     <div className="viewer">
-      <Bar name={name} download={download} onBack={onBack} />
+      <Bar name={name} onDownload={onDownload} onBack={onBack} />
       <div className="stage">
         <div className="center">
           <div style={{ width: 54, height: 54, color: "#0284c7" }}>
@@ -172,8 +209,8 @@ function OtherView({ name, type, download, onBack }: { name: string; type: strin
             <div style={{ fontWeight: 700, color: "#0f172a" }}>{name}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>{type} · preview not available</div>
           </div>
-          {download && (
-            <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+          {onDownload && (
+            <button className="btn primary" onClick={onDownload}>{DL_ICON}<span>Download</span></button>
           )}
         </div>
       </div>
@@ -190,15 +227,15 @@ function Loading() {
   );
 }
 
-function Fallback({ download }: { download?: string }) {
+function Fallback({ onDownload }: { onDownload?: () => void }) {
   return (
     <div className="center">
       <div style={{ width: 44, height: 44, color: "#0284c7" }}>
         <FileTextIcon />
       </div>
       <div style={{ fontSize: 13 }}>Couldn’t preview this file.</div>
-      {download && (
-        <a className="btn primary" href={download}>{DL_ICON}<span>Download</span></a>
+      {onDownload && (
+        <button className="btn primary" onClick={onDownload}>{DL_ICON}<span>Download</span></button>
       )}
     </div>
   );

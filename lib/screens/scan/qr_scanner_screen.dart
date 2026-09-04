@@ -13,6 +13,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/payment_qr.dart';
 import '../../services/camera_permission_service.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../services/deep_link_service.dart';
 import '../../services/qr_crop_service.dart';
 import '../../theme/app_dimens.dart';
@@ -86,12 +88,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     WidgetsBinding.instance.addObserver(this);
     _bootstrap();
   }
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _scanner.close();
@@ -484,7 +488,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   height: AppSizes.button,
                   child: FilledButton.icon(
                     onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: text));
+                      await SecureClipboard.copy(context, text, label: 'Scanned Text');
                       if (context.mounted) Navigator.of(context).pop();
                     },
                     icon: const Icon(Icons.copy_rounded, size: 18),

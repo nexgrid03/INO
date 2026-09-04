@@ -28,19 +28,10 @@
 
 -- ----------------------------------------------------------------------------
 -- 1. Lock down the wallet DDL functions
---
--- ino_register_wallet() and ino_create_wallet_table() are SECURITY DEFINER and
--- run CREATE TABLE / ALTER TABLE / CREATE POLICY / CREATE TRIGGER. Neither
--- checks auth.uid(), and neither had any GRANT or REVOKE anywhere in the
--- migration history — so Postgres's default "EXECUTE to PUBLIC" left them
--- reachable as REST RPCs using the publishable (anon) key shipped in the app.
--- The sign-in requirement and the 200-wallet cap live only in the
--- create_custom_wallet() wrapper, so calling these directly bypassed both.
---
--- This does NOT break create_custom_wallet(): it is itself SECURITY DEFINER
--- (verified), so the calls it makes run with its owner's rights, not the
--- caller's. Ordinary users keep creating wallets exactly as before.
 -- ----------------------------------------------------------------------------
+
+revoke all on function public.ino_register_wallet(text, text, text, bigint) from public, anon, authenticated;
+revoke all on function public.ino_create_wallet_table(text) from public, anon, authenticated;
 
 do $$
 declare
@@ -63,11 +54,13 @@ end $$;
 
 -- ----------------------------------------------------------------------------
 -- 2. Maintenance functions become service-role only
---
--- expire_due_shares() flips past-due shares to 'expired' across all users, and
--- ino_rebuild_documents_view() is an expensive full view rebuild. Both were
--- PUBLIC-callable with no auth check, so any anonymous caller could invoke them.
 -- ----------------------------------------------------------------------------
+
+revoke all on function public.expire_due_shares() from public, anon, authenticated;
+grant execute on function public.expire_due_shares() to service_role;
+
+revoke all on function public.ino_rebuild_documents_view() from public, anon, authenticated;
+grant execute on function public.ino_rebuild_documents_view() to service_role;
 
 do $$
 declare
@@ -91,16 +84,6 @@ end $$;
 
 -- ----------------------------------------------------------------------------
 -- 3. A vault admin must not be able to mint an owner
---
--- The INSERT policy on vault_members checked only is_vault_admin(vault_id).
--- The UPDATE and DELETE policies both guard `role <> 'owner'`, but INSERT did
--- not — so an admin could INSERT (vault_id, <any uid>, 'owner') straight through
--- PostgREST and grant ownership to themselves or anyone else, side-stepping
--- promote_vault_member_to_owner() which requires is_vault_owner.
---
--- The legitimate paths that DO need to write an owner row (create_family_vault,
--- accept_vault_invitation, promote_vault_member_to_owner) are SECURITY DEFINER
--- and bypass RLS entirely, so they are unaffected by this policy.
 -- ----------------------------------------------------------------------------
 
 do $$
@@ -117,6 +100,7 @@ begin
     with check (
       public.is_vault_admin(vault_id)
       and role in ('admin', 'editor', 'viewer')
+      and role <> 'owner'
     );
 
   raise notice 'Tightened vault_members INSERT policy (owner role can no longer be granted directly)';

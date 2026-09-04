@@ -430,27 +430,15 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
   Future<VaultInvitation> inviteUser(
       String vaultId, VaultRole role, String query) async {
     debugPrint('[FamilyVault] inviteUser vault=$vaultId role=${role.name}');
-    try {
-      final res = await _client.rpc('invite_ino_user_to_vault', params: {
-        'p_vault': vaultId,
-        'p_role': role.name,
-        'p_query': query.trim(),
-      }).timeout(NetGuard.mutation);
-      final row = (res is List)
-          ? Map<String, dynamic>.from(res.first as Map)
-          : Map<String, dynamic>.from(res as Map);
-      return VaultInvitation.fromRow(row);
-    } on PostgrestException catch (e) {
-      // The RPC signals the two "who is this?" outcomes with specific codes
-      // + hints so the sheet can word them properly.
-      if (e.code == 'P0002' || e.hint == 'USER_NOT_FOUND') {
-        throw VaultUserNotFound(query.trim(), e.message);
-      }
-      if (e.code == 'P0003' || e.hint == 'MULTIPLE_USERS') {
-        throw VaultUserAmbiguous(query.trim(), e.message);
-      }
-      rethrow;
-    }
+    final res = await _client.rpc('invite_ino_user_to_vault', params: {
+      'p_vault': vaultId,
+      'p_role': role.name,
+      'p_query': query.trim(),
+    }).timeout(NetGuard.mutation);
+    final row = (res is List)
+        ? Map<String, dynamic>.from(res.first as Map)
+        : Map<String, dynamic>.from(res as Map);
+    return VaultInvitation.fromRow(row);
   }
 
   // ---- Join requests -------------------------------------------------------

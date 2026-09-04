@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../services/security_alert_service.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/app_dimens.dart';
@@ -38,11 +40,13 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _refresh();
   }
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _code.dispose();
     super.dispose();
   }
@@ -437,14 +441,7 @@ class _CopyField extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.copy_rounded, color: palette.textSecondary, size: 20),
             onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: value));
-              if (context.mounted) {
-                BiometricUx.successSnack(
-                    context,
-                    AppLocalizations.of(context)
-                        .t('copiedLabel')
-                        .replaceFirst('{label}', label));
-              }
+              await SecureClipboard.copy(context, value, label: label);
             },
           ),
         ],

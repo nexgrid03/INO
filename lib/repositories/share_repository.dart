@@ -463,23 +463,42 @@ class ShareRepository {
   // These hit the anonymous `share` Edge Function over plain HTTP - recipients
   // have no Supabase session, and the private tables are never queried directly.
 
+  /// Unlocks a password-protected share using POST and returns an unlock token.
+  Future<String?> unlockPublicShare(String token, String password) async {
+    final uri = Uri.parse('${ShareConfig.apiUrl(token)}/unlock');
+    developer.log('unlockPublicShare → POST $uri', name: 'share');
+    try {
+      final res = await http.post(
+        uri,
+        headers: const {'content-type': 'application/json', 'accept': 'application/json'},
+        body: jsonEncode({'password': password}),
+      ).timeout(NetGuard.query);
+      if (res.statusCode != 200) return null;
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic> && decoded['status'] == 'active') {
+        return decoded['unlockToken'] as String?;
+      }
+      return null;
+    } catch (e, st) {
+      developer.log('unlockPublicShare failed: $e', name: 'share', error: e, stackTrace: st);
+      return null;
+    }
+  }
+
   /// Fetches the public metadata for [shareId] from the Edge Function. Returns a
   /// [PublicShare] whose [PublicShare.status] tells the viewer what to render
   /// (active / expired / revoked / notFound / error). Never throws - a network
   /// failure resolves to [PublicShare.errored].
-  Future<PublicShare> fetchPublicShare(String token, {String? passwordHash}) async {
-    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json').replace(
-      queryParameters: {
-        'format': 'json',
-        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
-      },
-    );
+  Future<PublicShare> fetchPublicShare(String token, {String? unlockToken}) async {
+    final uri = Uri.parse('${ShareConfig.apiUrl(token)}?format=json');
     developer.log('fetchPublicShare → GET $uri', name: 'share');
     try {
-      // Ask for JSON explicitly - the Edge Function content-negotiates and
-      // returns the branded HTML page to browsers, JSON to the app.
+      final headers = <String, String>{
+        'accept': 'application/json',
+        if (unlockToken != null && unlockToken.isNotEmpty) 'x-share-unlock-token': unlockToken,
+      };
       final res = await http
-          .get(uri, headers: const {'accept': 'application/json'})
+          .get(uri, headers: headers)
           .timeout(NetGuard.query);
       developer.log(
         'fetchPublicShare ← ${res.statusCode} '
@@ -504,20 +523,22 @@ class ShareRepository {
     String token,
     SharedDoc doc, {
     required bool download,
-    String? passwordHash,
+    String? unlockToken,
   }) async {
     final uri = Uri.parse(
       '${ShareConfig.apiUrl(token)}/file/${doc.id}',
     ).replace(
       queryParameters: {
         'mode': download ? 'download' : 'view',
-        if (passwordHash != null && passwordHash.isNotEmpty) 'pw': passwordHash,
       },
     );
     developer.log('fetchSharedFile → GET $uri', name: 'share');
     final http.Response res;
     try {
-      res = await http.get(uri).timeout(NetGuard.storage);
+      final headers = <String, String>{
+        if (unlockToken != null && unlockToken.isNotEmpty) 'x-share-unlock-token': unlockToken,
+      };
+      res = await http.get(uri, headers: headers).timeout(NetGuard.storage);
     } on TimeoutException {
       throw const ShareException(
           'The download timed out. Check your connection and try again.');
@@ -528,7 +549,6 @@ class ShareRepository {
       name: 'share',
     );
     if (res.statusCode != 200) {
-      // The Edge Function returns a small JSON error body on failure.
       String message = 'Could not open this document.';
       try {
         final body = jsonDecode(res.body);
@@ -537,7 +557,7 @@ class ShareRepository {
         } else if (body is Map && body['message'] is String) {
           message = body['message'] as String;
         }
-      } catch (_) {/* non-JSON body - keep the default message */}
+      } catch (_) {/* non-JSON body - keep default message */}
       throw ShareException(message);
     }
     final mime = res.headers['content-type'] ?? 'application/octet-stream';

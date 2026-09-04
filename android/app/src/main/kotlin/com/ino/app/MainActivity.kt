@@ -1,4 +1,4 @@
-package com.example.inoapp
+package com.ino.app
 
 import android.content.Intent
 import android.content.pm.PackageManager

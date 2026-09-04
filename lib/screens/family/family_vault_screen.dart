@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../services/family_vault_store.dart';
+import '../../services/screen_security_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
@@ -38,10 +39,17 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _store.ensureLoaded();
     // Surface any pending invitations / join requests addressed to this user.
     _store.refreshPendingInvitations();
     _store.startRealtime();
+  }
+
+  @override
+  void dispose() {
+    ScreenSecurityService.instance.disable();
+    super.dispose();
   }
 
   // ---- Invitations ---------------------------------------------------------

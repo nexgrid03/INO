@@ -143,9 +143,8 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     await _load(_currentUid());
   }
 
-  Future<void> _load(String? uid) async {
-    _loading = true;
-    notifyListeners();
+  @protected
+  Future<void> loadLocalCache(String? uid) async {
     final loaded = <T>[];
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
@@ -168,6 +167,12 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     items
       ..clear()
       ..addAll(loaded);
+  }
+
+  Future<void> _load(String? uid) async {
+    _loading = true;
+    notifyListeners();
+    await loadLocalCache(uid);
     _loaded = true;
     _loading = false;
     _loadedUid = uid;

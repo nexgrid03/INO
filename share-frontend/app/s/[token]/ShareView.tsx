@@ -50,18 +50,46 @@ export default function ShareView({
   documents,
   expiresAt,
   viewOnly = false,
-  pwHash,
+  unlockToken,
 }: {
   token: string;
   documents: SharedDoc[];
   expiresAt: string | null;
   viewOnly?: boolean;
-  pwHash?: string;
+  unlockToken?: string;
 }) {
   const [open, setOpen] = useState<SharedDoc | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const when = useMemo(() => formatSharedAt(), []);
   const countLabel = `${documents.length} document${documents.length === 1 ? "" : "s"}`;
-  const pwQ = pwHash ? `&pw=${encodeURIComponent(pwHash)}` : "";
+
+  async function handleDownload(doc: SharedDoc) {
+    if (viewOnly || downloadingId) return;
+    setDownloadingId(doc.id);
+    try {
+      const headers: Record<string, string> = {};
+      if (unlockToken) headers["x-share-unlock-token"] = unlockToken;
+
+      const res = await fetch(`/api/s/${token}/file/${doc.id}?mode=download`, {
+        headers,
+      });
+      if (!res.ok) throw new Error("Download failed.");
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      alert("Could not download file.");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <>
@@ -113,13 +141,15 @@ export default function ShareView({
                   <EyeIcon />
                 </button>
                 {!viewOnly && (
-                  <a
+                  <button
+                    type="button"
                     className="icon-act download"
                     aria-label={`Download ${d.name}`}
-                    href={`/api/s/${token}/file/${d.id}?mode=download${pwQ}`}
+                    disabled={downloadingId === d.id}
+                    onClick={() => handleDownload(d)}
                   >
                     <DownloadIcon />
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
@@ -150,7 +180,7 @@ export default function ShareView({
             doc={open}
             onBack={() => setOpen(null)}
             viewOnly={viewOnly}
-            pwHash={pwHash}
+            unlockToken={unlockToken}
           />
         </div>
       )}

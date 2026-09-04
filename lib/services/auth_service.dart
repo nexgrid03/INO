@@ -34,6 +34,58 @@ class AuthService {
   User? get currentUser => _client.auth.currentUser;
   bool get isSignedIn => currentSession != null;
 
+  /// Whether the currently signed-in user has accepted the Terms of Service & Privacy Policy.
+  bool get hasAcceptedTerms {
+    final user = currentUser;
+    if (user == null) return false;
+    final metadata = user.userMetadata ?? {};
+    return metadata['accepted_terms'] == true || metadata['terms_accepted'] == true;
+  }
+
+  /// Records terms acceptance in user metadata and the user_consents audit table.
+  Future<void> recordTermsConsent({String version = '1.0'}) async {
+    final user = currentUser;
+    if (user == null) return;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    await _client.auth.updateUser(
+      UserAttributes(
+        data: {
+          'accepted_terms': true,
+          'accepted_at': nowIso,
+          'terms_version': version,
+        },
+      ),
+    );
+
+    try {
+      await _client.from('user_consents').insert({
+        'user_id': user.id,
+        'consent_type': 'terms_and_privacy',
+        'version': version,
+        'accepted_at': nowIso,
+      });
+    } catch (e) {
+      developer.log('recordTermsConsent audit log failed: $e', name: 'auth');
+    }
+  }
+
+  /// Records notification consent in the user_consents audit table.
+  Future<void> recordPushNotificationConsent({String version = '1.0'}) async {
+    final user = currentUser;
+    if (user == null) return;
+    try {
+      await _client.from('user_consents').insert({
+        'user_id': user.id,
+        'consent_type': 'push_notifications',
+        'version': version,
+        'accepted_at': DateTime.now().toUtc().toIso8601String(),
+      });
+    } catch (e) {
+      developer.log('recordPushNotificationConsent audit log failed: $e', name: 'auth');
+    }
+  }
+
   /// Emits on sign-in, sign-out, token refresh, etc. Useful for an "AuthGate".
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 

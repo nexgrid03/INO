@@ -295,7 +295,11 @@ drop policy if exists "members: admins delete" on public.vault_members;
 create policy "members: members read" on public.vault_members
   for select using (public.is_vault_member(vault_id));
 create policy "members: admins insert" on public.vault_members
-  for insert with check (public.is_vault_admin(vault_id));
+  for insert with check (
+    public.is_vault_admin(vault_id)
+    and role in ('admin', 'editor', 'viewer')
+    and role <> 'owner'
+  );
 create policy "members: admins update" on public.vault_members
   for update using (public.is_vault_admin(vault_id))
   with check (public.is_vault_admin(vault_id));

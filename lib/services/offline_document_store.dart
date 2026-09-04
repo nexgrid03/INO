@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -329,7 +330,9 @@ class OfflineDocumentStore extends ChangeNotifier {
       final ext = DocumentFileService.extensionOf(objectPath);
       final safeId = docId.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
       final target = File('${dir.path}/$safeId.$ext');
-      await source.copy(target.path);
+      final rawBytes = await source.readAsBytes();
+      final encryptedBytes = await _encryptBytes(rawBytes);
+      await target.writeAsBytes(encryptedBytes, flush: true);
 
       final entry = OfflineDoc(
         id: docId,
@@ -339,7 +342,7 @@ class OfflineDocumentStore extends ChangeNotifier {
         relPath: '$dirName/$uid/$safeId.$ext',
         localPath: OfflineDoc._slashes(target.path),
         objectPath: objectPath,
-        sizeBytes: await target.length(),
+        sizeBytes: encryptedBytes.length,
         savedAt: DateTime.now(),
       );
       _docs.removeWhere((d) => d.id == docId);
@@ -471,6 +474,80 @@ class OfflineDocumentStore extends ChangeNotifier {
     } catch (e) {
       developer.log('delete offline doc from Supabase failed: $e',
           name: 'offline');
+    }
+  }
+
+  static final _algorithm = AesGcm.with256bits();
+  static final _secretKey = SecretKey(const [
+    0x49, 0x4e, 0x4f, 0x5f, 0x4f, 0x46, 0x46, 0x4c, 0x49, 0x4e, 0x45, 0x5f, 0x44, 0x4f, 0x43, 0x5f,
+    0x4b, 0x45, 0x59, 0x5f, 0x32, 0x30, 0x32, 0x36, 0x5f, 0x53, 0x45, 0x43, 0x55, 0x52, 0x45, 0x21
+  ]);
+
+  static Future<Uint8List> _encryptBytes(Uint8List raw) async {
+    final nonce = List<int>.generate(12, (i) => (i * 37 + 13) % 256);
+    final box = await _algorithm.encrypt(raw, secretKey: _secretKey, nonce: nonce);
+    return Uint8List.fromList([...box.nonce, ...box.cipherText, ...box.mac.bytes]);
+  }
+
+  static Future<Uint8List> _decryptBytes(Uint8List encrypted) async {
+    if (encrypted.length < 28) return encrypted;
+    try {
+      const nonceLen = 12;
+      const macLen = 16;
+      final nonce = encrypted.sublist(0, nonceLen);
+      final cipherText = encrypted.sublist(nonceLen, encrypted.length - macLen);
+      final mac = Mac(encrypted.sublist(encrypted.length - macLen));
+      final box = SecretBox(cipherText, nonce: nonce, mac: mac);
+      final decrypted = await _algorithm.decrypt(box, secretKey: _secretKey);
+      return Uint8List.fromList(decrypted);
+    } catch (_) {
+      return encrypted;
+    }
+  }
+
+  /// Returns a temporary decrypted file for viewing offline documents.
+  Future<File?> getDecryptedFile(OfflineDoc doc) async {
+    try {
+      final f = File(doc.localPath);
+      if (!await f.exists()) return null;
+      final raw = await f.readAsBytes();
+      final decrypted = await _decryptBytes(raw);
+      final tmpDir = await getTemporaryDirectory();
+      final safeId = doc.id.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
+      final ext = doc.extension;
+      final tempFile = File('${tmpDir.path}/view_$safeId.$ext');
+      await tempFile.writeAsBytes(decrypted, flush: true);
+      return tempFile;
+    } catch (e) {
+      developer.log('getDecryptedFile failed: $e', name: 'offline');
+      return null;
+    }
+  }
+
+  /// Wipes all offline document state, metadata, and disk files on logout / clear.
+  Future<void> clear() async {
+    _docs.clear();
+    _loaded = false;
+    _loadedUid = null;
+    _baseDirPath = null;
+    notifyListeners();
+    try {
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      final keys = p.getKeys();
+      for (final k in keys) {
+        if (k.startsWith(_keyPrefix) || k == _kLastUidKey) {
+          await p.remove(k);
+        }
+      }
+      final base = await _baseDir();
+      if (base != null) {
+        final dir = Directory('$base/$dirName');
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+      }
+    } catch (e) {
+      developer.log('OfflineDocumentStore clear failed: $e', name: 'offline');
     }
   }
 

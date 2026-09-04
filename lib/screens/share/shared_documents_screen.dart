@@ -11,9 +11,9 @@ import '../../l10n/app_localizations.dart';
 import '../../models/public_share.dart';
 import '../../repositories/share_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/screen_security_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
-import '../../utils/share_password.dart';
 import '../../widgets/pressable_scale.dart';
 import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
@@ -69,13 +69,15 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   bool _loading = true;
   String? _busyDocId;
   Timer? _ticker;
-  String? _passwordHash;
+  String? _unlockToken;
+  bool _unlockFailed = false;
   final _password = TextEditingController();
   bool _unlocking = false;
 
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _load();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -85,6 +87,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _ticker?.cancel();
     _ticker = null;
     _password.dispose();
@@ -96,7 +99,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
     setState(() => _loading = true);
     final share = await ShareRepository.instance.fetchPublicShare(
       widget.token,
-      passwordHash: _passwordHash,
+      unlockToken: _unlockToken,
     );
     if (!mounted) return;
     setState(() {
@@ -110,10 +113,14 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
     if (raw.isEmpty || _unlocking) return;
     setState(() => _unlocking = true);
     try {
-      _passwordHash = await sharePasswordHash(raw);
-      await _load();
-      if (!mounted) return;
-      if (_share?.status == PublicShareStatus.passwordRequired) {
+      final token = await ShareRepository.instance.unlockPublicShare(widget.token, raw);
+      if (token != null) {
+        _unlockToken = token;
+        _unlockFailed = false;
+        await _load();
+      } else {
+        _unlockFailed = true;
+        if (!mounted) return;
         _toast(AppLocalizations.of(context).t('sharePasswordIncorrect'),
             error: true);
       }
@@ -149,7 +156,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
       widget.token,
       doc,
       download: download,
-      passwordHash: _passwordHash,
+      unlockToken: _unlockToken,
     );
   }
 
@@ -298,7 +305,7 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
         return _PasswordGate(
           controller: _password,
           busy: _unlocking,
-          wrong: _passwordHash != null,
+          wrong: _unlockFailed,
           onUnlock: _unlock,
           onClose: () => Navigator.of(context).maybePop(),
         );

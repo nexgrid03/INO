@@ -50,7 +50,12 @@ class ReminderStore extends ChangeNotifier {
 
   /// Loads the data once per user session. Safe to call from every screen's `initState`.
   Future<void> ensureLoaded() => PerfTracer.traceQuery('ReminderStore.ensureLoaded', () async {
-    final currentUid = Supabase.instance.client.auth.currentUser?.id;
+    String? currentUid;
+    try {
+      currentUid = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      currentUid = null;
+    }
 
     // Skip if already loaded for the current authenticated user.
     if (_loaded && !_loading && _loadedUid == currentUid && currentUid != null) {

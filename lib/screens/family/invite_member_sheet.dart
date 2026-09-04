@@ -119,16 +119,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
         _kind == _Kind.phone ? value.replaceAll(' ', '') : value,
       );
       if (mounted) Navigator.of(context).pop(true);
-    } on VaultUserNotFound catch (e) {
-      if (mounted) {
-        setState(() => _notice =
-            l10n.t('inviteUserNotFound').replaceAll('{query}', e.query));
-      }
-    } on VaultUserAmbiguous {
-      if (mounted) setState(() => _notice = l10n.t('inviteMultipleMatches'));
     } on PostgrestException catch (e) {
-      // Server-side validation (already a member / self / duplicate) is
-      // surfaced verbatim so the user knows exactly why it was rejected.
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {

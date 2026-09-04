@@ -126,7 +126,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.inoapp.share</string>
+			<string>com.ino.app.share</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>ino</string>

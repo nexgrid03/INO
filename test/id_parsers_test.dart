@@ -4,6 +4,7 @@ import 'package:inoapp/models/ocr_result_model.dart';
 import 'package:inoapp/services/driving_license_parser.dart';
 import 'package:inoapp/services/passport_parser.dart';
 import 'package:inoapp/services/voter_id_parser.dart';
+import 'package:inoapp/utils/identifier_masker.dart';
 
 List<String> _lines(String s) =>
     s.trim().split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
@@ -115,7 +116,7 @@ Date of Birth 17/12/1990
       final labels = {
         for (final f in envelope.displayFields()) f.label: f.value
       };
-      expect(labels['Passport Number'], 'A1234567');
+      expect(labels['Passport Number'], 'A*****67');
       expect(labels['Expiry Date'], '04/06/2028');
       expect(labels['Nationality'], 'Indian');
     });
@@ -139,7 +140,7 @@ Date of Birth 17/12/1990
       final labels = {
         for (final f in envelope.displayFields()) f.label: f.value
       };
-      expect(labels['License Number'], 'MH12 20110012345');
+      expect(labels['License Number'], IdentifierMasker.mask('MH12 20110012345', docType: 'drivingLicense'));
       expect(labels['Valid Till'], '16/12/2040');
       expect(labels['Vehicle Class'], 'LMV, MCWG');
     });

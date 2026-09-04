@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../services/category_store.dart';
+import '../../services/screen_security_service.dart';
 import '../../utils/date_normalizer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -87,6 +88,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     final r = widget.result;
     _name = TextEditingController(text: r.documentName);
     _number = TextEditingController(text: r.documentNumber ?? '');
@@ -104,6 +106,7 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _name.dispose();
     _number.dispose();
     _tags.dispose();

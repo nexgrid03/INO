@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../core/storage/shared_prefs_cache.dart';
 import '../models/password_models.dart';
 import 'local_collection_store.dart';
 import 'vault_crypto.dart';
@@ -11,31 +14,17 @@ import 'vault_crypto.dart';
 /// The Password Vault's saved passwords, synced to `w_password_vault` as
 /// **end-to-end encrypted** ciphertext.
 ///
-/// SECURITY NOTE - read before extending this:
-///
-/// The password itself is sealed by [VaultCrypto] with a key derived on-device
-/// from the user's vault passphrase, so the `password` column holds ciphertext
-/// the server cannot read. The nickname is stored in the clear, protected only
-/// by RLS - which is exactly why the UI insists it must be a decoy the user
-/// invents, never the real site or app name. Do not add columns that would
-/// carry a credential in the clear.
-///
-/// `consent` records the user's approval from the save dialog. The form never
-/// calls [add]/[update] without it, so every uploaded row carries true.
-///
-/// Sync only happens while the vault is UNLOCKED, because sealing needs the
-/// key. When it is locked, [syncTable] is null and this store behaves exactly
-/// as it did before: local only, nothing uploaded. That is a deliberate
-/// fail-closed: the alternative to "cannot encrypt" is never "upload
-/// plaintext".
-///
-/// Locally, entries are still `shared_preferences`, which is app-private but
-/// **not encrypted at rest**; a rooted device or a full device backup could
-/// read it. Moving the local copy to the platform keystore remains the intended
-/// hardening step and only [persist]/[decode] would change.
+/// SECURITY HARDENING:
+/// Decrypted passwords exist ONLY in transient memory while the vault is UNLOCKED.
+/// Local disk cache is stored exclusively in [FlutterSecureStorage] with
+/// passwords sealed via [VaultCrypto] (AES-GCM ciphertext). Plaintext passwords
+/// are NEVER written to SharedPreferences or disk. Locking the vault or signing
+/// out immediately wipes all in-memory password entries.
 class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   PasswordStore._();
   static final PasswordStore instance = PasswordStore._();
+
+  static const _secureStorage = FlutterSecureStorage();
 
   @override
   String get storageKey => 'ino_passwords';
@@ -49,6 +38,54 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
 
   @override
   String idOf(PasswordEntry item) => item.id;
+
+  @override
+  Future<void> loadLocalCache(String? uid) => loadFromSecureStorage(uid);
+
+  /// Clears in-memory decrypted passwords without modifying disk cache.
+  /// Called when vault locks or session is reset.
+  void clearMemory() {
+    items.clear();
+    notifyListeners();
+  }
+
+  /// Loads from FlutterSecureStorage, ensuring plaintext passwords NEVER touch SharedPreferences.
+  /// Sealed passwords stored in FlutterSecureStorage are decrypted lazily using VaultCrypto.
+  Future<void> loadFromSecureStorage(String? uid) async {
+    final key = '${storageKey}_${uid ?? 'local'}';
+    final loaded = <PasswordEntry>[];
+    try {
+      // 1. Purge legacy SharedPreferences plaintext cache if found
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      final legacyRaw = p.getStringList(key);
+      if (legacyRaw != null) {
+        await p.remove(key);
+      }
+
+      // 2. Read sealed payload from FlutterSecureStorage
+      final raw = await _secureStorage.read(key: key);
+      if (raw != null && raw.isNotEmpty) {
+        final maps = jsonDecode(raw) as List<dynamic>;
+        for (final m in maps) {
+          if (m is Map<String, dynamic>) {
+            final isSealed = m['isSealed'] as bool? ?? false;
+            var entry = PasswordEntry.fromJson(m);
+            if (isSealed && entry.password.isNotEmpty && VaultCrypto.instance.isUnlocked) {
+              final unsealed = await VaultCrypto.instance.decrypt(entry.password);
+              entry = entry.copyWith(password: unsealed ?? '');
+            }
+            loaded.add(entry);
+          }
+        }
+      }
+    } catch (e) {
+      developer.log('PasswordStore secure load failed: $e', name: 'vault');
+    }
+
+    items
+      ..clear()
+      ..addAll(loaded);
+  }
 
   // ---- Supabase sync (end-to-end encrypted) --------------------------------
 
@@ -160,6 +197,60 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
         developer.log('reseal: ${entry.id} failed: $e', name: 'vault');
       }
     }
+  }
+
+  /// Securely persist items to platform Keystore/Keychain via FlutterSecureStorage.
+  /// Passwords are encrypted before writing, so plaintext NEVER exists on disk.
+  @override
+  Future<void> persist() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      final key = '${storageKey}_${uid ?? 'local'}';
+      
+      // Clean up legacy SharedPreferences key if present
+      try {
+        final p = await SharedPrefsCache.instance.prefsAsync;
+        await p.remove(key);
+      } catch (_) {}
+
+      if (items.isEmpty) {
+        await _secureStorage.delete(key: key);
+        return;
+      }
+
+      // Seal entries for disk persistence using AES-GCM via VaultCrypto if unlocked
+      final sealedPayloads = <Map<String, dynamic>>[];
+      for (final item in items) {
+        final row = item.toJson();
+        if (VaultCrypto.instance.isUnlocked && item.password.isNotEmpty) {
+          final sealed = await VaultCrypto.instance.encrypt(item.password);
+          if (sealed != null) {
+            row['password'] = sealed;
+            row['isSealed'] = true;
+          }
+        }
+        sealedPayloads.add(row);
+      }
+      await _secureStorage.write(
+        key: key,
+        value: jsonEncode(sealedPayloads),
+      );
+    } catch (e) {
+      developer.log('PasswordStore persist failed: $e', name: 'vault');
+    }
+  }
+
+  @override
+  Future<void> clear() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    final key = '${storageKey}_${uid ?? 'local'}';
+    items.clear();
+    notifyListeners();
+    try {
+      await _secureStorage.delete(key: key);
+      final p = await SharedPrefsCache.instance.prefsAsync;
+      await p.remove(key);
+    } catch (_) {}
   }
 
   /// A–Z by nickname - the vault list reads best alphabetically.

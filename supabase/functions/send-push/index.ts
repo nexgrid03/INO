@@ -188,16 +188,17 @@ async function enqueueDocumentExpiries(today: string): Promise<number> {
     return {
       auth_user_id: d.auth_user_id,
       kind: "doc.expiry",
-      title: expiryLabel(days, d.name),
-      body: `${d.wallet} · ${
-        days === 0 ? "Expires today" : `Expires on ${d.expires_at}`
-      }`,
+      title: "Document Expiry Notice",
+      body: days === 0
+        ? "You have an important document expiring today."
+        : `You have an important document expiring in ${days} days.`,
       channel: "ino_reminders",
       // One notification per document PER LEAD DAY, ever.
       dedupe_key: `doc:${d.id}:d${days}`,
       data: {
         kind: "doc.expiry",
         document_id: d.id,
+        document_name: d.name,
         wallet: d.wallet,
         expires_at: d.expires_at,
       },
@@ -244,22 +245,20 @@ async function enqueueCardExpiries(today: string): Promise<number> {
     const days = daysUntil(expiry, today);
     if (!CARD_LEAD_DAYS.includes(days)) continue;
 
-    const label = [c.bank, c.name].filter(Boolean).join(" ") || "Your card";
-    const tail = c.last4 ? ` ending ${c.last4}` : "";
     pending.push({
       auth_user_id: c.auth_user_id,
       kind: "card.expiry",
-      title: expiryLabel(days, `${label}${tail}`),
+      title: "Card Expiry Notice",
       body: days === 0
-        ? "Today is the last day it works. Order a replacement."
-        : `Valid through ${String(c.expiry_month).padStart(2, "0")}/${
-          String(c.expiry_year).slice(-2)
-        }. Order a replacement in time.`,
+        ? "You have a payment card expiring today."
+        : `You have a payment card expiring in ${days} days.`,
       channel: "ino_reminders",
       dedupe_key: `card:${c.id}:d${days}`,
       data: {
         kind: "card.expiry",
         card_id: c.id,
+        bank: c.bank ?? "",
+        last4: c.last4 ?? "",
         expires_at: expiry,
       },
     });

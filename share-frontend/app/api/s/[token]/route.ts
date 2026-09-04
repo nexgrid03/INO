@@ -3,21 +3,27 @@ import { FUNCTIONS_URL } from "@/lib/config";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Proxies share metadata so the browser can unlock a password-gated link. */
+/** Proxies share metadata so the browser can fetch documents with an unlock token header. */
 export async function GET(
   req: Request,
-  { params }: { params: { token: string } },
+  { params }: { params: { token: string } }
 ) {
-  const pw = new URL(req.url).searchParams.get("pw") ?? "";
+  const unlockToken = req.headers.get("x-share-unlock-token") ?? "";
   const qs = new URLSearchParams({ format: "json" });
-  if (pw) qs.set("pw", pw);
+
+  const headers: Record<string, string> = {
+    accept: "application/json",
+  };
+  if (unlockToken) {
+    headers["x-share-unlock-token"] = unlockToken;
+  }
 
   const r = await fetch(
     `${FUNCTIONS_URL}/share/${encodeURIComponent(params.token)}?${qs.toString()}`,
     {
-      headers: { accept: "application/json" },
+      headers,
       cache: "no-store",
-    },
+    }
   );
 
   return new Response(r.body, {
@@ -25,6 +31,7 @@ export async function GET(
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
     },
   });
 }

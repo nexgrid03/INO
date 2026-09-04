@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_clipboard.dart';
 import '../../models/area_unit.dart';
 import '../../services/area_conversion_service.dart';
 import '../../theme/app_dimens.dart';
@@ -39,17 +40,8 @@ class AreaConversionSummary extends StatelessWidget {
 
   void _copyAll(BuildContext context) {
     final text = _service.asCopyText(value, fromUnit, units: units);
-    Clipboard.setData(ClipboardData(text: text));
+    SecureClipboard.copy(context, text, label: 'Area Conversion Summary');
     HapticFeedback.selectionClick();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).t('areaCopied')),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.primaryGreen,
-        ),
-      );
   }
 
   @override

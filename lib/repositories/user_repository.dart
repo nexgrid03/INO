@@ -113,6 +113,20 @@ class UserRepository {
     _inMemoryProfile = null;
   }
 
+  /// Clears both memory profile cache and disk cached profiles on sign-out.
+  Future<void> clearDiskCache() async {
+    clearCache();
+    try {
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
+      final keys = prefs.getKeys();
+      for (final key in keys) {
+        if (key.startsWith(_cachePrefix)) {
+          await prefs.remove(key);
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _cacheProfile(UserProfile profile) async {
     _inMemoryProfile = profile;
     try {

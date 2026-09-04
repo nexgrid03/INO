@@ -20,6 +20,7 @@ import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/reminders/all_reminders_screen.dart';
 import '../screens/wallet/wallet_detail_screen.dart';
 import '../widgets/reminders/reminder_detail_sheet.dart';
+import 'auth_service.dart';
 import 'notification_center.dart';
 import 'security_alert_service.dart';
 
@@ -79,6 +80,8 @@ class PushService {
   /// How a reminder notification looks, shared by the foreground bridge, the
   /// exact-time local schedule and the background data-message handler so the
   /// three are indistinguishable to the user.
+  /// Configured with [NotificationVisibility.private] and a generic public
+  /// notification to prevent data leakage on lock screens.
   static const NotificationDetails reminderDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       channelId,
@@ -86,6 +89,7 @@ class PushService {
       channelDescription: 'Alerts for documents, renewals and due dates.',
       importance: Importance.high,
       priority: Priority.high,
+      visibility: NotificationVisibility.private,
       icon: '@drawable/ic_notification',
     ),
     iOS: DarwinNotificationDetails(),
@@ -104,9 +108,9 @@ class PushService {
   // Start-up
   // ---------------------------------------------------------------------------
 
-  /// Initialises Firebase, the local-notification channel, the permission
-  /// prompt and the message handlers. Call once from `main()`, before
-  /// `runApp`. Idempotent and never throws.
+  /// Initialises Firebase, local notifications and message handlers.
+  /// PRIVACY COMPLIANCE: Does NOT raise permission prompt automatically on cold start.
+  /// Call once from `main()`, before `runApp`. Idempotent and never throws.
   Future<void> init(GlobalKey<NavigatorState> navigatorKey) async {
     _navigatorKey = navigatorKey;
     if (_initialised) return;
@@ -126,8 +130,6 @@ class PushService {
       // a top-level function and cannot touch any state from this isolate.
       FirebaseMessaging.onBackgroundMessage(inoFirebaseBackgroundHandler);
 
-      await _requestPermission();
-      await _initToken();
       _listenForSignIn();
 
       // Foreground messages: Android hands them to Dart instead of the tray.
@@ -144,7 +146,7 @@ class PushService {
       }
 
       _initialised = true;
-      developer.log('push initialised', name: 'push');
+      developer.log('push initialised (permission prompt deferred)', name: 'push');
     } catch (e, st) {
       developer.log('init failed: $e', name: 'push', error: e, stackTrace: st);
     } finally {
@@ -158,7 +160,7 @@ class PushService {
   Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@drawable/ic_notification');
     // `requestAlertPermission: false` - the iOS prompt is raised once by
-    // [_requestPermission] via firebase_messaging instead, so the user is not
+    // [requestPermission] via firebase_messaging instead, so the user is not
     // asked twice by two different plugins.
     const darwinInit = DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -207,23 +209,36 @@ class PushService {
     if (!_localReady.isCompleted) _localReady.complete();
   }
 
-  /// Raises the OS permission prompt (Android 13+ / iOS) once.
-  Future<void> _requestPermission() async {
-    final settings = await FirebaseMessaging.instance.requestPermission();
-    developer.log(
-      'permission → ${settings.authorizationStatus.name}',
-      name: 'push',
-    );
-
-    // iOS only: without this, a foreground message shows nothing at all,
-    // because iOS suppresses banners for the app in front by default.
-    if (!kIsWeb && Platform.isIOS) {
-      await FirebaseMessaging.instance
-          .setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
+  /// Raises the OS permission prompt (Android 13+ / iOS) on demand (when user turns on notifications or uses a reminder feature).
+  /// Returns `true` if permission is granted.
+  Future<bool> requestPermission() async {
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission();
+      developer.log(
+        'permission → ${settings.authorizationStatus.name}',
+        name: 'push',
       );
+
+      final isAuthorized =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
+
+      if (isAuthorized) {
+        if (!kIsWeb && Platform.isIOS) {
+          await FirebaseMessaging.instance
+              .setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+        }
+        await _initToken();
+        await AuthService.instance.recordPushNotificationConsent();
+      }
+      return isAuthorized;
+    } catch (e) {
+      developer.log('requestPermission error: $e', name: 'push');
+      return false;
     }
   }
 

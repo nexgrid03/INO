@@ -161,9 +161,8 @@ because the delete is authorised by an RLS policy on `auth.uid()`. Moving it
 after would leave the row behind and this phone would keep receiving the previous
 account's reminders. There is a test for this in the checklist above.
 
-**App id.** The Firebase apps are registered to `com.example.inoapp`. Google Play
-rejects `com.example.*`, so before release you must add a *new* Android app in the
-same Firebase project under the real id and re-run `flutterfire configure`.
+**App id.** The package name is `com.ino.app`. If you change it again in the future,
+add a *new* Android app in the same Firebase project under the new id and re-run `flutterfire configure`.
 That also means issuing a new Google Sign-In OAuth client for the new package
 name + SHA-1.
 

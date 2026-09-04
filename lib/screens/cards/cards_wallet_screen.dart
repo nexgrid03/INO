@@ -6,6 +6,8 @@ import '../../models/card_models.dart';
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../navigation/wallet_module_router.dart';
 import '../../services/card_store.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -68,12 +70,14 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     _store.ensureLoaded();
     _store.addListener(_onChanged);
   }
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _store.removeListener(_onChanged);
     _searchController.dispose();
     super.dispose();
@@ -127,10 +131,8 @@ class _CardsWalletScreenState extends State<CardsWalletScreen> {
   }
 
   void _copyLast4(SavedCard card) {
-    Clipboard.setData(ClipboardData(text: card.last4));
+    SecureClipboard.copy(context, card.last4, label: 'Card Last 4');
     HapticFeedback.selectionClick();
-    // Deliberately explicit: the user should know only 4 digits exist here.
-    showModuleToast(context, AppLocalizations.of(context).t('last4Copied'));
   }
 
   void _openDocuments() => openWalletDocuments(context, widget.category);

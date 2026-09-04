@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
 import 'session_reset.dart';
+import 'two_factor_service.dart';
+import '../screens/auth/auth_flow.dart';
 
 /// One account remembered on this device, switchable from Profile → Accounts.
 class SavedAccount {
@@ -31,33 +34,12 @@ class SavedAccount {
   String get displayName =>
       (name != null && name!.trim().isNotEmpty) ? name!.trim() : email;
 
-  static String _obfuscateToken(String token) {
-    if (token.isEmpty) return '';
-    final bytes = utf8.encode(token);
-    // XOR cipher with device salt + base64 encoding to prevent plaintext leak
-    const key = 0x57;
-    final obfuscated = List<int>.generate(bytes.length, (i) => bytes[i] ^ key);
-    return base64Encode(obfuscated);
-  }
-
-  static String _deobfuscateToken(String raw) {
-    if (raw.isEmpty) return '';
-    try {
-      final bytes = base64Decode(raw);
-      const key = 0x57;
-      final original = List<int>.generate(bytes.length, (i) => bytes[i] ^ key);
-      return utf8.decode(original);
-    } catch (_) {
-      return raw; // Fallback for backward compatibility
-    }
-  }
-
   Map<String, dynamic> toJson() => {
         'id': id,
         'email': email,
         'name': name,
         'photoUrl': photoUrl,
-        'refreshToken': _obfuscateToken(refreshToken),
+        'refreshToken': refreshToken,
       };
 
   factory SavedAccount.fromJson(Map<String, dynamic> j) => SavedAccount(
@@ -65,7 +47,7 @@ class SavedAccount {
         email: (j['email'] as String?) ?? '',
         name: j['name'] as String?,
         photoUrl: j['photoUrl'] as String?,
-        refreshToken: _deobfuscateToken((j['refreshToken'] as String?) ?? ''),
+        refreshToken: (j['refreshToken'] as String?) ?? '',
       );
 }
 
@@ -151,6 +133,12 @@ class AccountSwitcher extends ChangeNotifier {
     final token = session.refreshToken;
     if (token == null || token.isEmpty) return;
 
+    // SECURITY FIX: Do NOT save account until MFA challenge is completed!
+    if (await TwoFactorService.instance.needsMfaChallenge()) {
+      developer.log('saveCurrent: skipping account save - MFA incomplete', name: 'accounts');
+      return;
+    }
+
     final user = session.user;
     final meta = user.userMetadata ?? const <String, dynamic>{};
     final entry = SavedAccount(
@@ -213,40 +201,99 @@ class AccountSwitcher extends ChangeNotifier {
     // session swap so a failed switch costs nothing.
     await SessionReset.instance.clear();
 
+    // Check if the restored session requires MFA verification (AAL1 -> AAL2)
+    if (await TwoFactorService.instance.needsMfaChallenge()) {
+      await routeAfterAuth(
+        authUserId: account.id,
+        fullName: account.displayName,
+        email: account.email,
+      );
+      return true;
+    }
+
     // Adopt the rotated refresh token for the account we just entered.
     await saveCurrent();
     developer.log('switched to ${account.email}', name: 'accounts');
     return true;
   }
 
+  static const _secureStorage = FlutterSecureStorage();
+
   Future<void> _load() async {
     try {
-      final p = await SharedPrefsCache.instance.prefsAsync;
       _accounts.clear();
-      for (final raw in p.getStringList(_key) ?? const <String>[]) {
-        try {
-          final a =
-              SavedAccount.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-          if (a.id.isNotEmpty && a.refreshToken.isNotEmpty) _accounts.add(a);
-        } catch (_) {
-          // Skip a corrupt entry rather than losing the whole list.
+      final raw = await _secureStorage.read(key: _key);
+      if (raw != null && raw.isNotEmpty) {
+        final list = jsonDecode(raw) as List<dynamic>;
+        for (final item in list) {
+          if (item is Map<String, dynamic>) {
+            final a = SavedAccount.fromJson(item);
+            if (a.id.isNotEmpty && a.refreshToken.isNotEmpty) _accounts.add(a);
+          }
         }
+      } else {
+        // Migration: Check legacy SharedPreferences
+        try {
+          final p = await SharedPrefsCache.instance.prefsAsync;
+          final legacyList = p.getStringList(_key);
+          if (legacyList != null && legacyList.isNotEmpty) {
+            for (final item in legacyList) {
+              try {
+                final map = jsonDecode(item) as Map<String, dynamic>;
+                var token = (map['refreshToken'] as String?) ?? '';
+                token = _deobfuscateLegacyToken(token);
+                final a = SavedAccount(
+                  id: map['id']?.toString() ?? '',
+                  email: (map['email'] as String?) ?? '',
+                  name: map['name'] as String?,
+                  photoUrl: map['photoUrl'] as String?,
+                  refreshToken: token,
+                );
+                if (a.id.isNotEmpty && a.refreshToken.isNotEmpty) _accounts.add(a);
+              } catch (_) {}
+            }
+            if (_accounts.isNotEmpty) {
+              await _persist();
+            }
+            await p.remove(_key);
+          }
+        } catch (_) {}
       }
       notifyListeners();
-    } catch (_) {
-      // No plugin (tests) → empty list, never throw.
+    } catch (e) {
+      developer.log('AccountSwitcher _load error: $e', name: 'accounts');
     }
   }
 
   Future<void> _persist() async {
     try {
-      final p = await SharedPrefsCache.instance.prefsAsync;
-      await p.setStringList(
-        _key,
-        [for (final a in _accounts) jsonEncode(a.toJson())],
-      );
+      if (_accounts.isEmpty) {
+        await _secureStorage.delete(key: _key);
+      } else {
+        final list = [for (final a in _accounts) a.toJson()];
+        await _secureStorage.write(key: _key, value: jsonEncode(list));
+      }
+      // Purge legacy SharedPreferences
+      try {
+        final p = await SharedPrefsCache.instance.prefsAsync;
+        await p.remove(_key);
+      } catch (_) {}
+    } catch (e) {
+      developer.log('AccountSwitcher _persist error: $e', name: 'accounts');
+    }
+  }
+
+  static String _deobfuscateLegacyToken(String raw) {
+    if (raw.isEmpty) return '';
+    try {
+      final bytes = base64Decode(raw);
+      const key = 0x57;
+      final original = List<int>.generate(bytes.length, (i) => bytes[i] ^ key);
+      final decoded = utf8.decode(original);
+      if (decoded.contains('.') || decoded.length > 10) return decoded;
+      return raw;
     } catch (_) {
-      // Best-effort; the in-memory list stays correct for this session.
+      return raw;
     }
   }
 

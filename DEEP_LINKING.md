@@ -20,7 +20,7 @@ Everything in the app is already wired:
 | Cold-start root + warm listener | `lib/main.dart` (`InoApp`) |
 | Recipient screen | `lib/screens/share/shared_documents_screen.dart` |
 
-- **App identifier:** `com.example.inoapp`
+- **App identifier:** `com.ino.app`
 - **Handled path:** `https://…/share/*` and `ino://share/<id>`
 
 ---
@@ -101,7 +101,7 @@ adb shell am start -a android.intent.action.VIEW \
 adb shell am start -a android.intent.action.VIEW -d "ino://share/share_TESTID"
 
 # Check App Links verification status for the app:
-adb shell pm get-app-links com.example.inoapp
+adb shell pm get-app-links com.ino.app
 ```
 
 Filter the app's logs by tag `deeplink` to trace: incoming link → extracted

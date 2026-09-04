@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import 'password_store.dart';
 
 /// End-to-end encryption for the Password Vault.
 ///
@@ -217,8 +218,8 @@ class VaultCrypto extends ChangeNotifier {
 
   /// Drops the in-memory key. Called on sign-out and when the app is locked.
   void lock() {
-    if (_key == null) return;
     _key = null;
+    PasswordStore.instance.clearMemory();
     notifyListeners();
     developer.log('vault locked', name: 'vault');
   }

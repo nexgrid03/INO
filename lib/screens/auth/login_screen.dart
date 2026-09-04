@@ -19,6 +19,7 @@ import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
+import 'google_terms_consent_screen.dart';
 import 'forgot_password_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
@@ -214,6 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         return; // user cancelled the picker
       }
+
       final user = res.user;
       if (user == null) {
         developer.log('Google sign-in: null user in response', name: 'auth');
@@ -221,14 +223,34 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       developer.log(
-        'Google sign-in OK: user=${user.id} - routing',
+        'Google sign-in OK: user=${user.id} - checking terms consent',
         name: 'auth',
       );
-      // Route via the app-root navigator (inside routeAfterAuth) so it works
-      // even if THIS widget was disposed while the Google picker (Credential
-      // Manager) was open - the previous code used the local context + a
-      // `!mounted` guard here, which is exactly why nothing happened after
-      // picking an account.
+
+      // Enforce Terms of Service & Privacy Policy consent on Google Sign-In
+      if (!AuthService.instance.hasAcceptedTerms && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GoogleTermsConsentScreen(
+              onConsentGiven: () {
+                Navigator.of(context).pop();
+                unawaited(
+                  routeAfterAuth(
+                    authUserId: user.id,
+                    fullName:
+                        (user.userMetadata?['full_name'] as String?) ??
+                        (user.userMetadata?['name'] as String?) ??
+                        'INO User',
+                    email: user.email ?? '',
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       await routeAfterAuth(
         authUserId: user.id,
         fullName:

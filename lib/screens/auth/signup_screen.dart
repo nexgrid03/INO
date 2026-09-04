@@ -380,7 +380,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        'I agree to the ',
+                        'I am 18+ & agree to the ',
                         style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 13.5,

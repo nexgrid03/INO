@@ -16,9 +16,12 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../auth/login_screen.dart';
+import '../auth/mfa_challenge_screen.dart';
 import '../documents/offline_documents_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../shell/main_shell.dart';
+import '../../services/two_factor_service.dart';
+import '../../services/vault_guard.dart';
 
 /// Splash — oversized clay shield settles, shine sweeps, then I → N → O.
 ///
@@ -236,26 +239,51 @@ class _SplashScreenState extends State<SplashScreen>
     _navigated = true;
 
     // Onboarding is entirely local and is the only correct first screen on a
-    // first run, so it is decided before connectivity: a brand-new user with no
-    // internet must still get the intro, not an empty offline library.
+    // first run, so it is decided before connectivity.
     if (!AppSettings.instance.onboardingSeen.value) {
       _replace(const OnboardingScreen());
       return;
     }
 
-    // Direct offline access: with no internet the shell and login can't do
-    // their jobs anyway (every screen behind them is a network read), so skip
-    // both and open straight into the offline library - the one part of the app
-    // that is fully functional here.
     final isOnline = await (_online ?? Future<bool>.value(true));
     if (!mounted) return;
+
+    final profile = _profile;
+    final hasSession = Supabase.instance.client.auth.currentSession != null;
+
+    // SECURITY FIX: Never open offline library if user is signed out or no valid session exists.
     if (!isOnline) {
-      _replace(const OfflineDocumentsScreen(isRootOffline: true));
+      if (!hasSession || profile == null) {
+        _replace(const LoginScreen());
+        return;
+      }
+      // Require biometric / device credentials before opening offline documents
+      final ok = await VaultGuard.instance.ensureUnlocked(
+        context,
+        reason: 'Authenticate to access offline documents',
+        title: 'Verify Identity',
+      );
+      if (!mounted) return;
+      if (ok) {
+        _replace(const OfflineDocumentsScreen(isRootOffline: true));
+      } else {
+        _replace(const LoginScreen());
+      }
       return;
     }
 
-    final profile = _profile;
     if (profile != null) {
+      // SECURITY FIX: Enforce MFA check on cold start to prevent AAL1 bypass via force-close.
+      if (await TwoFactorService.instance.needsMfaChallenge()) {
+        _replace(
+          MfaChallengeScreen(
+            authUserId: profile.authUserId,
+            fullName: profile.fullName,
+            email: profile.email,
+          ),
+        );
+        return;
+      }
       _goToShellFade(profile);
       return;
     }

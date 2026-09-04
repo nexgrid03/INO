@@ -127,6 +127,9 @@ BEGIN
 END;
 $fn$;
 
+REVOKE ALL ON FUNCTION public.ino_rebuild_documents_view() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ino_rebuild_documents_view() TO service_role;
+
 -- 3. Execute self-healing sweep across all existing wallets
 DO $$
 DECLARE

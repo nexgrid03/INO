@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../config/supabase_config.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/profile/settings_scaffold.dart';
-import '../../widgets/security/biometric_ux.dart';
 
 /// About INO - real app version, build number and environment, read from the
 /// bundle via package_info_plus (never hard-coded).
@@ -171,14 +170,7 @@ class _InfoRow extends StatelessWidget {
     return InkWell(
       onTap: copyable
           ? () async {
-              await Clipboard.setData(ClipboardData(text: value));
-              if (context.mounted) {
-                BiometricUx.successSnack(
-                    context,
-                    AppLocalizations.of(context)
-                        .t('copiedLabel')
-                        .replaceFirst('{label}', label));
-              }
+              await SecureClipboard.copy(context, value, label: label);
             }
           : null,
       child: Padding(

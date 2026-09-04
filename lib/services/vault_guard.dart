@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../widgets/security/biometric_ux.dart';
 import 'biometric_service.dart';
 
+import 'vault_crypto.dart';
+
 /// Session-based biometric gate for sensitive actions and protected documents.
 ///
 /// After a successful prompt the vault stays unlocked for [sessionWindow]
@@ -45,10 +47,13 @@ class VaultGuard with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Leaving the foreground ends the session - returning requires re-auth.
+    // Leaving the foreground ends the session and wipes the VaultCrypto key in memory.
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
       lock();
+      VaultCrypto.instance.lock();
     }
   }
 

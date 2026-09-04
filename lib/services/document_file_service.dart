@@ -60,4 +60,15 @@ class DocumentFileService {
     await source.copy(target.path);
     return target;
   }
+
+  /// Purges all temporary document cache files on sign-out.
+  Future<void> clearCache() async {
+    try {
+      final dir = await _cacheDir();
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+      _dir = null;
+    } catch (_) {}
+  }
 }

@@ -13,6 +13,8 @@ import '../../l10n/app_localizations.dart';
 import '../../models/view_once_share.dart';
 import '../../repositories/share_repository.dart' show ShareException;
 import '../../repositories/view_once_repository.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
@@ -62,6 +64,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     developer.log(
       'view-once link created → url=${_share.url} '
       'expires=${_share.expiryTime.toIso8601String()}',
@@ -78,6 +81,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _ticker?.cancel();
     _statusPoll?.cancel();
     _ticker = null;
@@ -94,7 +98,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
         setState(() => _share = fresh);
       }
     } catch (_) {
-      // A failed poll is not worth surfacing - the next tick tries again.
+      // Best-effort poll - failures stay silent.
     }
   }
 
@@ -110,10 +114,8 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
   }
 
   Future<void> _copyLink() async {
-    final l10n = AppLocalizations.of(context);
-    await Clipboard.setData(ClipboardData(text: _share.url));
+    await SecureClipboard.copy(context, _share.url, label: 'View Once Link');
     HapticFeedback.selectionClick();
-    _toast(l10n.t('linkCopied'));
   }
 
   Future<void> _shareLink() async {

@@ -76,7 +76,7 @@ void main() {
       );
       final text = ext.searchableText.toLowerCase();
       expect(text.contains('tanishq'), isTrue);
-      expect(text.contains('abcde1234f'), isTrue);
+      expect(text.contains('abcde****f'), isTrue);
       expect(text.contains('tax file'), isTrue);
     });
 

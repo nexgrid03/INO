@@ -20,6 +20,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <meta name="referrer" content="no-referrer" />
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+      </head>
       <body className={manrope.className}>{children}</body>
     </html>
   );

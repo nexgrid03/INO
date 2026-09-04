@@ -13,8 +13,8 @@ actions, the risks, and how to verify.
 | Release signing **config** (build.gradle.kts) | ✅ correct | Loads `android/key.properties`, builds a `release` signingConfig, no hardcoded passwords, warns on debug fallback |
 | Release signing **active** | ❌ **NOT active** | `android/key.properties` **does not exist** → release builds currently fall back to **debug** signing |
 | Release keystore | ⚠️ exists but **inside the repo** | `ino-release.jks` is at the repo **root** and is **NOT git-ignored** (security risk) |
-| `applicationId` consistency | ✅ consistent | `namespace` = `applicationId` = `com.example.inoapp`; `MainActivity` at `.../kotlin/com/example/inoapp/`; manifest `.MainActivity` |
-| Production package name | ❌ placeholder | `com.example.inoapp` - Play rejects `com.example.*` |
+| `applicationId` consistency | ✅ consistent | `namespace` = `applicationId` = `com.ino.app`; `MainActivity` at `.../kotlin/com/ino/app/`; manifest `.MainActivity` |
+| Production package name | ✅ set | `com.ino.app` - production package |
 | Google Sign-In code | ✅ best-practice | Native `google_sign_in` v7 → `signInWithIdToken`; robust error handling; config guard |
 | Google Cloud SHA registration | ⏳ manual, pending | Release/Play/upload/debug SHAs (see below) |
 | Play App Signing | ⏳ pending | Enroll on first AAB upload |
@@ -51,11 +51,8 @@ now, but `git add -A` would commit your **release keystore** - a credential leak
 Also confirm it never got committed: `git log --all --oneline -- ino-release.jks`
 (should be empty). If it was ever committed, rotate the key.
 
-### B3 - Placeholder package name (MEDIUM, pre-production)
-`com.example.inoapp` cannot be published to Play. Migrate to a real reverse-domain
-package before production and re-register SHAs under it. (Fine for internal
-testing today.)
-
+### B3 - Production package name (COMPLETED)
+`com.ino.app` is now configured across all Android, iOS, Firebase, and native configurations. Re-register SHAs under this package.
 ---
 
 ## Remaining actions
@@ -80,7 +77,7 @@ keytool -printcert -jarfile build\app\outputs\flutter-apk\app-release.apk
 
 ### 2. Google Cloud Console (manual)
 Console → project **535920485088** → **APIs & Services → Credentials** → open the
-**Android** OAuth client (package `com.example.inoapp`) → add SHA-1(s) → **Save**
+**Android** OAuth client (package `com.ino.app`) → add SHA-1(s) → **Save**
 (~5 min). *(If configured via Firebase: Firebase Console → Project settings → Your
 apps → Android → SHA certificate fingerprints → Add.)*
 

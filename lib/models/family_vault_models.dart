@@ -350,8 +350,8 @@ class VaultInvitation {
       expiresAt != null && expiresAt!.isBefore(DateTime.now());
 
   factory VaultInvitation.fromRow(Map<String, dynamic> row) => VaultInvitation(
-        id: row['id'].toString(),
-        vaultId: row['vault_id'].toString(),
+        id: row['id']?.toString() ?? '',
+        vaultId: row['vault_id']?.toString() ?? '',
         role: VaultRoleX.fromName(row['role'] as String?),
         status: InvitationStatusX.fromName(row['status'] as String?),
         email: row['email'] as String?,

@@ -564,6 +564,9 @@ begin
 end;
 $fn$;
 
+revoke all on function public.ino_rebuild_documents_view() from public, anon, authenticated;
+grant execute on function public.ino_rebuild_documents_view() to service_role;
+
 select public.ino_rebuild_documents_view();
 
 comment on view public.documents is

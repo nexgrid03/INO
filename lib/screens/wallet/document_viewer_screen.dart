@@ -9,6 +9,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../utils/share_origin.dart';
+import '../../utils/identifier_masker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException, AuthException;
 
 import '../../data/wallet_detail_repository.dart';
@@ -20,6 +21,8 @@ import '../../services/auth_service.dart';
 import '../../services/document_file_service.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
+import '../../services/screen_security_service.dart';
+import '../../services/secure_clipboard.dart';
 import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -116,6 +119,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenSecurityService.instance.enable();
     // Hydrate the offline library so the save-offline button shows the right
     // state on first paint (a purely local read - no network).
     OfflineDocumentStore.instance.ensureLoaded();
@@ -124,6 +128,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   @override
   void dispose() {
+    ScreenSecurityService.instance.disable();
     _tc.dispose();
     super.dispose();
   }
@@ -928,7 +933,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (number == null || number.trim().isEmpty) return const [];
       rows = [
         _InfoRow(
-            label: l10n.t('documentNumber'), value: number, copyable: true),
+            label: l10n.t('documentNumber'),
+            value: IdentifierMasker.mask(number, docType: _record.category),
+            copyable: true),
       ];
     } else {
       rows = [
@@ -1738,17 +1745,8 @@ class _CopyButton extends StatelessWidget {
     return InkResponse(
       radius: 18,
       onTap: () {
-        Clipboard.setData(ClipboardData(text: value));
+        SecureClipboard.copy(context, value, label: label);
         HapticFeedback.selectionClick();
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.primaryGreen,
-            content: Text(AppLocalizations.of(context)
-                .t('copiedLabel')
-                .replaceAll('{label}', label)),
-          ));
       },
       child: Padding(
         padding: const EdgeInsets.only(left: 8, top: 1),

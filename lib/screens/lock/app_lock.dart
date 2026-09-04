@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/biometric_service.dart';
+import '../../services/vault_crypto.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_buttons.dart';
@@ -80,6 +82,13 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      VaultCrypto.instance.lock();
+      VaultGuard.instance.lock();
+    }
     if (!_svc.lockEnabled.value) return;
     switch (state) {
       case AppLifecycleState.paused:
