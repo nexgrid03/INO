@@ -657,7 +657,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       reason: 'Authenticate to switch account',
       force: true,
     );
-    if (!unlocked) return;
+    if (!unlocked) {
+      if (mounted) {
+        _toast('Authentication required to switch account');
+      }
+      return;
+    }
 
     final ok = await AccountSwitcher.instance.switchTo(account);
     if (!mounted) return;
@@ -771,7 +776,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SettingsRow(
             icon: Icons.devices_rounded,
-            title: l10n.t('trustedDevices'),
+            title: 'Active Sessions',
+            subtitle: 'Manage active device sessions & remote sign-out',
             onTap: () => _push(const TrustedDevicesScreen()),
           ),
           SettingsRow(

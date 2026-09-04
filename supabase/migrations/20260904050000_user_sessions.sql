@@ -8,6 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS public.user_sessions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id  UUID DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   device_id   TEXT NOT NULL,
   device_name TEXT NOT NULL,
@@ -17,6 +18,9 @@ CREATE TABLE IF NOT EXISTS public.user_sessions (
   revoked     BOOLEAN NOT NULL DEFAULT false,
   CONSTRAINT user_sessions_user_device_unique UNIQUE (user_id, device_id)
 );
+
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS session_id UUID DEFAULT gen_random_uuid();
+UPDATE public.user_sessions SET session_id = id WHERE session_id IS NULL;
 
 COMMENT ON TABLE public.user_sessions IS
   'Tracks active user device sessions for real session management and remote sign-out.';

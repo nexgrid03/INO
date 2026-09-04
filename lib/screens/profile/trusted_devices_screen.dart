@@ -34,17 +34,50 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
   }
 
   Future<void> _remove(TrustedDevice device) async {
+    final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: Text(
+          'Revoke Session',
+          style: TextStyle(color: palette.textPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to revoke the session for "${device.name}"? This device will be signed out remotely.',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Revoke & Sign Out',
+                style: TextStyle(color: AppColors.critical)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _actionLoading = true);
     final ok = await TrustedDeviceService.instance.remove(device.id);
     if (!mounted) return;
+    setState(() => _actionLoading = false);
+
     if (ok) {
       BiometricUx.successSnack(
         context,
-        l10n.t('removedDevice').replaceAll('{name}', device.name),
+        'Revoked session for ${device.name}',
       );
       _load();
     } else {
-      BiometricUx.errorSnack(context, l10n.t('cantRemoveCurrentDevice'));
+      BiometricUx.errorSnack(context, 'Failed to revoke session');
     }
   }
 
@@ -127,25 +160,30 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (otherDevicesExist) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.critical,
-                        side: const BorderSide(color: AppColors.critical),
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.card),
-                        ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: otherDevicesExist
+                          ? AppColors.critical
+                          : palette.textSecondary.withValues(alpha: 0.5),
+                      side: BorderSide(
+                        color: otherDevicesExist
+                            ? AppColors.critical
+                            : palette.border.withValues(alpha: 0.5),
                       ),
-                      onPressed: _signOutOtherDevices,
-                      icon: const Icon(Icons.logout_rounded, size: 18),
-                      label: const Text(
-                        'Sign Out Other Devices',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
+                    onPressed: otherDevicesExist ? _signOutOtherDevices : null,
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text(
+                      'Sign Out Other Devices',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   for (final d in devices) ...[
                     _DeviceTile(device: d, onRemove: () => _remove(d)),
                     const SizedBox(height: AppSpacing.sm),

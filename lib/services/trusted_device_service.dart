@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -37,6 +39,8 @@ class TrustedDevice {
         'platform': platform,
         'first_seen': firstSeen.millisecondsSinceEpoch,
         'last_active': lastActive.millisecondsSinceEpoch,
+        if (sessionId != null) 'session_id': sessionId,
+        'revoked': revoked,
       };
 
   factory TrustedDevice.fromJson(Map<String, dynamic> j, String currentId) =>
@@ -49,13 +53,15 @@ class TrustedDevice {
         lastActive: DateTime.fromMillisecondsSinceEpoch(
             (j['last_active'] as num).toInt()),
         isCurrent: j['id'] == currentId,
+        sessionId: j['session_id'] as String?,
+        revoked: j['revoked'] as bool? ?? false,
       );
 
   factory TrustedDevice.fromSupabase(
           Map<String, dynamic> row, String currentId) =>
       TrustedDevice(
         id: row['device_id'] as String? ?? '',
-        sessionId: row['id']?.toString(),
+        sessionId: (row['session_id'] ?? row['id'])?.toString(),
         name: row['device_name'] as String? ?? 'Unknown device',
         platform: row['platform'] as String? ?? '',
         firstSeen: row['created_at'] != null
@@ -82,7 +88,7 @@ class TrustedDevice {
 }
 
 /// Manages real server-backed device sessions and local persistence fallback.
-class TrustedDeviceService {
+class TrustedDeviceService with WidgetsBindingObserver {
   TrustedDeviceService._();
   static final TrustedDeviceService instance = TrustedDeviceService._();
 
@@ -91,6 +97,46 @@ class TrustedDeviceService {
   static const _table = 'user_sessions';
 
   SupabaseClient get _client => Supabase.instance.client;
+  bool _observing = false;
+  StreamSubscription<AuthState>? _authSub;
+
+  /// Registers lifecycle observation and auth state listener for real-time session tracking.
+  void init() {
+    if (!_observing) {
+      WidgetsBinding.instance.addObserver(this);
+      _observing = true;
+    }
+    _listenAuth();
+    unawaited(registerCurrent());
+  }
+
+  void _listenAuth() {
+    try {
+      _authSub ??= _client.auth.onAuthStateChange.listen((state) {
+        if (state.event == AuthChangeEvent.signedIn ||
+            state.event == AuthChangeEvent.initialSession) {
+          unawaited(registerCurrent());
+        }
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When returning to the foreground, check if this session was revoked remotely.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(registerCurrent());
+    }
+  }
+
+  void dispose() {
+    if (_observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
+    }
+    _authSub?.cancel();
+    _authSub = null;
+  }
 
   /// Ensures the current device is registered and its `lastActive` is now.
   /// If the current device session was revoked on the server, triggers sign out.

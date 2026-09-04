@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/storage/shared_prefs_cache.dart';
 import 'push_service.dart';
 import 'session_reset.dart';
+import 'trusted_device_service.dart';
 import 'two_factor_service.dart';
 import 'vault_guard.dart';
 import '../screens/auth/auth_flow.dart';
@@ -190,6 +191,9 @@ class AccountSwitcher extends ChangeNotifier {
     // Lock vault when switching account
     VaultGuard.instance.lock();
 
+    // Release device push token from previous account before switching
+    await PushService.instance.unregisterToken();
+
     // Keep the account we're leaving re-openable.
     await saveCurrent();
 
@@ -219,6 +223,7 @@ class AccountSwitcher extends ChangeNotifier {
     // Adopt the rotated refresh token for the account we just entered.
     await saveCurrent();
     await PushService.instance.registerToken();
+    await TrustedDeviceService.instance.registerCurrent();
     developer.log('switched to ${account.email}', name: 'accounts');
     return true;
   }

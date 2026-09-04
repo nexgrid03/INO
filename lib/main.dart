@@ -127,7 +127,7 @@ class _InoAppState extends State<InoApp> with WidgetsBindingObserver {
     VaultGuard.instance.init();
     unawaited(CategoryStore.instance.load());
     unawaited(CustomWalletStore.instance.load());
-    unawaited(TrustedDeviceService.instance.registerCurrent());
+    TrustedDeviceService.instance.init();
     AutoBackupCoordinator.instance.start();
     unawaited(NotificationCenter.instance.load());
     unawaited(PushService.instance.init(InoApp.navigatorKey));
