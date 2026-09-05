@@ -68,4 +68,16 @@ class IdentifierMasker {
     if (cleaned.length <= 4) return cleaned;
     return cleaned.substring(cleaned.length - 4);
   }
+
+  /// Whether [raw] is already a masked representation (e.g. contains 'X', '*', or '•').
+  static bool isMasked(String? raw) {
+    if (raw == null) return false;
+    final cleaned = raw.trim();
+    if (cleaned.isEmpty) return false;
+    return cleaned.contains('X') ||
+        cleaned.contains('x') ||
+        cleaned.contains('*') ||
+        cleaned.contains('•') ||
+        cleaned.startsWith('enc:');
+  }
 }

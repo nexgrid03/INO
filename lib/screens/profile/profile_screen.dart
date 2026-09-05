@@ -776,7 +776,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SettingsRow(
             icon: Icons.devices_rounded,
-            title: 'Active Sessions',
+            title: l10n.t('trustedDevices'),
             subtitle: 'Manage active device sessions & remote sign-out',
             onTap: () => _push(const TrustedDevicesScreen()),
           ),

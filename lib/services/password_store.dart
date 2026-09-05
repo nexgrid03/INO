@@ -55,15 +55,69 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
     final key = '${storageKey}_${uid ?? 'local'}';
     final loaded = <PasswordEntry>[];
     try {
-      // 1. Purge legacy SharedPreferences plaintext cache if found
+      // 1. Read secure storage first
+      String? raw = await _secureStorage.read(key: key);
+
+      // 2. If empty: read legacy storage
       final p = await SharedPrefsCache.instance.prefsAsync;
       final legacyRaw = p.getStringList(key);
-      if (legacyRaw != null) {
-        await p.remove(key);
+
+      if ((raw == null || raw.isEmpty) && legacyRaw != null && legacyRaw.isNotEmpty) {
+        // 3. Import entries
+        final importedEntries = <PasswordEntry>[];
+        for (final itemStr in legacyRaw) {
+          try {
+            final m = jsonDecode(itemStr);
+            if (m is Map<String, dynamic>) {
+              importedEntries.add(PasswordEntry.fromJson(m));
+            }
+          } catch (_) {}
+        }
+
+        if (importedEntries.isNotEmpty) {
+          // Prepare secure storage payload
+          final payloads = <Map<String, dynamic>>[];
+          for (final entry in importedEntries) {
+            final row = entry.toJson();
+            if (VaultCrypto.instance.isUnlocked && entry.password.isNotEmpty) {
+              final sealed = await VaultCrypto.instance.encrypt(entry.password);
+              if (sealed != null) {
+                row['password'] = sealed;
+                row['isSealed'] = true;
+              }
+            }
+            payloads.add(row);
+          }
+
+          final encodedPayload = jsonEncode(payloads);
+          await _secureStorage.write(key: key, value: encodedPayload);
+
+          // 4. Verify counts & 5. Re-read secure storage & 6. Validate import
+          final verifyRaw = await _secureStorage.read(key: key);
+          var validated = false;
+          if (verifyRaw != null && verifyRaw.isNotEmpty) {
+            try {
+              final verifyMaps = jsonDecode(verifyRaw) as List<dynamic>;
+              if (verifyMaps.length == importedEntries.length) {
+                validated = true;
+              }
+            } catch (_) {}
+          }
+
+          // 7. Only then delete legacy cache
+          if (validated) {
+            await p.remove(key);
+            raw = verifyRaw;
+          } else {
+            developer.log(
+              'PasswordStore legacy migration validation failed. Keeping legacy cache.',
+              name: 'vault',
+            );
+          }
+        }
       }
 
-      // 2. Read sealed payload from FlutterSecureStorage
-      final raw = await _secureStorage.read(key: key);
+      // Read sealed payload from FlutterSecureStorage
       if (raw != null && raw.isNotEmpty) {
         final maps = jsonDecode(raw) as List<dynamic>;
         for (final m in maps) {
@@ -85,6 +139,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
     items
       ..clear()
       ..addAll(loaded);
+    setLoadedState(loaded: true, loading: false, uid: uid);
   }
 
   // ---- Supabase sync (end-to-end encrypted) --------------------------------
@@ -204,7 +259,12 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   @override
   Future<void> persist() async {
     try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
+      String? uid = loadedUid;
+      if (uid == null || uid.isEmpty) {
+        try {
+          uid = Supabase.instance.client.auth.currentUser?.id;
+        } catch (_) {}
+      }
       final key = '${storageKey}_${uid ?? 'local'}';
       
       // Clean up legacy SharedPreferences key if present
@@ -240,12 +300,28 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
     }
   }
 
+  /// Clears in-memory vault state for the loaded owner UID.
+  /// Does NOT delete secure storage on disk, ensuring account switching
+  /// (A -> B -> A) and sign-out preserve user credentials without data loss.
   @override
   Future<void> clear() async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    final key = '${storageKey}_${uid ?? 'local'}';
+    final ownerUid = loadedUid;
     items.clear();
+    markUnloaded();
     notifyListeners();
+
+    // Clean up any legacy prefs for this specific owner if present, but preserve secure storage
+    if (ownerUid != null && ownerUid.isNotEmpty) {
+      try {
+        final p = await SharedPrefsCache.instance.prefsAsync;
+        await p.remove('${storageKey}_$ownerUid');
+      } catch (_) {}
+    }
+  }
+
+  /// Purges local secure storage for [targetUid]. Only called on explicit account deletion.
+  Future<void> purgeSecureStorageForUser(String targetUid) async {
+    final key = '${storageKey}_$targetUid';
     try {
       await _secureStorage.delete(key: key);
       final p = await SharedPrefsCache.instance.prefsAsync;

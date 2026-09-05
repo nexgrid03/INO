@@ -10,6 +10,7 @@ SET search_path = public, auth, storage
 AS $$
 DECLARE
   v_uid uuid;
+  r RECORD;
 BEGIN
   -- 1. Obtain current authenticated user id
   v_uid := auth.uid();
@@ -18,46 +19,182 @@ BEGIN
   END IF;
 
   -- 2. Delete storage objects belonging to user (documents, backups, avatars)
-  DELETE FROM storage.objects
-  WHERE owner = v_uid
-     OR name LIKE (v_uid::text || '/%');
+  BEGIN
+    DELETE FROM storage.objects
+    WHERE (storage.foldername(name))[1] = v_uid::text
+       OR name LIKE (v_uid::text || '/%')
+       OR owner = v_uid::text;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
 
-  -- 3. Explicitly delete user rows across all user-owned tables
-  DELETE FROM public.users WHERE auth_user_id = v_uid;
-  DELETE FROM public.reminders WHERE auth_user_id = v_uid;
-  DELETE FROM public.documents WHERE auth_user_id = v_uid;
-  DELETE FROM public.notes WHERE auth_user_id = v_uid;
-  DELETE FROM public.expenses WHERE auth_user_id = v_uid;
-  DELETE FROM public.vault_keys WHERE auth_user_id = v_uid;
-  DELETE FROM public.device_tokens WHERE auth_user_id = v_uid;
-  DELETE FROM public.user_qr_codes WHERE auth_user_id = v_uid;
-  DELETE FROM public.offline_documents WHERE auth_user_id = v_uid;
+  -- 3. Core tables (deletions with check on table existence to guarantee atomic completion)
+  IF to_regclass('public.users') IS NOT NULL THEN
+    DELETE FROM public.users WHERE auth_user_id = v_uid;
+  END IF;
 
-  -- Per-wallet tables
-  DELETE FROM public.w_property_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_investment_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_card_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_password_vault WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_tax_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_vehicle_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_identity_wallet WHERE auth_user_id = v_uid;
-  DELETE FROM public.w_health_wallet WHERE auth_user_id = v_uid;
+  IF to_regclass('public.reminders') IS NOT NULL THEN
+    DELETE FROM public.reminders WHERE auth_user_id = v_uid;
+  END IF;
 
-  -- Shares & Tokens
-  DELETE FROM public.document_shares WHERE auth_user_id = v_uid;
-  DELETE FROM public.share_tokens WHERE auth_user_id = v_uid;
-  DELETE FROM public.view_once_shares WHERE auth_user_id = v_uid;
+  IF to_regclass('public.notes') IS NOT NULL THEN
+    DELETE FROM public.notes WHERE auth_user_id = v_uid;
+  END IF;
 
-  -- Family Vaults & Memberships
-  DELETE FROM public.family_vault_members WHERE auth_user_id = v_uid;
-  DELETE FROM public.family_vault_invitations WHERE created_by = v_uid OR invited_email IN (SELECT email FROM auth.users WHERE id = v_uid);
-  DELETE FROM public.family_vaults WHERE owner_user_id = v_uid;
+  IF to_regclass('public.expenses') IS NOT NULL THEN
+    DELETE FROM public.expenses WHERE auth_user_id = v_uid;
+  END IF;
 
-  -- Notifications
-  DELETE FROM public.notification_outbox WHERE auth_user_id = v_uid;
-  DELETE FROM public.push_log WHERE auth_user_id = v_uid;
+  IF to_regclass('public.tax_documents') IS NOT NULL THEN
+    DELETE FROM public.tax_documents WHERE auth_user_id = v_uid;
+  END IF;
 
-  -- 4. Delete the user from auth.users (triggers foreign key cascades)
+  IF to_regclass('public.vault_keys') IS NOT NULL THEN
+    DELETE FROM public.vault_keys WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_items') IS NOT NULL THEN
+    DELETE FROM public.vault_items WHERE user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_meta') IS NOT NULL THEN
+    DELETE FROM public.vault_meta WHERE user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.device_tokens') IS NOT NULL THEN
+    DELETE FROM public.device_tokens WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.user_sessions') IS NOT NULL THEN
+    DELETE FROM public.user_sessions WHERE user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.user_consents') IS NOT NULL THEN
+    DELETE FROM public.user_consents WHERE user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.user_qr_codes') IS NOT NULL THEN
+    DELETE FROM public.user_qr_codes WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.offline_documents') IS NOT NULL THEN
+    DELETE FROM public.offline_documents WHERE auth_user_id = v_uid;
+  END IF;
+
+  -- 4. Built-in per-wallet tables (note: public.documents is a VIEW, so we delete from underlying tables)
+  IF to_regclass('public.w_identity_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_identity_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_document_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_document_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_property_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_property_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_insurance_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_insurance_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_health_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_health_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_investment_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_investment_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_banking_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_banking_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_cards_wallet') IS NOT NULL THEN
+    DELETE FROM public.w_cards_wallet WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_password_vault') IS NOT NULL THEN
+    DELETE FROM public.w_password_vault WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.w_ino_share_cache') IS NOT NULL THEN
+    DELETE FROM public.w_ino_share_cache WHERE auth_user_id = v_uid;
+  END IF;
+
+  -- 5. Dynamically clean all custom user wallets registered in public.wallets
+  IF to_regclass('public.wallets') IS NOT NULL THEN
+    FOR r IN (
+      SELECT slug FROM public.wallets
+      WHERE to_regclass('public.' || slug) IS NOT NULL
+    ) LOOP
+      EXECUTE format('DELETE FROM public.%I WHERE auth_user_id = $1', r.slug) USING v_uid;
+    END LOOP;
+    DELETE FROM public.wallets WHERE created_by = v_uid;
+  END IF;
+
+  -- 6. Shares & analytics
+  IF to_regclass('public.share_views') IS NOT NULL AND to_regclass('public.document_shares') IS NOT NULL THEN
+    DELETE FROM public.share_views WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE auth_user_id = v_uid);
+  END IF;
+
+  IF to_regclass('public.share_downloads') IS NOT NULL AND to_regclass('public.document_shares') IS NOT NULL THEN
+    DELETE FROM public.share_downloads WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE auth_user_id = v_uid);
+  END IF;
+
+  IF to_regclass('public.document_shares') IS NOT NULL THEN
+    DELETE FROM public.document_shares WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.view_once_shares') IS NOT NULL THEN
+    DELETE FROM public.view_once_shares WHERE auth_user_id = v_uid;
+  END IF;
+
+  -- 7. Family Vaults, Invitations, Join Requests & Members
+  IF to_regclass('public.vault_documents') IS NOT NULL THEN
+    DELETE FROM public.vault_documents WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_join_requests') IS NOT NULL THEN
+    DELETE FROM public.vault_join_requests WHERE requester_auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_invite_audit_logs') IS NOT NULL THEN
+    DELETE FROM public.vault_invite_audit_logs WHERE caller_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_audit_log') IS NOT NULL THEN
+    DELETE FROM public.vault_audit_log WHERE actor_auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_notification_events') IS NOT NULL THEN
+    DELETE FROM public.vault_notification_events WHERE actor_auth_user_id = v_uid OR target_auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_members') IS NOT NULL THEN
+    DELETE FROM public.vault_members WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.vault_invitations') IS NOT NULL THEN
+    DELETE FROM public.vault_invitations
+    WHERE invited_by = v_uid
+       OR email IN (SELECT email FROM auth.users WHERE id = v_uid);
+  END IF;
+
+  IF to_regclass('public.family_vaults') IS NOT NULL THEN
+    DELETE FROM public.family_vaults WHERE owner_auth_user_id = v_uid;
+  END IF;
+
+  -- 8. Notifications
+  IF to_regclass('public.notification_outbox') IS NOT NULL THEN
+    DELETE FROM public.notification_outbox WHERE auth_user_id = v_uid;
+  END IF;
+
+  IF to_regclass('public.push_log') IS NOT NULL THEN
+    DELETE FROM public.push_log WHERE auth_user_id = v_uid;
+  END IF;
+
+  -- 9. Final step: delete user from auth.users (cascades any remaining foreign keys)
   DELETE FROM auth.users WHERE id = v_uid;
 END;
 $$;

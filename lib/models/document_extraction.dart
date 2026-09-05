@@ -147,6 +147,43 @@ class DocumentExtraction {
     ];
   }
 
+  /// Renders extracted fields with metadata on whether each field is sensitive,
+  /// preserving both the masked display value and raw unmasked value.
+  List<({String label, String value, String rawValue, bool isSensitive})> displayFieldsDetailed() {
+    const order = [
+      'name',
+      'number',
+      'dob',
+      'gender',
+      'fatherName',
+      'address',
+      'nationality',
+      'validity',
+      'expiryDate',
+      'vehicleClass',
+      'insurer',
+      'ownerName',
+      'surveyNumber',
+      'registrationNumber',
+      'propertyDetails',
+    ];
+    final keys = <String>[
+      ...order.where(data.containsKey),
+      ...data.keys.where((k) => !order.contains(k)),
+    ];
+    return [
+      for (final k in keys)
+        (
+          label: labelFor(documentType, k),
+          value: (k == 'number' || k == 'registrationNumber' || k == 'epicNumber' || k == 'policyNumber')
+              ? IdentifierMasker.mask(data[k]!, docType: documentType)
+              : data[k]!,
+          rawValue: data[k]!,
+          isSensitive: (k == 'number' || k == 'registrationNumber' || k == 'epicNumber' || k == 'policyNumber'),
+        )
+    ];
+  }
+
   /// A human display label for the document type, e.g. 'Aadhaar Card'.
   String? get typeLabel => switch (documentType) {
         'aadhaar' => 'Aadhaar Card',

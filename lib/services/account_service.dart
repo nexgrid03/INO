@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/app_localizations.dart';
 import '../repositories/document_repository.dart';
 import 'auth_service.dart';
+import 'password_store.dart';
 import 'session_reset.dart';
 
 /// A coarse password-strength score for the Change Password meter.
@@ -129,6 +130,7 @@ class AccountService {
     developer.log('deleteAccount: delete_account RPC executed successfully', name: 'account');
 
     // 3. Clear local session & in-memory caches strictly AFTER RPC succeeds
+    await PasswordStore.instance.purgeSecureStorageForUser(userId);
     await SessionReset.instance.clear();
     await AuthService.instance.signOut();
     developer.log('deleteAccount: account deleted & signed out', name: 'account');

@@ -902,7 +902,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     final l10n = AppLocalizations.of(context);
     final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
-    final fields = extraction.displayFields();
+    final fields = extraction.displayFieldsDetailed();
     final List<Widget> rows;
     if (isHealth) {
       rows = [
@@ -931,16 +931,26 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       // No structured data, but a bare record number may still exist.
       final number = _record.recordNumber;
       if (number == null || number.trim().isEmpty) return const [];
+      final masked = IdentifierMasker.mask(number, docType: _record.category);
       rows = [
         _InfoRow(
-            label: l10n.t('documentNumber'),
-            value: IdentifierMasker.mask(number, docType: _record.category),
-            copyable: true),
+          label: l10n.t('documentNumber'),
+          value: masked,
+          rawValue: number,
+          isSensitive: true,
+          copyable: true,
+        ),
       ];
     } else {
       rows = [
         for (final f in fields)
-          _InfoRow(label: f.label, value: f.value, copyable: true),
+          _InfoRow(
+            label: f.label,
+            value: f.value,
+            rawValue: f.rawValue,
+            isSensitive: f.isSensitive,
+            copyable: true,
+          ),
         if (extraction.userNotes.trim().isNotEmpty)
           _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
@@ -974,7 +984,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     final l10n = AppLocalizations.of(context);
     final isHealth = widget.walletName == 'Health Wallet';
     final extraction = _record.extraction;
-    final fields = extraction.displayFields();
+    final fields = extraction.displayFieldsDetailed();
     final number = _record.recordNumber;
     if (!isHealth && fields.isEmpty && (number == null || number.trim().isEmpty)) return null;
 
@@ -1003,14 +1013,26 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
     } else if (fields.isEmpty) {
+      final masked = IdentifierMasker.mask(number!, docType: _record.category);
       rows = [
         _InfoRow(
-            label: l10n.t('documentNumber'), value: number!, copyable: true),
+          label: l10n.t('documentNumber'),
+          value: masked,
+          rawValue: number,
+          isSensitive: true,
+          copyable: true,
+        ),
       ];
     } else {
       rows = [
         for (final f in fields)
-          _InfoRow(label: f.label, value: f.value, copyable: true),
+          _InfoRow(
+            label: f.label,
+            value: f.value,
+            rawValue: f.rawValue,
+            isSensitive: f.isSensitive,
+            copyable: true,
+          ),
         if (extraction.userNotes.trim().isNotEmpty)
           _InfoRow(label: l10n.t('notes'), value: extraction.userNotes.trim()),
       ];
@@ -1690,23 +1712,87 @@ class _ExtractedHeader extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _InfoRow extends StatefulWidget {
   const _InfoRow({
     required this.label,
     required this.value,
+    this.rawValue,
+    this.isSensitive = false,
     this.copyable = false,
   });
 
   final String label;
   final String value;
-
-  /// When true, shows a tap-to-copy button beside the value (used for the
-  /// extracted fields: number / name / DOB / …).
+  final String? rawValue;
+  final bool isSensitive;
   final bool copyable;
+
+  @override
+  State<_InfoRow> createState() => _InfoRowState();
+}
+
+class _InfoRowState extends State<_InfoRow> {
+  bool _revealed = false;
+  Timer? _autoHideTimer;
+
+  @override
+  void dispose() {
+    _autoHideTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _toggleReveal() async {
+    if (_revealed) {
+      _autoHideTimer?.cancel();
+      setState(() => _revealed = false);
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final ok = await VaultGuard.instance.ensureUnlocked(
+      context,
+      reason: l10n.t('verifyIdentity'),
+      title: l10n.t('verifyIdentity'),
+      force: true,
+    );
+
+    if (!ok || !mounted) return;
+
+    setState(() => _revealed = true);
+    _autoHideTimer?.cancel();
+    _autoHideTimer = Timer(const Duration(seconds: 30), () {
+      if (mounted) {
+        setState(() => _revealed = false);
+      }
+    });
+  }
+
+  Future<void> _handleCopy() async {
+    if (widget.isSensitive) {
+      final l10n = AppLocalizations.of(context);
+      final ok = await VaultGuard.instance.ensureUnlocked(
+        context,
+        reason: l10n.t('verifyIdentity'),
+        title: l10n.t('verifyIdentity'),
+        force: true,
+      );
+      if (!ok || !mounted) return;
+    }
+    final textToCopy = (widget.rawValue != null && widget.rawValue!.isNotEmpty)
+        ? widget.rawValue!
+        : widget.value;
+    if (!mounted) return;
+    SecureClipboard.copy(context, textToCopy, label: widget.label);
+    HapticFeedback.selectionClick();
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final displayedText = _revealed
+        ? (widget.rawValue ?? widget.value)
+        : widget.value;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -1714,43 +1800,44 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 108,
-            child: Text(label,
-                style: AppText.caption.copyWith(color: palette.textSecondary)),
+            child: Text(
+              widget.label,
+              style: AppText.caption.copyWith(color: palette.textSecondary),
+            ),
           ),
           Expanded(
             child: Text(
-              value,
+              displayedText,
               style: AppText.body.copyWith(
-                  color: palette.textPrimary, fontWeight: FontWeight.w600),
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontFamily: widget.isSensitive ? 'monospace' : null,
+              ),
             ),
           ),
-          if (copyable) _CopyButton(label: label, value: value),
+          if (widget.isSensitive)
+            InkResponse(
+              radius: 18,
+              onTap: _toggleReveal,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6, top: 1, right: 2),
+                child: Icon(
+                  _revealed ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  size: 17,
+                  color: _revealed ? AppColors.primaryGreen : palette.textFaint,
+                ),
+              ),
+            ),
+          if (widget.copyable)
+            InkResponse(
+              radius: 18,
+              onTap: _handleCopy,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6, top: 1),
+                child: Icon(Icons.copy_rounded, size: 16, color: palette.textFaint),
+              ),
+            ),
         ],
-      ),
-    );
-  }
-}
-
-/// A small tap-to-copy button used beside an extracted field value. Copies the
-/// value to the clipboard and confirms with a snackbar + haptic tick.
-class _CopyButton extends StatelessWidget {
-  const _CopyButton({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return InkResponse(
-      radius: 18,
-      onTap: () {
-        SecureClipboard.copy(context, value, label: label);
-        HapticFeedback.selectionClick();
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8, top: 1),
-        child: Icon(Icons.copy_rounded, size: 16, color: palette.textFaint),
       ),
     );
   }

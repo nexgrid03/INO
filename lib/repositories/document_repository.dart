@@ -15,7 +15,6 @@ import '../core/perf/perf_tracer.dart';
 import '../core/net/stream_download.dart';
 import '../models/document.dart';
 import '../services/storage_stats_service.dart';
-import '../utils/identifier_masker.dart';
 import 'wallet_tables.dart';
 
 /// Thrown when an upload would cause the user's storage to exceed the 5 GB quota.
@@ -299,7 +298,7 @@ class DocumentRepository {
       'auth_user_id': userId,
       'name': name,
       'category': category,
-      'record_number': IdentifierMasker.mask(recordNumber, docType: category),
+      'record_number': recordNumber,
       'status': status,
       'tags': tags,
       'notes': notes,
@@ -523,9 +522,6 @@ class DocumentRepository {
       throw const AuthException('You must be signed in to edit a document.');
     }
     final payload = Map<String, dynamic>.from(fields);
-    if (payload.containsKey('record_number') && payload['record_number'] is String?) {
-      payload['record_number'] = IdentifierMasker.mask(payload['record_number'] as String?, docType: wallet);
-    }
     await _client
         .from(_tableFor(wallet))
         .update(payload)

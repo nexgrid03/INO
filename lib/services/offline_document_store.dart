@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -312,7 +314,7 @@ class OfflineDocumentStore extends ChangeNotifier {
       final safeId = docId.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
       final target = File('${dir.path}/$safeId.$ext');
       final rawBytes = await source.readAsBytes();
-      final encryptedBytes = await _encryptBytes(rawBytes);
+      final encryptedBytes = await _encryptBytes(rawBytes, uid);
       await target.writeAsBytes(encryptedBytes, flush: true);
 
       final entry = OfflineDoc(
@@ -449,30 +451,101 @@ class OfflineDocumentStore extends ChangeNotifier {
   }
 
   static final _algorithm = AesGcm.with256bits();
-  static final _secretKey = SecretKey(const [
+  static const _secureStorage = FlutterSecureStorage();
+  static const String _offlineKeyPrefix = 'ino_offline_key_';
+
+  /// Obtains or generates a cryptographically secure random 256-bit encryption key
+  /// per user, persisted safely in platform Keystore / Keychain via FlutterSecureStorage.
+  static Future<SecretKey> _getOrCreateKey(String uid) async {
+    if (uid.isEmpty) {
+      throw StateError('Active user ID required for offline document encryption');
+    }
+    final storageKey = '$_offlineKeyPrefix$uid';
+    try {
+      final existingB64 = await _secureStorage.read(key: storageKey);
+      if (existingB64 != null && existingB64.isNotEmpty) {
+        final keyBytes = base64Decode(existingB64);
+        if (keyBytes.length == 32) {
+          return SecretKey(keyBytes);
+        }
+      }
+    } catch (_) {}
+
+    // Generate random 256-bit (32 bytes) key using cryptographically secure RNG
+    final rng = Random.secure();
+    final newKeyBytes = Uint8List.fromList(List<int>.generate(32, (_) => rng.nextInt(256)));
+    try {
+      await _secureStorage.write(key: storageKey, value: base64Encode(newKeyBytes));
+    } catch (_) {}
+    return SecretKey(newKeyBytes);
+  }
+
+  /// Encrypts raw document bytes using AES-256-GCM with a per-file random 12-byte nonce.
+  /// Result format: [12-byte nonce][ciphertext][16-byte mac]
+  static Future<Uint8List> _encryptBytes(Uint8List raw, String uid) async {
+    final secretKey = await _getOrCreateKey(uid);
+    // Generate fresh, cryptographically secure 12-byte nonce for EVERY document
+    final rng = Random.secure();
+    final nonce = List<int>.generate(12, (_) => rng.nextInt(256));
+    final box = await _algorithm.encrypt(raw, secretKey: secretKey, nonce: nonce);
+    return Uint8List.fromList([...box.nonce, ...box.cipherText, ...box.mac.bytes]);
+  }
+
+  static final _legacySecretKey = SecretKey(const [
     0x49, 0x4e, 0x4f, 0x5f, 0x4f, 0x46, 0x46, 0x4c, 0x49, 0x4e, 0x45, 0x5f, 0x44, 0x4f, 0x43, 0x5f,
     0x4b, 0x45, 0x59, 0x5f, 0x32, 0x30, 0x32, 0x36, 0x5f, 0x53, 0x45, 0x43, 0x55, 0x52, 0x45, 0x21
   ]);
 
-  static Future<Uint8List> _encryptBytes(Uint8List raw) async {
-    final nonce = List<int>.generate(12, (i) => (i * 37 + 13) % 256);
-    final box = await _algorithm.encrypt(raw, secretKey: _secretKey, nonce: nonce);
-    return Uint8List.fromList([...box.nonce, ...box.cipherText, ...box.mac.bytes]);
-  }
+  /// Decrypts document bytes using AES-256-GCM.
+  /// Strictly throws an error if authentication / integrity check fails.
+  /// NEVER returns raw encrypted input on failure.
+  /// Provides backward-compatible migration path for pre-existing legacy documents.
+  static Future<Uint8List> _decryptBytes(
+    Uint8List encrypted,
+    String? uid, {
+    File? fileToMigrate,
+  }) async {
+    const nonceLen = 12;
+    const macLen = 16;
+    if (encrypted.length < (nonceLen + macLen)) {
+      throw const FormatException('Corrupted offline file: insufficient data length');
+    }
+    final effectiveUid = uid ?? instance._loadedUid ?? instance._uid();
+    if (effectiveUid == null || effectiveUid.isEmpty) {
+      throw StateError('User ID required for offline document decryption');
+    }
 
-  static Future<Uint8List> _decryptBytes(Uint8List encrypted) async {
-    if (encrypted.length < 28) return encrypted;
+    final secretKey = await _getOrCreateKey(effectiveUid);
+    final nonce = encrypted.sublist(0, nonceLen);
+    final cipherText = encrypted.sublist(nonceLen, encrypted.length - macLen);
+    final mac = Mac(encrypted.sublist(encrypted.length - macLen));
+    final box = SecretBox(cipherText, nonce: nonce, mac: mac);
+
     try {
-      const nonceLen = 12;
-      const macLen = 16;
-      final nonce = encrypted.sublist(0, nonceLen);
-      final cipherText = encrypted.sublist(nonceLen, encrypted.length - macLen);
-      final mac = Mac(encrypted.sublist(encrypted.length - macLen));
-      final box = SecretBox(cipherText, nonce: nonce, mac: mac);
-      final decrypted = await _algorithm.decrypt(box, secretKey: _secretKey);
+      // 1. Primary: decrypt using user-specific random key
+      final decrypted = await _algorithm.decrypt(box, secretKey: secretKey);
       return Uint8List.fromList(decrypted);
     } catch (_) {
-      return encrypted;
+      // 2. Compatibility fallback: check if document was encrypted under legacy key
+      try {
+        final legacyDecrypted = await _algorithm.decrypt(box, secretKey: _legacySecretKey);
+        final plaintext = Uint8List.fromList(legacyDecrypted);
+
+        // Lazily migrate and re-encrypt under the new per-user key on disk
+        if (fileToMigrate != null) {
+          try {
+            final reEncrypted = await _encryptBytes(plaintext, effectiveUid);
+            await fileToMigrate.writeAsBytes(reEncrypted, flush: true);
+            developer.log('Migrated legacy offline document to per-user AES-256 key', name: 'offline');
+          } catch (e) {
+            developer.log('Lazy re-encryption failed: $e', name: 'offline');
+          }
+        }
+        return plaintext;
+      } catch (e) {
+        developer.log('Offline document decryption failed (tampered or invalid key): $e', name: 'offline');
+        throw StateError('Decryption failed: integrity check failed or corrupted file');
+      }
     }
   }
 
@@ -482,7 +555,8 @@ class OfflineDocumentStore extends ChangeNotifier {
       final f = File(doc.localPath);
       if (!await f.exists()) return null;
       final raw = await f.readAsBytes();
-      final decrypted = await _decryptBytes(raw);
+      final uid = _loadedUid ?? _uid();
+      final decrypted = await _decryptBytes(raw, uid, fileToMigrate: f);
       final tmpDir = await getTemporaryDirectory();
       final safeId = doc.id.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
       final ext = doc.extension;
@@ -494,6 +568,18 @@ class OfflineDocumentStore extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Visible for unit testing encryption guarantees (per-user keys, random nonce, tamper rejection)
+  @visibleForTesting
+  static Future<Uint8List> encryptBytesForTest(Uint8List raw, String uid) =>
+      _encryptBytes(raw, uid);
+
+  @visibleForTesting
+  static Future<Uint8List> decryptBytesForTest(Uint8List encrypted, String uid) =>
+      _decryptBytes(encrypted, uid);
+
+  @visibleForTesting
+  static Future<SecretKey> getKeyForTest(String uid) => _getOrCreateKey(uid);
 
   /// Wipes all offline document state, metadata, and disk files on logout / clear.
   Future<void> clear() async {

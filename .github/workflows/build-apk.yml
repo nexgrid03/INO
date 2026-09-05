@@ -26,22 +26,19 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Read Flutter Version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version | tr -d '\r\n ')" >> "$GITHUB_OUTPUT"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version-file: ".flutter-version"
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          channel: stable
           cache: true
 
       - name: Verify Flutter Version
-        run: |
-          REQUIRED_VERSION=$(cat .flutter-version | tr -d '\r\n ')
-          INSTALLED_VERSION=$(flutter --version | head -n 1 | awk '{print $2}')
-          echo "Required Flutter version: $REQUIRED_VERSION"
-          echo "Installed Flutter version: $INSTALLED_VERSION"
-          if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
-            echo "ERROR: Flutter version mismatch! Expected $REQUIRED_VERSION but found $INSTALLED_VERSION"
-            exit 1
-          fi
+        run: bash tool/verify_flutter_version.sh
 
       - name: Install dependencies
         run: flutter pub get
