@@ -1,7 +1,4 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
-
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -132,6 +129,28 @@ class AuthService {
         .timeout(NetGuard.auth);
   }
 
+  /// Verifies the 6-digit recovery code. On success the returned
+  /// [AuthResponse] carries an authenticated session.
+  Future<AuthResponse> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) {
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.recovery,
+          email: email.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
+  }
+
+  /// Updates the user's password once an authenticated/recovery session is active.
+  Future<UserResponse> updatePassword(String newPassword) {
+    return _client.auth
+        .updateUser(UserAttributes(password: newPassword.trim()))
+        .timeout(NetGuard.auth);
+  }
+
   // --- Email OTP (account verification) -------------------------------------
   //
   // Supabase can confirm a new account with a 6-digit email code instead of a
@@ -202,17 +221,16 @@ class AuthService {
   // --- Google (native account picker) --------------------------------------
 
   bool _googleReady = false;
-  String? _lastNonce;
 
-  Future<void> _ensureGoogleInitialized({String? nonce}) async {
-    if (_googleReady && nonce == _lastNonce) return;
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleReady) return;
     await GoogleSignIn.instance.initialize(
+      // clientId is needed on iOS/web; on Android it's null (the SHA-1 +
+      // serverClientId combination is what authenticates the app there).
       clientId: _platformClientId,
       serverClientId: SupabaseConfig.googleWebClientId,
-      nonce: nonce,
     );
     _googleReady = true;
-    _lastNonce = nonce;
   }
 
   String? get _platformClientId {
@@ -244,11 +262,7 @@ class AuthService {
       );
     }
 
-    final rawNonce = _client.auth.generateRawNonce();
-    final bytes = utf8.encode(rawNonce);
-    final hashedNonce = sha256.convert(bytes).toString();
-
-    await _ensureGoogleInitialized(nonce: hashedNonce);
+    await _ensureGoogleInitialized();
 
     final GoogleSignInAccount googleUser;
     try {
@@ -256,13 +270,14 @@ class AuthService {
         scopeHint: const ['email', 'profile'],
       );
     } on GoogleSignInException catch (e) {
-      // Swallow user-initiated cancellation; surface everything else.
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        developer.log('Google sign-in cancelled by user', name: 'auth');
+      developer.log(
+        'Google sign-in picker result: code=${e.code} description=${e.description} details=${e.details}',
+        name: 'auth',
+        error: e,
+      );
+      if (e.code == GoogleSignInExceptionCode.canceled && (e.description == null || e.description!.isEmpty)) {
         return null;
       }
-      developer.log('Google sign-in picker failed: ${e.code} ${e.description}',
-          name: 'auth', error: e);
       rethrow;
     }
     SecureLogger.sensitive('Google account selected', googleUser.email, name: 'auth');
@@ -284,7 +299,7 @@ class AuthService {
       // Non-fatal: proceed with just the ID token.
     }
 
-    developer.log('Exchanging Google ID token for a Supabase session with nonce',
+    developer.log('Exchanging Google ID token for a Supabase session',
         name: 'auth');
     // Time-capped: the token exchange is a plain server round-trip, and a hang
     // here left the user staring at the picker's afterglow with no error.
@@ -295,7 +310,6 @@ class AuthService {
           provider: OAuthProvider.google,
           idToken: idToken,
           accessToken: accessToken,
-          nonce: rawNonce,
         )
         .timeout(NetGuard.auth);
     developer.log(

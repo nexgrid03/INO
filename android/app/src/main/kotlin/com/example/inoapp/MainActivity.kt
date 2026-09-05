@@ -1,4 +1,4 @@
-package com.ino.app
+package com.example.inoapp
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,86 +23,81 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "openEnrollment" -> {
-                        openBiometricEnrollment()
-                        result.success(true)
-                    }
-                    else -> result.notImplemented()
-                }
-            }
 
-        // Screenshot / screen-recording protection for sensitive screens (the
-        // view-once document viewer). FLAG_SECURE is enforced by the OS: the
-        // system refuses to screenshot the window, blanks it in screen
-        // recordings and in the recents thumbnail, and blocks mirroring to
-        // non-secure displays.
-        //
-        // Scoped, not global: it is switched on only while such a screen is up,
-        // so nothing about the rest of the app changes.
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, secureChannelName)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "enable" -> {
-                        setSecure(true)
-                        result.success(true)
-                    }
-                    "disable" -> {
-                        setSecure(false)
-                        result.success(true)
-                    }
-                    // Android has no "is being captured" query - FLAG_SECURE
-                    // already blanks any capture, so there is nothing to report.
-                    "isCaptured" -> result.success(false)
-                    else -> result.notImplemented()
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            channelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openBiometricEnrollment" -> {
+                    openBiometricEnrollment()
+                    result.success(null)
                 }
+                else -> result.notImplemented()
             }
+        }
 
-        // Payment-app discovery for scanned UPI QRs (UpiAppService.dart). The
-        // list comes from the OS, not from a hard-coded table, so any UPI app
-        // the user has installed shows up - including ones this code has never
-        // heard of.
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, upiChannelName)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "list" -> result.success(listUpiApps())
-                    "launch" -> {
-                        val id = call.argument<String>("id")
-                        val uri = call.argument<String>("uri")
-                        if (id.isNullOrEmpty() || uri.isNullOrEmpty()) {
-                            result.success(false)
-                        } else {
-                            result.success(launchUpiApp(id, uri))
-                        }
-                    }
-                    else -> result.notImplemented()
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            secureChannelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setSecure" -> {
+                    val secure = call.argument<Boolean>("secure") ?: false
+                    setSecure(secure)
+                    result.success(null)
                 }
+                else -> result.notImplemented()
             }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            upiChannelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInstalledUpiApps" -> {
+                    result.success(getInstalledUpiApps())
+                }
+                "launchUpiApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val uri = call.argument<String>("uri")
+                    if (packageName.isNullOrBlank() || uri.isNullOrBlank()) {
+                        result.error(
+                            "INVALID_ARGS",
+                            "packageName and uri required",
+                            null,
+                        )
+                    } else {
+                        result.success(launchUpiApp(packageName, uri))
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
-    /// Every installed app that can handle a `upi://pay` link, with its real
-    /// label and launcher icon.
+    /// Queries the package manager for installed apps that can handle a UPI
+    /// payment intent.
     ///
-    /// Requires the matching `<queries>` entry in AndroidManifest.xml - without
-    /// it Android 11+ package visibility hides every result and this silently
-    /// returns an empty list.
-    private fun listUpiApps(): List<Map<String, Any?>> {
+    /// Probes two shapes of intent because UPI clients register differently:
+    /// 1. `ACTION_VIEW` on `upi://pay` - standard deep-link handler.
+    /// 2. `ACTION_VIEW` on `upi://mandate` - recurring-mandate handler (some
+    ///    bank apps only advertise this one).
+    ///
+    /// Requires `<queries><intent>...upi://pay...</intent></queries>` in
+    /// AndroidManifest.xml on API 30+ (package visibility).
+    private fun getInstalledUpiApps(): List<Map<String, Any?>> {
         val pm = packageManager
-        // Two probes, merged. A bare `upi://pay` misses apps whose intent
-        // filter is written against a fully-formed payment URI, and the
-        // realistic one misses any app registered for the bare action - so ask
-        // for both and union the results.
+        val apps = mutableListOf<Map<String, Any?>>()
+        val seen = mutableSetOf<String>()
+
         val probes = listOf(
-            "upi://pay",
-            "upi://pay?pa=test@upi&pn=Test&cu=INR",
+            Intent(Intent.ACTION_VIEW, Uri.parse("upi://pay?pa=test@upi&pn=Test")),
+            Intent(Intent.ACTION_VIEW, Uri.parse("upi://mandate?pa=test@upi&pn=Test")),
         )
 
-        val seen = mutableSetOf<String>()
-        val apps = mutableListOf<Map<String, Any?>>()
-        for (probeUri in probes) {
-            val probe = Intent(Intent.ACTION_VIEW, Uri.parse(probeUri))
+        for (probe in probes) {
             val matches = try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.queryIntentActivities(probe, PackageManager.ResolveInfoFlags.of(0L))

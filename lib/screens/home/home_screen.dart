@@ -555,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _Section(
         header: SectionHeader(title: l10n.t('quickActions')),
         child: LauncherQuickActions(
+          voiceKey: widget.voiceTourKey,
           onScan: _scan,
           onAddDocument: () => _openWallet('Document Wallet'),
           onAddReminder: () {

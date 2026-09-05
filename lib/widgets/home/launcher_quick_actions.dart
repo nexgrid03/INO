@@ -16,12 +16,14 @@ class LauncherQuickActions extends StatelessWidget {
     required this.onAddDocument,
     required this.onAddReminder,
     required this.onVoice,
+    this.voiceKey,
   });
 
   final VoidCallback onScan;
   final VoidCallback onAddDocument;
   final VoidCallback onAddReminder;
   final VoidCallback onVoice;
+  final Key? voiceKey;
 
   static const double _gap = 12;
 
@@ -55,6 +57,7 @@ class LauncherQuickActions extends StatelessWidget {
         enlarged: true,
       ),
       QuickActionButton(
+        key: voiceKey,
         imageAsset: use3d ? InoHomeIcons3d.voice : null,
         svgAsset: use3d ? null : InoHomeIcons.voice,
         label: l10n.t('voice'),

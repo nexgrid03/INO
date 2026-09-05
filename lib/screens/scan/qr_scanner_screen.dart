@@ -93,6 +93,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     _bootstrap();
   }
 
+  bool _isBootstrapping = false;
+  bool _isRequestingPermission = false;
+
   @override
   void dispose() {
     ScreenSecurityService.instance.disable();
@@ -104,6 +107,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isRequestingPermission) {
+      // The OS permission dialog temporarily pauses the app. Do not dispose the camera.
+      return;
+    }
     final controller = _controller;
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
@@ -120,11 +127,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   // ---- Permissions + camera -------------------------------------------------
 
   Future<void> _bootstrap() async {
+    if (_isBootstrapping) return;
+    _isBootstrapping = true;
     if (mounted) setState(() => _phase = _Phase.initializing);
     try {
       var access = await CameraPermissionService.instance.cameraStatus();
       if (access == CameraAccess.denied) {
-        access = await CameraPermissionService.instance.requestCamera();
+        _isRequestingPermission = true;
+        try {
+          access = await CameraPermissionService.instance.requestCamera();
+        } finally {
+          _isRequestingPermission = false;
+        }
       }
       if (!mounted) return;
       switch (access) {
@@ -139,6 +153,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       }
     } catch (_) {
       if (mounted) setState(() => _phase = _Phase.error);
+    } finally {
+      _isBootstrapping = false;
     }
   }
 
@@ -154,6 +170,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         orElse: () => cameras.first,
       );
       _camera = back;
+
+      final oldController = _controller;
+      _controller = null;
+      try {
+        await oldController?.dispose();
+      } catch (_) {}
+
       final controller = CameraController(
         back,
         // A QR needs far less resolution than a document scan, and a smaller
@@ -165,13 +188,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         imageFormatGroup:
             Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
       );
-      _controller = controller;
       await controller.initialize();
       await controller.setFlashMode(FlashMode.off);
       if (!mounted) {
-        controller.dispose();
+        try {
+          await controller.dispose();
+        } catch (_) {}
         return;
       }
+      _controller = controller;
       setState(() {
         _torch = false;
         _handled = false;

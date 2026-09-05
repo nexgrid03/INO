@@ -10,11 +10,14 @@ import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import 'auth_validators.dart';
 
+import 'otp_verification_screen.dart';
+import 'reset_password_screen.dart';
+
 /// Screen 6 - Forgot Password.
 ///
 /// A single-purpose reset request: enter the registered email (mobile coming
 /// later) and we send the reset instructions via Supabase. On success it shows
-/// a calm confirmation state rather than bouncing the user around.
+/// the OTP verification and reset screen.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key, this.initialIdentifier});
 
@@ -54,6 +57,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
   }
 
+  void _openOtpScreen(String email) {
+    final l10n = AppLocalizations.of(context);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: l10n.t('resetPassword'),
+          destination: email,
+          onResend: () => AuthService.instance.sendPasswordReset(email),
+          onVerify: (code) async {
+            final res = await AuthService.instance.verifyRecoveryOtp(
+              email: email,
+              token: code,
+            );
+            return res.user != null;
+          },
+          onVerified: (ctx) {
+            Navigator.of(ctx).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => ResetPasswordScreen(email: email),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
     final l10n = AppLocalizations.of(context);
@@ -72,6 +102,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _sent = true;
         _sentTo = identifier;
       });
+      _openOtpScreen(identifier);
     } on AuthException catch (e) {
       _showMessage(e.message);
     } catch (_) {

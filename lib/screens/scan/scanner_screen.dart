@@ -54,6 +54,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   bool _isAutoMode = true;
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
+  bool _isBootstrapping = false;
+  bool _isRequestingPermission = false;
 
   // ---- Live document detection --------------------------------------------
   final LiveDocumentDetector _detector = LiveDocumentDetector();
@@ -116,6 +118,11 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isRequestingPermission) {
+      // The OS permission dialog puts the app in inactive/paused temporarily.
+      // Do not dispose the camera or cancel bootstrap while user interacts with OS dialog.
+      return;
+    }
     final controller = _controller;
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
@@ -139,11 +146,18 @@ class _ScannerScreenState extends State<ScannerScreen>
   // ---- Permissions + camera init ------------------------------------------
 
   Future<void> _bootstrap() async {
+    if (_isBootstrapping) return;
+    _isBootstrapping = true;
     if (mounted) setState(() => _phase = _Phase.initializing);
     try {
       var access = await CameraPermissionService.instance.cameraStatus();
       if (access == CameraAccess.denied) {
-        access = await CameraPermissionService.instance.requestCamera();
+        _isRequestingPermission = true;
+        try {
+          access = await CameraPermissionService.instance.requestCamera();
+        } finally {
+          _isRequestingPermission = false;
+        }
       }
       if (!mounted) return;
       switch (access) {
@@ -159,6 +173,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     } catch (_) {
       // Plugin unavailable / no camera hardware / unsupported device.
       if (mounted) setState(() => _phase = _Phase.error);
+    } finally {
+      _isBootstrapping = false;
     }
   }
 
@@ -173,6 +189,11 @@ class _ScannerScreenState extends State<ScannerScreen>
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
+
+      final oldController = _controller;
+      _controller = null;
+      await _teardownCamera(oldController);
+
       final controller = CameraController(
         back,
         ResolutionPreset.veryHigh,
@@ -181,13 +202,13 @@ class _ScannerScreenState extends State<ScannerScreen>
         // still capture (takePicture) returns a JPEG regardless of this group.
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
-      _controller = controller;
       await controller.initialize();
       await controller.setFlashMode(FlashMode.off);
       if (!mounted) {
-        controller.dispose();
+        await _teardownCamera(controller);
         return;
       }
+      _controller = controller;
       setState(() {
         _flash = 0;
         _state = ScannerState.idle; // always start fresh - no pre-loaded badge
@@ -545,7 +566,17 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (controller != null && controller.value.isInitialized) {
       return _CoveredPreview(controller: controller);
     }
-    return const ColoredBox(color: Colors.black);
+    if (!_isBootstrapping) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isBootstrapping) _bootstrap();
+      });
+    }
+    final l10n = AppLocalizations.of(context);
+    return _CenterStatus(
+      icon: Icons.photo_camera_rounded,
+      title: l10n.t('startingCamera'),
+      spinner: true,
+    );
   }
 
   /// Capture button visuals derived from the detection state - idle (neutral)

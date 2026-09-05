@@ -19,7 +19,6 @@ import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
-import 'google_terms_consent_screen.dart';
 import 'forgot_password_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
@@ -210,10 +209,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await AuthService.instance.signInWithGoogle();
       if (res == null) {
         developer.log(
-          'Google sign-in cancelled - staying on login',
+          'Google sign-in returned null',
           name: 'auth',
         );
-        return; // user cancelled the picker
+        _showMessage('Google sign-in was cancelled or no account selected.', isError: false);
+        return;
       }
 
       final user = res.user;
@@ -223,33 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       developer.log(
-        'Google sign-in OK: user=${user.id} - checking terms consent',
+        'Google sign-in OK: user=${user.id} (${user.email}) - routing via shared auth_flow',
         name: 'auth',
       );
-
-      // Enforce Terms of Service & Privacy Policy consent on Google Sign-In
-      if (!AuthService.instance.hasAcceptedTerms && mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => GoogleTermsConsentScreen(
-              onConsentGiven: () {
-                Navigator.of(context).pop();
-                unawaited(
-                  routeAfterAuth(
-                    authUserId: user.id,
-                    fullName:
-                        (user.userMetadata?['full_name'] as String?) ??
-                        (user.userMetadata?['name'] as String?) ??
-                        'INO User',
-                    email: user.email ?? '',
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-        return;
-      }
 
       await routeAfterAuth(
         authUserId: user.id,
@@ -260,33 +236,29 @@ class _LoginScreenState extends State<LoginScreen> {
         email: user.email ?? '',
       );
     } on GoogleSignInException catch (e) {
-      developer.log(
-        'Google sign-in exception: ${e.code} ${e.description}',
-        name: 'auth',
-        error: e,
-      );
-      _showMessage(l10n.t('googleSignInError'));
+      final msg = 'Google Sign-In Error: ${e.code.name}${e.description != null ? ' - ${e.description}' : ''}';
+      developer.log(msg, name: 'auth', error: e);
+      debugPrint('[GoogleSignInException] $msg details=${e.details}');
+      _showMessage(msg);
     } on AuthException catch (e) {
-      developer.log(
-        'Auth exception during Google sign-in: ${e.message}',
-        name: 'auth',
-        error: e,
-      );
+      final msg = 'Auth Error: ${e.message} (code: ${e.code})';
+      developer.log(msg, name: 'auth', error: e);
+      debugPrint('[AuthException] $msg');
       _showMessage(e.message);
     } on PostgrestException catch (e) {
-      developer.log(
-        'Profile DB error during Google sign-in: ${e.message}',
-        name: 'auth',
-        error: e,
-      );
+      final msg = 'Database Error: ${e.message}';
+      developer.log(msg, name: 'auth', error: e);
+      debugPrint('[PostgrestException] $msg');
       _showMessage(e.message);
-    } catch (e) {
+    } catch (e, stack) {
       developer.log(
         'Unexpected Google sign-in error: $e',
         name: 'auth',
         error: e,
+        stackTrace: stack,
       );
-      _showMessage(l10n.t('googleSignInError'));
+      debugPrint('[Unexpected Error] $e\n$stack');
+      _showMessage('Sign-In Error: $e');
     } finally {
       if (mounted) setState(() => _googleBusy = false);
     }

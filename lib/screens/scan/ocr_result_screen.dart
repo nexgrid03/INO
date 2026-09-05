@@ -160,8 +160,11 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
     // not folded into notes - Add Document persists them as a structured
     // DocumentExtraction so they're always visible again on reopen. `notes`
     // carries only the user's own free text.
+    final docName = _name.text.trim().isNotEmpty
+        ? _name.text.trim()
+        : (_category.isNotEmpty ? _category : widget.result.detectedType);
     final updated = widget.result.copyWith(
-      documentName: _name.text.trim(),
+      documentName: docName,
       documentNumber: _number.text.trim(),
       issueDate: _issueDate,
       expiryDate: _expiryDate,
@@ -210,59 +213,11 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    // Identity fields (ID documents) - extracted, editable.
-                    if (_showIdentity) ...[
-                      _CardSection(
-                        title: l10n.t('extractedDetails'),
-                        icon: Icons.badge_rounded,
-                        delay: const Duration(milliseconds: 60),
-                        children: [
-                          OcrField(
-                            label: l10n.t('fullName'),
-                            optional: true,
-                            child: OcrTextField(
-                              controller: _fullName,
-                              hint: l10n.t('hintFullName'),
-                              textCapitalization: TextCapitalization.words,
-                            ),
-                          ),
-                          OcrField(
-                            label: l10n.t('dateOfBirth'),
-                            optional: true,
-                            child: OcrTextField(
-                              controller: _dob,
-                              hint: l10n.t('hintDob'),
-                            ),
-                          ),
-                          OcrField(
-                            label: l10n.t('gender'),
-                            optional: true,
-                            child: OcrTextField(
-                              controller: _gender,
-                              hint: l10n.t('hintGender'),
-                              textCapitalization: TextCapitalization.words,
-                            ),
-                          ),
-                          if (r.detectedType.toLowerCase().contains('pan') ||
-                              _fatherName.text.isNotEmpty)
-                            OcrField(
-                              label: l10n.t('fathersName'),
-                              optional: true,
-                              child: OcrTextField(
-                                controller: _fatherName,
-                                hint: l10n.t('hintFathersName'),
-                                textCapitalization: TextCapitalization.words,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                    // Document details card.
+                    // Document details card (Category at top).
                     _CardSection(
                       title: l10n.t('document'),
                       icon: Icons.description_rounded,
-                      delay: const Duration(milliseconds: 120),
+                      delay: const Duration(milliseconds: 60),
                       children: [
                         OcrField(
                           label: l10n.t('category'),
@@ -319,6 +274,54 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    // Identity fields (ID documents) - extracted, editable.
+                    if (_showIdentity) ...[
+                      _CardSection(
+                        title: l10n.t('extractedDetails'),
+                        icon: Icons.badge_rounded,
+                        delay: const Duration(milliseconds: 120),
+                        children: [
+                          OcrField(
+                            label: l10n.t('fullName'),
+                            optional: true,
+                            child: OcrTextField(
+                              controller: _fullName,
+                              hint: l10n.t('hintFullName'),
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                          ),
+                          OcrField(
+                            label: l10n.t('dateOfBirth'),
+                            optional: true,
+                            child: OcrTextField(
+                              controller: _dob,
+                              hint: l10n.t('hintDob'),
+                            ),
+                          ),
+                          OcrField(
+                            label: l10n.t('gender'),
+                            optional: true,
+                            child: OcrTextField(
+                              controller: _gender,
+                              hint: l10n.t('hintGender'),
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                          ),
+                          if (r.detectedType.toLowerCase().contains('pan') ||
+                              _fatherName.text.isNotEmpty)
+                            OcrField(
+                              label: l10n.t('fathersName'),
+                              optional: true,
+                              child: OcrTextField(
+                                controller: _fatherName,
+                                hint: l10n.t('hintFathersName'),
+                                textCapitalization: TextCapitalization.words,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     // Filing card.
                     _CardSection(
                       title: l10n.t('filing'),
