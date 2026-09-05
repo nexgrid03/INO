@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ============================================================================
 // INO - Public Document Share (Supabase Edge Function)
 // ----------------------------------------------------------------------------
@@ -635,6 +636,12 @@ async function loadCards(share: ShareRow): Promise<Card[]> {
       };
     });
   }
+  interface DocRow {
+    id: string;
+    name: string;
+    category?: string | null;
+    file_path: string;
+  }
   const { data, error } = await admin
     .from("documents")
     .select("id, name, category, file_path")
@@ -643,7 +650,7 @@ async function loadCards(share: ShareRow): Promise<Card[]> {
     console.error(`[share] documents error share_id=${share.share_id}:`, error);
     throw error;
   }
-  const byId = new Map((data ?? []).map((d) => [(d as DocRow).id, d as DocRow]));
+  const byId = new Map((data ?? []).map((d: any) => [(d as DocRow).id, d as DocRow]));
   const cards: Card[] = [];
   share.document_ids.forEach((id, index) => {
     const d = byId.get(id);

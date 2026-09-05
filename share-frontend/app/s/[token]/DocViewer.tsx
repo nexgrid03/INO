@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import {
   TransformWrapper,
@@ -68,7 +68,7 @@ function Bar(props: {
   name: string;
   onDownload?: () => void;
   onBack?: () => void;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div className="viewer-bar">
@@ -165,8 +165,8 @@ function PdfView({ src, name, unlockToken, onDownload, onBack }: { src: string; 
   return (
     <div className="viewer">
       <Bar name={name} onDownload={onDownload} onBack={onBack}>
-        <button className="iconbtn" onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))} aria-label="Zoom out">−</button>
-        <button className="iconbtn" onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))} aria-label="Zoom in">+</button>
+        <button className="iconbtn" onClick={() => setScale((s: number) => Math.max(0.5, +(s - 0.25).toFixed(2)))} aria-label="Zoom out">−</button>
+        <button className="iconbtn" onClick={() => setScale((s: number) => Math.min(3, +(s + 0.25).toFixed(2)))} aria-label="Zoom in">+</button>
       </Bar>
       <div className="stage" style={{ display: "block", padding: "0 4px" }}>
         {failed ? (
@@ -176,7 +176,7 @@ function PdfView({ src, name, unlockToken, onDownload, onBack }: { src: string; 
             file={fileProp}
             loading={<Loading />}
             error={<Fallback onDownload={onDownload} />}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadSuccess={({ numPages }: { numPages: number }) => setNumPages(numPages)}
             onLoadError={() => setFailed(true)}
           >
             {Array.from({ length: numPages }, (_, i) => (

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], display: "swap" });
@@ -17,7 +18,7 @@ export const viewport: Viewport = {
   themeColor: "#098F90",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
