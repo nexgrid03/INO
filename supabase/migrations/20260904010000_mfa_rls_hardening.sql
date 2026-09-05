@@ -14,7 +14,7 @@ AS $$
   );
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.ino_is_aal2_satisfied() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.ino_is_aal2_satisfied() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ino_is_aal2_satisfied() TO authenticated, service_role;
 
 -- Enforce MFA requirement on sensitive password vault table if it exists
@@ -23,24 +23,31 @@ BEGIN
   IF to_regclass('public.w_password_vault') IS NOT NULL THEN
     ALTER TABLE public.w_password_vault ENABLE ROW LEVEL SECURITY;
 
+    -- Drop original permissive policies (and any previously created MFA policies)
+    DROP POLICY IF EXISTS "w_password_vault: owner reads own" ON public.w_password_vault;
+    DROP POLICY IF EXISTS "w_password_vault: owner inserts own" ON public.w_password_vault;
+    DROP POLICY IF EXISTS "w_password_vault: owner updates own" ON public.w_password_vault;
+    DROP POLICY IF EXISTS "w_password_vault: owner deletes own" ON public.w_password_vault;
     DROP POLICY IF EXISTS "w_password_vault: owner select" ON public.w_password_vault;
-    CREATE POLICY "w_password_vault: owner select" ON public.w_password_vault
+    DROP POLICY IF EXISTS "w_password_vault: owner insert" ON public.w_password_vault;
+    DROP POLICY IF EXISTS "w_password_vault: owner update" ON public.w_password_vault;
+    DROP POLICY IF EXISTS "w_password_vault: owner delete" ON public.w_password_vault;
+
+    -- Recreate single unified policies enforcing ownership AND verified MFA (AAL2)
+    CREATE POLICY "w_password_vault: owner reads own" ON public.w_password_vault
       FOR SELECT TO authenticated
       USING (auth.uid() = auth_user_id AND public.ino_is_aal2_satisfied());
 
-    DROP POLICY IF EXISTS "w_password_vault: owner insert" ON public.w_password_vault;
-    CREATE POLICY "w_password_vault: owner insert" ON public.w_password_vault
+    CREATE POLICY "w_password_vault: owner inserts own" ON public.w_password_vault
       FOR INSERT TO authenticated
       WITH CHECK (auth.uid() = auth_user_id AND public.ino_is_aal2_satisfied());
 
-    DROP POLICY IF EXISTS "w_password_vault: owner update" ON public.w_password_vault;
-    CREATE POLICY "w_password_vault: owner update" ON public.w_password_vault
+    CREATE POLICY "w_password_vault: owner updates own" ON public.w_password_vault
       FOR UPDATE TO authenticated
       USING (auth.uid() = auth_user_id AND public.ino_is_aal2_satisfied())
       WITH CHECK (auth.uid() = auth_user_id AND public.ino_is_aal2_satisfied());
 
-    DROP POLICY IF EXISTS "w_password_vault: owner delete" ON public.w_password_vault;
-    CREATE POLICY "w_password_vault: owner delete" ON public.w_password_vault
+    CREATE POLICY "w_password_vault: owner deletes own" ON public.w_password_vault
       FOR DELETE TO authenticated
       USING (auth.uid() = auth_user_id AND public.ino_is_aal2_satisfied());
   END IF;

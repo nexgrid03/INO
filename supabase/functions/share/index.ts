@@ -494,6 +494,13 @@ async function loadShare(idOrToken: string): Promise<LoadResult> {
     }
     return { kind: "expired" };
   }
+
+  // Security Hardening (H3): Legacy shares with non-bcrypt hashes must NEVER become public/unprotected.
+  // Fail closed by treating any legacy hash share as revoked.
+  if (share.password_hash && !share.password_hash.startsWith("$2")) {
+    return { kind: "revoked" };
+  }
+
   return { kind: "active", share };
 }
 

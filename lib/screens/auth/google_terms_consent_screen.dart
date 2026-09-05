@@ -6,10 +6,11 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
 import '../legal/legal_document_screen.dart';
+import 'login_screen.dart';
 
-/// Screen displayed when a user signs in via Google for the first time
+/// Screen displayed when a user authenticates (Google, Email, Cold Start, Restore)
 /// and must explicitly consent to the Terms of Service & Privacy Policy
-/// before account setup completes.
+/// with 18+ eligibility attestation before accessing the application.
 class GoogleTermsConsentScreen extends StatefulWidget {
   const GoogleTermsConsentScreen({super.key, required this.onConsentGiven});
 
@@ -20,6 +21,9 @@ class GoogleTermsConsentScreen extends StatefulWidget {
       _GoogleTermsConsentScreenState();
 }
 
+/// Typedef alias for universal post-auth consent usage
+typedef TermsConsentScreen = GoogleTermsConsentScreen;
+
 class _GoogleTermsConsentScreenState
     extends State<GoogleTermsConsentScreen> {
   bool _accepted = false;
@@ -29,7 +33,10 @@ class _GoogleTermsConsentScreenState
     if (!_accepted || _saving) return;
     setState(() => _saving = true);
     try {
-      await AuthService.instance.recordTermsConsent(version: '1.0');
+      await AuthService.instance.recordTermsConsent(
+        version: '1.0',
+        attest18Plus: true,
+      );
       if (!mounted) return;
       widget.onConsentGiven();
     } catch (e) {
@@ -42,6 +49,27 @@ class _GoogleTermsConsentScreenState
           ),
           backgroundColor: AppColors.critical,
         ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _declineAndSignOut() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await AuthService.instance.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -83,7 +111,7 @@ class _GoogleTermsConsentScreenState
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Before continuing with Google Sign-In, please review and accept our Terms of Service and Privacy Policy.',
+                'Before continuing, please review and accept our Terms of Service and Privacy Policy.',
                 style: AppText.body.copyWith(color: palette.textSecondary),
                 textAlign: TextAlign.center,
               ),
@@ -108,7 +136,7 @@ class _GoogleTermsConsentScreenState
                         style: AppText.title.copyWith(color: palette.textPrimary),
                       ),
                       subtitle: Text(
-                        'Read terms & user agreement',
+                        'Read terms & user agreement (18+ requirement)',
                         style: AppText.caption.copyWith(color: palette.textSecondary),
                       ),
                       trailing: Icon(
@@ -153,7 +181,7 @@ class _GoogleTermsConsentScreenState
 
               const Spacer(),
 
-              // Agreement Checkbox
+              // Agreement & 18+ Attestation Checkbox
               InkWell(
                 onTap: () => setState(() => _accepted = !_accepted),
                 borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -163,6 +191,7 @@ class _GoogleTermsConsentScreenState
                     horizontal: AppSpacing.xs,
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Checkbox(
                         value: _accepted,
@@ -172,9 +201,9 @@ class _GoogleTermsConsentScreenState
                       ),
                       Expanded(
                         child: Text(
-                          l10n.t('agreeToTerms'),
+                          'I confirm that I am at least 18 years of age and agree to the Terms of Service & Privacy Policy.',
                           style: AppText.body
-                              .copyWith(color: palette.textPrimary),
+                              .copyWith(color: palette.textPrimary, fontSize: 13),
                         ),
                       ),
                     ],
@@ -219,7 +248,22 @@ class _GoogleTermsConsentScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              // Decline / Sign Out
+              TextButton(
+                onPressed: _saving ? null : _declineAndSignOut,
+                child: Text(
+                  'Decline and Sign Out',
+                  style: AppText.caption.copyWith(
+                    color: palette.textSecondary,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),

@@ -32,44 +32,74 @@ class AuthService {
 
   // --- Session helpers ------------------------------------------------------
 
-  Session? get currentSession => _client.auth.currentSession;
-  User? get currentUser => _client.auth.currentUser;
-  bool get isSignedIn => currentSession != null;
+  Session? get currentSession {
+    try {
+      return _client.auth.currentSession;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  User? get currentUser {
+    try {
+      return _client.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get isSignedIn {
+    try {
+      return currentSession != null;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Whether the currently signed-in user has accepted the Terms of Service & Privacy Policy.
   bool get hasAcceptedTerms {
-    final user = currentUser;
-    if (user == null) return false;
-    final metadata = user.userMetadata ?? {};
-    return metadata['accepted_terms'] == true || metadata['terms_accepted'] == true;
+    try {
+      final user = currentUser;
+      if (user == null) return false;
+      final metadata = user.userMetadata ?? {};
+      return metadata['accepted_terms'] == true || metadata['terms_accepted'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Records terms acceptance in user metadata and the user_consents audit table.
-  Future<void> recordTermsConsent({String version = '1.0'}) async {
+  Future<void> recordTermsConsent({
+    String version = '1.0',
+    bool attest18Plus = true,
+  }) async {
     final user = currentUser;
     if (user == null) return;
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    await _client.auth.updateUser(
-      UserAttributes(
-        data: {
-          'accepted_terms': true,
-          'accepted_at': nowIso,
-          'terms_version': version,
-        },
-      ),
-    );
-
-    try {
-      await _client.from('user_consents').insert({
-        'user_id': user.id,
-        'consent_type': 'terms_and_privacy',
-        'version': version,
-        'accepted_at': nowIso,
-      });
-    } catch (e) {
-      developer.log('recordTermsConsent audit log failed: $e', name: 'auth');
+    // 1. Update user metadata if not already recorded
+    final meta = user.userMetadata ?? {};
+    if (meta['accepted_terms'] != true || meta['attestation_18_plus'] != attest18Plus) {
+      await _client.auth.updateUser(
+        UserAttributes(
+          data: {
+            'accepted_terms': true,
+            'accepted_at': nowIso,
+            'terms_version': version,
+            'attestation_18_plus': attest18Plus,
+            'attestation_18_at': nowIso,
+          },
+        ),
+      );
     }
+
+    // 2. Ensure audit row is recorded in user_consents table
+    await _client.from('user_consents').insert({
+      'user_id': user.id,
+      'consent_type': 'terms_and_privacy',
+      'version': version,
+      'accepted_at': nowIso,
+    });
   }
 
   /// Records notification consent in the user_consents audit table.
@@ -103,14 +133,26 @@ class AuthService {
     required String email,
     required String password,
     String? fullName,
+    bool acceptedTerms = true,
+    bool attest18Plus = true,
   }) {
     // Every auth round-trip is time-capped: an un-timed call on a dead link
     // used to hang the login screen forever instead of surfacing an error.
+    final nowIso = DateTime.now().toUtc().toIso8601String();
     return _client.auth
         .signUp(
           email: email.trim(),
           password: password,
-          data: fullName != null ? {'full_name': fullName} : null,
+          data: {
+            if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+            if (acceptedTerms) ...{
+              'accepted_terms': true,
+              'accepted_at': nowIso,
+              'terms_version': '1.0',
+              'attestation_18_plus': attest18Plus,
+              'attestation_18_at': nowIso,
+            },
+          },
         )
         .timeout(NetGuard.auth);
   }

@@ -20,7 +20,6 @@ import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'forgot_password_screen.dart';
-import 'google_terms_consent_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
@@ -230,30 +229,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = user.email ?? '';
 
       developer.log(
-        'Google sign-in OK: user=${user.id} ($email) - checking terms consent',
+        'Google sign-in OK: user=${user.id} ($email) - delegating to shared post-auth flow',
         name: 'auth',
       );
-
-      // Enforce Terms of Service & Privacy Policy consent on Google Sign-In
-      if (!AuthService.instance.hasAcceptedTerms && mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => GoogleTermsConsentScreen(
-              onConsentGiven: () {
-                Navigator.of(context).pop();
-                unawaited(
-                  routeAfterAuth(
-                    authUserId: user.id,
-                    fullName: fullName,
-                    email: email,
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-        return;
-      }
 
       await routeAfterAuth(
         authUserId: user.id,

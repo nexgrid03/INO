@@ -2,23 +2,24 @@
 -- INO Migration: 20260904080000_share_security_hardening.sql
 --
 -- Security Hardening Pass:
--- 1. Legacy Password Cleanup: NULL all password_hash entries not starting with $2
---    (eliminates hash replay attack on legacy shares).
+-- 1. Legacy Password Remediation: Set status = 'revoked' on all shares with
+--    non-bcrypt password_hash (prevents open public shares and eliminates replay attacks).
 -- 2. Persistent Rate Limiting & Lockout: Create share_rate_limits table in Postgres
 --    so brute-force tracking survives Edge Function cold starts and restarts.
 -- 3. Password Lockout: 5 failed attempts locks the IP/token pair for 15 minutes.
+-- 4. Permission Hardening: Revoke all execute/access from PUBLIC, anon, and authenticated.
 -- ============================================================================
 
 begin;
 
 -- ----------------------------------------------------------------------------
--- 1. Legacy Password Cleanup
+-- 1. Legacy Password Remediation (Revoke affected shares, NEVER null hashes)
 -- ----------------------------------------------------------------------------
 do $$
 begin
   if to_regclass('public.document_shares') is not null then
     update public.document_shares
-    set password_hash = null
+    set status = 'revoked'
     where password_hash is not null
       and password_hash not like '$2%';
   end if;
@@ -28,7 +29,7 @@ begin
       select 1 from information_schema.columns
       where table_schema = 'public' and table_name = 'shares' and column_name = 'password_hash'
     ) then
-      execute 'update public.shares set password_hash = null where password_hash is not null and password_hash not like ''$2%''';
+      execute 'update public.shares set status = ''revoked'' where password_hash is not null and password_hash not like ''$2%''';
     end if;
   end if;
 end $$;
@@ -57,6 +58,8 @@ create index if not exists idx_share_rate_limits_lock_until
 alter table public.share_rate_limits enable row level security;
 
 -- Rate limits are managed strictly server-side by the Edge Function via service_role
+revoke all on table public.share_rate_limits from public;
+revoke all on table public.share_rate_limits from anon, authenticated;
 grant all on table public.share_rate_limits to service_role;
 
 -- ----------------------------------------------------------------------------
@@ -126,7 +129,12 @@ begin
 end;
 $$;
 
+revoke all on function public.check_share_password_lock(text, text) from public;
+revoke all on function public.check_share_password_lock(text, text) from anon, authenticated;
 grant execute on function public.check_share_password_lock(text, text) to service_role;
+
+revoke all on function public.record_share_password_attempt(text, text, boolean) from public;
+revoke all on function public.record_share_password_attempt(text, text, boolean) from anon, authenticated;
 grant execute on function public.record_share_password_attempt(text, text, boolean) to service_role;
 
 commit;

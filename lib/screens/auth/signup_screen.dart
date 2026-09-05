@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -91,6 +93,11 @@ class _SignupScreenState extends State<SignupScreen> {
       final user = res.user;
 
       if (res.session != null && user != null) {
+        // Record consent audit trail in user_consents table
+        await AuthService.instance.recordTermsConsent(
+          version: '1.0',
+          attest18Plus: true,
+        );
         // Auto-confirmed: profile can be created now (session is active).
         final profile = await UserRepository.instance.createProfile(
           authUserId: user.id,
@@ -135,6 +142,11 @@ class _SignupScreenState extends State<SignupScreen> {
             );
             final user = res.user;
             if (user == null) return false;
+            // Record consent audit trail in user_consents table
+            await AuthService.instance.recordTermsConsent(
+              version: '1.0',
+              attest18Plus: true,
+            );
             // Session is now active → create the profile row (with the phone
             // the user provided at signup, so it isn't lost).
             verified = await UserRepository.instance.createProfile(

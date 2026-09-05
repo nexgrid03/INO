@@ -18,6 +18,8 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../auth/google_terms_consent_screen.dart';
+import '../../services/auth_service.dart';
 import '../shell/shell_controller.dart';
 import '../splash/splash_screen.dart';
 
@@ -51,6 +53,27 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!AuthService.instance.hasAcceptedTerms) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => GoogleTermsConsentScreen(
+              onConsentGiven: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => OfflineDocumentsScreen(
+                      isRootOffline: widget.isRootOffline,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          (route) => false,
+        );
+      }
+    });
     _store.ensureLoaded(force: true);
     _store.addListener(_onChanged);
     if (widget.isRootOffline) WidgetsBinding.instance.addObserver(this);

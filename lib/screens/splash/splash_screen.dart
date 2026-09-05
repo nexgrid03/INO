@@ -15,6 +15,8 @@ import '../../services/guest_mode.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
+import '../../services/auth_service.dart';
+import '../auth/google_terms_consent_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/mfa_challenge_screen.dart';
 import '../documents/offline_documents_screen.dart';
@@ -251,9 +253,9 @@ class _SplashScreenState extends State<SplashScreen>
     final profile = _profile;
     final hasSession = Supabase.instance.client.auth.currentSession != null;
 
-    // SECURITY FIX: Never open offline library if user is signed out or no valid session exists.
+    // SECURITY FIX: Never open offline library if user is signed out, no valid session exists, or terms not accepted.
     if (!isOnline) {
-      if (!hasSession || profile == null) {
+      if (!hasSession || profile == null || !AuthService.instance.hasAcceptedTerms) {
         _replace(const LoginScreen());
         return;
       }
@@ -284,6 +286,19 @@ class _SplashScreenState extends State<SplashScreen>
         );
         return;
       }
+
+      // SECURITY FIX: Enforce Terms & Privacy consent on cold start / session restore / relaunch
+      if (!AuthService.instance.hasAcceptedTerms) {
+        _replace(
+          GoogleTermsConsentScreen(
+            onConsentGiven: () {
+              _goToShellFade(profile);
+            },
+          ),
+        );
+        return;
+      }
+
       _goToShellFade(profile);
       return;
     }

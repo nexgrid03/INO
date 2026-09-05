@@ -16,7 +16,7 @@ void main() {
 
       final sql = migrationFile.readAsStringSync();
       expect(sql.contains("password_hash not like '\$2%'"), isTrue);
-      expect(sql.contains('set password_hash = null'), isTrue);
+      expect(sql.contains("set status = 'revoked'"), isTrue);
     });
 
     test('Edge function strictly enforces bcrypt and disallows plain hash comparison', () {

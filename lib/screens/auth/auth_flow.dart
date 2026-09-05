@@ -7,11 +7,13 @@ import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/app_preload.dart';
+import '../../services/auth_service.dart';
 import '../../services/guest_mode.dart';
 import '../../services/two_factor_service.dart';
 import '../../theme/theme_controller.dart';
 import '../shell/main_shell.dart';
 import 'complete_profile_screen.dart';
+import 'google_terms_consent_screen.dart';
 import 'mfa_challenge_screen.dart';
 
 /// Guards against two callers (e.g. the sign-in future and a retry) both
@@ -28,6 +30,7 @@ bool _routingAfterAuth = false;
 /// happens after picking an account" bug.
 ///
 ///   • enrolled TOTP and session still aal1 → MFA challenge
+///   • unaccepted terms & privacy / 18+ attestation → Terms Consent Screen
 ///   • no profile row yet, or an incomplete one (no phone) → Complete Profile
 ///   • otherwise → the app shell (Home)
 Future<void> routeAfterAuth({
@@ -50,7 +53,7 @@ Future<void> routeAfterAuth({
     }
 
     developer.log(
-      'routeAfterAuth: fetching profile for $authUserId',
+      'routeAfterAuth: checking security gates for $authUserId',
       name: 'auth',
     );
 
@@ -66,6 +69,31 @@ Future<void> routeAfterAuth({
             email: email,
           ),
         ),
+      );
+      return;
+    }
+
+    // Terms of Service & Privacy Policy Consent Gate (Universal for all auth paths)
+    if (!AuthService.instance.hasAcceptedTerms) {
+      if (!navContext.mounted) return;
+      developer.log('routeAfterAuth → Terms Consent Screen', name: 'auth');
+      Navigator.of(navContext).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => GoogleTermsConsentScreen(
+            onConsentGiven: () {
+              unawaited(
+                routeAfterAuth(
+                  authUserId: authUserId,
+                  fullName: fullName,
+                  email: email,
+                  phone: phone,
+                  mfaSatisfied: true,
+                ),
+              );
+            },
+          ),
+        ),
+        (route) => false,
       );
       return;
     }
@@ -120,6 +148,22 @@ bool _isIncomplete(UserProfile profile) =>
 /// → OTP → Biometric) is cleared - the back button from Home never returns to a
 /// sign-in screen. Mirrors how the shell was wired to theme control before.
 void goToShell(BuildContext context, UserProfile profile) {
+  // Defensive gate: never open shell if terms have not been accepted
+  if (!AuthService.instance.hasAcceptedTerms) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => GoogleTermsConsentScreen(
+          onConsentGiven: () => goToShell(
+            InoApp.navigatorKey.currentContext ?? context,
+            profile,
+          ),
+        ),
+      ),
+      (route) => false,
+    );
+    return;
+  }
+
   // A real sign-in always ends guest explore mode.
   GuestMode.active = false;
   // Warm this account's data on the way in. The splash's own warm-up either
