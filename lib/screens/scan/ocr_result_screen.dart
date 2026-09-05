@@ -275,12 +275,10 @@ class _OcrResultScreenState extends State<OcrResultScreen> {
                         ),
                         OcrField(
                           label: l10n.t('documentName'),
+                          optional: true,
                           child: OcrTextField(
                             controller: _name,
                             hint: l10n.t('hintDocumentName'),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? l10n.t('enterDocumentName')
-                                : null,
                           ),
                         ),
                         OcrField(

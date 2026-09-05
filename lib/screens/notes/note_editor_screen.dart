@@ -82,10 +82,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Future<void> _save() async {
     if (_saving) return;
     final l10n = AppLocalizations.of(context);
-    final title = _title.text.trim();
+    // The title is optional. When it's blank the note takes its first line of
+    // body text as a heading (that is what the user actually typed), and falls
+    // back to "Untitled" for a note with no text at all - so a saved note is
+    // never a blank row in the list.
+    var title = _title.text.trim();
     if (title.isEmpty) {
-      _toast(l10n.t('noteTitleRequired'), error: true);
-      return;
+      final firstLine = _description.text
+          .trim()
+          .split('\n')
+          .map((l) => l.trim())
+          .firstWhere((l) => l.isNotEmpty, orElse: () => '');
+      title = firstLine.length > 60
+          ? '${firstLine.substring(0, 60).trimRight()}…'
+          : firstLine;
+      if (title.isEmpty) title = l10n.t('untitled');
     }
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
@@ -311,20 +322,41 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _FieldLabel(l10n.t('category')),
+                      const SizedBox(height: AppSpacing.xs),
+                      _CategoryChip(category: _category, onTap: _pickCategory),
+                      const SizedBox(height: AppSpacing.md),
+                      // The title used to be an unlabelled headline field at
+                      // the very top, which read as part of the note itself -
+                      // people couldn't tell where the title was. It now sits
+                      // under its own label, and is optional.
+                      _FieldLabel(l10n.t('reminderTitle'), optional: true),
+                      const SizedBox(height: AppSpacing.xs),
                       TextField(
                         controller: _title,
                         textCapitalization: TextCapitalization.sentences,
+                        textInputAction: TextInputAction.next,
+                        maxLength: 80,
                         style: AppText.headline
-                            .copyWith(color: palette.textPrimary, fontSize: 22),
-                        decoration: _borderlessFieldDecoration(
-                          hintText: l10n.t('reminderTitle'),
-                          hintStyle: AppText.headline
-                              .copyWith(color: palette.textFaint, fontSize: 22),
+                            .copyWith(color: palette.textPrimary, fontSize: 20),
+                        decoration: InputDecoration(
+                          hintText: l10n.t('noteTitleHint'),
+                          hintStyle: AppText.body
+                              .copyWith(color: palette.textFaint),
+                          filled: false,
+                          isDense: true,
+                          counterText: '',
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md, vertical: 14),
+                          border: _fieldBorder(palette.border),
+                          enabledBorder: _fieldBorder(palette.border),
+                          focusedBorder: _fieldBorder(
+                              AppColors.primaryGreen, width: 1.4),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _CategoryChip(category: _category, onTap: _pickCategory),
                       const SizedBox(height: AppSpacing.md),
+                      _FieldLabel(l10n.t('notes')),
+                      const SizedBox(height: AppSpacing.xs),
                       TextField(
                         controller: _description,
                         textCapitalization: TextCapitalization.sentences,
@@ -341,24 +373,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           // Keep text inset from the outline so it doesn't
                           // sit flush against the border while typing.
                           contentPadding: const EdgeInsets.all(AppSpacing.md),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.chip),
-                            borderSide: BorderSide(color: palette.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.chip),
-                            borderSide: BorderSide(color: palette.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.chip),
-                            borderSide: BorderSide(
-                              color: AppColors.primaryGreen,
-                              width: 1.4,
-                            ),
-                          ),
+                          border: _fieldBorder(palette.border),
+                          enabledBorder: _fieldBorder(palette.border),
+                          focusedBorder: _fieldBorder(
+                              AppColors.primaryGreen, width: 1.4),
                         ),
                       ),
                     ],
@@ -459,6 +477,39 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Rounded field outline shared by the title and body inputs.
+OutlineInputBorder _fieldBorder(Color color, {double width = 1}) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      borderSide: BorderSide(color: color, width: width),
+    );
+
+/// Small caption above a field, with an "Optional" hint where it applies.
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text, {this.optional = false});
+
+  final String text;
+  final bool optional;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Row(
+      children: [
+        Text(text,
+            style: AppText.subtitle
+                .copyWith(color: palette.textPrimary, fontSize: 13)),
+        if (optional) ...[
+          const SizedBox(width: 6),
+          Text(AppLocalizations.of(context).t('optional'),
+              style:
+                  AppText.label.copyWith(color: palette.textFaint, fontSize: 11)),
+        ],
+      ],
     );
   }
 }

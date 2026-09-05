@@ -418,7 +418,14 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       return;
     }
 
-    final name = _nameController.text.trim();
+    // The name is optional - fall back to the category, then the file name, so
+    // a saved document never reads blank on its card.
+    var name = _nameController.text.trim();
+    if (name.isEmpty) {
+      name = (_category ?? '').trim();
+      if (name.isEmpty) name = _stripExtension(_tempFileName ?? '').trim();
+      if (name.isEmpty) name = AppLocalizations.of(context).t('document');
+    }
     final tags = _tagsController.text.trim().isEmpty
         ? <String>[]
         : _tagsController.text.trim().split(',').map((t) => t.trim()).toList();
@@ -1315,53 +1322,6 @@ class _DetailsForm extends StatelessWidget {
               children: [
                 _Field(
                   label: wallet == 'Health Wallet'
-                      ? l10n.t('hospitalName')
-                      : l10n.t('documentName'),
-                  child: TextFormField(
-                    controller: nameController,
-                    textInputAction: TextInputAction.next,
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? (wallet == 'Health Wallet'
-                            ? l10n.t('enterHospitalName')
-                            : l10n.t('enterDocumentName'))
-                        : null,
-                    decoration: _decoration(
-                        context,
-                        wallet == 'Health Wallet'
-                            ? l10n.t('hintHospitalName')
-                            : l10n.t('hintAddDocName')),
-                  ),
-                ),
-                if (wallet == 'Health Wallet') ...[
-                  const SizedBox(height: AppSpacing.internal),
-                  _Field(
-                    label: l10n.t('doctorName'),
-                    optional: true,
-                    child: TextFormField(
-                      controller: doctorController,
-                      textInputAction: TextInputAction.next,
-                      textCapitalization: TextCapitalization.words,
-                      decoration:
-                          _decoration(context, l10n.t('hintDoctorName')),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.internal),
-                _Field(
-                  label: l10n.t('wallet'),
-                  child: _Selector(
-                    value: wallet == null
-                        ? null
-                        : localizedWalletName(l10n, wallet!),
-                    placeholder: l10n.t('chooseWallet'),
-                    leading: Icons.account_balance_wallet_rounded,
-                    onTap: onPickWallet,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.internal),
-                _Field(
-                  label: wallet == 'Health Wallet'
                       ? l10n.t('documentType')
                       : l10n.t('category'),
                   child: wallet == 'Health Wallet'
@@ -1408,6 +1368,49 @@ class _DetailsForm extends StatelessWidget {
                           leading: Icons.label_rounded,
                           onTap: onPickCategory,
                         ),
+                ),
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: wallet == 'Health Wallet'
+                      ? l10n.t('hospitalName')
+                      : l10n.t('documentName'),
+                  optional: true,
+                  child: TextFormField(
+                    controller: nameController,
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _decoration(
+                        context,
+                        wallet == 'Health Wallet'
+                            ? l10n.t('hintHospitalName')
+                            : l10n.t('hintAddDocName')),
+                  ),
+                ),
+                if (wallet == 'Health Wallet') ...[
+                  const SizedBox(height: AppSpacing.internal),
+                  _Field(
+                    label: l10n.t('doctorName'),
+                    optional: true,
+                    child: TextFormField(
+                      controller: doctorController,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.words,
+                      decoration:
+                          _decoration(context, l10n.t('hintDoctorName')),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.internal),
+                _Field(
+                  label: l10n.t('wallet'),
+                  child: _Selector(
+                    value: wallet == null
+                        ? null
+                        : localizedWalletName(l10n, wallet!),
+                    placeholder: l10n.t('chooseWallet'),
+                    leading: Icons.account_balance_wallet_rounded,
+                    onTap: onPickWallet,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.internal),
                 _Field(

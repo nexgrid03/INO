@@ -295,11 +295,30 @@ class LiquidGlass extends StatelessWidget {
       ),
     );
 
-    Widget surface = useBlur
-        ? RepaintBoundary(
-            child: BackdropFilter(filter: _blurFilterFor(blur), child: body),
-          )
-        : body;
+    // The blur layer is a SIBLING of the content, never its parent, and its
+    // slot in the Stack exists whether or not blur is on. Wrapping the body in
+    // a BackdropFilter only `useBlur` (as this used to) reparented every
+    // descendant the instant a scroll suspended blur: a TextField inside a
+    // glass card was rebuilt from scratch, lost focus, and the keyboard opened
+    // and shut again — which is exactly what happens when tapping a field, as
+    // the auto-scroll that reveals it fires ScrollStart. Keeping `body` at a
+    // fixed child index means toggling blur only swaps the layer behind it.
+    Widget surface = Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(
+          child: useBlur
+              ? RepaintBoundary(
+                  child: BackdropFilter(
+                    filter: _blurFilterFor(blur),
+                    child: const SizedBox.expand(),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        body,
+      ],
+    );
 
     surface = circle
         ? ClipOval(clipBehavior: clipBehavior, child: surface)

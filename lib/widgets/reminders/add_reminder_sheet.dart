@@ -199,22 +199,6 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                       AppText.headline.copyWith(color: palette.textPrimary)),
               const SizedBox(height: AppSpacing.md),
 
-              _FieldLabel('${l10n.t('reminderTitle')} (${l10n.t('optional')})'),
-              const SizedBox(height: AppSpacing.xs),
-              TextField(
-                controller: _titleController,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: 80,
-                style: AppText.body.copyWith(color: palette.textPrimary),
-                decoration: _inputDecoration(
-                  palette,
-                  '${l10n.t('reminderTitleHint')} (${l10n.t('optional')})',
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
               _FieldLabel(l10n.t('type')),
               const SizedBox(height: AppSpacing.xs),
               Wrap(
@@ -228,6 +212,21 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                       onTap: () => setState(() => _category = c),
                     ),
                 ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+
+              _FieldLabel('${l10n.t('reminderTitle')} (${l10n.t('optional')})'),
+              const SizedBox(height: AppSpacing.xs),
+              TextField(
+                controller: _titleController,
+                textInputAction: TextInputAction.done,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: 80,
+                style: AppText.body.copyWith(color: palette.textPrimary),
+                decoration: _inputDecoration(
+                  palette,
+                  '${l10n.t('reminderTitleHint')} (${l10n.t('optional')})',
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
 
