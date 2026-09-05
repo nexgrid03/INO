@@ -1,4 +1,4 @@
-package com.example.inoapp
+package com.ino.app
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -24,52 +24,71 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Biometric enrollment settings channel
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             channelName,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "openBiometricEnrollment" -> {
+                "openEnrollment", "openBiometricEnrollment" -> {
                     openBiometricEnrollment()
-                    result.success(null)
+                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
         }
 
+        // Screenshot / screen-recording protection for sensitive screens (the
+        // view-once document viewer). FLAG_SECURE is enforced by the OS: the
+        // system refuses to screenshot the window, blanks it in screen
+        // recordings and in the recents thumbnail, and blocks mirroring to
+        // non-secure displays.
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             secureChannelName,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "enable" -> {
+                    setSecure(true)
+                    result.success(true)
+                }
+                "disable" -> {
+                    setSecure(false)
+                    result.success(true)
+                }
+                "isCaptured" -> {
+                    result.success(false)
+                }
                 "setSecure" -> {
                     val secure = call.argument<Boolean>("secure") ?: false
                     setSecure(secure)
-                    result.success(null)
+                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
         }
 
+        // Payment-app discovery for scanned UPI QRs (UpiAppService.dart).
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             upiChannelName,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getInstalledUpiApps" -> {
+                "list", "getInstalledUpiApps" -> {
                     result.success(getInstalledUpiApps())
                 }
-                "launchUpiApp" -> {
-                    val packageName = call.argument<String>("packageName")
+                "launch", "launchUpiApp" -> {
+                    val targetPackage = call.argument<String>("id")
+                        ?: call.argument<String>("packageName")
                     val uri = call.argument<String>("uri")
-                    if (packageName.isNullOrBlank() || uri.isNullOrBlank()) {
+                    if (targetPackage.isNullOrBlank() || uri.isNullOrBlank()) {
                         result.error(
                             "INVALID_ARGS",
-                            "packageName and uri required",
+                            "packageName/id and uri required",
                             null,
                         )
                     } else {
-                        result.success(launchUpiApp(packageName, uri))
+                        result.success(launchUpiApp(targetPackage, uri))
                     }
                 }
                 else -> result.notImplemented()

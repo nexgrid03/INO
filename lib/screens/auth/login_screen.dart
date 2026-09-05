@@ -20,6 +20,7 @@ import '../../widgets/ino_logo.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'forgot_password_screen.dart';
+import 'google_terms_consent_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
@@ -222,18 +223,42 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage(l10n.t('googleSignInFailed'));
         return;
       }
+      final fullName =
+          (user.userMetadata?['full_name'] as String?) ??
+          (user.userMetadata?['name'] as String?) ??
+          'INO User';
+      final email = user.email ?? '';
+
       developer.log(
-        'Google sign-in OK: user=${user.id} (${user.email}) - routing via shared auth_flow',
+        'Google sign-in OK: user=${user.id} ($email) - checking terms consent',
         name: 'auth',
       );
 
+      // Enforce Terms of Service & Privacy Policy consent on Google Sign-In
+      if (!AuthService.instance.hasAcceptedTerms && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GoogleTermsConsentScreen(
+              onConsentGiven: () {
+                Navigator.of(context).pop();
+                unawaited(
+                  routeAfterAuth(
+                    authUserId: user.id,
+                    fullName: fullName,
+                    email: email,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       await routeAfterAuth(
         authUserId: user.id,
-        fullName:
-            (user.userMetadata?['full_name'] as String?) ??
-            (user.userMetadata?['name'] as String?) ??
-            'INO User',
-        email: user.email ?? '',
+        fullName: fullName,
+        email: email,
       );
     } on GoogleSignInException catch (e) {
       final msg = 'Google Sign-In Error: ${e.code.name}${e.description != null ? ' - ${e.description}' : ''}';

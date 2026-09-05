@@ -50,6 +50,8 @@ app.*.map.json
 # Release signing — never commit
 *.jks
 *.keystore
+debug.keystore
+**/debug.keystore
 key.properties
 **/key.properties
 
