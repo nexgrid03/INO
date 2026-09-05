@@ -155,6 +155,7 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
 
   Future<void> reload() async {
     if (_loading) return;
+    markUnloaded();
     await _load(_currentUid());
   }
 

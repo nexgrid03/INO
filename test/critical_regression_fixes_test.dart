@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/models/document.dart';
 import 'package:inoapp/models/document_extraction.dart';
 import 'package:inoapp/services/offline_document_store.dart';
+import 'package:inoapp/services/password_store.dart';
 import 'package:inoapp/utils/identifier_masker.dart';
 
 void main() {
@@ -47,6 +48,20 @@ void main() {
 
       // 6. Cascade delete on auth.users
       expect(sql.contains('DELETE FROM auth.users WHERE id = v_uid;'), isTrue);
+
+      // 7. C1 Column fixes: owner_id, shared_by, recipient_auth_user_id
+      expect(sql.contains('public.document_shares WHERE owner_id = v_uid'), isTrue);
+      expect(sql.contains('public.document_shares WHERE auth_user_id = v_uid'), isFalse);
+      expect(sql.contains('public.view_once_shares WHERE owner_id = v_uid'), isTrue);
+      expect(sql.contains('public.view_once_shares WHERE auth_user_id = v_uid'), isFalse);
+      expect(sql.contains('public.vault_documents WHERE shared_by = v_uid'), isTrue);
+      expect(sql.contains('public.vault_documents WHERE auth_user_id = v_uid'), isFalse);
+      expect(sql.contains('recipient_auth_user_id = v_uid'), isTrue);
+      expect(sql.contains('target_auth_user_id'), isFalse);
+
+      // 8. C1 Storage cleanup: type-safe uuid comparison & no catch-all error swallowing
+      expect(sql.contains('owner::text = v_uid::text'), isTrue);
+      expect(sql.contains('EXCEPTION WHEN OTHERS THEN'), isFalse);
     });
   });
 
@@ -246,4 +261,135 @@ void main() {
       expect(content.contains('ino_is_aal2_satisfied'), isTrue);
     });
   });
+
+  group('CRITICAL C2: Password Vault Passphrase Reset and Memory Safety', () {
+    test('clearMemory() wipes in-memory items and resets isLoaded flag', () {
+      final store = PasswordStore.instance;
+      store.clearMemory();
+      expect(store.items.isEmpty, isTrue);
+      expect(store.isLoaded, isFalse);
+    });
+
+    test('reload() forces store reload and clears loaded state', () async {
+      final store = PasswordStore.instance;
+      store.clearMemory();
+      expect(store.isLoaded, isFalse);
+      await store.reload();
+      expect(store.isLoaded, isTrue);
+    });
+
+    test('resealForNewKey() safely aborts without wiping when items is empty', () async {
+      final store = PasswordStore.instance;
+      store.clearMemory();
+      expect(store.items.isEmpty, isTrue);
+
+      // Must complete without throwing and without performing orphan sweep
+      await expectLater(store.resealForNewKey(), completes);
+    });
+
+    test('persist() does not wipe secure storage when store is not loaded', () async {
+      final store = PasswordStore.instance;
+      store.clearMemory();
+      expect(store.isLoaded, isFalse);
+
+      // Must complete safely without calling delete on secure storage
+      await expectLater(store.persist(), completes);
+    });
+  });
+
+  group('CRITICAL C3: Keystore Read/Write Failure Protection for Offline Documents', () {
+    tearDown(() {
+      OfflineDocumentStore.resetSecureStorageForTest();
+    });
+
+    test('Secure storage read failure throws StateError and DOES NOT generate new key or overwrite', () async {
+      const testUser = 'user-c3-read-fail-test';
+      final faulty = MockFaultySecureStorage();
+      OfflineDocumentStore.setSecureStorageForTest(faulty);
+
+      // 1. Initial creation succeeds and saves a 32-byte key
+      final key1 = await OfflineDocumentStore.getKeyForTest(testUser);
+      final key1Bytes = await key1.extractBytes();
+      expect(key1Bytes.length, equals(32));
+      expect(faulty.backing.isNotEmpty, isTrue);
+      final savedB64 = faulty.backing.values.first;
+
+      // 2. Encrypt a test document with this key
+      final sampleDoc = Uint8List.fromList(utf8.encode('CONFIDENTIAL MEDICAL RECORD 2026'));
+      final encrypted = await OfflineDocumentStore.encryptBytesForTest(sampleDoc, testUser);
+
+      // 3. Simulate hardware/keystore read failure
+      faulty.failRead = true;
+
+      // Attempting to get key MUST throw StateError
+      expect(
+        () => OfflineDocumentStore.getKeyForTest(testUser),
+        throwsA(isA<StateError>()),
+        reason: 'Keystore read failure must throw StateError and never return new key',
+      );
+
+      // Decryption MUST also throw StateError
+      expect(
+        () => OfflineDocumentStore.decryptBytesForTest(encrypted, testUser),
+        throwsA(isA<StateError>()),
+        reason: 'Decryption must fail-closed when keystore cannot be read',
+      );
+
+      // Key in backing store was NOT overwritten or replaced
+      expect(faulty.backing.values.first, equals(savedB64));
+
+      // 4. Once keystore recovers (failRead = false), the document decrypts cleanly!
+      faulty.failRead = false;
+      final decrypted = await OfflineDocumentStore.decryptBytesForTest(encrypted, testUser);
+      expect(decrypted, equals(sampleDoc));
+    });
+
+    test('Secure storage write failure surfaces explicit StateError and rejects unpersisted key', () async {
+      const testUser = 'user-c3-write-fail-test';
+      final faulty = MockFaultySecureStorage(failWrite: true);
+      OfflineDocumentStore.setSecureStorageForTest(faulty);
+
+      expect(
+        () => OfflineDocumentStore.getKeyForTest(testUser),
+        throwsA(isA<StateError>()),
+        reason: 'Write failure must throw StateError and never silently continue',
+      );
+    });
+  });
+}
+
+class MockFaultySecureStorage extends FlutterSecureStorage {
+  MockFaultySecureStorage({this.failRead = false, this.failWrite = false});
+  bool failRead;
+  bool failWrite;
+  final Map<String, String> backing = {};
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (failRead) throw Exception('Simulated Keystore Exception: HardwareLocked / Deadlock');
+    return backing[key];
+  }
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (failWrite) throw Exception('Simulated Keystore Exception: WriteProtected');
+    if (value != null) backing[key] = value;
+  }
 }

@@ -593,23 +593,29 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       _toast(AppLocalizations.of(context).t('noFileToSaveOffline'));
       return;
     }
-    _toast(AppLocalizations.of(context).t('savingForOffline'));
-    final saved = await store.save(
-      docId: r.id,
-      name: r.name,
-      wallet: widget.category.name,
-      objectPath: path,
-      category: r.category,
-    );
-    if (!mounted) return;
-    setState(() {});
-    _toast(
-      saved != null
-          ? AppLocalizations.of(context)
-              .t('savedForOfflineName')
-              .replaceAll('{name}', r.name)
-          : AppLocalizations.of(context).t('couldNotSaveOffline'),
-    );
+    try {
+      final saved = await store.save(
+        docId: r.id,
+        name: r.name,
+        wallet: widget.category.name,
+        objectPath: path,
+        category: r.category,
+      );
+      if (!mounted) return;
+      setState(() {});
+      _toast(
+        saved != null
+            ? AppLocalizations.of(context)
+                .t('savedForOfflineName')
+                .replaceAll('{name}', r.name)
+            : AppLocalizations.of(context).t('couldNotSaveOffline'),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast(
+        'Offline save failed: ${e.toString().replaceAll("Exception: ", "").replaceAll("StateError: ", "")}',
+      );
+    }
   }
 
   // ---- Action sheets -------------------------------------------------------

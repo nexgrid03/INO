@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/net/net_guard.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/biometric_service.dart';
 import '../../services/password_store.dart';
@@ -158,7 +160,89 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
       return;
     }
 
-    await PasswordStore.instance.ensureLoaded();
+    await PasswordStore.instance.reload();
+    if (!mounted) return;
+
+    if (!PasswordStore.instance.isLoaded) {
+      setState(() => _error = 'Unable to verify vault state. Please try again.');
+      return;
+    }
+
+    final localCount = PasswordStore.instance.count;
+    int? serverCount;
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null) {
+        final res = await Supabase.instance.client
+            .from('w_password_vault')
+            .select('id')
+            .eq('auth_user_id', uid)
+            .count(CountOption.exact)
+            .timeout(NetGuard.query);
+        serverCount = res.count;
+      }
+    } catch (_) {
+      serverCount = null;
+    }
+
+    if (!mounted) return;
+
+    // Explicit warning if server count cannot be determined (Requirement 8)
+    if (serverCount == null) {
+      final proceedOffline = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.t('vaultResetWarnTitle')),
+          content: const Text(
+            'Unable to check server vault status because the device is offline. '
+            'Resetting your passphrase will replace the encryption key. Any passwords stored on other devices '
+            'or not cached locally will become permanently unreadable.\n\nDo you still wish to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.t('cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                l10n.t('resetPassphrase'),
+                style: const TextStyle(color: AppColors.critical),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (proceedOffline != true || !mounted) return;
+    } else if (localCount == 0 && serverCount > 0) {
+      // Local is empty but server has passwords (Requirement 6 & 8)
+      final proceedServerMismatch = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.t('vaultResetWarnTitle')),
+          content: Text(
+            'Warning: This device has 0 local passwords, but your account has $serverCount passwords stored on the server. '
+            'Resetting the passphrase cannot recover those $serverCount server passwords, and they will become permanently inaccessible.\n\n'
+            'Do you still wish to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.t('cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                l10n.t('resetPassphrase'),
+                style: const TextStyle(color: AppColors.critical),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (proceedServerMismatch != true || !mounted) return;
+    }
+
     if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
@@ -168,7 +252,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
         content: Text(
           l10n
               .t('vaultResetWarnBody')
-              .replaceAll('{n}', '${PasswordStore.instance.count}'),
+              .replaceAll('{n}', '$localCount'),
         ),
         actions: [
           TextButton(

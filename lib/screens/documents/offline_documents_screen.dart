@@ -127,20 +127,32 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen>
       if (!unlocked || !mounted) return;
     }
 
+    final decryptedFile = await _store.getDecryptedFile(doc);
+    final exists = decryptedFile != null && await decryptedFile.exists();
+    if (!mounted) return;
+    if (!exists) {
+      showModuleToast(
+        context,
+        'Could not open offline document: Decryption failed or keystore inaccessible',
+        error: true,
+      );
+      return;
+    }
+
     if (doc.isImage) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => _OfflineImageViewer(file: file, title: doc.name),
+          builder: (_) => _OfflineImageViewer(file: decryptedFile, title: doc.name),
         ),
       );
       return;
     }
-    // Hand the local copy to whatever the device uses for this type. The MIME
+    // Hand the decrypted copy to whatever the device uses for this type. The MIME
     // type is passed explicitly: open_filex otherwise infers it from the file
     // extension, and a document stored without one (or with an extension it
     // does not know) resolves to no handler at all - which is what made
     // perfectly good saved files look like they simply would not open.
-    final result = await OpenFilex.open(file.path, type: _mimeFor(doc));
+    final result = await OpenFilex.open(decryptedFile.path, type: _mimeFor(doc));
     if (!mounted) return;
     if (result.type == ResultType.done) return;
 

@@ -19,14 +19,13 @@ BEGIN
   END IF;
 
   -- 2. Delete storage objects belonging to user (documents, backups, avatars)
-  BEGIN
+  IF to_regclass('storage.objects') IS NOT NULL THEN
+    PERFORM set_config('storage.allow_delete_query', 'true', true);
     DELETE FROM storage.objects
     WHERE (storage.foldername(name))[1] = v_uid::text
        OR name LIKE (v_uid::text || '/%')
-       OR owner = v_uid::text;
-  EXCEPTION WHEN OTHERS THEN
-    NULL;
-  END;
+       OR owner::text = v_uid::text;
+  END IF;
 
   -- 3. Core tables (deletions with check on table existence to guarantee atomic completion)
   IF to_regclass('public.users') IS NOT NULL THEN
@@ -135,24 +134,24 @@ BEGIN
 
   -- 6. Shares & analytics
   IF to_regclass('public.share_views') IS NOT NULL AND to_regclass('public.document_shares') IS NOT NULL THEN
-    DELETE FROM public.share_views WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE auth_user_id = v_uid);
+    DELETE FROM public.share_views WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE owner_id = v_uid);
   END IF;
 
   IF to_regclass('public.share_downloads') IS NOT NULL AND to_regclass('public.document_shares') IS NOT NULL THEN
-    DELETE FROM public.share_downloads WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE auth_user_id = v_uid);
+    DELETE FROM public.share_downloads WHERE share_id IN (SELECT share_id FROM public.document_shares WHERE owner_id = v_uid);
   END IF;
 
   IF to_regclass('public.document_shares') IS NOT NULL THEN
-    DELETE FROM public.document_shares WHERE auth_user_id = v_uid;
+    DELETE FROM public.document_shares WHERE owner_id = v_uid;
   END IF;
 
   IF to_regclass('public.view_once_shares') IS NOT NULL THEN
-    DELETE FROM public.view_once_shares WHERE auth_user_id = v_uid;
+    DELETE FROM public.view_once_shares WHERE owner_id = v_uid;
   END IF;
 
   -- 7. Family Vaults, Invitations, Join Requests & Members
   IF to_regclass('public.vault_documents') IS NOT NULL THEN
-    DELETE FROM public.vault_documents WHERE auth_user_id = v_uid;
+    DELETE FROM public.vault_documents WHERE shared_by = v_uid;
   END IF;
 
   IF to_regclass('public.vault_join_requests') IS NOT NULL THEN
@@ -168,7 +167,7 @@ BEGIN
   END IF;
 
   IF to_regclass('public.vault_notification_events') IS NOT NULL THEN
-    DELETE FROM public.vault_notification_events WHERE actor_auth_user_id = v_uid OR target_auth_user_id = v_uid;
+    DELETE FROM public.vault_notification_events WHERE actor_auth_user_id = v_uid OR recipient_auth_user_id = v_uid;
   END IF;
 
   IF to_regclass('public.vault_members') IS NOT NULL THEN

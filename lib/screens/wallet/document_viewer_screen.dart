@@ -517,6 +517,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         _snack(AppLocalizations.of(context).t('couldNotSaveDocOffline'),
             error: true);
       }
+    } catch (e) {
+      if (!mounted) return;
+      _snack(
+        'Offline save failed: ${e.toString().replaceAll("Exception: ", "").replaceAll("StateError: ", "")}',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

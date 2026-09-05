@@ -46,6 +46,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   /// Called when vault locks or session is reset.
   void clearMemory() {
     items.clear();
+    markUnloaded();
     notifyListeners();
   }
 
@@ -134,6 +135,8 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
       }
     } catch (e) {
       developer.log('PasswordStore secure load failed: $e', name: 'vault');
+      setLoadedState(loaded: false, loading: false, uid: uid);
+      return;
     }
 
     items
@@ -222,6 +225,16 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
     final uid = client.auth.currentUser?.id;
     if (uid == null) return;
 
+    // Safety guard: An empty local vault MUST NEVER trigger an orphan sweep
+    // that wipes the server vault.
+    if (items.isEmpty) {
+      developer.log(
+        'resealForNewKey: local items is empty; aborting orphan sweep and reseal to prevent data loss',
+        name: 'vault',
+      );
+      return;
+    }
+
     final local = {for (final e in items) e.id: e};
 
     try {
@@ -230,6 +243,16 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
           .select('id')
           .eq('auth_user_id', uid)
           .timeout(NetGuard.query);
+
+      // Guard: If server has rows but local is somehow empty, abort deletion
+      if (rows.isNotEmpty && local.isEmpty) {
+        developer.log(
+          'reseal: server has ${rows.length} rows but local is empty. Aborting orphan sweep.',
+          name: 'vault',
+        );
+        return;
+      }
+
       for (final row in rows) {
         final id = row['id'] as String?;
         if (id == null || local.containsKey(id)) continue;
@@ -258,6 +281,10 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   /// Passwords are encrypted before writing, so plaintext NEVER exists on disk.
   @override
   Future<void> persist() async {
+    if (!isLoaded) {
+      developer.log('PasswordStore persist skipped: store not loaded', name: 'vault');
+      return;
+    }
     try {
       String? uid = loadedUid;
       if (uid == null || uid.isEmpty) {

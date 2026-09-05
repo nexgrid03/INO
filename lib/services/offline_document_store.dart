@@ -338,9 +338,9 @@ class OfflineDocumentStore extends ChangeNotifier {
       _upsertToSupabase(uid, entry);
 
       return entry;
-    } catch (e) {
-      developer.log('save offline failed: $e', name: 'offline');
-      return null;
+    } catch (e, st) {
+      developer.log('save offline failed: $e', name: 'offline', error: e, stackTrace: st);
+      rethrow;
     }
   }
 
@@ -451,33 +451,96 @@ class OfflineDocumentStore extends ChangeNotifier {
   }
 
   static final _algorithm = AesGcm.with256bits();
-  static const _secureStorage = FlutterSecureStorage();
+  static FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   static const String _offlineKeyPrefix = 'ino_offline_key_';
 
-  /// Obtains or generates a cryptographically secure random 256-bit encryption key
-  /// per user, persisted safely in platform Keystore / Keychain via FlutterSecureStorage.
-  static Future<SecretKey> _getOrCreateKey(String uid) async {
+  @visibleForTesting
+  static void setSecureStorageForTest(FlutterSecureStorage storage) =>
+      _secureStorage = storage;
+
+  @visibleForTesting
+  static void resetSecureStorageForTest() =>
+      _secureStorage = const FlutterSecureStorage();
+
+  /// Retrieves the existing per-user 256-bit AES encryption key from platform Keystore.
+  ///
+  /// Distinguishes explicitly between:
+  ///   A. Key missing (returns null)
+  ///   B. Key read failed (throws StateError)
+  ///
+  /// A read failure MUST NEVER be treated as "key missing", which would cause
+  /// re-keying and render all previously encrypted offline documents unrecoverable.
+  static Future<SecretKey?> _getExistingKey(String uid) async {
     if (uid.isEmpty) {
-      throw StateError('Active user ID required for offline document encryption');
+      throw StateError('Active user ID required for offline document key access');
     }
     final storageKey = '$_offlineKeyPrefix$uid';
+    final String? existingB64;
     try {
-      final existingB64 = await _secureStorage.read(key: storageKey);
-      if (existingB64 != null && existingB64.isNotEmpty) {
-        final keyBytes = base64Decode(existingB64);
-        if (keyBytes.length == 32) {
-          return SecretKey(keyBytes);
-        }
-      }
-    } catch (_) {}
+      existingB64 = await _secureStorage.read(key: storageKey);
+    } catch (e, st) {
+      developer.log(
+        'Secure keystore read failure for key $storageKey: $e',
+        name: 'offline',
+        error: e,
+        stackTrace: st,
+      );
+      // Case B: Keystore read failed. DO NOT generate new key. DO NOT overwrite. Surface explicit error.
+      throw StateError('Failed to read encryption key from secure keystore: $e');
+    }
 
-    // Generate random 256-bit (32 bytes) key using cryptographically secure RNG
+    // Case A: Key is genuinely missing in secure storage
+    if (existingB64 == null || existingB64.isEmpty) {
+      return null;
+    }
+
+    try {
+      final keyBytes = base64Decode(existingB64);
+      if (keyBytes.length == 32) {
+        return SecretKey(keyBytes);
+      }
+      throw FormatException('Invalid key length in secure storage: ${keyBytes.length}');
+    } catch (e) {
+      if (e is FormatException) rethrow;
+      throw StateError('Corrupted offline key in secure storage: $e');
+    }
+  }
+
+  /// Obtains the existing key, or securely creates a new one ONLY if no key exists yet.
+  ///
+  /// If secure storage read throws: DOES NOT generate a new key.
+  /// If secure storage write throws: DOES NOT proceed silently. Surfaces explicit error.
+  static Future<SecretKey> _getOrCreateKey(String uid) async {
+    final existing = await _getExistingKey(uid);
+    if (existing != null) {
+      return existing;
+    }
+
+    // Key is genuinely missing: generate a fresh 256-bit random key
+    final storageKey = '$_offlineKeyPrefix$uid';
     final rng = Random.secure();
     final newKeyBytes = Uint8List.fromList(List<int>.generate(32, (_) => rng.nextInt(256)));
+    final encoded = base64Encode(newKeyBytes);
+
     try {
-      await _secureStorage.write(key: storageKey, value: base64Encode(newKeyBytes));
-    } catch (_) {}
-    return SecretKey(newKeyBytes);
+      await _secureStorage.write(key: storageKey, value: encoded);
+    } catch (e, st) {
+      developer.log(
+        'Secure keystore write failure for key $storageKey: $e',
+        name: 'offline',
+        error: e,
+        stackTrace: st,
+      );
+      throw StateError('Failed to persist encryption key to secure keystore: $e');
+    }
+
+    // Verify key was persisted correctly
+    final verified = await _getExistingKey(uid);
+    if (verified == null) {
+      throw StateError('Secure keystore verification failed: key could not be verified after write');
+    }
+
+    return verified;
   }
 
   /// Encrypts raw document bytes using AES-256-GCM with a per-file random 12-byte nonce.
@@ -515,17 +578,21 @@ class OfflineDocumentStore extends ChangeNotifier {
       throw StateError('User ID required for offline document decryption');
     }
 
-    final secretKey = await _getOrCreateKey(effectiveUid);
+    final secretKey = await _getExistingKey(effectiveUid);
     final nonce = encrypted.sublist(0, nonceLen);
     final cipherText = encrypted.sublist(nonceLen, encrypted.length - macLen);
     final mac = Mac(encrypted.sublist(encrypted.length - macLen));
     final box = SecretBox(cipherText, nonce: nonce, mac: mac);
 
-    try {
-      // 1. Primary: decrypt using user-specific random key
-      final decrypted = await _algorithm.decrypt(box, secretKey: secretKey);
-      return Uint8List.fromList(decrypted);
-    } catch (_) {
+    if (secretKey != null) {
+      try {
+        // 1. Primary: decrypt using user-specific random key
+        final decrypted = await _algorithm.decrypt(box, secretKey: secretKey);
+        return Uint8List.fromList(decrypted);
+      } catch (_) {
+        // Fall through to check legacy key
+      }
+    }
       // 2. Compatibility fallback: check if document was encrypted under legacy key
       try {
         final legacyDecrypted = await _algorithm.decrypt(box, secretKey: _legacySecretKey);
@@ -546,7 +613,6 @@ class OfflineDocumentStore extends ChangeNotifier {
         developer.log('Offline document decryption failed (tampered or invalid key): $e', name: 'offline');
         throw StateError('Decryption failed: integrity check failed or corrupted file');
       }
-    }
   }
 
   /// Returns a temporary decrypted file for viewing offline documents.
