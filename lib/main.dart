@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'core/net/net_guard.dart';
 import 'core/responsive/responsive.dart';
+import 'core/storage/secure_local_storage.dart';
 import 'core/storage/shared_prefs_cache.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/lock/app_lock.dart';
@@ -46,6 +47,9 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
     httpClient: TimeoutHttpClient(http.Client()),
+    authOptions: FlutterAuthClientOptions(
+      localStorage: SecureLocalStorage(),
+    ),
   );
 
   // Parallelize independent startup initializations to reduce cold start time
