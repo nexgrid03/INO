@@ -73,6 +73,15 @@ PasswordStrength passwordStrength(String password) {
   return PasswordStrength.fair;
 }
 
+/// Represents the encryption state of a password entry.
+enum PasswordEncryptionState {
+  /// The password field contains encrypted ciphertext (sealed with VaultCrypto).
+  sealed,
+
+  /// The password field contains verified decrypted plaintext.
+  unsealed,
+}
+
 /// One saved password in the vault.
 class PasswordEntry {
   const PasswordEntry({
@@ -82,6 +91,7 @@ class PasswordEntry {
     required this.createdAt,
     required this.updatedAt,
     this.consent = false,
+    this.encryptionState = PasswordEncryptionState.unsealed,
   });
 
   final String id;
@@ -97,7 +107,19 @@ class PasswordEntry {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  PasswordStrength get strength => passwordStrength(password);
+  /// Durable state marker indicating whether [password] is verified decrypted
+  /// plaintext ([PasswordEncryptionState.unsealed]) or sealed ciphertext
+  /// ([PasswordEncryptionState.sealed]).
+  final PasswordEncryptionState encryptionState;
+
+  /// True if the entry has been verified as decrypted plaintext.
+  bool get isDecrypted => encryptionState == PasswordEncryptionState.unsealed;
+
+  /// True if the entry contains sealed ciphertext.
+  bool get isSealed => encryptionState == PasswordEncryptionState.sealed;
+
+  PasswordStrength get strength =>
+      isSealed ? PasswordStrength.weak : passwordStrength(password);
 
   /// The first letter, for the fallback monogram tile.
   String get monogram =>
@@ -119,6 +141,7 @@ class PasswordEntry {
     String? password,
     bool? consent,
     DateTime? updatedAt,
+    PasswordEncryptionState? encryptionState,
   }) {
     return PasswordEntry(
       id: id ?? this.id,
@@ -127,6 +150,7 @@ class PasswordEntry {
       consent: consent ?? this.consent,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
+      encryptionState: encryptionState ?? this.encryptionState,
     );
   }
 
@@ -137,18 +161,38 @@ class PasswordEntry {
         'consent': consent,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
+        'encryptionState': encryptionState.name,
+        'isSealed': isSealed,
       };
 
-  factory PasswordEntry.fromJson(Map<String, dynamic> j) => PasswordEntry(
-        id: j['id']?.toString() ?? '',
-        // 'title' is the key the pre-simplification vault wrote; falling back
-        // keeps entries cached on-device by older builds readable.
-        nickname: (j['nickname'] as String?) ?? (j['title'] as String?) ?? '',
-        password: (j['password'] as String?) ?? '',
-        consent: (j['consent'] as bool?) ?? false,
-        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ??
-            DateTime.now(),
-        updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? '') ??
-            DateTime.now(),
-      );
+  factory PasswordEntry.fromJson(Map<String, dynamic> j) {
+    final rawState = j['encryptionState'] as String?;
+    final isSealedBool = j['isSealed'] as bool?;
+    final PasswordEncryptionState state;
+    if (rawState != null) {
+      state = rawState == 'sealed'
+          ? PasswordEncryptionState.sealed
+          : PasswordEncryptionState.unsealed;
+    } else if (isSealedBool != null) {
+      state = isSealedBool
+          ? PasswordEncryptionState.sealed
+          : PasswordEncryptionState.unsealed;
+    } else {
+      state = PasswordEncryptionState.unsealed;
+    }
+
+    return PasswordEntry(
+      id: j['id']?.toString() ?? '',
+      // 'title' is the key the pre-simplification vault wrote; falling back
+      // keeps entries cached on-device by older builds readable.
+      nickname: (j['nickname'] as String?) ?? (j['title'] as String?) ?? '',
+      password: (j['password'] as String?) ?? '',
+      consent: (j['consent'] as bool?) ?? false,
+      createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? '') ??
+          DateTime.now(),
+      encryptionState: state,
+    );
+  }
 }

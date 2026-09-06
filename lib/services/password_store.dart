@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -42,10 +43,47 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   @override
   Future<void> loadLocalCache(String? uid) => loadFromSecureStorage(uid);
 
+  bool _hydratedWhileLocked = false;
+
+  /// True if the store was hydrated while the vault was locked.
+  /// When true, in-memory items may hold unverified ciphertext loaded from disk.
+  bool get hydratedWhileLocked => _hydratedWhileLocked;
+
+  /// True if all loaded entries are verified decrypted plaintext.
+  bool get allEntriesDecrypted =>
+      isLoaded &&
+      items.isNotEmpty &&
+      items.every((e) => e.isDecrypted);
+
+  /// True if any entry in the store contains sealed ciphertext.
+  bool get hasSealedEntries => items.any((e) => e.isSealed);
+
+  /// Safe precondition check for reseal or passphrase reset.
+  /// Reseal MUST refuse to execute unless:
+  /// 1. Vault is unlocked
+  /// 2. Store was not hydrated while locked without subsequent verified unlock/decrypt
+  /// 3. Items list is non-empty
+  /// 4. Every single item is verified decrypted plaintext
+  bool get canReseal =>
+      VaultCrypto.instance.isUnlocked &&
+      !_hydratedWhileLocked &&
+      items.isNotEmpty &&
+      items.every((e) => e.isDecrypted);
+
+  @override
+  @visibleForTesting
+  void reset() {
+    items.clear();
+    _hydratedWhileLocked = false;
+    markUnloaded();
+    notifyListeners();
+  }
+
   /// Clears in-memory decrypted passwords without modifying disk cache.
   /// Called when vault locks or session is reset.
   void clearMemory() {
     items.clear();
+    _hydratedWhileLocked = false;
     markUnloaded();
     notifyListeners();
   }
@@ -55,6 +93,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
   Future<void> loadFromSecureStorage(String? uid) async {
     final key = '${storageKey}_${uid ?? 'local'}';
     final loaded = <PasswordEntry>[];
+    _hydratedWhileLocked = !VaultCrypto.instance.isUnlocked;
     try {
       // 1. Read secure storage first
       String? raw = await _secureStorage.read(key: key);
@@ -85,6 +124,7 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
               if (sealed != null) {
                 row['password'] = sealed;
                 row['isSealed'] = true;
+                row['encryptionState'] = 'sealed';
               }
             }
             payloads.add(row);
@@ -123,11 +163,29 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
         final maps = jsonDecode(raw) as List<dynamic>;
         for (final m in maps) {
           if (m is Map<String, dynamic>) {
-            final isSealed = m['isSealed'] as bool? ?? false;
+            final isSealed = (m['isSealed'] as bool?) ??
+                (m['encryptionState'] == 'sealed');
             var entry = PasswordEntry.fromJson(m);
-            if (isSealed && entry.password.isNotEmpty && VaultCrypto.instance.isUnlocked) {
-              final unsealed = await VaultCrypto.instance.decrypt(entry.password);
-              entry = entry.copyWith(password: unsealed ?? '');
+            if (isSealed && entry.password.isNotEmpty) {
+              if (VaultCrypto.instance.isUnlocked) {
+                final unsealed = await VaultCrypto.instance.decrypt(entry.password);
+                if (unsealed != null) {
+                  entry = entry.copyWith(
+                    password: unsealed,
+                    encryptionState: PasswordEncryptionState.unsealed,
+                  );
+                } else {
+                  // Decryption failed under current key: remains sealed!
+                  entry = entry.copyWith(
+                    encryptionState: PasswordEncryptionState.sealed,
+                  );
+                }
+              } else {
+                // Vault is locked: cannot decrypt, MUST remain marked sealed!
+                entry = entry.copyWith(
+                  encryptionState: PasswordEncryptionState.sealed,
+                );
+              }
             }
             loaded.add(entry);
           }
@@ -163,12 +221,15 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
 
   /// Maps an entry onto `w_password_vault`, sealing the password.
   ///
-  /// Throws if the vault locked between the caller's check and here. That is
-  /// intentional: [LocalCollectionStore] catches it, keeps the record local,
-  /// and retries on the next sync - which is the correct outcome. Writing a
-  /// null or plaintext `password` would not be.
+  /// Throws if the entry is already sealed ciphertext (preventing double-encryption)
+  /// or if the vault locked between the caller's check and here.
   @override
   Future<Map<String, dynamic>> toRow(PasswordEntry e) async {
+    if (e.isSealed || !e.isDecrypted) {
+      throw StateError(
+        'Refusing to upload or re-encrypt an already-sealed ciphertext entry: ${e.id}',
+      );
+    }
     final sealed = await VaultCrypto.instance.encrypt(e.password);
     if (sealed == null) {
       throw StateError('vault locked - refusing to upload an unsealed secret');
@@ -184,46 +245,69 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
 
   /// Rebuilds an entry, decrypting the sealed password.
   ///
-  /// A password that will not open (wrong key, tampered row) yields an empty
-  /// string rather than throwing, so one bad row cannot make the whole vault
-  /// unreadable. The entry is still listed - the user can see it exists and
-  /// re-enter it.
+  /// A password that will not open (wrong key, tampered row) yields an entry marked
+  /// [PasswordEncryptionState.sealed] rather than throwing, so one bad row cannot
+  /// make the whole vault unreadable.
   @override
   Future<PasswordEntry> fromRow(Map<String, dynamic> row) async {
     final sealed = row['password'] as String?;
-    final plaintext =
-        sealed == null ? '' : (await VaultCrypto.instance.decrypt(sealed) ?? '');
-    return PasswordEntry(
-      id: row['id'] as String,
-      nickname: (row['nickname'] as String?) ?? '',
-      password: plaintext,
-      consent: (row['consent'] as bool?) ?? false,
-      createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
-    );
+    if (sealed == null || sealed.isEmpty) {
+      return PasswordEntry(
+        id: row['id'] as String,
+        nickname: (row['nickname'] as String?) ?? '',
+        password: '',
+        consent: (row['consent'] as bool?) ?? false,
+        createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+        encryptionState: PasswordEncryptionState.unsealed,
+      );
+    }
+    final plaintext = await VaultCrypto.instance.decrypt(sealed);
+    if (plaintext != null) {
+      return PasswordEntry(
+        id: row['id'] as String,
+        nickname: (row['nickname'] as String?) ?? '',
+        password: plaintext,
+        consent: (row['consent'] as bool?) ?? false,
+        createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+        encryptionState: PasswordEncryptionState.unsealed,
+      );
+    } else {
+      return PasswordEntry(
+        id: row['id'] as String,
+        nickname: (row['nickname'] as String?) ?? '',
+        password: sealed,
+        consent: (row['consent'] as bool?) ?? false,
+        createdAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+        encryptionState: PasswordEncryptionState.sealed,
+      );
+    }
   }
 
   /// Re-seals every locally-cached entry under the vault's current key, and
   /// drops server rows this device cannot account for.
   ///
-  /// Called immediately after [VaultCrypto.resetPassphrase]. The local cache
-  /// holds plaintext, so those entries survive a forgotten passphrase intact -
-  /// this is what turns "reset" from "lose everything" into "lose only what
-  /// was never on this phone".
+  /// Called immediately after [VaultCrypto.resetPassphrase].
   ///
-  /// The orphan sweep is not tidiness. A row sealed under the old key can
-  /// never be opened again; leaving it would mean the vault permanently listed
-  /// entries that show as blank passwords, with no way for the user to tell
-  /// those apart from a genuine sync problem. Deleting them makes the loss
-  /// visible once, which is the honest outcome.
-  ///
-  /// Best-effort throughout: a failure here leaves the new key working and the
-  /// local entries intact, and the next sync retries.
-  Future<void> resealForNewKey() async {
-    if (!VaultCrypto.instance.isUnlocked) return;
-    final client = Supabase.instance.client;
-    final uid = client.auth.currentUser?.id;
-    if (uid == null) return;
+  /// MANDATORY DEFENSE: Reseal MUST refuse to execute unless entries were actually
+  /// decrypted under the vault key. If the store was hydrated while locked, or if
+  /// any entry is marked sealed, this method immediately aborts and makes ZERO writes
+  /// to Supabase or local storage.
+  Future<bool> resealForNewKey() async {
+    if (!VaultCrypto.instance.isUnlocked) {
+      developer.log('resealForNewKey aborted: vault is locked', name: 'vault');
+      return false;
+    }
+
+    if (_hydratedWhileLocked || hasSealedEntries || !allEntriesDecrypted) {
+      developer.log(
+        'resealForNewKey aborted: store contains sealed or unverified ciphertext entries (hydratedWhileLocked: $_hydratedWhileLocked, hasSealed: $hasSealedEntries, allDecrypted: $allEntriesDecrypted)',
+        name: 'vault',
+      );
+      return false;
+    }
 
     // Safety guard: An empty local vault MUST NEVER trigger an orphan sweep
     // that wipes the server vault.
@@ -232,49 +316,71 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
         'resealForNewKey: local items is empty; aborting orphan sweep and reseal to prevent data loss',
         name: 'vault',
       );
-      return;
+      return false;
     }
 
     final local = {for (final e in items) e.id: e};
 
-    try {
-      final rows = await client
-          .from('w_password_vault')
-          .select('id')
-          .eq('auth_user_id', uid)
-          .timeout(NetGuard.query);
-
-      // Guard: If server has rows but local is somehow empty, abort deletion
-      if (rows.isNotEmpty && local.isEmpty) {
+    // Explicitly verify each entry is unsealed before any writes
+    for (final entry in local.values) {
+      if (entry.isSealed || !entry.isDecrypted) {
         developer.log(
-          'reseal: server has ${rows.length} rows but local is empty. Aborting orphan sweep.',
+          'resealForNewKey aborted: entry ${entry.id} is sealed ciphertext',
           name: 'vault',
         );
-        return;
+        return false;
       }
+    }
 
-      for (final row in rows) {
-        final id = row['id'] as String?;
-        if (id == null || local.containsKey(id)) continue;
-        await client
+    SupabaseClient? client;
+    String? uid;
+    try {
+      client = Supabase.instance.client;
+      uid = client.auth.currentUser?.id;
+    } catch (_) {}
+
+    if (client != null && uid != null) {
+      try {
+        final rows = await client
             .from('w_password_vault')
-            .delete()
-            .eq('id', id)
-            .timeout(NetGuard.mutation);
+            .select('id')
+            .eq('auth_user_id', uid)
+            .timeout(NetGuard.query);
+
+        // Guard: If server has rows but local is somehow empty, abort deletion
+        if (rows.isNotEmpty && local.isEmpty) {
+          developer.log(
+            'reseal: server has ${rows.length} rows but local is empty. Aborting orphan sweep.',
+            name: 'vault',
+          );
+          return false;
+        }
+
+        for (final row in rows) {
+          final id = row['id'] as String?;
+          if (id == null || local.containsKey(id)) continue;
+          await client
+              .from('w_password_vault')
+              .delete()
+              .eq('id', id)
+              .timeout(NetGuard.mutation);
+        }
+      } catch (e) {
+        developer.log('reseal: orphan sweep failed: $e', name: 'vault');
       }
-    } catch (e) {
-      developer.log('reseal: orphan sweep failed: $e', name: 'vault');
     }
 
     for (final entry in local.values) {
       try {
         // update() runs toRow(), which seals with whatever key is loaded now -
-        // so this is the re-encryption, not just a touch.
+        // so this is the re-encryption of verified plaintext, not ciphertext.
         await update(entry);
       } catch (e) {
         developer.log('reseal: ${entry.id} failed: $e', name: 'vault');
       }
     }
+    await persist();
+    return true;
   }
 
   /// Securely persist items to platform Keystore/Keychain via FlutterSecureStorage.
@@ -309,12 +415,17 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
       final sealedPayloads = <Map<String, dynamic>>[];
       for (final item in items) {
         final row = item.toJson();
-        if (VaultCrypto.instance.isUnlocked && item.password.isNotEmpty) {
+        if (item.isDecrypted && VaultCrypto.instance.isUnlocked && item.password.isNotEmpty) {
           final sealed = await VaultCrypto.instance.encrypt(item.password);
           if (sealed != null) {
             row['password'] = sealed;
             row['isSealed'] = true;
+            row['encryptionState'] = 'sealed';
           }
+        } else if (item.isSealed) {
+          // Already sealed! Do NOT encrypt again! Preserve existing ciphertext.
+          row['isSealed'] = true;
+          row['encryptionState'] = 'sealed';
         }
         sealedPayloads.add(row);
       }

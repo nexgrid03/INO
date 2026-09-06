@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAMID.com.ino.app",
+        "appID": "9JA6MVCD82.com.ino.app",
         "components": [
           {
             "/": "/s/*",
@@ -28,7 +28,7 @@
   },
   "webcredentials": {
     "apps": [
-      "TEAMID.com.ino.app"
+      "9JA6MVCD82.com.ino.app"
     ]
   }
 }

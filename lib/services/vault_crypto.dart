@@ -60,8 +60,21 @@ class VaultCrypto extends ChangeNotifier {
   /// readable. Reset by [lock] and on sign-out.
   bool get isUnlocked => _key != null;
 
-  SupabaseClient get _client => Supabase.instance.client;
-  String? get _uid => _client.auth.currentUser?.id;
+  SupabaseClient? get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get _uid {
+    try {
+      return _client?.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Vault lifecycle
@@ -74,9 +87,10 @@ class VaultCrypto extends ChangeNotifier {
   /// which would overwrite the existing key record and strand every secret.
   Future<bool?> hasPassphrase() async {
     final uid = _uid;
-    if (uid == null) return null;
+    final client = _client;
+    if (uid == null || client == null) return null;
     try {
-      final row = await _client
+      final row = await client
           .from(_table)
           .select('salt')
           .eq('auth_user_id', uid)
@@ -96,13 +110,14 @@ class VaultCrypto extends ChangeNotifier {
   /// permanently unreadable.
   Future<bool> createPassphrase(String passphrase) async {
     final uid = _uid;
-    if (uid == null || passphrase.isEmpty) return false;
+    final client = _client;
+    if (uid == null || client == null || passphrase.isEmpty) return false;
     try {
       final salt = _randomBytes(32);
       final key = await _deriveKey(passphrase, salt);
       final verifier = await _seal(_verifierPlaintext, key);
 
-      await _client.from(_table).insert({
+      await client.from(_table).insert({
         'auth_user_id': uid,
         'salt': base64Encode(salt),
         'verifier': verifier,
@@ -125,9 +140,10 @@ class VaultCrypto extends ChangeNotifier {
   /// verifier. Returns false for a wrong passphrase; the vault stays locked.
   Future<bool> unlock(String passphrase) async {
     final uid = _uid;
-    if (uid == null || passphrase.isEmpty) return false;
+    final client = _client;
+    if (uid == null || client == null || passphrase.isEmpty) return false;
     try {
-      final row = await _client
+      final row = await client
           .from(_table)
           .select('salt, verifier, iterations')
           .eq('auth_user_id', uid)
@@ -185,8 +201,25 @@ class VaultCrypto extends ChangeNotifier {
   /// user simply has no vault key — which the vault screen reads as "set one
   /// up", and their plaintext entries on this device are still intact.
   Future<bool> resetPassphrase(String passphrase) async {
+    // Safety guard: Reseal / passphrase-reset MUST refuse to execute unless entries
+    // were actually decrypted under the current vault key.
+    // If PasswordStore contains sealed ciphertext or was hydrated while locked,
+    // re-keying would permanently destroy those encrypted records.
+    if (PasswordStore.instance.isLoaded &&
+        (PasswordStore.instance.hasSealedEntries ||
+            PasswordStore.instance.hydratedWhileLocked ||
+            !PasswordStore.instance.canReseal)) {
+      developer.log(
+        'resetPassphrase aborted: PasswordStore contains sealed ciphertext. Cannot re-key vault without corrupting sealed entries.',
+        name: 'vault',
+      );
+      return false;
+    }
+
     final uid = _uid;
-    if (uid == null || passphrase.isEmpty) return false;
+    final client = _client;
+    if (uid == null || client == null || passphrase.isEmpty) return false;
+
     try {
       // All the fallible local work first.
       final salt = _randomBytes(32);
@@ -199,12 +232,12 @@ class VaultCrypto extends ChangeNotifier {
         'iterations': _iterations,
       };
 
-      await _client
+      await client
           .from(_table)
           .delete()
           .eq('auth_user_id', uid)
           .timeout(NetGuard.mutation);
-      await _client.from(_table).insert(row).timeout(NetGuard.mutation);
+      await client.from(_table).insert(row).timeout(NetGuard.mutation);
 
       _key = key;
       notifyListeners();

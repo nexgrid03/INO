@@ -108,10 +108,26 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
     final bool ok;
     if (_resetting) {
+      if (!PasswordStore.instance.canReseal) {
+        setState(() {
+          _busy = false;
+          _error = 'Passphrase reset aborted: vault entries are not decrypted plaintext.';
+        });
+        return;
+      }
       ok = await VaultCrypto.instance.resetPassphrase(value);
       // Re-seal what this device still holds in plaintext under the new key,
       // so a reset from the phone that has the entries loses nothing.
-      if (ok) await PasswordStore.instance.resealForNewKey();
+      if (ok) {
+        final resealed = await PasswordStore.instance.resealForNewKey();
+        if (!resealed) {
+          setState(() {
+            _busy = false;
+            _error = 'Failed to reseal vault entries.';
+          });
+          return;
+        }
+      }
     } else if (widget.isFirstTime) {
       ok = await VaultCrypto.instance.createPassphrase(value);
     } else {
@@ -150,6 +166,21 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
   ///     not. The count is spelled out so the choice is concrete.
   Future<void> _forgotPassphrase() async {
     final l10n = AppLocalizations.of(context);
+
+    // Primary safety guard:
+    // "Forgot Passphrase" cannot re-encrypt or recover entries if the vault is locked,
+    // because entries on disk are sealed ciphertext that cannot be decrypted without the old key.
+    // If the vault is locked with encrypted entries, or entries are not verified decrypted plaintext,
+    // passphrase reset MUST refuse to execute to prevent permanent ciphertext corruption.
+    if (!VaultCrypto.instance.isUnlocked || !PasswordStore.instance.canReseal) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Vault cannot be reset while locked with encrypted entries. '
+            'Resetting without the passphrase will destroy encrypted passwords. '
+            'Please unlock the vault first.';
+      });
+      return;
+    }
 
     final proven = await BiometricService.instance.authenticate(
       reason: l10n.t('authResetVaultPassphrase'),

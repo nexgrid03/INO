@@ -99,11 +99,13 @@ void main() {
       expect(content.contains('android:pathPrefix="/share/"'), isTrue);
     });
 
-    test('Runner.entitlements contains canonical applinks domain', () {
+    test('Runner.entitlements contains canonical applinks domain without placeholders', () {
       final entitlementsFile = File('ios/Runner/Runner.entitlements');
+      expect(entitlementsFile.existsSync(), isTrue);
       final content = entitlementsFile.readAsStringSync();
 
-      expect(content.contains('applinks:$canonicalHost'), isTrue);
+      expect(content.contains('<string>applinks:$canonicalHost</string>'), isTrue);
+      expect(content.contains('your-share-domain'), isFalse, reason: 'Runner.entitlements must not contain your-share-domain placeholder');
     });
 
     test('Xcode project references Runner.entitlements for code signing', () {
@@ -113,35 +115,118 @@ void main() {
       expect(content.contains('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;'), isTrue);
     });
 
-    test('Android assetlinks.json is served with correct package name and SHA256 fingerprint', () {
-      final assetlinksFile = File('share-frontend/public/.well-known/assetlinks.json');
-      expect(assetlinksFile.existsSync(), isTrue);
+    test('Android assetlinks.json is served with correct package name and dual production SHA256 fingerprints', () {
+      final filesToCheck = [
+        File('share-frontend/public/.well-known/assetlinks.json'),
+        File('deep-linking/assetlinks.json'),
+      ];
 
-      final jsonContent = jsonDecode(assetlinksFile.readAsStringSync()) as List<dynamic>;
-      expect(jsonContent.isNotEmpty, isTrue);
+      const uploadKeySha256 = '2C:CE:7C:AA:04:E7:8A:E8:16:1C:9F:B0:FA:2B:F9:B0:B5:AA:C0:0F:6D:4A:2C:E6:BD:BF:5D:85:84:93:21:ED';
+      const playSigningSha256 = 'EC:37:23:6C:C2:09:86:E3:A6:88:75:90:DE:97:E9:D3:F6:95:4F:D8:8E:16:5F:31:00:84:DB:94:ED:AC:0A:52';
+      final sha256Regex = RegExp(r'^([0-9A-F]{2}:){31}[0-9A-F]{2}$');
 
-      final target = jsonContent[0]['target'] as Map<String, dynamic>;
-      expect(target['package_name'], equals('com.ino.app'));
-      expect(target['namespace'], equals('android_app'));
+      for (final assetlinksFile in filesToCheck) {
+        expect(assetlinksFile.existsSync(), isTrue, reason: '${assetlinksFile.path} must exist');
 
-      final certs = target['sha256_cert_fingerprints'] as List<dynamic>;
-      expect(certs, contains('EC:37:23:6C:C2:09:86:E3:A6:88:75:90:DE:97:E9:D3:F6:95:4F:D8:8E:16:5F:31:00:84:DB:94:ED:AC:0A:52'));
+        final jsonContent = jsonDecode(assetlinksFile.readAsStringSync()) as List<dynamic>;
+        expect(jsonContent.isNotEmpty, isTrue);
+
+        final entry = jsonContent[0] as Map<String, dynamic>;
+        expect(entry['relation'], contains('delegate_permission/common.handle_all_urls'));
+
+        final target = entry['target'] as Map<String, dynamic>;
+        expect(target['package_name'], equals('com.ino.app'));
+        expect(target['namespace'], equals('android_app'));
+
+        final certs = target['sha256_cert_fingerprints'] as List<dynamic>;
+        expect(certs, contains(uploadKeySha256), reason: 'Must contain upload key SHA-256 in ${assetlinksFile.path}');
+        expect(certs, contains(playSigningSha256), reason: 'Must contain Play App Signing SHA-256 in ${assetlinksFile.path}');
+
+        for (final cert in certs) {
+          expect(sha256Regex.hasMatch(cert as String), isTrue, reason: 'Invalid SHA256 format: $cert in ${assetlinksFile.path}');
+          expect(cert, isNot(contains('EXAMPLE')));
+          expect(cert, isNot(contains('PLACEHOLDER')));
+        }
+      }
     });
 
-    test('iOS apple-app-site-association is served with correct bundle ID and paths', () {
-      final aasaWellKnown = File('share-frontend/public/.well-known/apple-app-site-association');
-      final aasaRoot = File('share-frontend/public/apple-app-site-association');
-      expect(aasaWellKnown.existsSync(), isTrue);
-      expect(aasaRoot.existsSync(), isTrue);
+    test('iOS apple-app-site-association strictly enforces valid Apple Developer Team ID and rejects placeholders', () {
+      final filesToCheck = [
+        File('share-frontend/public/.well-known/apple-app-site-association'),
+        File('share-frontend/public/apple-app-site-association'),
+      ];
 
-      final aasa = jsonDecode(aasaWellKnown.readAsStringSync()) as Map<String, dynamic>;
-      final applinks = aasa['applinks'] as Map<String, dynamic>;
-      final details = applinks['details'] as List<dynamic>;
-      expect(details.isNotEmpty, isTrue);
+      const expectedTeamId = '9JA6MVCD82';
+      const expectedAppId = '$expectedTeamId.com.ino.app';
+      final appIDRegex = RegExp(r'^[A-Z0-9]{10}\.com\.ino\.app$');
+      final teamIdRegex = RegExp(r'^[A-Z0-9]{10}$');
 
-      final detail = details[0] as Map<String, dynamic>;
-      expect(detail['appID'], contains('com.ino.app'));
-      expect(detail['paths'], containsAll(['/s/*', '/v/*', '/share/*']));
+      for (final aasaFile in filesToCheck) {
+        expect(aasaFile.existsSync(), isTrue, reason: '${aasaFile.path} must exist');
+        final raw = aasaFile.readAsStringSync();
+
+        // Strict rejection of placeholders
+        expect(raw, isNot(contains('TEAMID')), reason: 'Must not contain literal placeholder TEAMID in ${aasaFile.path}');
+        expect(raw, isNot(contains('YOUR_TEAM_ID')));
+        expect(raw, isNot(contains('<TEAMID>')));
+        expect(raw, isNot(contains('<REAL_TEAM_ID>')));
+
+        final aasa = jsonDecode(raw) as Map<String, dynamic>;
+        final applinks = aasa['applinks'] as Map<String, dynamic>;
+        final details = applinks['details'] as List<dynamic>;
+        expect(details.isNotEmpty, isTrue);
+
+        final detail = details[0] as Map<String, dynamic>;
+        final appID = detail['appID'] as String;
+
+        // Strict pattern validation
+        expect(appIDRegex.hasMatch(appID), isTrue, reason: 'App ID $appID in ${aasaFile.path} must match [A-Z0-9]{10}.com.ino.app');
+        expect(appID, equals(expectedAppId));
+
+        final teamId = appID.split('.').first;
+        expect(teamIdRegex.hasMatch(teamId), isTrue);
+        expect(teamId.length, equals(10), reason: 'Apple Developer Team ID must be exactly 10 alphanumeric chars');
+        expect(teamId, equals(expectedTeamId));
+
+        // Exact paths matching
+        expect(detail['paths'], equals(['/s/*', '/v/*', '/share/*']));
+
+        // Webcredentials apps validation
+        final webcredentials = aasa['webcredentials'] as Map<String, dynamic>;
+        final webApps = webcredentials['apps'] as List<dynamic>;
+        expect(webApps, contains(expectedAppId));
+        expect(webApps, isNot(contains('TEAMID.com.ino.app')));
+        for (final app in webApps) {
+          expect(appIDRegex.hasMatch(app as String), isTrue);
+          expect(app, isNot(contains('TEAMID')));
+        }
+      }
+    });
+
+    test('Apple App ID validator strictly rejects TEAMID, lowercase, short, or placeholder values', () {
+      final appIDRegex = RegExp(r'^[A-Z0-9]{10}\.com\.ino\.app$');
+      bool isValidAppId(String candidate) {
+        if (candidate.contains('TEAMID') ||
+            candidate.contains('YOUR_TEAM_ID') ||
+            candidate.contains('PLACEHOLDER') ||
+            candidate.contains('<') ||
+            candidate.contains('>')) {
+          return false;
+        }
+        return appIDRegex.hasMatch(candidate);
+      }
+
+      // Proves previous broken states FAIL:
+      expect(isValidAppId('TEAMID.com.ino.app'), isFalse, reason: 'TEAMID placeholder must be rejected');
+      expect(isValidAppId('com.ino.app'), isFalse, reason: 'Missing Team ID prefix must be rejected');
+      expect(isValidAppId('YOUR_TEAM_ID.com.ino.app'), isFalse, reason: 'YOUR_TEAM_ID placeholder must be rejected');
+      expect(isValidAppId('<TEAMID>.com.ino.app'), isFalse, reason: 'Bracketed placeholder must be rejected');
+      expect(isValidAppId('teamid1234.com.ino.app'), isFalse, reason: 'Lowercase or invalid prefix must be rejected');
+      expect(isValidAppId('12345.com.ino.app'), isFalse, reason: 'Prefix with length != 10 must be rejected');
+      expect(isValidAppId('ABC12345678.com.ino.app'), isFalse, reason: 'Prefix with length > 10 must be rejected');
+
+      // Proves production state PASSES:
+      expect(isValidAppId('9JA6MVCD82.com.ino.app'), isTrue, reason: 'Valid 10-char uppercase alphanumeric Team ID must pass');
     });
 
     test('DeepLinkService routes canonical URLs to correct tokens without cross-contamination', () {
