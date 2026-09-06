@@ -47,14 +47,15 @@ export function getVisitorIp(headers: Headers): string {
 
 /**
  * Builds safe upstream headers to pass the visitor's authenticated IP to the Supabase share function.
+ * STRICT FAIL-CLOSED: Never emits proxy authentication headers or forward IP headers
+ * unless SHARE_PROXY_SECRET is configured in the environment.
  */
 export function getProxyHeaders(headers: Headers): Record<string, string> {
   const visitorIp = getVisitorIp(headers);
-  const out: Record<string, string> = {
-    "x-real-ip": visitorIp,
-    "x-forwarded-for": visitorIp,
-  };
-  if (SHARE_PROXY_SECRET) {
+  const out: Record<string, string> = {};
+  if (SHARE_PROXY_SECRET && SHARE_PROXY_SECRET.length > 0) {
+    out["x-real-ip"] = visitorIp;
+    out["x-forwarded-for"] = visitorIp;
     out["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
   }
   return out;

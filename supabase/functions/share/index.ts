@@ -152,6 +152,9 @@ export function getClientIp(req: Request): string {
           return hop;
         }
       }
+      if (hops.length > 0 && isValidIp(hops[hops.length - 1])) {
+        return hops[hops.length - 1];
+      }
     }
   }
 
@@ -163,18 +166,8 @@ export function getClientIp(req: Request): string {
     return cfIp;
   }
 
-  // 3. Fallback for environments where Cloudflare header is absent (e.g. direct localhost dev):
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp && isValidIp(realIp)) return realIp;
-
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const hops = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
-    if (hops.length > 0 && isValidIp(hops[hops.length - 1])) {
-      return hops[hops.length - 1];
-    }
-  }
-
+  // 3. Fallback for direct connections when Cloudflare header is absent (e.g. local integration tests).
+  // Strictly fail closed: NEVER trust x-forwarded-for or x-real-ip without valid proxy authentication!
   return "127.0.0.1";
 }
 

@@ -63,6 +63,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Strict fail-closed: reject if Supabase credentials are not configured in environment
+    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.trim().length === 0) {
+      console.error("[delete-request] SUPABASE_ANON_KEY is not configured (fail-closed).");
+      return NextResponse.json(
+        { error: "Account deletion service is currently unavailable. Please contact privacy@inoapp.in." },
+        { status: 503 }
+      );
+    }
+
     // Call Supabase GoTrue OTP endpoint
     // create_user: false ensures OTP is only generated for existing accounts
     await fetch(`${SUPABASE_URL}/auth/v1/otp`, {

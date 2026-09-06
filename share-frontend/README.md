@@ -28,8 +28,11 @@ npm run dev                       # http://localhost:3000/s/<token>
 
 ## Deploy to Vercel
 1. Import this folder as a Vercel project (root = `share-frontend`).
-2. Set env var **`SUPABASE_FUNCTIONS_URL`** =
-   `https://ilfzppryyojoponkomrw.functions.supabase.co`.
+2. Configure Environment Variables in Vercel (Project → Settings → Environment Variables):
+   - **`SUPABASE_FUNCTIONS_URL`**: `https://ilfzppryyojoponkomrw.functions.supabase.co`
+   - **`SHARE_PROXY_SECRET`**: High-entropy shared secret (must match Supabase secret `SHARE_PROXY_SECRET`)
+   - **`SUPABASE_URL`**: `https://ilfzppryyojoponkomrw.supabase.co`
+   - **`SUPABASE_ANON_KEY`**: Supabase anon public API key (for self-service account deletion OTP)
 3. Add the domain **`share.inoapp.com`** to the project (Vercel → Domains) and
    point its DNS (CNAME → `cname.vercel-dns.com`) at Vercel.
 4. Deploy. Test `https://share.inoapp.com/s/<token>` - a single-doc share opens
