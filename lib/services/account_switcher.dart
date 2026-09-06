@@ -12,7 +12,6 @@ import 'session_reset.dart';
 import 'trusted_device_service.dart';
 import 'two_factor_service.dart';
 import 'vault_guard.dart';
-import '../screens/auth/auth_flow.dart';
 
 /// One account remembered on this device, switchable from Profile → Accounts.
 class SavedAccount {
@@ -210,13 +209,9 @@ class AccountSwitcher extends ChangeNotifier {
     // session swap so a failed switch costs nothing.
     await SessionReset.instance.clear();
 
-    // Check if the restored session requires MFA verification (AAL1 -> AAL2)
+    // Check if the restored session requires MFA verification (AAL1 -> AAL2).
+    // Caller (e.g. profile_screen) will invoke routeAfterAuth which triggers the challenge screen.
     if (await TwoFactorService.instance.needsMfaChallenge()) {
-      await routeAfterAuth(
-        authUserId: account.id,
-        fullName: account.displayName,
-        email: account.email,
-      );
       return true;
     }
 

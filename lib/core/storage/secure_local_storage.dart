@@ -60,10 +60,10 @@ class SecureLocalStorage extends LocalStorage {
       // Clean up legacy plaintext copy from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(persistSessionKey);
-    } catch (_) {
-      // Defensive fallback if hardware keystore throws
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(persistSessionKey, persistSessionString);
+    } catch (e) {
+      // Hardware keystore failure: NEVER write unencrypted session JWT to SharedPreferences.
+      // Re-throw so authentication fails securely rather than leaking tokens in plaintext.
+      rethrow;
     }
   }
 

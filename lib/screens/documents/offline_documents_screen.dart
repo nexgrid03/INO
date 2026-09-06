@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -83,6 +84,7 @@ class _OfflineDocumentsScreenState extends State<OfflineDocumentsScreen>
   void dispose() {
     if (widget.isRootOffline) WidgetsBinding.instance.removeObserver(this);
     _store.removeListener(_onChanged);
+    unawaited(_store.clearDecryptedFiles());
     super.dispose();
   }
 

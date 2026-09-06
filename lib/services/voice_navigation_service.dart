@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -82,14 +83,10 @@ class VoiceNavigationService extends ChangeNotifier {
   /// Begins a listening session. [languageCode] ('en' / 'te' / 'hi')
   /// selects the recognition locale; English resolves to **en_IN** first.
   ///
-  /// [preferOffline] forces on-device-only recognition. It defaults to **false**
-  /// because forcing on-device recognition on a device without the offline
-  /// language pack makes the recognizer end immediately with no result. With
-  /// `false`, the OS uses its on-device model automatically when available (so
-  /// navigation still works offline) and only reaches for the network otherwise.
+  /// [preferOffline] defaults to true for privacy-first, on-device voice processing.
   Future<void> start({
     String languageCode = 'en',
-    bool preferOffline = false,
+    bool preferOffline = true,
   }) async {
     _recognized = '';
     _match = null;
@@ -117,6 +114,11 @@ class VoiceNavigationService extends ChangeNotifier {
         'isAvailable=${_speech.isAvailable}');
 
     if (!_initDone) {
+      if (!kIsWeb && Platform.isIOS) {
+        // iOS manages speech/mic authorization internally through speech recognizer
+        _set(VoiceStatus.unavailable);
+        return;
+      }
       try {
         final mic = await Permission.microphone.status;
         _log('Microphone permission: $mic');

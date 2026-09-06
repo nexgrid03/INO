@@ -48,9 +48,9 @@ class VaultGuard with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Leaving the foreground ends the session and wipes the VaultCrypto key in memory.
+    // Inactive is excluded so transient system dialogs (biometrics, file picker) don't prematurely lock.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       lock();
       VaultCrypto.instance.lock();

@@ -130,6 +130,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   void dispose() {
     ScreenSecurityService.instance.disable();
     _tc.dispose();
+    unawaited(OfflineDocumentStore.instance.clearDecryptedFiles());
     super.dispose();
   }
 

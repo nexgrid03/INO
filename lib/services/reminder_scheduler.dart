@@ -9,6 +9,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/reminder_models.dart';
+import 'app_settings.dart';
 import 'push_service.dart';
 
 /// Rings each reminder on THIS device at the exact moment it is due.
@@ -94,7 +95,9 @@ class ReminderScheduler {
   /// are skipped; an existing schedule for the same id is replaced.
   Future<void> schedule(Reminder r) async {
     if (!_supported) return;
-    if (r.completed || !r.date.isAfter(DateTime.now())) {
+    if (!AppSettings.instance.notifications.value ||
+        r.completed ||
+        !r.date.isAfter(DateTime.now())) {
       await cancel(r.id);
       return;
     }
@@ -171,6 +174,10 @@ class ReminderScheduler {
     if (!_supported) return;
     try {
       await PushService.instance.localReady;
+      if (!AppSettings.instance.notifications.value) {
+        await cancelAll();
+        return;
+      }
       final wanted = {for (final r in active) idFor(r.id)};
       final pending = await _plugin.pendingNotificationRequests();
       for (final p in pending) {

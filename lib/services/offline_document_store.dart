@@ -616,6 +616,8 @@ class OfflineDocumentStore extends ChangeNotifier {
   }
 
   /// Returns a temporary decrypted file for viewing offline documents.
+  /// Decrypted copies are stored in an isolated temporary directory
+  /// that can be purged upon viewing completion or session reset.
   Future<File?> getDecryptedFile(OfflineDoc doc) async {
     try {
       final f = File(doc.localPath);
@@ -626,13 +628,40 @@ class OfflineDocumentStore extends ChangeNotifier {
       final tmpDir = await getTemporaryDirectory();
       final safeId = doc.id.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_');
       final ext = doc.extension;
-      final tempFile = File('${tmpDir.path}/view_$safeId.$ext');
+      final decryptedDir = Directory('${tmpDir.path}/ino_decrypted');
+      if (!await decryptedDir.exists()) {
+        await decryptedDir.create(recursive: true);
+      }
+      final tempFile = File('${decryptedDir.path}/view_$safeId.$ext');
       await tempFile.writeAsBytes(decrypted, flush: true);
       return tempFile;
     } catch (e) {
       developer.log('getDecryptedFile failed: $e', name: 'offline');
       return null;
     }
+  }
+
+  /// Cleans up all decrypted temporary files created for offline viewing.
+  Future<void> clearDecryptedFiles() async {
+    try {
+      final tmpDir = await getTemporaryDirectory();
+      final decryptedDir = Directory('${tmpDir.path}/ino_decrypted');
+      if (await decryptedDir.exists()) {
+        await decryptedDir.delete(recursive: true);
+      }
+    } catch (e) {
+      developer.log('Failed to clear decrypted temp files: $e', name: 'offline');
+    }
+  }
+
+  /// Unloads in-memory state without deleting encrypted offline documents from disk,
+  /// preserving encrypted documents across sign-ins while preventing cross-session leakage.
+  void clearMemory() {
+    _docs.clear();
+    _loaded = false;
+    _loadedUid = null;
+    _baseDirPath = null;
+    notifyListeners();
   }
 
   /// Visible for unit testing encryption guarantees (per-user keys, random nonce, tamper rejection)
@@ -647,13 +676,10 @@ class OfflineDocumentStore extends ChangeNotifier {
   @visibleForTesting
   static Future<SecretKey> getKeyForTest(String uid) => _getOrCreateKey(uid);
 
-  /// Wipes all offline document state, metadata, and disk files on logout / clear.
+  /// Wipes all offline document state, metadata, and disk files on explicit wipe / purge.
   Future<void> clear() async {
-    _docs.clear();
-    _loaded = false;
-    _loadedUid = null;
-    _baseDirPath = null;
-    notifyListeners();
+    clearMemory();
+    await clearDecryptedFiles();
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
       final keys = p.getKeys();

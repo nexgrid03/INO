@@ -39,6 +39,8 @@ class LegalDocumentScreen extends StatelessWidget {
           LegalSection('privacyCollectHeading', 'privacyCollectBody'),
           LegalSection('privacyStorageHeading', 'privacyStorageBody'),
           LegalSection('privacyBiometricsHeading', 'privacyBiometricsBody'),
+          LegalSection('privacyProcessorsHeading', 'privacyProcessorsBody'),
+          LegalSection('privacyRightsHeading', 'privacyRightsBody'),
           LegalSection('privacyControlsHeading', 'privacyControlsBody'),
           LegalSection('privacyContactHeading', 'privacyContactBody'),
         ],

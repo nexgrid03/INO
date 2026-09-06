@@ -56,7 +56,14 @@ class TwoFactorService {
       return current == 'aal1' && next == 'aal2';
     } catch (e) {
       developer.log('2FA AAL check failed: $e', name: '2fa');
-      return isEnabled();
+      try {
+        final factors = await _auth.mfa.listFactors();
+        return factors.totp.any((f) => f.status == FactorStatus.verified);
+      } catch (err) {
+        developer.log('2FA factors fallback failed: $err', name: '2fa');
+        // Fail closed: require challenge rather than bypassing security
+        return true;
+      }
     }
   }
 

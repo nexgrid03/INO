@@ -55,4 +55,8 @@ debug.keystore
 key.properties
 **/key.properties
 
+# Agents & local scratches
+.agents/
+
+
 

@@ -285,6 +285,11 @@ class TrustedDeviceService with WidgetsBindingObserver {
             .update({'revoked': true})
             .eq('user_id', uid)
             .neq('device_id', currentId);
+        try {
+          await _client.auth.signOut(scope: SignOutScope.others);
+        } catch (authErr) {
+          developer.log('GoTrue signOut others failed: $authErr', name: 'devices');
+        }
       }
 
       final devices = _decode(p.getString(_kDevices), currentId)

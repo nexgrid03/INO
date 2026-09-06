@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Disallow all cloud backup to protect encrypted vaults, credentials, and offline documents -->
+        <exclude path="." />
+    </cloud-backup>
+    <device-transfer>
+        <!-- Disallow device-to-device transfers to prevent keystore and biometric desynchronization -->
+        <exclude path="." />
+    </device-transfer>
+</data-extraction-rules>

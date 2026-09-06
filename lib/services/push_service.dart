@@ -314,16 +314,9 @@ class PushService {
     }
 
     try {
-      // Token rotation improvement: delete old token entry first then insert new token for uid
-      try {
-        await Supabase.instance.client.from(_table).delete().eq('token', token);
-      } catch (_) {}
-
-      await Supabase.instance.client.from(_table).insert({
-        'token': token,
-        'auth_user_id': uid,
-        'platform': _platformName,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      await Supabase.instance.client.rpc('register_device_token', params: {
+        'p_token': token,
+        'p_platform': _platformName,
       });
       developer.log('token registered for user=$uid', name: 'push');
     } catch (e) {

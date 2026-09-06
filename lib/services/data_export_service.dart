@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/document.dart';
+import '../models/document_extraction.dart';
 import '../models/user_profile.dart';
 import '../repositories/document_repository.dart';
 import '../utils/identifier_masker.dart';
@@ -98,7 +99,7 @@ class DataExportService {
             'record_number': IdentifierMasker.mask(d.recordNumber, docType: d.category),
             'status': d.status,
             'tags': d.tags,
-            'notes': d.notes,
+            'notes': _sanitizeNotes(d.notes, d.recordNumber, d.category),
             'is_favorite': d.isFavorite,
             'protected': DocumentProtectionStore.instance.isProtected(d.id),
             'expires_at': d.expiresAt?.toIso8601String(),
@@ -139,5 +140,31 @@ class DataExportService {
     if (Platform.isWindows) return 'windows';
     if (Platform.isLinux) return 'linux';
     return 'unknown';
+  }
+
+  /// Strips raw extraction JSON envelopes and masks sensitive identifiers from exported notes.
+  static String? _sanitizeNotes(String? rawNotes, String? rawRecordNumber, String? category) {
+    if (rawNotes == null || rawNotes.trim().isEmpty) return rawNotes;
+    var text = rawNotes;
+
+    // If notes encapsulate a DocumentExtraction envelope, extract the clean user notes
+    if (text.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(text.trim());
+        if (decoded is Map && decoded.containsKey('_ino_extraction')) {
+          final extraction = DocumentExtraction.decode(text);
+          text = extraction.userNotes;
+        }
+      } catch (_) {}
+    }
+
+    // Mask any occurrence of the raw document record number
+    if (rawRecordNumber != null && rawRecordNumber.trim().isNotEmpty) {
+      final trimmedNumber = rawRecordNumber.trim();
+      final masked = IdentifierMasker.mask(trimmedNumber, docType: category);
+      text = text.replaceAll(trimmedNumber, masked);
+    }
+
+    return text.trim().isNotEmpty ? text : null;
   }
 }

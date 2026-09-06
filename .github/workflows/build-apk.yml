@@ -65,7 +65,18 @@ jobs:
           path: build/debug-info/*
           retention-days: 90
 
+      - name: Check Release Signing
+        id: check_signing
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ] || [ "${{ secrets.KEYSTORE_PASSWORD }}" != "" ]; then
+            echo "publish_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping public apk-latest release: Production signing credentials not present. APK is archived in workflow artifacts."
+          fi
+
       - name: Create/update GitHub Release
+        if: steps.check_signing.outputs.publish_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest

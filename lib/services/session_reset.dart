@@ -120,8 +120,10 @@ class SessionReset {
     await _guard('documentRepository', () async => DocumentRepository.instance.clearDiskCache());
     await _guard('userRepository', () async => UserRepository.instance.clearDiskCache());
 
-    // Purge offline documents, metadata, and temporary document view files on sign-out.
-    await _guard('offlineDocs', () async => OfflineDocumentStore.instance.clear());
+    // Unload in-memory offline documents and purge decrypted plaintext temp files on sign-out,
+    // while preserving encrypted on-disk storage for offline access.
+    await _guard('offlineDocsMemory', () async => OfflineDocumentStore.instance.clearMemory());
+    await _guard('offlineDecryptedFiles', () async => OfflineDocumentStore.instance.clearDecryptedFiles());
     await _guard('documentFiles', () async => DocumentFileService.instance.clearCache());
 
     // Net-worth history + its once-per-session hydration guard. The holdings

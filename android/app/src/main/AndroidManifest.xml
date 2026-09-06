@@ -65,6 +65,7 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:networkSecurityConfig="@xml/network_security_config">
         <!-- Preload the ML Kit modules from Google Play services: the document
              scanner and the OCR (text-recognition) model, so both are ready on

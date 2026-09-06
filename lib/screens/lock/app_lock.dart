@@ -84,7 +84,6 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       VaultCrypto.instance.lock();
       VaultGuard.instance.lock();

@@ -4,6 +4,13 @@ export const FUNCTIONS_URL =
   process.env.SUPABASE_FUNCTIONS_URL ??
   "https://ilfzppryyojoponkomrw.functions.supabase.co";
 
+export const SUPABASE_URL =
+  process.env.SUPABASE_URL ?? "https://ilfzppryyojoponkomrw.supabase.co";
+
+export const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ??
+  "sb_publishable_AkYUQB5-mxBJkY_tZQu6EQ_JprMvI97";
+
 export type ShareKind = "pdf" | "image" | "other";
 
 export interface SharedDoc {
