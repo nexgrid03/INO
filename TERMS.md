@@ -43,7 +43,7 @@ You agree not to:
 
 ## 5. Account Deletion & Termination
 
-- You may permanently delete your account at any time through the in-app Settings or by visiting `https://share.inoapp.in/delete-account`.
+- You may permanently delete your account at any time through the in-app Settings or by visiting `https://share.inoapp.com/delete-account`.
 - Account deletion executes server-side purging of your profile, document attachments, database records, and authentication account.
 
 ---

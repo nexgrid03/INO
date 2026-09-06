@@ -206,6 +206,7 @@ class VaultCrypto extends ChangeNotifier {
     // If PasswordStore contains sealed ciphertext or was hydrated while locked,
     // re-keying would permanently destroy those encrypted records.
     if (PasswordStore.instance.isLoaded &&
+        PasswordStore.instance.items.isNotEmpty &&
         (PasswordStore.instance.hasSealedEntries ||
             PasswordStore.instance.hydratedWhileLocked ||
             !PasswordStore.instance.canReseal)) {

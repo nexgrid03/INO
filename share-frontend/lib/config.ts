@@ -7,9 +7,7 @@ export const FUNCTIONS_URL =
 export const SUPABASE_URL =
   process.env.SUPABASE_URL ?? "https://ilfzppryyojoponkomrw.supabase.co";
 
-export const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY ??
-  "sb_publishable_AkYUQB5-mxBJkY_tZQu6EQ_JprMvI97";
+export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
 
 export type ShareKind = "pdf" | "image" | "other";
 
@@ -56,7 +54,9 @@ export async function peekViewOnce(token: string, clientIp?: string): Promise<Vi
     if (clientIp) {
       headers["x-real-ip"] = clientIp;
       headers["x-forwarded-for"] = clientIp;
-      headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+      if (SHARE_PROXY_SECRET) {
+        headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+      }
     }
     const res = await fetch(`${FUNCTIONS_URL}/share/v/${encodeURIComponent(token)}?format=json`, {
       headers,
@@ -84,7 +84,9 @@ export async function fetchShare(token: string, pw?: string | null, clientIp?: s
     if (clientIp) {
       headers["x-real-ip"] = clientIp;
       headers["x-forwarded-for"] = clientIp;
-      headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+      if (SHARE_PROXY_SECRET) {
+        headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+      }
     }
     const res = await fetch(
       `${FUNCTIONS_URL}/share/${encodeURIComponent(token)}?${qs.toString()}`,

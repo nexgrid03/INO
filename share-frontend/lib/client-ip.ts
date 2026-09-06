@@ -5,8 +5,7 @@
  * Strictly validates IP format to eliminate header injection and IP spoofing risks.
  */
 
-export const SHARE_PROXY_SECRET =
-  process.env.SHARE_PROXY_SECRET || "ino-share-proxy-v1-production-auth";
+export const SHARE_PROXY_SECRET = process.env.SHARE_PROXY_SECRET || "";
 
 const IPV4_REGEX =
   /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
@@ -51,9 +50,12 @@ export function getVisitorIp(headers: Headers): string {
  */
 export function getProxyHeaders(headers: Headers): Record<string, string> {
   const visitorIp = getVisitorIp(headers);
-  return {
+  const out: Record<string, string> = {
     "x-real-ip": visitorIp,
     "x-forwarded-for": visitorIp,
-    "x-ino-proxy-token": SHARE_PROXY_SECRET,
   };
+  if (SHARE_PROXY_SECRET) {
+    out["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+  }
+  return out;
 }

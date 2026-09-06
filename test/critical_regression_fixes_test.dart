@@ -63,6 +63,17 @@ void main() {
       expect(sql.contains('owner::text = v_uid::text'), isTrue);
       expect(sql.contains('EXCEPTION WHEN OTHERS THEN'), isFalse);
     });
+
+    test('Phase 7 remediation migration orders vault successors by created_at and ranks owner first', () {
+      final file = File('supabase/migrations/20260906020000_phase7_critical_remediations.sql');
+      expect(file.existsSync(), isTrue, reason: 'Phase 7 migration file must exist');
+      final sql = file.readAsStringSync();
+
+      expect(sql.contains('joined_at'), isFalse, reason: 'joined_at does not exist in vault_members');
+      expect(sql.contains('created_at ASC'), isTrue);
+      expect(sql.contains("WHEN 'owner' THEN 1"), isTrue);
+      expect(sql.contains("WHEN 'admin' THEN 2"), isTrue);
+    });
   });
 
   group('CRITICAL N2: Offline Document Encryption Security', () {

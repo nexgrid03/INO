@@ -88,6 +88,41 @@ class PasswordStore extends LocalCollectionStore<PasswordEntry> {
     notifyListeners();
   }
 
+  /// Wipes all vault entries from Supabase server table `w_password_vault`
+  /// and local FlutterSecureStorage cache.
+  /// Used when user forgets their passphrase and explicitly chooses to destroy
+  /// the inaccessible sealed vault and start fresh.
+  Future<bool> destroyVault(String? uid) async {
+    try {
+      final targetUid = uid ?? Supabase.instance.client.auth.currentUser?.id;
+      if (targetUid != null) {
+        try {
+          await Supabase.instance.client
+              .from('w_password_vault')
+              .delete()
+              .eq('auth_user_id', targetUid)
+              .timeout(NetGuard.mutation);
+        } catch (e) {
+          developer.log('destroyVault remote delete warning: $e', name: 'vault');
+        }
+      }
+      final key = '${storageKey}_${targetUid ?? 'local'}';
+      await _secureStorage.delete(key: key);
+      try {
+        final p = await SharedPrefsCache.instance.prefsAsync;
+        await p.remove(key);
+      } catch (_) {}
+      items.clear();
+      _hydratedWhileLocked = false;
+      markUnloaded();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      developer.log('destroyVault error: $e', name: 'vault');
+      return false;
+    }
+  }
+
   /// Loads from FlutterSecureStorage, ensuring plaintext passwords NEVER touch SharedPreferences.
   /// Sealed passwords stored in FlutterSecureStorage are decrypted lazily using VaultCrypto.
   Future<void> loadFromSecureStorage(String? uid) async {

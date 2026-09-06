@@ -4,6 +4,7 @@ import DeleteAccountForm from "./DeleteAccountForm";
 export const metadata = {
   title: "Delete Account - INO Vault",
   description: "Permanent account deletion page and instructions for INO (Intelligent Network Organizer).",
+  robots: { index: true, follow: true },
 };
 
 export default function DeleteAccountPage() {

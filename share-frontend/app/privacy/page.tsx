@@ -3,6 +3,7 @@ import Brand from "@/components/Brand";
 export const metadata = {
   title: "Privacy Policy - INO Vault",
   description: "Privacy Policy for INO (Intelligent Network Organizer) mobile application and services.",
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {

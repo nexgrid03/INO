@@ -2,7 +2,7 @@
   "name": "ino-share-frontend",
   "version": "1.0.0",
   "private": true,
-  "description": "Public document-share viewer for INO (share.inoapp.in). Google-Drive-style single-document and folder pages backed by the Supabase `share` Edge Function.",
+  "description": "Public document-share viewer for INO (share.inoapp.com). Google-Drive-style single-document and folder pages backed by the Supabase `share` Edge Function.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

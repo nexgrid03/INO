@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_dimens.dart';
@@ -60,6 +62,72 @@ class LegalDocumentScreen extends StatelessWidget {
         ],
       );
 
+  static Widget _buildBodyWithLinks(String text, AppPalette palette) {
+    final linkRegex = RegExp(
+      r'(https?:\/\/[^\s\)\.\,]+(?:\.[^\s\)\.\,]+)*|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
+    );
+    final matches = linkRegex.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        style: AppText.body.copyWith(color: palette.textSecondary, height: 1.6),
+      );
+    }
+
+    final spans = <InlineSpan>[];
+    int lastEnd = 0;
+
+    for (final match in matches) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: AppText.body.copyWith(color: palette.textSecondary, height: 1.6),
+        ));
+      }
+
+      final matchedText = match.group(0)!;
+      final isEmail = matchedText.contains('@') && !matchedText.startsWith('http');
+      final targetUri = isEmail ? Uri.parse('mailto:$matchedText') : Uri.parse(matchedText);
+
+      spans.add(
+        TextSpan(
+          text: matchedText,
+          style: AppText.body.copyWith(
+            color: AppColors.primaryGreen,
+            decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w600,
+            height: 1.6,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              try {
+                if (await canLaunchUrl(targetUri)) {
+                  await launchUrl(
+                    targetUri,
+                    mode: isEmail
+                        ? LaunchMode.platformDefault
+                        : LaunchMode.externalApplication,
+                  );
+                }
+              } catch (_) {}
+            },
+        ),
+      );
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: AppText.body.copyWith(color: palette.textSecondary, height: 1.6),
+      ));
+    }
+
+    return SelectableText.rich(
+      TextSpan(children: spans),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -115,9 +183,7 @@ class LegalDocumentScreen extends StatelessWidget {
                       style:
                           AppText.title.copyWith(color: palette.textPrimary)),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(l10n.t(s.body),
-                      style: AppText.body.copyWith(
-                          color: palette.textSecondary, height: 1.6)),
+                  _buildBodyWithLinks(l10n.t(s.body), palette),
                 ],
               ),
             ),

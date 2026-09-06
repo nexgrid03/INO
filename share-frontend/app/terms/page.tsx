@@ -3,6 +3,7 @@ import Brand from "@/components/Brand";
 export const metadata = {
   title: "Terms of Service - INO Vault",
   description: "Terms of Service for INO (Intelligent Network Organizer).",
+  robots: { index: true, follow: true },
 };
 
 export default function TermsPage() {

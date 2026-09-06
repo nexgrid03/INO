@@ -4,7 +4,8 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
@@ -89,10 +90,22 @@ class DocumentRepository {
     _cachedWalletTime.clear();
   }
 
+  static FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  @visibleForTesting
+  static void setSecureStorageForTest(FlutterSecureStorage storage) {
+    _secureStorage = storage;
+  }
+
   /// Clears both memory cache and disk persistent cache on sign-out.
   Future<void> clearDiskCache() async {
     clearCache();
     try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        final key = '${_diskCachePrefix}_$userId';
+        await _secureStorage.delete(key: key);
+      }
       final prefs = await SharedPrefsCache.instance.prefsAsync;
       final keys = prefs.getKeys();
       for (final key in keys) {
@@ -105,16 +118,26 @@ class DocumentRepository {
     }
   }
 
-  // --- Disk persistence layer for offline-first hydration -------------------
+  // --- Secure disk persistence layer for offline-first hydration -------------
   static const String _diskCachePrefix = 'ino_doc_cache';
 
   Future<void> _persistDiskCache(String userId, List<Document> list) async {
     try {
-      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final key = '${_diskCachePrefix}_$userId';
       final jsonList = list.map((d) => d.toMap()).toList();
-      await prefs.setString(key, jsonEncode(jsonList));
-      developer.log('[DOC_CACHE] Disk cache saved count=${list.length} key=$key', name: 'documents');
+      final payload = jsonEncode(jsonList);
+      // Persist exclusively to encrypted secure storage to protect PII
+      await _secureStorage.write(key: key, value: payload);
+
+      // Clean up legacy unencrypted preferences if present
+      try {
+        final prefs = await SharedPrefsCache.instance.prefsAsync;
+        if (prefs.containsKey(key)) {
+          await prefs.remove(key);
+        }
+      } catch (_) {}
+
+      developer.log('[DOC_CACHE] Secure disk cache saved count=${list.length} key=$key', name: 'documents');
     } catch (e) {
       developer.log('failed to persist document disk cache: $e', name: 'documents');
     }
@@ -122,13 +145,26 @@ class DocumentRepository {
 
   Future<List<Document>> _readDiskCache(String userId) async {
     try {
-      final prefs = await SharedPrefsCache.instance.prefsAsync;
       final key = '${_diskCachePrefix}_$userId';
-      final raw = prefs.getString(key);
+      // 1. Read from encrypted secure storage
+      String? raw = await _secureStorage.read(key: key);
+
+      // 2. Legacy fallback: if not in secure storage, check unencrypted preferences and migrate
+      if (raw == null || raw.isEmpty) {
+        final prefs = await SharedPrefsCache.instance.prefsAsync;
+        raw = prefs.getString(key);
+        if (raw != null && raw.isNotEmpty) {
+          // Migrate into secure storage and wipe plain preferences
+          await _secureStorage.write(key: key, value: raw);
+          await prefs.remove(key);
+          developer.log('[DOC_CACHE] Migrated legacy unencrypted document cache to secure storage', name: 'documents');
+        }
+      }
+
       if (raw == null || raw.isEmpty) return const [];
       final List decoded = jsonDecode(raw) as List;
       final docs = decoded.map((e) => Document.fromMap(e as Map<String, dynamic>)).toList();
-      developer.log('[DOC_CACHE] Disk cache loaded count=${docs.length} key=$key', name: 'documents');
+      developer.log('[DOC_CACHE] Secure disk cache loaded count=${docs.length} key=$key', name: 'documents');
       return docs;
     } catch (e) {
       developer.log('failed to read document disk cache: $e', name: 'documents');

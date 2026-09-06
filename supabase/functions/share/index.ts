@@ -119,8 +119,7 @@ setInterval(() => {
   }
 }, 60000);
 
-const SHARE_PROXY_SECRET =
-  Deno.env.get("SHARE_PROXY_SECRET") || "ino-share-proxy-v1-production-auth";
+const SHARE_PROXY_SECRET = Deno.env.get("SHARE_PROXY_SECRET");
 
 const IPV4_REGEX =
   /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
@@ -137,8 +136,9 @@ export function isValidIp(ip: string | null | undefined): boolean {
 export function getClientIp(req: Request): string {
   // 1. Authenticated Proxy Route (e.g. share-frontend on Vercel or localhost)
   // When authorized via proxy token, safely trust the forwarded visitor IP.
+  // Fails closed if SHARE_PROXY_SECRET is unset or empty.
   const proxyToken = req.headers.get("x-ino-proxy-token");
-  if (proxyToken && proxyToken === SHARE_PROXY_SECRET) {
+  if (proxyToken && SHARE_PROXY_SECRET && proxyToken === SHARE_PROXY_SECRET) {
     const realIp = req.headers.get("x-real-ip")?.trim();
     if (realIp && isValidIp(realIp)) {
       return realIp;

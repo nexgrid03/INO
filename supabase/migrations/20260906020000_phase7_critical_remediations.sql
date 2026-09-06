@@ -324,14 +324,14 @@ BEGIN
     FOR v_vault IN (
       SELECT id FROM public.family_vaults WHERE owner_auth_user_id = v_uid
     ) LOOP
-      -- Find highest ranking surviving member (admin/editor/oldest member)
+      -- Find highest ranking surviving member (owner/admin/editor/oldest member)
       SELECT auth_user_id INTO v_successor
       FROM public.vault_members
       WHERE vault_id = v_vault.id
         AND auth_user_id != v_uid
       ORDER BY 
-        CASE role WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,
-        joined_at ASC
+        CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 WHEN 'editor' THEN 3 ELSE 4 END,
+        created_at ASC
       LIMIT 1;
 
       IF v_successor IS NOT NULL THEN

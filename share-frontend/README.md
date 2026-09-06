@@ -1,7 +1,7 @@
-# INO Share Frontend (`share.inoapp.in`)
+# INO Share Frontend (`share.inoapp.com`)
 
 The public, Google-Drive-style viewer for INO document shares. A scanned QR /
-opened link (`https://share.inoapp.in/s/<token>`) lands here and:
+opened link (`https://share.inoapp.com/s/<token>`) lands here and:
 
 - **1 document** → opens the document **directly** (PDF viewer with zoom, or
   full-screen image with pinch-zoom). No file list.
@@ -30,12 +30,12 @@ npm run dev                       # http://localhost:3000/s/<token>
 1. Import this folder as a Vercel project (root = `share-frontend`).
 2. Set env var **`SUPABASE_FUNCTIONS_URL`** =
    `https://ilfzppryyojoponkomrw.functions.supabase.co`.
-3. Add the domain **`share.inoapp.in`** to the project (Vercel → Domains) and
+3. Add the domain **`share.inoapp.com`** to the project (Vercel → Domains) and
    point its DNS (CNAME → `cname.vercel-dns.com`) at Vercel.
-4. Deploy. Test `https://share.inoapp.in/s/<token>` - a single-doc share opens
+4. Deploy. Test `https://share.inoapp.com/s/<token>` - a single-doc share opens
    the document directly.
 
-The INO app already encodes `https://share.inoapp.in/s/<token>` in new QR codes
+The INO app already encodes `https://share.inoapp.com/s/<token>` in new QR codes
 (see `lib/config/share_config.dart` → `publicBase`).
 
 ## Structure

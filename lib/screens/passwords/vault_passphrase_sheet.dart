@@ -108,7 +108,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
     final bool ok;
     if (_resetting) {
-      if (!PasswordStore.instance.canReseal) {
+      if (PasswordStore.instance.items.isNotEmpty && !PasswordStore.instance.canReseal) {
         setState(() {
           _busy = false;
           _error = 'Passphrase reset aborted: vault entries are not decrypted plaintext.';
@@ -118,7 +118,7 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
       ok = await VaultCrypto.instance.resetPassphrase(value);
       // Re-seal what this device still holds in plaintext under the new key,
       // so a reset from the phone that has the entries loses nothing.
-      if (ok) {
+      if (ok && PasswordStore.instance.canReseal) {
         final resealed = await PasswordStore.instance.resealForNewKey();
         if (!resealed) {
           setState(() {
@@ -138,71 +138,32 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
     if (ok) {
       Navigator.of(context).pop(true);
-      return;
+    } else {
+      setState(() {
+        _busy = false;
+        _error = _creating
+            ? l10n.t('vaultPassphraseSetupFailed')
+            : l10n.t('vaultPassphraseIncorrect');
+      });
     }
-    setState(() {
-      _busy = false;
-      _error = _resetting
-          ? l10n.t('vaultResetFailed')
-          : widget.isFirstTime
-              ? l10n.t('vaultSetupFailed')
-              : l10n.t('vaultPassphraseIncorrect');
-    });
   }
 
-  /// "Forgot passphrase?" - the only way back into a vault whose passphrase is
-  /// gone.
+  /// "Forgot passphrase?" - the recovery path for a vault whose passphrase is lost.
   ///
-  /// It cannot recover the old key (nothing anywhere can), so it re-keys the
-  /// vault instead, behind two gates:
-  ///
-  ///  1. **Device ownership.** The OS prompt runs with `biometricOnly: false`,
-  ///     so a phone with no fingerprint enrolled falls back to its PIN or
-  ///     pattern - otherwise this door would be shut precisely for the users
-  ///     most likely to need it.
-  ///  2. **Informed consent.** The dialog states the real cost up front: the
-  ///     passwords cached on THIS device survive (they are re-encrypted under
-  ///     the new key), anything that only ever lived on another device does
-  ///     not. The count is spelled out so the choice is concrete.
+  /// If the vault is empty: allows device-authenticated reset directly.
+  /// If sealed entries exist: offers an explicit "destroy vault and start over"
+  /// flow backed by biometric / device verification, rather than a permanent dead end.
   Future<void> _forgotPassphrase() async {
     final l10n = AppLocalizations.of(context);
-
-    // Primary safety guard:
-    // "Forgot Passphrase" cannot re-encrypt or recover entries if the vault is locked,
-    // because entries on disk are sealed ciphertext that cannot be decrypted without the old key.
-    // If the vault is locked with encrypted entries, or entries are not verified decrypted plaintext,
-    // passphrase reset MUST refuse to execute to prevent permanent ciphertext corruption.
-    if (!VaultCrypto.instance.isUnlocked || !PasswordStore.instance.canReseal) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Vault cannot be reset while locked with encrypted entries. '
-            'Resetting without the passphrase will destroy encrypted passwords. '
-            'Please unlock the vault first.';
-      });
-      return;
-    }
-
-    final proven = await BiometricService.instance.authenticate(
-      reason: l10n.t('authResetVaultPassphrase'),
-    );
-    if (!mounted) return;
-    if (!proven) {
-      setState(() => _error = l10n.t('vaultPassphraseIncorrect'));
-      return;
-    }
+    final uid = Supabase.instance.client.auth.currentUser?.id;
 
     await PasswordStore.instance.reload();
     if (!mounted) return;
 
-    if (!PasswordStore.instance.isLoaded) {
-      setState(() => _error = 'Unable to verify vault state. Please try again.');
-      return;
-    }
-
     final localCount = PasswordStore.instance.count;
+    final hasSealedLocal = PasswordStore.instance.hasSealedEntries || PasswordStore.instance.hydratedWhileLocked;
     int? serverCount;
     try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null) {
         final res = await Supabase.instance.client
             .from('w_password_vault')
@@ -218,43 +179,19 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
 
     if (!mounted) return;
 
-    // Explicit warning if server count cannot be determined (Requirement 8)
-    if (serverCount == null) {
-      final proceedOffline = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.t('vaultResetWarnTitle')),
-          content: const Text(
-            'Unable to check server vault status because the device is offline. '
-            'Resetting your passphrase will replace the encryption key. Any passwords stored on other devices '
-            'or not cached locally will become permanently unreadable.\n\nDo you still wish to proceed?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.t('cancel')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                l10n.t('resetPassphrase'),
-                style: const TextStyle(color: AppColors.critical),
-              ),
-            ),
-          ],
-        ),
-      );
-      if (proceedOffline != true || !mounted) return;
-    } else if (localCount == 0 && serverCount > 0) {
-      // Local is empty but server has passwords (Requirement 6 & 8)
-      final proceedServerMismatch = await showDialog<bool>(
+    final hasEncryptedData = (serverCount != null && serverCount > 0) ||
+        (localCount > 0 && hasSealedLocal);
+
+    if (hasEncryptedData) {
+      // Sealed entries exist: offer explicit destroy-and-start-over flow
+      final proceed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l10n.t('vaultResetWarnTitle')),
           content: Text(
-            'Warning: This device has 0 local passwords, but your account has $serverCount passwords stored on the server. '
-            'Resetting the passphrase cannot recover those $serverCount server passwords, and they will become permanently inaccessible.\n\n'
-            'Do you still wish to proceed?',
+            'Because the vault is locked and the passphrase was forgotten, existing encrypted passwords cannot be recovered.\n\n'
+            'To regain access, you must destroy the ${serverCount != null && serverCount > 0 ? '$serverCount ' : ''}encrypted passwords and start over with a fresh passphrase.\n\n'
+            'Do you wish to permanently destroy the vault and start over?',
           ),
           actions: [
             TextButton(
@@ -263,44 +200,54 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                l10n.t('resetPassphrase'),
-                style: const TextStyle(color: AppColors.critical),
+              child: const Text(
+                'Destroy Vault & Start Over',
+                style: TextStyle(color: AppColors.critical, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
       );
-      if (proceedServerMismatch != true || !mounted) return;
+      if (proceed != true || !mounted) return;
+
+      final proven = await BiometricService.instance.authenticate(
+        reason: l10n.t('authResetVaultPassphrase'),
+      );
+      if (!mounted) return;
+      if (!proven) {
+        setState(() => _error = l10n.t('vaultPassphraseIncorrect'));
+        return;
+      }
+
+      setState(() => _busy = true);
+      final destroyed = await PasswordStore.instance.destroyVault(uid);
+      if (!mounted) return;
+      setState(() => _busy = false);
+
+      if (!destroyed) {
+        setState(() => _error = 'Failed to reset vault on server. Please check your network.');
+        return;
+      }
+
+      setState(() {
+        _resetting = true;
+        _error = null;
+        _acknowledged = false;
+        _passphrase.clear();
+        _confirm.clear();
+      });
+      return;
     }
 
-    if (!mounted) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.t('vaultResetWarnTitle')),
-        content: Text(
-          l10n
-              .t('vaultResetWarnBody')
-              .replaceAll('{n}', '$localCount'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.t('cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              l10n.t('resetPassphrase'),
-              style: const TextStyle(color: AppColors.critical),
-            ),
-          ),
-        ],
-      ),
+    // Empty vault path or legitimately unlocked path:
+    final proven = await BiometricService.instance.authenticate(
+      reason: l10n.t('authResetVaultPassphrase'),
     );
-    if (confirmed != true || !mounted) return;
+    if (!mounted) return;
+    if (!proven) {
+      setState(() => _error = l10n.t('vaultPassphraseIncorrect'));
+      return;
+    }
 
     setState(() {
       _resetting = true;

@@ -2,7 +2,7 @@
 -- INO - Short public share tokens (Google-Drive-style /s/{token} links)
 -- ----------------------------------------------------------------------------
 -- Adds a short, unguessable `token` to document_shares so public links can look
--- like  https://share.inoapp.in/s/a8f9x2k40b1c  instead of exposing the internal
+-- like  https://share.inoapp.com/s/a8f9x2k40b1c  instead of exposing the internal
 -- share_id. 12 hex chars ≈ 48 bits of entropy; the token is what the QR/web use,
 -- while share_id stays internal (used by RLS + the analytics FKs).
 --

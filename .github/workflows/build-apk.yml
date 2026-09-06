@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
           distribution: temurin
           java-version: "17"
@@ -31,7 +31,7 @@ jobs:
         run: echo "version=$(cat .flutter-version | tr -d '\r\n ')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@f2c4f79fad4dc37d7267463db67744ed3745a5d7 # v2.18.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
           channel: stable
@@ -43,6 +43,30 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Configure Production Release Signing
+        id: signing_setup
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "Decoding release keystore..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+            cat <<EOF > android/key.properties
+storePassword=$KEYSTORE_PASSWORD
+keyPassword=$KEY_PASSWORD
+keyAlias=$KEY_ALIAS
+storeFile=upload-keystore.jks
+EOF
+            echo "has_release_signing=true" >> "$GITHUB_OUTPUT"
+            echo "Production release signing credentials configured."
+          else
+            echo "has_release_signing=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing credentials absent. Build will fall back to debug signing for testing artifact only."
+          fi
+
       - name: Build release APK (Obfuscated)
         run: flutter build apk --release --obfuscate --split-debug-info=build/debug-info
 
@@ -52,35 +76,35 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk "dist/INO-v${{ github.run_number }}.apk"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: INO-apk
           path: dist/*.apk
           retention-days: 30
 
       - name: Upload Debug Symbols
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: debug-symbols
           path: build/debug-info/*
           retention-days: 90
 
-      - name: Check Release Signing
+      - name: Check Release Signing Verification
         id: check_signing
         run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ] || [ "${{ secrets.KEYSTORE_PASSWORD }}" != "" ]; then
+          if [ "${{ steps.signing_setup.outputs.has_release_signing }}" = "true" ] && [ -f "android/key.properties" ] && [ -f "android/app/upload-keystore.jks" ]; then
             echo "publish_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish_release=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping public apk-latest release: Production signing credentials not present. APK is archived in workflow artifacts."
+            echo "::notice::Skipping public apk-latest release: Production release signing not verified. APK is archived in workflow artifacts."
           fi
 
       - name: Create/update GitHub Release
         if: steps.check_signing.outputs.publish_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c95fe1489396fe8a9ec87484337035a8b88e7b89 # v2.2.1
         with:
           tag_name: apk-latest
-          name: INO Android APK
+          name: INO Android Release APK
           body: |
             Install on your phone:
 
@@ -89,7 +113,7 @@ jobs:
             3. Install
 
             Built from `${{ github.sha }}` (run #${{ github.run_number }}).
-            Debug-signed CI build — fine for testing; not for Play Store.
+            Production release-signed APK built with verified keystore.
           files: dist/*.apk
           make_latest: true
           fail_on_unmatched_files: true

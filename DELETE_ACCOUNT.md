@@ -1,6 +1,6 @@
 # INO (Intelligent Network Organizer) - Account Deletion Policy & Web Portal
 
-**Public Deletion Web Page URL:** `https://share.inoapp.in/delete-account`
+**Public Deletion Web Page URL:** `https://share.inoapp.com/delete-account`
 
 At **INO Technologies Private Limited**, we respect your right to complete control over your personal data. You can delete your account and all associated personal data at any time — either directly within the INO mobile application or via our public Account Deletion web page.
 
@@ -17,7 +17,7 @@ At **INO Technologies Private Limited**, we respect your right to complete contr
 
 ### Option 2: Web Account Deletion Request Form
 If you no longer have the INO app installed, visit:
-👉 **`https://share.inoapp.in/delete-account`**
+👉 **`https://share.inoapp.com/delete-account`**
 
 Submit your registered account email address. You will receive an automated verification code to confirm ownership, after which your account and all data will be permanently deleted.
 

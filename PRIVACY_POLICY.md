@@ -54,7 +54,7 @@ We share data with third-party service providers strictly to deliver our service
    - *Role:* OAuth authentication and on-device machine learning (OCR & Document Scanner).
    - *Data Sent:* Auth tokens during sign-in. ML Kit runs 100% on-device; scan images are never sent to Google servers.
 4. **Google Fonts & Vercel**
-   - *Role:* Typography delivery and web frontend hosting for share links (`https://share.inoapp.in`).
+   - *Role:* Typography delivery and web frontend hosting for share links (`https://share.inoapp.com`).
 5. **Swissquote & Frankfurter API**
    - *Role:* Anonymized currency exchange rate queries for net worth calculations (no PII transmitted).
 6. **Operating System Speech Services (Android / iOS)**
@@ -75,7 +75,7 @@ We enforce industry-standard security controls to protect your data:
 ## 6. Data Retention Policy
 
 - **Active Accounts:** Data is retained for as long as your account remains active.
-- **Account Deletion:** When you request account deletion (via in-app Settings → Delete Account or at `https://share.inoapp.in/delete-account`), the server-side `delete_account()` function permanently purges your user profile, storage files, database records, vault memberships, and `auth.users` row.
+- **Account Deletion:** When you request account deletion (via in-app Settings → Delete Account or at `https://share.inoapp.com/delete-account`), the server-side `delete_account()` function permanently purges your user profile, storage files, database records, vault memberships, and `auth.users` row.
 - **Notification Logs & Audit Logs:** System notification logs (`push_log`) are automatically pruned after 90 days.
 
 ---

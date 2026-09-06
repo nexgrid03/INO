@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
+import '../../services/app_settings.dart';
 import '../../services/push_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../theme/app_dimens.dart';
@@ -143,8 +144,11 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       date: _moment!,
     );
     try {
-      // Ask for push notification and exact-alarm permission when user creates a reminder.
-      await PushService.instance.requestPermission();
+      // Ask for push notification permission ONLY if notifications are enabled in app settings.
+      // If the user has disabled notifications, never unconditionally re-register or fabricate consent.
+      if (AppSettings.instance.notifications.value) {
+        await PushService.instance.requestPermission();
+      }
       await ReminderScheduler.instance.ensureExactPermission();
       final saved = await ReminderStore.instance.add(reminder);
       if (!mounted) return;

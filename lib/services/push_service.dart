@@ -20,6 +20,7 @@ import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/reminders/all_reminders_screen.dart';
 import '../screens/wallet/wallet_detail_screen.dart';
 import '../widgets/reminders/reminder_detail_sheet.dart';
+import 'app_settings.dart';
 import 'auth_service.dart';
 import 'notification_center.dart';
 import 'security_alert_service.dart';
@@ -224,6 +225,13 @@ class PushService {
               settings.authorizationStatus == AuthorizationStatus.provisional;
 
       if (isAuthorized) {
+        if (!AppSettings.instance.notifications.value) {
+          developer.log(
+            'requestPermission: notifications setting is disabled; skipping token registration and consent record',
+            name: 'push',
+          );
+          return false;
+        }
         if (!kIsWeb && Platform.isIOS) {
           await FirebaseMessaging.instance
               .setForegroundNotificationPresentationOptions(
