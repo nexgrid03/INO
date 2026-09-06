@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO Migration: 20260904000000_harden_share_passwords.sql
+-- INO Migration: 20260904000001_harden_share_passwords.sql
 --
 -- Security Hardening:
 -- 1. Hashes document share passwords using bcrypt (`crypt(p_password, gen_salt('bf'))`)

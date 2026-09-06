@@ -1,4 +1,5 @@
 import { FUNCTIONS_URL } from "@/lib/config";
+import { getProxyHeaders } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function POST(
       headers: {
         "content-type": "application/json",
         accept: "application/json",
+        ...getProxyHeaders(req.headers),
       },
       body: JSON.stringify(body),
       cache: "no-store",

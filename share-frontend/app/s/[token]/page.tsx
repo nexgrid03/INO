@@ -1,13 +1,17 @@
 import Brand from "@/components/Brand";
 import StatePage from "@/components/StatePage";
 import { fetchShare } from "@/lib/config";
+import { getVisitorIp } from "@/lib/client-ip";
+import { headers } from "next/headers";
 import ShareView from "./ShareView";
 import ShareUnlock from "./ShareUnlock";
 
 export const dynamic = "force-dynamic"; // always fetch fresh share state
 
 export default async function SharePage({ params }: { params: { token: string } }) {
-  const data = await fetchShare(params.token);
+  const reqHeaders = headers();
+  const clientIp = getVisitorIp(reqHeaders);
+  const data = await fetchShare(params.token, null, clientIp);
 
   if (data.status === "password_required") {
     return <ShareUnlock token={params.token} />;

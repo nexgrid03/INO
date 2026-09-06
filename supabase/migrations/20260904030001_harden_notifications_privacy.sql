@@ -1,5 +1,5 @@
 -- ============================================================================
--- INO Migration: 20260904030000_harden_notifications_privacy.sql
+-- INO Migration: 20260904030001_harden_notifications_privacy.sql
 --
 -- Privacy & Compliance Hardening:
 -- 1. Create `user_consents` table for auditing Terms, Privacy, and Notification consent.

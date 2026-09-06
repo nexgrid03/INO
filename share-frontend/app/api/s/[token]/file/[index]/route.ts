@@ -1,4 +1,5 @@
 import { FUNCTIONS_URL } from "@/lib/config";
+import { getProxyHeaders } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +20,9 @@ export async function GET(
     `${FUNCTIONS_URL}/share/${encodeURIComponent(params.token)}` +
     `/file/${encodeURIComponent(params.index)}?${qs.toString()}`;
 
-  const requestHeaders: Record<string, string> = {};
+  const requestHeaders: Record<string, string> = {
+    ...getProxyHeaders(req.headers),
+  };
   if (unlockToken) {
     requestHeaders["x-share-unlock-token"] = unlockToken;
   }

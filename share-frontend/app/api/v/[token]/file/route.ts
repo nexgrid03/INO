@@ -1,4 +1,5 @@
 import { FUNCTIONS_URL } from "@/lib/config";
+import { getProxyHeaders } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,10 @@ export async function GET(req: Request, { params }: { params: { token: string } 
     `${FUNCTIONS_URL}/share/v/${encodeURIComponent(params.token)}` +
     `/file?k=${encodeURIComponent(key)}`;
 
-  const r = await fetch(upstream, { cache: "no-store" });
+  const r = await fetch(upstream, {
+    headers: getProxyHeaders(req.headers),
+    cache: "no-store",
+  });
 
   const headers = new Headers();
   headers.set("Content-Type", r.headers.get("content-type") ?? "application/octet-stream");

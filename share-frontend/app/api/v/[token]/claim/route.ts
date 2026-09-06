@@ -1,4 +1,5 @@
 import { FUNCTIONS_URL } from "@/lib/config";
+import { getProxyHeaders } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,12 +11,15 @@ export const dynamic = "force-dynamic";
  * crawler, prefetch or accidental navigation can consume it. The browser only
  * ever sees this same-origin URL, so the Supabase functions host stays hidden.
  */
-export async function POST(_req: Request, { params }: { params: { token: string } }) {
+export async function POST(req: Request, { params }: { params: { token: string } }) {
   const upstream = `${FUNCTIONS_URL}/share/v/${encodeURIComponent(params.token)}/claim`;
 
   const r = await fetch(upstream, {
     method: "POST",
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      ...getProxyHeaders(req.headers),
+    },
     cache: "no-store",
   });
 

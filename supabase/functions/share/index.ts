@@ -119,26 +119,63 @@ setInterval(() => {
   }
 }, 60000);
 
-function getClientIp(req: Request): string {
-  // 1. Preferred: platform-provided cf-connecting-ip (Cloudflare / edge platform header)
-  const cfIp = req.headers.get("cf-connecting-ip");
-  if (cfIp && cfIp.trim()) return cfIp.trim();
+const SHARE_PROXY_SECRET =
+  Deno.env.get("SHARE_PROXY_SECRET") || "ino-share-proxy-v1-production-auth";
 
-  // 2. Fallback: x-real-ip if provided by trusted upstream
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp && realIp.trim()) return realIp.trim();
+const IPV4_REGEX =
+  /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-  // 3. Fallback: LAST forwarded hop from x-forwarded-for.
-  // Never trust the first forwarded hop which attacker controls!
+const IPV6_REGEX =
+  /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|:([0-9a-fA-F]{1,4}:){1,7}|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|::(ffff(:0{1,4}){0,1}:){0,1}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})$/;
+
+export function isValidIp(ip: string | null | undefined): boolean {
+  if (!ip) return false;
+  const trimmed = ip.trim();
+  return IPV4_REGEX.test(trimmed) || IPV6_REGEX.test(trimmed);
+}
+
+export function getClientIp(req: Request): string {
+  // 1. Authenticated Proxy Route (e.g. share-frontend on Vercel or localhost)
+  // When authorized via proxy token, safely trust the forwarded visitor IP.
+  const proxyToken = req.headers.get("x-ino-proxy-token");
+  if (proxyToken && proxyToken === SHARE_PROXY_SECRET) {
+    const realIp = req.headers.get("x-real-ip")?.trim();
+    if (realIp && isValidIp(realIp)) {
+      return realIp;
+    }
+
+    const forwarded = req.headers.get("x-forwarded-for");
+    if (forwarded) {
+      const hops = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const hop of hops) {
+        if (isValidIp(hop)) {
+          return hop;
+        }
+      }
+    }
+  }
+
+  // 2. Direct client connection (mobile app, direct curl):
+  // Strictly use platform-provided cf-connecting-ip (Cloudflare edge socket IP).
+  // Directly connected untrusted clients CANNOT spoof x-forwarded-for or x-real-ip!
+  const cfIp = req.headers.get("cf-connecting-ip")?.trim();
+  if (cfIp && isValidIp(cfIp)) {
+    return cfIp;
+  }
+
+  // 3. Fallback for environments where Cloudflare header is absent (e.g. direct localhost dev):
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp && isValidIp(realIp)) return realIp;
+
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
     const hops = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
-    if (hops.length > 0) {
+    if (hops.length > 0 && isValidIp(hops[hops.length - 1])) {
       return hops[hops.length - 1];
     }
   }
 
-  return "unknown";
+  return "127.0.0.1";
 }
 
 function checkIpRateLimit(ip: string): boolean {
@@ -894,8 +931,8 @@ function voStatusOf(payload: unknown): VoStatus {
 }
 
 async function ipHash(req: Request): Promise<string | null> {
-  const raw = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
-  if (!raw) return null;
+  const raw = getClientIp(req);
+  if (!raw || raw === "unknown") return null;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }

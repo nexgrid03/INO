@@ -35,16 +35,24 @@ export interface ViewOncePeek {
   message?: string;
 }
 
+import { SHARE_PROXY_SECRET } from "./client-ip";
+
 /**
  * NON-CONSUMING status check for a one-time link. Rendering the page must never
  * burn the share - only the recipient pressing "Open once" does (which POSTs to
  * `/api/v/<token>/claim`). That keeps chat-app link-preview crawlers, refreshes
  * and accidental taps from destroying it.
  */
-export async function peekViewOnce(token: string): Promise<ViewOncePeek> {
+export async function peekViewOnce(token: string, clientIp?: string): Promise<ViewOncePeek> {
   try {
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (clientIp) {
+      headers["x-real-ip"] = clientIp;
+      headers["x-forwarded-for"] = clientIp;
+      headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+    }
     const res = await fetch(`${FUNCTIONS_URL}/share/v/${encodeURIComponent(token)}?format=json`, {
-      headers: { accept: "application/json" },
+      headers,
       cache: "no-store",
     });
     const json = await res.json();
@@ -61,14 +69,20 @@ export async function peekViewOnce(token: string): Promise<ViewOncePeek> {
 }
 
 /** Fetches share metadata (JSON) from the Edge Function, server-side. */
-export async function fetchShare(token: string, pw?: string | null): Promise<ShareData> {
+export async function fetchShare(token: string, pw?: string | null, clientIp?: string): Promise<ShareData> {
   try {
     const qs = new URLSearchParams({ format: "json" });
     if (pw) qs.set("pw", pw);
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (clientIp) {
+      headers["x-real-ip"] = clientIp;
+      headers["x-forwarded-for"] = clientIp;
+      headers["x-ino-proxy-token"] = SHARE_PROXY_SECRET;
+    }
     const res = await fetch(
       `${FUNCTIONS_URL}/share/${encodeURIComponent(token)}?${qs.toString()}`,
       {
-        headers: { accept: "application/json" },
+        headers,
         cache: "no-store",
       },
     );
@@ -85,3 +99,4 @@ export async function fetchShare(token: string, pw?: string | null): Promise<Sha
     return { status: "error", count: 0, expiresAt: null, documents: [] };
   }
 }
+

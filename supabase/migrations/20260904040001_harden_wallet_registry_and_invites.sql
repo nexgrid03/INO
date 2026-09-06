@@ -212,27 +212,28 @@ BEGIN
 
     IF v_uid IS NOT NULL THEN
       BEGIN
-        v_incoming_size := COALESCE(
-          NEW.size,
-          (NEW.metadata->>'size')::BIGINT,
-          0
-        );
+        v_incoming_size := COALESCE((NEW.metadata->>'size')::BIGINT, 0);
       EXCEPTION WHEN OTHERS THEN
         v_incoming_size := 0;
       END;
 
-      SELECT COALESCE(SUM(
-        COALESCE(size, (metadata->>'size')::BIGINT, 0)
-      ), 0)
-      INTO v_total_bytes
-      FROM storage.objects
-      WHERE bucket_id = 'documents'
-        AND (storage.foldername(name))[1] = v_uid
-        AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
+      BEGIN
+        SELECT COALESCE(SUM((metadata->>'size')::BIGINT), 0)
+        INTO v_total_bytes
+        FROM storage.objects
+        WHERE bucket_id = 'documents'
+          AND (storage.foldername(name))[1] = v_uid
+          AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
 
-      IF (v_total_bytes + v_incoming_size) > v_max_bytes THEN
-        RAISE EXCEPTION 'Storage quota exceeded' USING errcode = '54000';
-      END IF;
+        IF (v_total_bytes + v_incoming_size) > v_max_bytes THEN
+          RAISE EXCEPTION 'Storage quota exceeded' USING errcode = '54000';
+        END IF;
+      EXCEPTION
+        WHEN SQLSTATE '54000' THEN
+          RAISE;
+        WHEN OTHERS THEN
+          RAISE WARNING 'Storage quota check warning: %', SQLERRM;
+      END;
     END IF;
   END IF;
 
@@ -240,10 +241,18 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_enforce_storage_quota ON storage.objects;
-CREATE TRIGGER trg_enforce_storage_quota
-  BEFORE INSERT OR UPDATE ON storage.objects
-  FOR EACH ROW
-  EXECUTE FUNCTION public.check_user_storage_quota();
+DO $$
+BEGIN
+  BEGIN
+    DROP TRIGGER IF EXISTS trg_enforce_storage_quota ON storage.objects;
+    CREATE TRIGGER trg_enforce_storage_quota
+      BEFORE INSERT OR UPDATE ON storage.objects
+      FOR EACH ROW
+      EXECUTE FUNCTION public.check_user_storage_quota();
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Could not create storage quota trigger on storage.objects: %', SQLERRM;
+  END;
+END;
+$$;
 
 COMMIT;

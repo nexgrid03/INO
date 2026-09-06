@@ -1,6 +1,8 @@
 import Brand from "@/components/Brand";
 import StatePage from "@/components/StatePage";
 import { peekViewOnce } from "@/lib/config";
+import { getVisitorIp } from "@/lib/client-ip";
+import { headers } from "next/headers";
 import ViewOnceView from "./ViewOnceView";
 
 export const dynamic = "force-dynamic"; // always read fresh one-time state
@@ -33,7 +35,9 @@ const TERMINAL: Record<string, { kind: string; message: string }> = {
  * crawler, a refresh, a mis-tap on the notification - leaves the share intact.
  */
 export default async function ViewOncePage({ params }: { params: { token: string } }) {
-  const peek = await peekViewOnce(params.token);
+  const reqHeaders = headers();
+  const clientIp = getVisitorIp(reqHeaders);
+  const peek = await peekViewOnce(params.token, clientIp);
 
   if (peek.status !== "ready") {
     const t = TERMINAL[peek.status];
