@@ -54,6 +54,7 @@ class GlassScrollPerformance extends InheritedWidget {
   @override
   bool updateShouldNotify(GlassScrollPerformance oldWidget) =>
       allowBlur != oldWidget.allowBlur;
+      
 }
 
 /// Wraps a scrollable so dense [LiquidGlass] surfaces drop backdrop blur only

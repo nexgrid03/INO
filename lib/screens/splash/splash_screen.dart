@@ -190,10 +190,6 @@ class _SplashScreenState extends State<SplashScreen>
         .warmUp(context: context)
         .catchError((Object _) {});
 
-    // First run goes to onboarding, where there is no user data to show — no
-    // reason to make the intro wait on a warm-up nobody will see.
-    if (!AppSettings.instance.onboardingSeen.value) return;
-
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
@@ -213,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen>
         _profile = profile;
       }
     } catch (_) {
-      // Fall through to Login — never block cold start on network.
+      // Fall through — never block cold start on network.
     }
 
     await warm;
@@ -240,23 +236,21 @@ class _SplashScreenState extends State<SplashScreen>
     if (_navigated || !mounted) return;
     _navigated = true;
 
-    // Onboarding is entirely local and is the only correct first screen on a
-    // first run, so it is decided before connectivity.
-    if (!AppSettings.instance.onboardingSeen.value) {
-      _replace(const OnboardingScreen());
-      return;
-    }
-
     final isOnline = await (_online ?? Future<bool>.value(true));
     if (!mounted) return;
 
     final profile = _profile;
-    final hasSession = Supabase.instance.client.auth.currentSession != null;
+    bool hasSession = false;
+    try {
+      hasSession = Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {
+      hasSession = false;
+    }
 
     // SECURITY FIX: Never open offline library if user is signed out, no valid session exists, or terms not accepted.
     if (!isOnline) {
       if (!hasSession || profile == null || !AuthService.instance.hasAcceptedTerms) {
-        _replace(const LoginScreen());
+        _goToGuestShellFade();
         return;
       }
       // Require biometric / device credentials before opening offline documents
@@ -269,7 +263,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (ok) {
         _replace(const OfflineDocumentsScreen(isRootOffline: true));
       } else {
-        _replace(const LoginScreen());
+        _goToGuestShellFade();
       }
       return;
     }
@@ -303,7 +297,7 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    _replace(const LoginScreen());
+    _goToGuestShellFade();
   }
 
   Route<void> _fadeRoute(Widget page) {
@@ -324,6 +318,21 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _replace(Widget page) {
     Navigator.of(context).pushReplacement(_fadeRoute(page));
+  }
+
+  /// Soft fade into guest shell (explore mode for unauthenticated users).
+  void _goToGuestShellFade() {
+    GuestMode.active = true;
+    Navigator.of(context).pushAndRemoveUntil(
+      _fadeRoute(
+        MainShell(
+          profile: GuestMode.guestProfile(),
+          themeMode: ThemeController.mode.value,
+          onToggleTheme: () => ThemeController.toggle(context),
+        ),
+      ),
+      (route) => false,
+    );
   }
 
   /// Soft fade into shell (avoids [goToShell]'s abrupt MaterialPageRoute slide).
