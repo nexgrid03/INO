@@ -55,6 +55,10 @@ class VoiceNavigationService extends ChangeNotifier {
   bool get isListening => _status == VoiceStatus.listening;
 
   int _langRetry = 0;
+  int _earlyStopRetry = 0;
+  DateTime? _listenStartTime;
+  DateTime? _sessionDeadline;
+  bool _isOfflineAttempt = false;
 
   /// True from [start] until the session is RESOLVED (a command matched) or
   /// CANCELLED (sheet closed). The recognizer's callbacks are persistent and
@@ -83,35 +87,49 @@ class VoiceNavigationService extends ChangeNotifier {
   /// Begins a listening session. [languageCode] ('en' / 'te' / 'hi')
   /// selects the recognition locale; English resolves to **en_IN** first.
   ///
-  /// [preferOffline] defaults to true for privacy-first, on-device voice processing.
+  /// [preferOffline] forces on-device-only recognition. It defaults to **false**
+  /// because forcing on-device recognition on a device without the offline
+  /// language pack makes the recognizer end immediately with no result. With
+  /// `false`, the OS uses its on-device model automatically when available (so
+  /// navigation still works offline) and only reaches for the network otherwise.
   Future<void> start({
     String languageCode = 'en',
-    bool preferOffline = true,
+    bool preferOffline = false,
   }) async {
     _recognized = '';
     _match = null;
     _permanentlyDenied = false;
     _langRetry = 0;
+    _earlyStopRetry = 0;
+    _listenStartTime = null;
+    _sessionDeadline = DateTime.now().add(const Duration(seconds: 10));
     _sessionActive = true;
     _confirmationSpoken = false;
     _set(VoiceStatus.initializing);
-    _log('start() languageCode=$languageCode preferOffline=$preferOffline');
+
+    final startMsg = 'start() languageCode=$languageCode preferOffline=$preferOffline';
+    debugPrint('[VOICE] $startMsg');
+    _log(startMsg);
 
     if (!_initDone) {
       try {
         _initDone = await _speech.initialize(
           onError: _onError,
           onStatus: _onStatus,
-          debugLogging: true,
+          debugLogging: kDebugMode,
         );
       } catch (e) {
-        _log('initialize() threw: $e');
+        final initErr = 'initialize() threw: $e';
+        debugPrint('[VOICE] $initErr');
+        _log(initErr);
         _initDone = false;
       }
     }
-    _log('Speech initialization: available=$_initDone '
+    final initStatusMsg = 'Speech initialization: available=$_initDone '
         'hasPermission=${_speech.hasPermission} '
-        'isAvailable=${_speech.isAvailable}');
+        'isAvailable=${_speech.isAvailable}';
+    debugPrint('[VOICE] $initStatusMsg');
+    _log(initStatusMsg);
 
     if (!_initDone) {
       if (!kIsWeb && Platform.isIOS) {
@@ -121,18 +139,24 @@ class VoiceNavigationService extends ChangeNotifier {
       }
       try {
         final mic = await Permission.microphone.status;
-        _log('Microphone permission: $mic');
+        final micMsg = 'Microphone permission: $mic';
+        debugPrint('[VOICE] $micMsg');
+        _log(micMsg);
         if (mic.isPermanentlyDenied) {
           _permanentlyDenied = true;
           _set(VoiceStatus.denied);
         } else if (mic.isDenied || mic.isRestricted) {
           _set(VoiceStatus.denied);
         } else {
-          _log('Recognizer unavailable (initialize returned false, mic $mic).');
+          final unavailMsg = 'Recognizer unavailable (initialize returned false, mic $mic).';
+          debugPrint('[VOICE] $unavailMsg');
+          _log(unavailMsg);
           _set(VoiceStatus.unavailable);
         }
       } catch (e) {
-        _log('permission check threw: $e');
+        final permErr = 'permission check threw: $e';
+        debugPrint('[VOICE] $permErr');
+        _log(permErr);
         _set(VoiceStatus.unavailable);
       }
       return;
@@ -148,8 +172,10 @@ class VoiceNavigationService extends ChangeNotifier {
   Future<String?> _resolveLocale(String code) async {
     try {
       final locales = await _speech.locales();
-      _log('Available locales (${locales.length}): '
-          '${locales.map((l) => l.localeId).join(', ')}');
+      final localesMsg = 'Available locales (${locales.length}): '
+          '${locales.map((l) => l.localeId).join(', ')}';
+      debugPrint('[VOICE] $localesMsg');
+      _log(localesMsg);
       String norm(String s) => s.toLowerCase().replaceAll('-', '_');
 
       for (final l in locales) {
@@ -164,29 +190,59 @@ class VoiceNavigationService extends ChangeNotifier {
       final sys = await _speech.systemLocale();
       return sys?.localeId;
     } catch (e) {
-      _log('locales() failed: $e');
+      final locErr = 'locales() failed: $e';
+      debugPrint('[VOICE] $locErr');
+      _log(locErr);
       return code == 'en' ? 'en_IN' : null;
     }
   }
 
   Future<void> _startListening(bool preferOffline) async {
+    if (!_sessionActive) return;
     try {
-      _log('listen() localeId=$_localeId onDevice=$preferOffline');
-      await _speech.listen(
+      _isOfflineAttempt = preferOffline;
+      _listenStartTime = DateTime.now();
+      _sessionDeadline ??= DateTime.now().add(const Duration(seconds: 10));
+
+      final listenMsg = 'listen() localeId=$_localeId onDevice=$preferOffline listenFor=10s pauseFor=5s';
+      debugPrint('[VOICE] $listenMsg');
+      _log(listenMsg);
+
+      final started = await _speech.listen(
         onResult: _onResult,
         listenOptions: SpeechListenOptions(
           partialResults: true,
           onDevice: preferOffline,
           listenMode: ListenMode.confirmation,
           cancelOnError: false,
-          listenFor: const Duration(seconds: 8),
-          pauseFor: const Duration(seconds: 4),
+          listenFor: const Duration(seconds: 10),
+          pauseFor: const Duration(seconds: 5),
           localeId: _localeId,
         ),
       );
-      _set(VoiceStatus.listening);
-    } catch (e) {
-      _log('listen() threw: $e');
+
+      debugPrint('[VOICE] speech.listen() call result: $started');
+
+      if (started != false) {
+        _set(VoiceStatus.listening);
+      } else {
+        debugPrint('[VOICE] speech.listen() returned false');
+        if (preferOffline) {
+          debugPrint('[VOICE] Offline listening failed to start, falling back to online/cloud recognizer.');
+          _isOfflineAttempt = false;
+          return _startListening(false);
+        }
+        _set(VoiceStatus.error);
+      }
+    } catch (e, st) {
+      final errMsg = 'listen() threw: $e';
+      debugPrint('[VOICE] $errMsg\n$st');
+      _log(errMsg);
+      if (preferOffline) {
+        debugPrint('[VOICE] Offline listen threw exception, falling back to online/cloud recognizer.');
+        _isOfflineAttempt = false;
+        return _startListening(false);
+      }
       _set(VoiceStatus.error);
     }
   }
@@ -195,15 +251,52 @@ class VoiceNavigationService extends ChangeNotifier {
     // Stale callback from a session that was already resolved or cancelled -
     // must never re-enter the resolve → speak pipeline (the double-speech bug).
     if (!_sessionActive) {
-      _log('[VOICE] Stale result ignored (session closed): '
-          '"${result.recognizedWords}"');
+      final staleMsg = '[VOICE] Stale result ignored (session closed): "${result.recognizedWords}"';
+      debugPrint(staleMsg);
+      _log(staleMsg);
       return;
     }
     _recognized = result.recognizedWords;
-    _log('Recognized Text: "${result.recognizedWords}" '
-        'final=${result.finalResult} confidence=${result.confidence}');
+    final resMsg = 'Recognized Text: "${result.recognizedWords}" '
+        'final=${result.finalResult} confidence=${result.confidence}';
+    debugPrint('[VOICE] $resMsg');
+    _log(resMsg);
+
     if (_status == VoiceStatus.matched) return;
+
     if (result.finalResult) {
+      // If speech was heard, resolve command immediately
+      if (_recognized.trim().isNotEmpty) {
+        _resolveFromRecognized();
+        return;
+      }
+
+      // If finalResult has empty words, check if it closed too early
+      final elapsed = _listenStartTime != null
+          ? DateTime.now().difference(_listenStartTime!)
+          : Duration.zero;
+
+      if (_isOfflineAttempt) {
+        debugPrint('[VOICE] Empty finalResult in offline mode ($elapsed). Falling back to online/cloud.');
+        _isOfflineAttempt = false;
+        _startListening(false);
+        return;
+      }
+
+      if (elapsed < const Duration(seconds: 5) &&
+          _earlyStopRetry < 2 &&
+          _sessionDeadline != null &&
+          DateTime.now().isBefore(_sessionDeadline!)) {
+        _earlyStopRetry++;
+        debugPrint('[VOICE] Empty finalResult too early ($elapsed < 5s). Retrying listening (attempt $_earlyStopRetry)...');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (_sessionActive && _status != VoiceStatus.matched && _recognized.trim().isEmpty) {
+            _startListening(false);
+          }
+        });
+        return;
+      }
+
       _resolveFromRecognized();
     } else {
       notifyListeners(); // live partial text
@@ -211,28 +304,87 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   void _onStatus(String status) {
-    _log('Speech Status: $status');
+    final statusMsg = 'Speech Status: $status (voiceStatus=$_status, recognized="$_recognized")';
+    debugPrint('[VOICE] $statusMsg');
+    _log(statusMsg);
+
     if (!_sessionActive) return; // stale event from a closed session
     if (_status == VoiceStatus.matched) return;
+
+    if (status == 'listening') {
+      _set(VoiceStatus.listening);
+      return;
+    }
+
     // The recognizer stopped on its own (end of speech / timeout). Resolve
     // whatever we heard - only meaningful once we've actually started listening.
     if ((status == 'done' || status == 'notListening') &&
         _status == VoiceStatus.listening) {
+
+      // If speech was recognized, resolve command immediately
+      if (_recognized.trim().isNotEmpty) {
+        _resolveFromRecognized();
+        return;
+      }
+
+      // If offline mode stopped with nothing heard, seamlessly fall back to online
+      if (_isOfflineAttempt) {
+        debugPrint('[VOICE] Offline recognizer stopped with no speech ($status); falling back to online/cloud.');
+        _isOfflineAttempt = false;
+        _startListening(false);
+        return;
+      }
+
+      // Check how much time has passed
+      final elapsed = _listenStartTime != null
+          ? DateTime.now().difference(_listenStartTime!)
+          : Duration.zero;
+
+      // Prevent immediate fallback dialog: if stopped too early without input, restart listening
+      if (elapsed < const Duration(seconds: 5) &&
+          _earlyStopRetry < 2 &&
+          _sessionDeadline != null &&
+          DateTime.now().isBefore(_sessionDeadline!)) {
+        _earlyStopRetry++;
+        debugPrint('[VOICE] Recognizer stopped too early ($elapsed < 5s) with empty speech. Retrying listen (attempt $_earlyStopRetry)...');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (_sessionActive && _status != VoiceStatus.matched && _recognized.trim().isEmpty) {
+            _startListening(false);
+          }
+        });
+        return;
+      }
+
+      // Genuine timeout elapsed: user was given several seconds to speak and said nothing.
+      debugPrint('[VOICE] Genuine timeout reached ($elapsed) with no input.');
       _resolveFromRecognized();
     }
   }
 
   void _onError(SpeechRecognitionError error) {
-    _log('Speech Error: ${error.errorMsg} permanent=${error.permanent}');
+    final errMsg = 'Speech Error: ${error.errorMsg} permanent=${error.permanent}';
+    debugPrint('[VOICE] $errMsg');
+    _log(errMsg);
+
     if (!_sessionActive) return; // stale event from a closed session
     if (_status == VoiceStatus.matched) return;
     final msg = error.errorMsg.toLowerCase();
+
+    // If in offline attempt, error means offline model is not available -> fall back to online/cloud
+    if (_isOfflineAttempt) {
+      debugPrint('[VOICE] Error in offline mode ($msg). Falling back to online/cloud recognizer.');
+      _isOfflineAttempt = false;
+      _startListening(false);
+      return;
+    }
 
     // A locale the recognizer can't serve → retry once on the system default.
     if ((msg.contains('language') || msg.contains('locale')) &&
         _langRetry == 0) {
       _langRetry = 1;
-      _log('Language/locale not supported → retrying with the device default.');
+      final retryMsg = 'Language/locale not supported → retrying with the device default.';
+      debugPrint('[VOICE] $retryMsg');
+      _log(retryMsg);
       _localeId = null;
       _startListening(false);
       return;
@@ -242,7 +394,37 @@ class VoiceNavigationService extends ChangeNotifier {
     if (msg.contains('no_match') ||
         msg.contains('no match') ||
         msg.contains('speech_timeout') ||
-        msg.contains('no speech')) {
+        msg.contains('no speech') ||
+        msg.contains('error_no_match') ||
+        msg.contains('error_speech_timeout')) {
+
+      // If speech was recognized, resolve command
+      if (_recognized.trim().isNotEmpty) {
+        _resolveFromRecognized();
+        return;
+      }
+
+      // If no speech was recognized, check if it occurred too early
+      final elapsed = _listenStartTime != null
+          ? DateTime.now().difference(_listenStartTime!)
+          : Duration.zero;
+
+      if (elapsed < const Duration(seconds: 5) &&
+          _earlyStopRetry < 2 &&
+          _sessionDeadline != null &&
+          DateTime.now().isBefore(_sessionDeadline!)) {
+        _earlyStopRetry++;
+        debugPrint('[VOICE] Benign error $msg received too early ($elapsed < 5s). Retrying listen (attempt $_earlyStopRetry)...');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (_sessionActive && _status != VoiceStatus.matched && _recognized.trim().isEmpty) {
+            _startListening(false);
+          }
+        });
+        return;
+      }
+
+      // Genuine timeout
+      debugPrint('[VOICE] Genuine timeout via $msg ($elapsed).');
       _resolveFromRecognized();
       return;
     }
@@ -250,12 +432,15 @@ class VoiceNavigationService extends ChangeNotifier {
   }
 
   void _resolveFromRecognized() {
-    _log('[VOICE] Command Received: "$_recognized"');
+    final cmdMsg = '[VOICE] Command Received: "$_recognized"';
+    debugPrint(cmdMsg);
+    _log(cmdMsg);
     final m = matchVoiceCommand(_recognized);
     _match = m;
     if (m != null) {
-      _log('Matched Route: ${m.route}  (command=${m.id}, '
-          'from "$_recognized")');
+      final matchMsg = 'Matched Route: ${m.route}  (command=${m.id}, from "$_recognized")';
+      debugPrint('[VOICE] $matchMsg');
+      _log(matchMsg);
       // A match RESOLVES the session: close it BEFORE speaking so any late
       // recognizer callback (Android delivers one after stop()) can never
       // re-run this method and speak the confirmation a second time.
@@ -264,7 +449,9 @@ class VoiceNavigationService extends ChangeNotifier {
       _stopSpeech();
       speakConfirmation(m);
     } else {
-      _log('Matched Route: none  (recognized="$_recognized")');
+      final noMatchMsg = 'Matched Route: none  (recognized="$_recognized")';
+      debugPrint('[VOICE] $noMatchMsg');
+      _log(noMatchMsg);
       // No match keeps the session active - a late, richer final result may
       // still upgrade this to a match while the sheet is open.
       _set(VoiceStatus.noMatch);
@@ -309,6 +496,10 @@ class VoiceNavigationService extends ChangeNotifier {
     // made the follow-up stale-callback replay audible as a "second" playback.
     final wasMatched = _status == VoiceStatus.matched;
     _sessionActive = false; // close the session FIRST - late callbacks are dead
+    _listenStartTime = null;
+    _sessionDeadline = null;
+    _earlyStopRetry = 0;
+    _isOfflineAttempt = false;
     try {
       await _speech.cancel();
     } catch (_) {}
