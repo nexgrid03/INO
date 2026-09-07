@@ -4,7 +4,7 @@
 -- Objective:
 -- Harden and future-proof public.delete_account() RPC against schema changes:
 -- 1. Fix public.expenses column reference from user_id to auth_user_id.
--- 2. Fix public.vault_members handover sorting from joined_at to created_at.
+-- 2. Fix public.vault_members handover sorting to created_at.
 -- 3. Fix public.wallets cleanup referencing id to slug (primary key).
 -- 4. Add defensive to_regclass checks and sub-block exception isolation for
 --    all optional/modular tables so future schema migrations never block
@@ -287,7 +287,7 @@ BEGIN
     FOR v_vault IN (
       SELECT id FROM public.family_vaults WHERE owner_auth_user_id = v_uid
     ) LOOP
-      -- FIXED: created_at instead of non-existent joined_at
+      -- FIXED: handover sorting ordered by created_at ASC
       SELECT auth_user_id INTO v_successor
       FROM public.vault_members
       WHERE vault_id = v_vault.id
