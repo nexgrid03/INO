@@ -21,13 +21,15 @@ class ShareConfig {
   /// share web frontend. Change here → every new QR/link follows.
   ///
   /// Canonical share host:
-  /// `https://share.inoapp.com/s/{token}`
-  static const String publicBase = 'https://share.inoapp.com/s';
+  /// `https://ino-share-web1.vercel.app/s/{token}`
+  static const String publicBase = 'https://ino-share-web1.vercel.app/s';
 
-  static String get _projectRef => Uri.parse(SupabaseConfig.url).host.split('.').first;
+  static String get _projectRef =>
+      Uri.parse(SupabaseConfig.url).host.split('.').first;
 
   /// The Supabase `share` Edge Function base.
-  static String get apiBase => 'https://$_projectRef.functions.supabase.co/share';
+  static String get apiBase =>
+      'https://$_projectRef.functions.supabase.co/share';
 
   /// The public, shareable URL for a share [token] (what the QR encodes).
   static String publicUrl(String token) {

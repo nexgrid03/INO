@@ -40,6 +40,12 @@ void main() {
       expect(ShareCodecService.parseToken('hello world'), isNull);
     });
 
+    test('parse accepts HTTPS share URLs from ino-share-web1.vercel.app', () {
+      final token = ShareCodecService.generateToken();
+      expect(ShareCodecService.parseToken('https://ino-share-web1.vercel.app/s/$token'), token);
+      expect(ShareCodecService.parseToken('https://ino-share-web1.vercel.app/v/$token'), token);
+    });
+
     test('tokens are unique', () {
       final a = ShareCodecService.generateToken();
       final b = ShareCodecService.generateToken();
