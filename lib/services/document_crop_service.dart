@@ -41,6 +41,14 @@ class DocumentCropService {
       var src = img.decodeImage(bytes);
       if (src == null) return null;
 
+      // Apply EXIF orientation before anything else. A camera JPEG is usually
+      // stored in sensor orientation with an EXIF tag saying how to turn it,
+      // and every viewer - Flutter's own codec included - honours that tag. The
+      // corners handed to this function are in that upright space, so without
+      // baking the rotation in we would rectify against un-rotated pixels and
+      // crop a completely different region of the page.
+      src = img.bakeOrientation(src);
+
       // Cap the working resolution so the rectified destination buffer stays
       // bounded (aspect preserved; normalized corners are resolution-agnostic).
       final longest = math.max(src.width, src.height);

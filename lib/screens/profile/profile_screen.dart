@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -12,6 +14,7 @@ import '../../repositories/document_repository.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/account_switcher.dart';
 import '../../services/app_settings.dart';
+import '../../services/account_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/push_service.dart';
@@ -25,6 +28,7 @@ import '../../theme/avatar_color.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_back_button.dart';
+import '../../widgets/common/ino_loader.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
@@ -39,7 +43,6 @@ import '../legal/legal_document_screen.dart';
 import 'about_screen.dart';
 import 'change_password_screen.dart';
 import 'contact_support_screen.dart';
-import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
 import 'trusted_devices_screen.dart';
@@ -559,6 +562,124 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (confirmed == true) await _performLogout();
   }
 
+  /// Deleting the account asks once, in the same sheet the app uses for every
+  /// other destructive confirmation, and then does it.
+  ///
+  /// There is deliberately no type-DELETE gate and no password re-entry: the
+  /// app is passwordless now (login is OTP-only), so a password prompt would be
+  /// un-completable, and the sheet already reaches the user through a live
+  /// authenticated session - which is the re-authentication that matters.
+  Future<void> _confirmDeleteAccount() async {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: palette.surface,
+      showDragHandle: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.large),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            AppSpacing.sm,
+            AppSpacing.screen,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const InoSheetGrip(),
+              const SizedBox(height: AppSpacing.lg),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppColors.critical.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: AppColors.critical,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                l10n.t('cantBeUndone'),
+                style: AppText.title.copyWith(color: palette.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                l10n.t('deleteAccountWarning'),
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetButton(
+                      label: l10n.t('keepMyAccount'),
+                      onTap: () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _SheetButton(
+                      label: l10n.t('deleteAccount'),
+                      danger: true,
+                      onTap: () => Navigator.of(context).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true) await _performDeleteAccount();
+  }
+
+  Future<void> _performDeleteAccount() async {
+    final l10n = AppLocalizations.of(context);
+    final navigator = Navigator.of(context);
+
+    // Deletion is a multi-table server round-trip. Block the UI while it runs
+    // so a second tap cannot fire it twice, and so the user is not left staring
+    // at an unchanged settings list wondering whether it worked.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Center(child: InoLoader(size: 34)),
+      ),
+    );
+
+    try {
+      await AccountService.instance.deleteAccount();
+      if (!mounted) return;
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e, st) {
+      developer.log('delete account failed: $e',
+          name: 'account', error: e, stackTrace: st);
+      if (!mounted) return;
+      navigator.pop(); // dismiss the blocking spinner
+      _toast(l10n.t('couldNotDeleteAccount'));
+    }
+  }
+
   Future<void> _performLogout() async {
     await AuthService.instance.signOut();
     if (!mounted) return;
@@ -891,7 +1012,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.delete_outline_rounded,
             title: l10n.t('deleteAccount'),
             danger: true,
-            onTap: () => _push(DeleteAccountScreen(email: _profile.email)),
+            onTap: _confirmDeleteAccount,
           ),
           SettingsRow(
             icon: Icons.logout_rounded,

@@ -7,9 +7,12 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
+import '../../services/document_crop_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/live_document_detector.dart';
+import '../../widgets/scan/document_highlight.dart';
 import '../../widgets/scan/scan_controls.dart';
+import '../../widgets/scan/scanner_overlay.dart' show ScanOverlayState;
 import 'scan_theme.dart';
 import '../../widgets/common/ino_loader.dart';
 
@@ -52,6 +55,11 @@ class _ScannerScreenState extends State<ScannerScreen>
   ScannerState _state = ScannerState.idle;
 
   bool _isAutoMode = true;
+
+  /// True while the capture is being perspective-cropped. Decoding and
+  /// rectifying a full-resolution JPEG is a real second or two of work, and
+  /// leaving the shutter frozen with no explanation reads as a hang.
+  bool _cropping = false;
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
   bool _isBootstrapping = false;
@@ -61,6 +69,13 @@ class _ScannerScreenState extends State<ScannerScreen>
   final LiveDocumentDetector _detector = LiveDocumentDetector();
   final Stopwatch _throttle = Stopwatch();
   bool _streaming = false;
+
+  /// The document's live outline - four corners, normalised to the raw camera
+  /// frame - feeding the blue highlight border. Held in a notifier rather than
+  /// in [setState] so the ~7 readings a second repaint only the overlay, never
+  /// the camera preview and chrome above it.
+  final ValueNotifier<List<Offset>?> _docCorners =
+      ValueNotifier<List<Offset>?>(null);
 
   /// Consecutive qualifying frames seen while searching (debounces the jump
   /// from idle → documentDetected so a single noisy frame can't flash a badge).
@@ -96,6 +111,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     _controller = null;
     _streaming = false;
     _teardownCamera(controller);
+    _docCorners.dispose();
     super.dispose();
   }
 
@@ -258,6 +274,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   void _resetDetectionState() {
     _presentFrames = 0;
     _stableStart = null;
+    _docCorners.value = null;
   }
 
   void _onFrame(CameraImage image) {
@@ -272,6 +289,17 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     final signal = _detector.analyze(image);
     _handleSignal(signal.confidence, signal.steady);
+
+    // Track the document with the highlight border only once the state machine
+    // actually recognises one - stray edges on the desk behind it never draw an
+    // outline. Assigned after [_handleSignal] so it reads the updated state.
+    _docCorners.value = switch (_state) {
+      ScannerState.detecting ||
+      ScannerState.documentDetected ||
+      ScannerState.readyToScan =>
+        signal.corners,
+      _ => null,
+    };
   }
 
   /// The state machine: idle → detecting → documentDetected → readyToScan,
@@ -391,27 +419,78 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
     HapticFeedback.mediumImpact();
+
+    // Snapshot the outline BEFORE stopping the stream. This is the exact quad
+    // the blue border was drawing, and it is what the capture gets cropped to -
+    // so the user receives the page they were framing, not the whole room.
+    final outline = _docCorners.value;
+
     // Free the image stream before a still capture (they can't run together).
     await _stopDetection();
     if (!mounted) return;
     setState(() => _state = ScannerState.capturing);
     try {
       // Capture the still image with the in-app camera preview - no external
-      // scanner activity, so the user stays inside INO the whole time. Edge
-      // detection / crop happen downstream on the captured image.
+      // scanner activity, so the user stays inside INO the whole time.
       final file = await controller.takePicture();
       if (!mounted) return;
       HapticFeedback.lightImpact();
       setState(() => _state = ScannerState.success);
-      await Future<void>.delayed(const Duration(milliseconds: 240));
+
+      final cropped = await _cropToOutline(file.path, outline);
       if (!mounted) return;
-      widget.onCaptured(file.path);
+      widget.onCaptured(cropped);
     } catch (_) {
       if (!mounted) return;
       setState(() => _state = ScannerState.idle);
+      _docCorners.value = null;
       _snack(AppLocalizations.of(context).t('captureFailed'));
       _startDetection(); // resume live detection after a failed shot
     }
+  }
+
+  /// Perspective-crops the capture down to the detected page.
+  ///
+  /// [outline] is the live quad in sensor coordinates; the still is stored
+  /// upright, so each corner is rotated the same way the on-screen border was
+  /// (via [rotateSensorPoint]) before being handed to the rectifier. Sharing
+  /// that one transform is what keeps the crop and the border in agreement.
+  ///
+  /// Falls back to the original file whenever there is nothing to crop to - no
+  /// outline (manual capture with no document framed) or a rectify failure.
+  /// Returning an uncropped photo is always better than returning none.
+  Future<String> _cropToOutline(String path, List<Offset>? outline) async {
+    if (outline == null || outline.length != 4) {
+      // Nothing was detected - hold the success frame briefly so the shutter
+      // still feels deliberate, then hand back the full image.
+      await Future<void>.delayed(const Duration(milliseconds: 240));
+      return path;
+    }
+    final controller = _controller;
+    final upright = [
+      for (final c in outline)
+        rotateSensorPoint(
+          c,
+          quarterTurns: _sensorQuarterTurns,
+          mirror: controller?.description.lensDirection ==
+              CameraLensDirection.front,
+        ),
+    ];
+    setState(() => _cropping = true);
+    try {
+      final cropped = await DocumentCropService.rectify(path, upright);
+      return cropped ?? path;
+    } finally {
+      if (mounted) setState(() => _cropping = false);
+    }
+  }
+
+  /// Clockwise quarter turns from sensor space to the upright frame the user
+  /// sees - and that the captured still is stored in.
+  int get _sensorQuarterTurns {
+    final controller = _controller;
+    if (controller == null) return 1;
+    return (controller.description.sensorOrientation ~/ 90) % 4;
   }
 
   Future<void> _galleryPressed() async {
@@ -455,6 +534,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         children: [
           _viewport(),
           if (ready) ...[
+            _documentHighlight(),
+            if (_cropping) const _CroppingScrim(),
             SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
@@ -578,6 +659,33 @@ class _ScannerScreenState extends State<ScannerScreen>
       spinner: true,
     );
   }
+
+  /// The blue border that traces the framed document, sized and rotated to
+  /// match the preview underneath it. Renders nothing until the detector has
+  /// something real to outline.
+  Widget _documentHighlight() {
+    final controller = _controller;
+    final preview = controller?.value.previewSize;
+    if (controller == null || preview == null) return const SizedBox.shrink();
+    return DocumentHighlight(
+      corners: _docCorners,
+      state: _overlayState,
+      // Same portrait swap [_CoveredPreview] applies, so the highlight's
+      // BoxFit.cover crop lands exactly on the preview's.
+      sourceSize: Size(preview.height, preview.width),
+      quarterTurns: _sensorQuarterTurns,
+      mirror: controller.description.lensDirection == CameraLensDirection.front,
+    );
+  }
+
+  /// Detection state translated into the highlight's visual language.
+  ScanOverlayState get _overlayState => switch (_state) {
+        ScannerState.detecting ||
+        ScannerState.documentDetected =>
+          ScanOverlayState.detected,
+        ScannerState.readyToScan => ScanOverlayState.ready,
+        _ => ScanOverlayState.idle,
+      };
 
   /// Capture button visuals derived from the detection state - idle (neutral)
   /// until a document is actually detected.
@@ -814,6 +922,40 @@ class _FloatingGlassButton extends StatelessWidget {
       return Tooltip(message: tooltip!, child: button);
     }
     return button;
+  }
+}
+
+/// Covers the frozen preview while the capture is cropped, so the pause after
+/// the shutter reads as work rather than a hang.
+class _CroppingScrim extends StatelessWidget {
+  const _CroppingScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.55),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const InoLoader(size: 34, color: ScanColors.accentDeep),
+                const SizedBox(height: 14),
+                Text(
+                  AppLocalizations.of(context).t('scanning'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

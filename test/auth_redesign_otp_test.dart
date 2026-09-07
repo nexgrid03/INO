@@ -25,7 +25,7 @@ void main() {
       );
 
   group('Auth Redesign & OTP Flow Tests', () {
-    testWidgets('LoginScreen renders Create Account mode with Name, Email, Mobile & OTP channel toggle',
+    testWidgets('Create Account collects name, email and mobile - all mandatory',
         (tester) async {
       useTallView(tester);
       await tester.pumpWidget(host(const LoginScreen(initialMode: AuthMode.signUp)));
@@ -36,15 +36,18 @@ void main() {
       expect(find.text('Full Name'), findsOneWidget);
       expect(find.text('Email address'), findsOneWidget);
       expect(find.text('Mobile number'), findsOneWidget);
-      expect(find.text('Verification Method'), findsOneWidget);
-      expect(find.text('Email OTP'), findsOneWidget);
-      expect(find.text('Mobile OTP'), findsOneWidget);
       expect(find.text('Send Verification Code'), findsOneWidget);
       expect(find.text('Terms of Service'), findsOneWidget);
       expect(find.text('Privacy Policy'), findsOneWidget);
+
+      // No channel picker: both identifiers get confirmed, which is the only
+      // way either of them can log the account in afterwards.
+      expect(find.text('Verification Method'), findsNothing);
+      expect(find.text('Email OTP'), findsNothing);
+      expect(find.text('Mobile OTP'), findsNothing);
     });
 
-    testWidgets('LoginScreen renders Existing User Sign In mode with Phone & Email OTP tabs',
+    testWidgets('Login takes ONE identifier field - email or mobile, no password',
         (tester) async {
       useTallView(tester);
       await tester.pumpWidget(host(const LoginScreen(initialMode: AuthMode.signIn)));
@@ -52,17 +55,35 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Welcome Back'), findsOneWidget);
-      expect(find.text('Mobile OTP'), findsOneWidget);
-      expect(find.text('Email OTP'), findsOneWidget);
-      expect(find.text('Mobile number'), findsOneWidget);
+      expect(find.text('Login'), findsOneWidget);
+      expect(find.text('Email or mobile number'), findsOneWidget);
       expect(find.text('Send OTP'), findsOneWidget);
-      expect(find.text('Sign in with Password instead'), findsOneWidget);
 
-      // Tap Email OTP tab
-      await tester.tap(find.text('Email OTP'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Email address'), findsOneWidget);
-      expect(find.text('Send OTP'), findsOneWidget);
+      // The old two-tab channel picker and the password path are both gone.
+      expect(find.text('Mobile OTP'), findsNothing);
+      expect(find.text('Email OTP'), findsNothing);
+      expect(find.text('Sign in with Password instead'), findsNothing);
+      expect(find.text('Forgot password?'), findsNothing);
+    });
+
+    testWidgets('the country prefix appears for a number and hides for an email',
+        (tester) async {
+      useTallView(tester);
+      await tester.pumpWidget(host(const LoginScreen(initialMode: AuthMode.signIn)));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final field = find.byKey(const ValueKey('login_identifier_field'));
+      expect(field, findsOneWidget);
+
+      // A bare number is a mobile: the dial code has to be selectable.
+      await tester.enterText(field, '9876543210');
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text(kCountryCodes.first.dialCode), findsOneWidget);
+
+      // The moment it reads as an address, the dial code is meaningless.
+      await tester.enterText(field, 'ada@example.com');
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text(kCountryCodes.first.dialCode), findsNothing);
     });
 
     testWidgets('OTP Verification Screen renders 6 digit boxes, change destination, and countdown',
