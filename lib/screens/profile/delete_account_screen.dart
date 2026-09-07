@@ -86,12 +86,15 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
-    } on AuthException catch (e) {
-      developer.log('delete reauth failed: ${e.message}', name: 'account');
+    } on AuthException catch (e, st) {
+      debugPrint('[DeleteAccountScreen] AuthException caught: ${e.message} (code: ${e.statusCode})');
+      developer.log('delete reauth failed: ${e.message}', name: 'account', error: e, stackTrace: st);
       if (!mounted) return;
       BiometricUx.errorSnack(context, l10n.t('yourPasswordIncorrect'));
-    } catch (e) {
-      developer.log('delete error: $e', name: 'account', error: e);
+    } catch (e, st) {
+      debugPrint('[DeleteAccountScreen] Exception caught during account deletion: $e');
+      debugPrint('[DeleteAccountScreen] StackTrace:\n$st');
+      developer.log('delete error: $e', name: 'account', error: e, stackTrace: st);
       if (!mounted) return;
       BiometricUx.errorSnack(context, l10n.t('couldNotDeleteAccount'));
     } finally {

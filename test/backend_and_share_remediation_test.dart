@@ -16,7 +16,7 @@ void main() {
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
 
-      expect(files.length, equals(46), reason: 'Expected 46 total migrations (including Phase 7)');
+      expect(files.length, equals(47), reason: 'Expected 47 total migrations (including Account Deletion Hardening)');
 
       final timestamps = <String>[];
       final duplicates = <String>[];
