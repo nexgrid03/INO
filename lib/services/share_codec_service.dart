@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:qr/qr.dart';
 
+import '../utils/share_link_validator.dart';
+
 /// Encodes/decodes the share deep link and, crucially, rasterises the QR code
 /// on a BACKGROUND ISOLATE.
 ///
@@ -30,14 +32,32 @@ class ShareCodecService {
   /// The deep link embedded in the QR, e.g. `ino://share/<token>`.
   static String buildShareUri(String token) => '$scheme://$host/$token';
 
-  /// Extracts a token from a scanned string. Accepts the full `ino://share/…`
-  /// deep link or a bare token, and rejects anything else.
+  /// Extracts a token from a scanned string. Accepts:
+  /// - `ino://share/<token>` deep links
+  /// - HTTPS share URLs (e.g. `https://ino-share-web1.vercel.app/s/<token>` or `/v/<token>`)
+  /// - Bare tokens
   static String? parseToken(String raw) {
     final value = raw.trim();
     final uri = Uri.tryParse(value);
-    if (uri != null && uri.scheme == scheme && uri.host == host) {
-      if (uri.pathSegments.isNotEmpty && uri.pathSegments.first.isNotEmpty) {
-        return uri.pathSegments.first;
+    if (uri != null) {
+      if (uri.scheme == scheme && uri.host == host) {
+        if (uri.pathSegments.isNotEmpty && uri.pathSegments.first.isNotEmpty) {
+          return uri.pathSegments.first;
+        }
+      }
+      if (uri.scheme == 'http' || uri.scheme == 'https') {
+        final res = ShareLinkValidator.validateUri(uri);
+        if (res.isValid && res.token != null) {
+          return res.token;
+        }
+        if (ShareLinkValidator.isApprovedHost(uri.host)) {
+          final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+          for (final seg in segs.reversed) {
+            if (ShareLinkValidator.isValidToken(seg)) {
+              return seg;
+            }
+          }
+        }
       }
     }
     if (RegExp(r'^[A-Za-z0-9_-]{16,}$').hasMatch(value)) return value;

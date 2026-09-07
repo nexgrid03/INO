@@ -31,9 +31,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // Onboarding is now visible: Skip + floating arrow button.
-    expect(find.text('Skip', skipOffstage: false), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_forward_rounded, skipOffstage: false), findsOneWidget);
+    // Directly transitions into Home / App shell
+    expect(find.byType(SplashScreen), findsNothing);
   });
 }

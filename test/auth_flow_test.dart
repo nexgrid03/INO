@@ -27,7 +27,7 @@ void main() {
   Widget host(Widget child) =>
       MaterialApp(theme: AppTheme.light, home: child);
 
-  testWidgets('Login renders sign-in, social and create-account affordances',
+  testWidgets('Login renders sign-in and create-account affordances',
       (tester) async {
     useTallView(tester);
     await tester.pumpWidget(host(const LoginScreen()));
@@ -38,14 +38,10 @@ void main() {
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Remember me'), findsOneWidget);
     expect(find.text('Forgot password?'), findsOneWidget);
-    // Social providers are icon-only; tooltips keep the a11y labels.
-    expect(find.byTooltip('Continue with Google'), findsOneWidget);
-    expect(find.byTooltip('Continue with Phone Number'), findsOneWidget);
-    expect(find.byTooltip('Continue with Apple'), findsOneWidget);
     expect(find.text('Create Account'), findsOneWidget);
   });
 
-  testWidgets('Signup renders all five fields and the CTA', (tester) async {
+  testWidgets('Signup renders registration fields, OTP methods, and CTA', (tester) async {
     useTallView(tester);
     await tester.pumpWidget(host(const SignupScreen()));
     await tester.pump(const Duration(milliseconds: 500));
@@ -54,9 +50,9 @@ void main() {
     expect(find.text('Full Name'), findsOneWidget);
     expect(find.text('Email address'), findsOneWidget);
     expect(find.text('Mobile number'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
-    expect(find.text('Confirm password'), findsOneWidget);
-    expect(find.text('Create Secure Account →'), findsOneWidget);
+    expect(find.text('Email OTP'), findsOneWidget);
+    expect(find.text('Mobile OTP'), findsOneWidget);
+    expect(find.text('Send Verification Code'), findsOneWidget);
   });
 
   testWidgets('Forgot Password validates and shows its reset CTA',

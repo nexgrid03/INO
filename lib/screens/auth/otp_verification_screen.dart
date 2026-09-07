@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
@@ -26,6 +27,7 @@ class OtpVerificationScreen extends StatefulWidget {
     required this.onVerify,
     required this.onVerified,
     this.onResend,
+    this.onChangeDestination,
     this.title,
     this.length = 6,
     this.resendSeconds = 30,
@@ -37,6 +39,7 @@ class OtpVerificationScreen extends StatefulWidget {
   final Future<bool> Function(String code) onVerify;
   final void Function(BuildContext context) onVerified;
   final Future<void> Function()? onResend;
+  final VoidCallback? onChangeDestination;
 
   /// Heading. Defaults to the localized "Verification Code" when omitted -
   /// it can't be a const default because it has to follow the active language.
@@ -52,6 +55,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   String _code = '';
   bool _busy = false;
   bool _resending = false;
+  String? _errorMessage;
 
   Timer? _timer;
   int _secondsLeft = 0;
@@ -87,6 +91,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
+    setState(() {
+      _errorMessage = isError ? message : null;
+    });
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -107,7 +114,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       );
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _errorMessage = null;
+    });
     try {
       final ok = await widget.onVerify(_code);
       if (!mounted) return;
@@ -116,8 +126,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       } else {
         _showMessage(l10n.t('otpIncorrect'));
       }
-    } catch (_) {
-      _showMessage(l10n.t('otpVerifyError'));
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -126,14 +136,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _resend() async {
     if (_secondsLeft > 0 || widget.onResend == null) return;
     final l10n = AppLocalizations.of(context);
-    setState(() => _resending = true);
+    setState(() {
+      _resending = true;
+      _errorMessage = null;
+    });
     try {
       await widget.onResend!();
       if (!mounted) return;
       _showMessage(l10n.t('otpResent'), isError: false);
       _startCountdown();
-    } catch (_) {
-      _showMessage(l10n.t('otpResendError'));
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -143,6 +156,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final canResend = _secondsLeft == 0 && !_resending;
+    final isEmail = widget.destination.contains('@');
+    final changeLabel = isEmail ? 'Change Email' : 'Change Mobile Number';
+
     return AuthScaffold(
       showBack: true,
       child: Column(
@@ -160,36 +176,100 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           const SizedBox(height: 8),
           FadeSlideIn(
             delay: const Duration(milliseconds: 110),
-            child: Text.rich(
-              TextSpan(
-                text:
-                    '${l10n.t('otpSentTo').replaceAll('{n}', '${widget.length}')}\n',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textMuted,
-                  height: 1.4,
-                ),
-                children: [
+            child: Column(
+              children: [
+                Text.rich(
                   TextSpan(
-                    text: widget.destination,
+                    text:
+                        '${l10n.t('otpSentTo').replaceAll('{n}', '${widget.length}')}\n',
                     style: const TextStyle(
-                      color: AppColors.textDark,
+                      fontSize: 14,
+                      color: AppColors.textMuted,
+                      height: 1.4,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: widget.destination,
+                        style: const TextStyle(
+                          color: AppColors.textDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: () {
+                    if (widget.onChangeDestination != null) {
+                      widget.onChangeDestination!();
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  icon: Icon(Icons.edit_outlined, size: 14, color: AppColors.primaryGreen),
+                  label: Text(
+                    changeLabel,
+                    style: TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
+                      color: AppColors.primaryGreen,
                     ),
                   ),
-                ],
-              ),
-              textAlign: TextAlign.center,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
+
+          if (_errorMessage != null) ...[
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 130),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.critical.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.critical.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: AppColors.critical, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.critical,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           FadeSlideIn(
             delay: const Duration(milliseconds: 160),
             child: OtpInput(
               length: widget.length,
               enabled: !_busy,
-              onChanged: (v) => setState(() => _code = v),
+              onChanged: (v) {
+                setState(() {
+                  _code = v;
+                  _errorMessage = null;
+                });
+              },
               onCompleted: (_) => _verify(),
             ),
           ),

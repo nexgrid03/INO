@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../l10n/app_localizations.dart';
@@ -103,10 +104,22 @@ class AccountService {
   /// misled into thinking their account was deleted when it was not.
   Future<void> deleteAccount() async {
     final client = _client;
-    if (client == null || client.auth.currentUser?.id == null) {
+    final currentUser = client?.auth.currentUser;
+    final currentSession = client?.auth.currentSession;
+
+    debugPrint('═══════════════════════════════════════════════════════════════');
+    debugPrint('[AccountService] DELETE ACCOUNT PROCESS STARTED');
+    debugPrint('[AccountService] Auth user ID: ${currentUser?.id}');
+    debugPrint('[AccountService] Auth email: ${currentUser?.email}');
+    debugPrint('[AccountService] Session valid: ${currentSession != null && !currentSession.isExpired}');
+    debugPrint('[AccountService] Access token present: ${currentSession?.accessToken.isNotEmpty == true}');
+    debugPrint('═══════════════════════════════════════════════════════════════');
+
+    if (client == null || currentUser?.id == null) {
+      debugPrint('[AccountService] ABORT: User is not authenticated.');
       throw const AuthException('You must be signed in to delete your account.');
     }
-    final userId = client.auth.currentUser!.id;
+    final userId = currentUser!.id;
     developer.log('deleteAccount: starting deletion for $userId', name: 'account');
 
     // 1. Client-side storage cleanup prior to RPC (best-effort)
@@ -118,21 +131,44 @@ class AccountService {
         for (final f in files) '$userId/${f.name}',
         for (final b in backups) '$userId/backups/${b.name}',
       ];
+      debugPrint('[AccountService] Pre-cleanup found ${paths.length} storage objects.');
       if (paths.isNotEmpty) {
         await repo.removeObjects(paths);
+        debugPrint('[AccountService] Storage objects removed successfully.');
       }
-    } catch (e) {
-      developer.log('deleteAccount: client storage pre-cleanup note: $e', name: 'account');
+    } catch (e, st) {
+      debugPrint('[AccountService] Storage pre-cleanup warning: $e');
+      developer.log('deleteAccount: client storage pre-cleanup note: $e', name: 'account', error: e, stackTrace: st);
     }
 
     // 2. Execute server-side delete_account RPC. Throws on failure (do NOT swallow!).
-    await client.rpc('delete_account');
-    developer.log('deleteAccount: delete_account RPC executed successfully', name: 'account');
+    const rpcName = 'delete_account';
+    debugPrint('[AccountService] Calling RPC: $rpcName | Target UID: $userId');
+    try {
+      await client.rpc(rpcName);
+      debugPrint('[AccountService] RPC $rpcName EXECUTED SUCCESSFULLY!');
+      developer.log('deleteAccount: delete_account RPC executed successfully', name: 'account');
+    } on PostgrestException catch (e, st) {
+      debugPrint('[AccountService] POSTGREST ERROR on $rpcName:');
+      debugPrint('  • Code: ${e.code}');
+      debugPrint('  • Message: ${e.message}');
+      debugPrint('  • Details: ${e.details}');
+      debugPrint('  • Hint: ${e.hint}');
+      debugPrint('  • StackTrace:\n$st');
+      developer.log('deleteAccount RPC failed: ${e.message} (${e.code})', name: 'account', error: e, stackTrace: st);
+      rethrow;
+    } catch (e, st) {
+      debugPrint('[AccountService] UNEXPECTED ERROR on $rpcName: $e');
+      debugPrint('  • StackTrace:\n$st');
+      developer.log('deleteAccount RPC failed: $e', name: 'account', error: e, stackTrace: st);
+      rethrow;
+    }
 
     // 3. Clear local session & in-memory caches strictly AFTER RPC succeeds
     await PasswordStore.instance.purgeSecureStorageForUser(userId);
     await SessionReset.instance.clear();
     await AuthService.instance.signOut();
+    debugPrint('[AccountService] Local caches purged and user signed out.');
     developer.log('deleteAccount: account deleted & signed out', name: 'account');
   }
 }

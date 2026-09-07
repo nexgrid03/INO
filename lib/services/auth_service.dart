@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:crypto/crypto.dart';
@@ -195,11 +196,33 @@ class AuthService {
         .timeout(NetGuard.auth);
   }
 
-  // --- Email OTP (account verification) -------------------------------------
-  //
-  // Supabase can confirm a new account with a 6-digit email code instead of a
-  // magic link (set the "Confirm signup" email template to use {{ .Token }}).
-  // These two calls back the OTP Verification screen.
+  // --- Email OTP (passwordless sign-in / verification) ----------------------
+
+  /// Sends a 6-digit code to [email] via Supabase Auth.
+  Future<void> sendEmailOtp(String email, {Map<String, dynamic>? data}) {
+    return _client.auth
+        .signInWithOtp(
+          email: email.trim(),
+          data: data,
+          shouldCreateUser: true,
+        )
+        .timeout(NetGuard.auth);
+  }
+
+  /// Verifies the 6-digit email OTP [token] for [email]. On success the returned
+  /// [AuthResponse] carries an authenticated session.
+  Future<AuthResponse> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) {
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.email,
+          email: email.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
+  }
 
   /// Re-sends the 6-digit sign-up confirmation code to [email].
   Future<void> resendSignupOtp(String email) {
@@ -233,9 +256,13 @@ class AuthService {
   // logout all work identically.
 
   /// Sends a 6-digit SMS code to [phone] (E.164 format, e.g. `+919876543210`).
-  Future<void> sendPhoneOtp(String phone) {
+  Future<void> sendPhoneOtp(String phone, {Map<String, dynamic>? data}) {
     return _client.auth
-        .signInWithOtp(phone: phone.trim())
+        .signInWithOtp(
+          phone: phone.trim(),
+          data: data,
+          shouldCreateUser: true,
+        )
         .timeout(NetGuard.auth);
   }
 
@@ -253,6 +280,33 @@ class AuthService {
           token: token.trim(),
         )
         .timeout(NetGuard.auth);
+  }
+
+  /// Helper to convert authentication / Supabase errors into human-readable friendly messages.
+  static String formatAuthError(Object error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid') && (msg.contains('token') || msg.contains('otp') || msg.contains('code'))) {
+        return 'The verification code entered is incorrect. Please check and try again.';
+      }
+      if (msg.contains('expired')) {
+        return 'The verification code has expired. Please tap "Resend Code" to request a new one.';
+      }
+      if (msg.contains('rate limit') || msg.contains('too many requests') || msg.contains('over_email_send_rate_limit')) {
+        return 'Too many attempts. Please wait a moment before requesting another code.';
+      }
+      if (msg.contains('user not found')) {
+        return 'No account found with these details. Please create an account first.';
+      }
+      if (msg.contains('network') || msg.contains('connection')) {
+        return 'Unable to connect. Please check your internet connection and try again.';
+      }
+      return error.message;
+    }
+    if (error is TimeoutException) {
+      return 'The connection timed out. Please check your internet connection and try again.';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 
   // --- Apple (placeholder) --------------------------------------------------

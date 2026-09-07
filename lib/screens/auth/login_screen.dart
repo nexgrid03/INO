@@ -8,39 +8,75 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/demo_account.dart';
 import '../../l10n/app_localizations.dart';
 import '../../main.dart';
+import '../../models/country_code.dart';
+import '../../models/user_profile.dart';
+import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/auth_text_field.dart';
+import '../../widgets/auth/country_code_sheet.dart';
 import '../../widgets/auth/social_auth_button.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/ino_logo.dart';
+import '../../widgets/pressable_scale.dart';
+import '../legal/legal_document_screen.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
+import 'biometric_setup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
-import '../../widgets/common/ino_loader.dart';
 
-/// Screen 3 - Login.
-///
-/// A fast, card-less sign-in: brand mark, email/mobile + password, Remember me
-/// / Forgot password, the gradient primary CTA, then federated options and a
-/// route to Create Account. Wired to the app's Supabase [AuthService].
+enum AuthMode {
+  signIn,
+  signUp,
+}
+
+enum VerificationChannel {
+  email,
+  phone,
+}
+
+/// Redesigned INO Authentication Screen: Supports seamless switching between
+/// New User (Create Account + Email/Mobile OTP) and Existing User (Phone/Email OTP / password).
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.initialMode = AuthMode.signIn,
+  });
+
+  final AuthMode initialMode;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late AuthMode _mode = widget.initialMode;
+
+  // Form keys
+  final _signInFormKey = GlobalKey<FormState>();
+  final _signUpFormKey = GlobalKey<FormState>();
+
+  // Sign in controllers
+  final _signInIdentifierController = TextEditingController();
+  final _signInPasswordController = TextEditingController();
+  bool _signInWithPassword = false;
+  VerificationChannel _signInChannel = VerificationChannel.phone;
+  CountryCode _signInCountry = kCountryCodes.first;
+
+  // Sign up controllers
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  CountryCode _signUpCountry = kCountryCodes.first;
+  VerificationChannel _signupVerificationMethod = VerificationChannel.email;
+  bool _acceptedTerms = false;
 
   bool _obscurePassword = true;
   bool _rememberMe = true;
@@ -50,17 +86,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _identifierController.dispose();
-    _passwordController.dispose();
+    _signInIdentifierController.dispose();
+    _signInPasswordController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
-
-  // Apple is available on every platform for now — Sign in with Apple is still
-  // a "coming soon" stub, and hiding it on web/Android made the icon invisible
-  // during Chrome testing.
-  bool get _showApple => true;
-
-  // --- Actions --------------------------------------------------------------
 
   void _showMessage(String message, {bool isError = true}) {
     final snackBar = SnackBar(
@@ -68,9 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: isError ? AppColors.critical : AppColors.primaryGreen,
       behavior: SnackBarBehavior.floating,
     );
-    // Prefer this screen's messenger; if it was disposed (e.g. during the
-    // Google picker) fall back to the app-root messenger so the error is never
-    // swallowed silently.
     final messenger = mounted
         ? ScaffoldMessenger.of(context)
         : InoApp.messengerKey.currentState;
@@ -79,16 +108,293 @@ class _LoginScreenState extends State<LoginScreen> {
       ..showSnackBar(snackBar);
   }
 
-  Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
-    final identifier = _identifierController.text.trim();
-    // Captured up-front: the awaits below can outlive this widget, and the
-    // error paths still need to speak the user's language.
+  // --- New User: Send OTP & Create Account ----------------------------------
+
+  Future<void> _handleNewUserSignup() async {
+    if (!(_signUpFormKey.currentState?.validate() ?? false)) return;
+    if (!_acceptedTerms) {
+      _showMessage('Please accept the Terms of Service & Privacy Policy to continue.');
+      return;
+    }
+
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final nationalPhone = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final fullPhone = '${_signUpCountry.dialCode}$nationalPhone';
+
+    if (name.isEmpty) {
+      _showMessage('Please enter your full name.');
+      return;
+    }
+    if (!AuthValidators.looksLikeEmail(email)) {
+      _showMessage('Please enter a valid email address.');
+      return;
+    }
+    if (nationalPhone.length < 6) {
+      _showMessage('Please enter a valid mobile number.');
+      return;
+    }
+
+    setState(() => _busy = true);
+    FocusScope.of(context).unfocus();
+
+    try {
+      if (_signupVerificationMethod == VerificationChannel.email) {
+        // Send OTP to Email
+        await AuthService.instance.sendEmailOtp(
+          email,
+          data: {
+            'full_name': name,
+            'phone': fullPhone,
+            'accepted_terms': true,
+            'attestation_18_plus': true,
+          },
+        );
+        if (!mounted) return;
+        _goToNewUserOtpScreen(
+          destination: email,
+          name: name,
+          email: email,
+          phone: fullPhone,
+          isEmail: true,
+        );
+      } else {
+        // Send OTP to Mobile (Twilio provider via Supabase)
+        await AuthService.instance.sendPhoneOtp(
+          fullPhone,
+          data: {
+            'full_name': name,
+            'email': email,
+            'accepted_terms': true,
+            'attestation_18_plus': true,
+          },
+        );
+        if (!mounted) return;
+        _goToNewUserOtpScreen(
+          destination: fullPhone,
+          name: name,
+          email: email,
+          phone: fullPhone,
+          isEmail: false,
+        );
+      }
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _goToNewUserOtpScreen({
+    required String destination,
+    required String name,
+    required String email,
+    required String phone,
+    required bool isEmail,
+  }) {
+    User? verifiedUser;
+    UserProfile? createdProfile;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: 'Verify Your ${isEmail ? "Email" : "Mobile Number"}',
+          destination: destination,
+          onResend: () async {
+            if (isEmail) {
+              await AuthService.instance.sendEmailOtp(
+                email,
+                data: {
+                  'full_name': name,
+                  'phone': phone,
+                  'accepted_terms': true,
+                  'attestation_18_plus': true,
+                },
+              );
+            } else {
+              await AuthService.instance.sendPhoneOtp(
+                phone,
+                data: {
+                  'full_name': name,
+                  'email': email,
+                  'accepted_terms': true,
+                  'attestation_18_plus': true,
+                },
+              );
+            }
+          },
+          onVerify: (code) async {
+            final AuthResponse res;
+            if (isEmail) {
+              res = await AuthService.instance.verifyEmailOtp(
+                email: email,
+                token: code,
+              );
+            } else {
+              res = await AuthService.instance.verifyPhoneOtp(
+                phone: phone,
+                token: code,
+              );
+            }
+            final user = res.user;
+            if (user == null) return false;
+            verifiedUser = user;
+
+            // Record terms consent in metadata & audit table
+            await AuthService.instance.recordTermsConsent(
+              version: '1.0',
+              attest18Plus: true,
+            );
+
+            // Create/Upsert User Profile in public.users
+            try {
+              createdProfile = await UserRepository.instance.createProfile(
+                authUserId: user.id,
+                fullName: name,
+                email: email,
+                phone: phone,
+              );
+            } catch (_) {
+              // Fallback to fetch existing if already created by trigger
+              createdProfile = await UserRepository.instance.getProfileByAuthId(user.id);
+            }
+            return true;
+          },
+          onVerified: (navCtx) {
+            final profile = createdProfile;
+            final user = verifiedUser;
+            if (profile != null) {
+              goToShell(navCtx, profile);
+            } else if (user != null) {
+              routeAfterAuth(
+                authUserId: user.id,
+                fullName: name,
+                email: email,
+                phone: phone,
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  // --- Existing User: Send OTP & Sign In -------------------------------------
+
+  Future<void> _handleExistingUserSignIn() async {
+    if (_signInWithPassword) {
+      await _signInWithEmailPassword();
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
     final l10n = AppLocalizations.of(context);
 
-    // Only email sign-in is wired to Supabase today; guide mobile users kindly.
+    if (_signInChannel == VerificationChannel.phone) {
+      final nationalPhone =
+          _signInIdentifierController.text.replaceAll(RegExp(r'[^0-9]'), '');
+      if (nationalPhone.length < 6) {
+        _showMessage(l10n.t('valInvalidMobile'));
+        return;
+      }
+      final fullPhone = '${_signInCountry.dialCode}$nationalPhone';
+
+      setState(() => _busy = true);
+      try {
+        await AuthService.instance.sendPhoneOtp(fullPhone);
+        if (!mounted) return;
+        _goToExistingUserOtpScreen(destination: fullPhone, isEmail: false);
+      } catch (e) {
+        _showMessage(AuthService.formatAuthError(e));
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    } else {
+      final email = _signInIdentifierController.text.trim();
+      if (!AuthValidators.looksLikeEmail(email)) {
+        _showMessage('Please enter a valid email address.');
+        return;
+      }
+
+      setState(() => _busy = true);
+      try {
+        await AuthService.instance.sendEmailOtp(email);
+        if (!mounted) return;
+        _goToExistingUserOtpScreen(destination: email, isEmail: true);
+      } catch (e) {
+        _showMessage(AuthService.formatAuthError(e));
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    }
+  }
+
+  void _goToExistingUserOtpScreen({
+    required String destination,
+    required bool isEmail,
+  }) {
+    User? verifiedUser;
+    UserProfile? loadedProfile;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: 'Sign In Verification',
+          destination: destination,
+          onResend: () async {
+            if (isEmail) {
+              await AuthService.instance.sendEmailOtp(destination);
+            } else {
+              await AuthService.instance.sendPhoneOtp(destination);
+            }
+          },
+          onVerify: (code) async {
+            final AuthResponse res;
+            if (isEmail) {
+              res = await AuthService.instance.verifyEmailOtp(
+                email: destination,
+                token: code,
+              );
+            } else {
+              res = await AuthService.instance.verifyPhoneOtp(
+                phone: destination,
+                token: code,
+              );
+            }
+            final user = res.user;
+            if (user == null) return false;
+            verifiedUser = user;
+
+            // Load existing profile
+            loadedProfile = await UserRepository.instance.getProfileByAuthId(user.id);
+            return true;
+          },
+          onVerified: (navCtx) {
+            final profile = loadedProfile;
+            final user = verifiedUser;
+            if (profile != null) {
+              goToShell(navCtx, profile);
+            } else if (user != null) {
+              routeAfterAuth(
+                authUserId: user.id,
+                fullName: (user.userMetadata?['full_name'] as String?) ??
+                    (user.userMetadata?['name'] as String?) ??
+                    'INO User',
+                email: user.email ?? (isEmail ? destination : ''),
+                phone: isEmail ? null : destination,
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signInWithEmailPassword() async {
+    if (!(_signInFormKey.currentState?.validate() ?? false)) return;
+    final identifier = _signInIdentifierController.text.trim();
     if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage(l10n.t('mobileSignInSoon'));
+      _showMessage('Password login requires a valid email address.');
       return;
     }
 
@@ -96,111 +402,26 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await AuthService.instance.signInWithEmail(
         email: identifier,
-        password: _passwordController.text,
+        password: _signInPasswordController.text,
       );
       final user = res.user;
       if (user == null) {
-        _showMessage(l10n.t('signInFailed'));
+        _showMessage('Sign in failed. Please try again.');
         return;
       }
-      developer.log(
-        'Email sign-in OK: user=${user.id} - routing',
-        name: 'auth',
-      );
-      // Same resilient, completeness-aware routing as the Google path.
       await routeAfterAuth(
         authUserId: user.id,
         fullName: (user.userMetadata?['full_name'] as String?) ?? 'INO User',
         email: user.email ?? identifier,
       );
-    } on AuthException catch (e) {
-      // An account that was created but never verified cannot sign in, and
-      // Supabase answers every attempt with the same error forever. Showing it
-      // as a red snackbar left the user permanently locked out of an account
-      // they had already made - "sign in with email just doesn't work". Send
-      // them to the same 6-digit verification signup uses, with a fresh code,
-      // so the account can actually be finished.
-      if (_isUnverifiedEmail(e)) {
-        await _verifyThenSignIn(identifier);
-        return;
-      }
-      _showMessage(e.message);
-    } on PostgrestException catch (e) {
-      _showMessage(e.message);
-    } on TimeoutException {
-      // Distinguished from a generic failure on purpose: "check your
-      // connection" is actionable, "something went wrong" is not.
-      _showMessage(l10n.t('checkConnection'));
-    } catch (_) {
-      _showMessage(l10n.t('somethingWentWrong'));
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  /// Whether [e] is Supabase's "this email was never confirmed" refusal.
-  ///
-  /// Matched on the stable error code first; the message check is the fallback
-  /// for older gotrue responses that carry no code.
-  static bool _isUnverifiedEmail(AuthException e) {
-    if (e.code == 'email_not_confirmed') return true;
-    final message = e.message.toLowerCase();
-    return message.contains('not confirmed') ||
-        message.contains('email confirmation');
-  }
-
-  /// Finishes a half-created account: resend the sign-up code, verify it, then
-  /// route on exactly as a successful sign-in would.
-  ///
-  /// The password the user just typed is already correct (Supabase rejected
-  /// the attempt for verification, not credentials), so once the account is
-  /// confirmed the OTP response carries a live session and nothing else needs
-  /// re-entering.
-  Future<void> _verifyThenSignIn(String email) async {
-    final l10n = AppLocalizations.of(context);
-    try {
-      await AuthService.instance.resendSignupOtp(email);
-    } catch (_) {
-      // A resend failure is not fatal - the original code may still be valid,
-      // and the screen offers its own resend button.
-    }
-    if (!mounted) return;
-
-    _showMessage(l10n.t('verifyEmailToContinue'), isError: false);
-    User? verifiedUser;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OtpVerificationScreen(
-          title: l10n.t('verificationCode'),
-          destination: email,
-          onResend: () => AuthService.instance.resendSignupOtp(email),
-          onVerify: (code) async {
-            final res = await AuthService.instance.verifySignupOtp(
-              email: email,
-              token: code,
-            );
-            verifiedUser = res.user;
-            return verifiedUser != null;
-          },
-          onVerified: (_) {
-            final user = verifiedUser;
-            if (user == null) return;
-            // The shared post-auth router decides where they land - it fills
-            // in a missing profile row, which is exactly the state an account
-            // abandoned at verification is in.
-            unawaited(
-              routeAfterAuth(
-                authUserId: user.id,
-                fullName:
-                    (user.userMetadata?['full_name'] as String?) ?? 'INO User',
-                email: user.email ?? email,
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
+  // --- Google & Social Auth -------------------------------------------------
 
   Future<void> _continueWithGoogle() async {
     final l10n = AppLocalizations.of(context);
@@ -208,124 +429,77 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await AuthService.instance.signInWithGoogle();
       if (res == null) {
-        developer.log(
-          'Google sign-in returned null',
-          name: 'auth',
-        );
-        _showMessage('Google sign-in was cancelled or no account selected.', isError: false);
         return;
       }
-
       final user = res.user;
       if (user == null) {
-        developer.log('Google sign-in: null user in response', name: 'auth');
         _showMessage(l10n.t('googleSignInFailed'));
         return;
       }
-      final fullName =
-          (user.userMetadata?['full_name'] as String?) ??
+      final fullName = (user.userMetadata?['full_name'] as String?) ??
           (user.userMetadata?['name'] as String?) ??
           'INO User';
       final email = user.email ?? '';
-
-      developer.log(
-        'Google sign-in OK: user=${user.id} ($email) - delegating to shared post-auth flow',
-        name: 'auth',
-      );
-
       await routeAfterAuth(
         authUserId: user.id,
         fullName: fullName,
         email: email,
       );
-    } on GoogleSignInException catch (e) {
-      final msg = 'Google Sign-In Error: ${e.code.name}${e.description != null ? ' - ${e.description}' : ''}';
-      developer.log(msg, name: 'auth', error: e);
-      debugPrint('[GoogleSignInException] $msg details=${e.details}');
-      _showMessage(msg);
-    } on AuthException catch (e) {
-      final msg = 'Auth Error: ${e.message} (code: ${e.code})';
-      developer.log(msg, name: 'auth', error: e);
-      debugPrint('[AuthException] $msg');
-      _showMessage(e.message);
-    } on PostgrestException catch (e) {
-      final msg = 'Database Error: ${e.message}';
-      developer.log(msg, name: 'auth', error: e);
-      debugPrint('[PostgrestException] $msg');
-      _showMessage(e.message);
-    } catch (e, stack) {
-      developer.log(
-        'Unexpected Google sign-in error: $e',
-        name: 'auth',
-        error: e,
-        stackTrace: stack,
-      );
-      debugPrint('[Unexpected Error] $e\n$stack');
-      _showMessage('Sign-In Error: $e');
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
     } finally {
       if (mounted) setState(() => _googleBusy = false);
     }
   }
 
   void _continueWithApple() {
-    _showMessage(
-      AppLocalizations.of(context).t('appleSignInSoon'),
-      isError: false,
-    );
-  }
-
-  /// Demo-only: fill the email + password fields with the shared demo account
-  /// (typed in with a light animation) and then trigger the normal [_signIn]
-  /// flow - no auth is bypassed, this just automates the same tap a tester
-  /// would make. Guarded by [isDemoBuild] at the call site.
-  Future<void> _loginAsGuest() async {
-    if (_busy || _googleBusy || _guestBusy) return;
-    if (demoPassword.isEmpty) return;
-    setState(() => _guestBusy = true);
-    try {
-      await _typeInto(_identifierController, demoEmail);
-      await _typeInto(_passwordController, demoPassword);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-      await _signIn();
-    } finally {
-      if (mounted) setState(() => _guestBusy = false);
-    }
-  }
-
-  /// Types [text] into [controller] one character at a time for a smooth
-  /// auto-fill effect. Keeps the caret at the end so the field scrolls with it.
-  Future<void> _typeInto(TextEditingController controller, String text) async {
-    controller.clear();
-    for (var i = 0; i < text.length; i++) {
-      if (!mounted) return;
-      controller
-        ..text = text.substring(0, i + 1)
-        ..selection = TextSelection.collapsed(offset: i + 1);
-      await Future<void>.delayed(const Duration(milliseconds: 24));
-    }
+    _showMessage('Sign in with Apple is coming soon.', isError: false);
   }
 
   void _continueWithPhone() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
-    );
-  }
-
-  void _goToSignup() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SignupScreen()),
-    );
+    setState(() {
+      _mode = AuthMode.signIn;
+      _signInChannel = VerificationChannel.phone;
+      _signInWithPassword = false;
+    });
   }
 
   void _goToForgotPassword() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ForgotPasswordScreen(
-          initialIdentifier: _identifierController.text.trim(),
+          initialIdentifier: _signInIdentifierController.text.trim(),
         ),
       ),
     );
+  }
+
+  void _openTerms() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LegalDocumentScreen.terms()),
+    );
+  }
+
+  void _openPrivacy() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LegalDocumentScreen.privacy()),
+    );
+  }
+
+  // --- Country Code Pickers -------------------------------------------------
+
+  Future<void> _pickSignUpCountry() async {
+    final picked = await showCountryCodePicker(context, initial: _signUpCountry);
+    if (picked != null && mounted) {
+      setState(() => _signUpCountry = picked);
+    }
+  }
+
+  Future<void> _pickSignInCountry() async {
+    final picked = await showCountryCodePicker(context, initial: _signInCountry);
+    if (picked != null && mounted) {
+      setState(() => _signInCountry = picked);
+    }
   }
 
   // --- Build ----------------------------------------------------------------
@@ -334,33 +508,22 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final validate = AuthValidators.of(context);
     final busy = _busy || _googleBusy || _guestBusy;
-    final screenH = MediaQuery.sizeOf(context).height;
-    // Tighten vertical rhythm on short phones so the form fits without
-    // endless scrolling; keep a little breathing room on taller screens.
-    final compact = screenH < 740;
-    final gapXs = compact ? 6.0 : 8.0;
-    final gapSm = compact ? 10.0 : 12.0;
-    final gapMd = compact ? 14.0 : 16.0;
-    final gapLg = compact ? 16.0 : 20.0;
-    final logoSize = compact ? 56.0 : 64.0;
-    final titleStyle = AppText.display.copyWith(
-      color: Colors.white,
-      fontSize: compact ? 28 : 32,
-    );
+    final isSignUp = _mode == AuthMode.signUp;
 
     return AuthScaffold(
-      // Login is sometimes pushed (guest-mode "Sign In") and sometimes a
-      // stack-cleared root (after sign-out); the back button hides itself
-      // whenever the route can't pop.
       showBack: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // --- Brand identity header (Stitch hero treatment) ---------------
-          FadeSlideIn(child: Center(child: InoLogo(size: logoSize))),
-          SizedBox(height: gapMd),
+          const SizedBox(height: 8),
+          // Brand Logo
+          FadeSlideIn(
+            child: const Center(child: InoLogo(size: 60)),
+          ),
+          const SizedBox(height: 14),
+
+          // Header Title
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
             child: ShaderMask(
@@ -368,319 +531,469 @@ class _LoginScreenState extends State<LoginScreen> {
                   AppColors.brandGradient.createShader(bounds),
               blendMode: BlendMode.srcIn,
               child: Text(
-                l10n.t('authWelcomeBack'),
+                isSignUp ? l10n.t('joinTheVault') : l10n.t('authWelcomeBack'),
                 textAlign: TextAlign.center,
-                style: titleStyle,
+                style: AppText.display.copyWith(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
-          SizedBox(height: gapXs),
+          const SizedBox(height: 6),
+
+          // Subtitle
           FadeSlideIn(
-            delay: const Duration(milliseconds: 110),
+            delay: const Duration(milliseconds: 100),
             child: Text(
-              l10n.t('authSignInSubtitle'),
+              isSignUp
+                  ? 'Create your secure INO digital vault'
+                  : 'Sign in to access your vaults and documents',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: compact ? 13.5 : 14.5,
+                fontSize: 14,
                 color: palette.textSecondary,
               ),
             ),
           ),
-          SizedBox(height: gapLg),
+          const SizedBox(height: 18),
 
-          // Email / password first, then federated options.
+          // Mode Toggle Pills (Create Account vs Sign In)
           FadeSlideIn(
-            delay: const Duration(milliseconds: 160),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Form(
-                  key: _formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  child: Column(
-                    children: [
-                      AuthTextField(
-                        controller: _identifierController,
-                        label: l10n.t('emailOrMobile'),
-                        hint: 'you@example.com',
-                        icon: Icons.alternate_email_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.username],
-                        validator: validate.emailOrPhone,
-                      ),
-                      SizedBox(height: gapMd),
-                      AuthTextField(
-                        controller: _passwordController,
-                        label: l10n.t('password'),
-                        hint: '••••••••',
-                        icon: Icons.lock_outline_rounded,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        validator: validate.password,
-                        onSubmitted: (_) => _signIn(),
-                        suffix: _VisibilityToggle(
-                          obscured: _obscurePassword,
-                          onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                    ],
-                  ),
+            delay: const Duration(milliseconds: 120),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: palette.isDark ? palette.surfaceVariant : AppColors.tealPale.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: palette.border.withValues(alpha: 0.5),
+                  width: 1,
                 ),
-                SizedBox(height: gapXs),
-
-                Row(
-                  children: [
-                    Flexible(
-                      child: _RememberMe(
-                        label: l10n.t('rememberMe'),
-                        value: _rememberMe,
-                        onChanged: (v) => setState(() => _rememberMe = v),
-                      ),
-                    ),
-                    Flexible(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: busy ? null : _goToForgotPassword,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              l10n.t('forgotPasswordQ'),
-                              maxLines: 1,
-                              style: TextStyle(
-                                color: AppColors.primaryGreen,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: gapSm),
-
-                AuthPrimaryButton(
-                  label: l10n.t('signIn'),
-                  busy: _busy,
-                  onPressed: busy ? null : _signIn,
-                ),
-                SizedBox(height: gapSm),
-                SizedBox(
-                  width: double.infinity,
-                  height: compact ? 48 : 52,
-                  child: OutlinedButton(
-                    onPressed: busy ? null : () => enterGuestExplore(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryGreen,
-                      side: BorderSide(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.45),
-                        width: 1.4,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      l10n.t('continueAsGuest'),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15.5,
-                      ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ModeTabButton(
+                      label: l10n.t('createAccount'),
+                      active: isSignUp,
+                      onTap: busy
+                          ? null
+                          : () {
+                              FocusScope.of(context).unfocus();
+                              setState(() => _mode = AuthMode.signUp);
+                            },
                     ),
                   ),
-                ),
-
-                if (isDemoBuild && demoPassword.isNotEmpty) ...[
-                  SizedBox(height: gapSm),
-                  _GuestLoginButton(
-                    label: l10n.t('loginAsGuest'),
-                    busy: _guestBusy,
-                    onPressed: busy ? null : _loginAsGuest,
+                  Expanded(
+                    child: _ModeTabButton(
+                      label: l10n.t('signIn'),
+                      active: !isSignUp,
+                      onTap: busy
+                          ? null
+                          : () {
+                              FocusScope.of(context).unfocus();
+                              setState(() => _mode = AuthMode.signIn);
+                            },
+                    ),
                   ),
                 ],
-
-                SizedBox(height: gapLg),
-                _OrDivider(label: l10n.t('orDivider')),
-                SizedBox(height: gapLg),
-
-                // Icon-only federated row: Google · Phone · Apple.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SocialAuthIconButton(
-                      tooltip: l10n.t('continueWithGoogle'),
-                      brand: const GoogleGlyph(size: 24),
-                      busy: _googleBusy,
-                      onPressed: busy ? null : _continueWithGoogle,
-                    ),
-                    const SizedBox(width: 18),
-                    SocialAuthIconButton(
-                      tooltip: l10n.t('continueWithPhone'),
-                      brand: Icon(
-                        Icons.smartphone_rounded,
-                        color: AppColors.primaryGreen,
-                        size: 24,
-                      ),
-                      onPressed: busy ? null : _continueWithPhone,
-                    ),
-                    if (_showApple) ...[
-                      const SizedBox(width: 18),
-                      SocialAuthIconButton(
-                        tooltip: l10n.t('continueWithApple'),
-                        brand: const AppleGlyph(size: 26),
-                        onPressed: busy ? null : _continueWithApple,
-                      ),
-                    ],
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-          SizedBox(height: gapLg),
+          const SizedBox(height: 20),
 
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 320),
-            child: _AuthSwitchRow(
-              prompt: l10n.t('noAccountPrompt'),
-              action: l10n.t('createAccount'),
-              onTap: busy ? null : _goToSignup,
-            ),
-          ),
+          // Form Body
+          if (isSignUp) _buildSignUpForm(palette, l10n, busy) else _buildSignInForm(palette, l10n, busy),
+
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
-}
 
-/// Demo-only "Login as Guest" button - an outlined, full-width control with a
-/// light Rama-blue (brand teal) border and a white surface, matching the width
-/// of the primary Sign In button above it.
-class _GuestLoginButton extends StatelessWidget {
-  const _GuestLoginButton({
-    required this.label,
-    required this.busy,
-    required this.onPressed,
-  });
+  // --- Sign Up Form (New User) -----------------------------------------------
 
-  final String label;
-  final bool busy;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.primaryGreen,
-          side: BorderSide(color: AppColors.tealPale, width: 1.4),
-          shape: RoundedRectangleBorder(
-            // Pill outline, mirroring the gradient CTA above it.
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-        ),
-        child: busy
-            ? InoLoader(size: 20, color: AppColors.primaryGreen)
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.person_outline_rounded, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-/// Password visibility eye toggle used by the auth password fields.
-class _VisibilityToggle extends StatelessWidget {
-  const _VisibilityToggle({required this.obscured, required this.onTap});
-
-  final bool obscured;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(
-        obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        color: AppColors.textMuted,
-      ),
-    );
-  }
-}
-
-class _RememberMe extends StatelessWidget {
-  const _RememberMe({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        child: Row(
+  Widget _buildSignUpForm(AppPalette palette, AppLocalizations l10n, bool busy) {
+    return FadeSlideIn(
+      delay: const Duration(milliseconds: 160),
+      child: Form(
+        key: _signUpFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: value ? AppColors.primaryGreen : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: value ? AppColors.primaryGreen : AppColors.tealPale,
-                  width: 1.6,
+            // Full Name
+            AuthTextField(
+              controller: _nameController,
+              label: l10n.t('fullName'),
+              hint: 'John Doe',
+              icon: Icons.person_outline_rounded,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter your full name' : null,
+            ),
+            const SizedBox(height: 14),
+
+            // Email Address
+            AuthTextField(
+              controller: _emailController,
+              label: l10n.t('emailAddress'),
+              hint: 'you@example.com',
+              icon: Icons.alternate_email_rounded,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: (v) => !AuthValidators.looksLikeEmail(v ?? '') ? 'Enter a valid email' : null,
+            ),
+            const SizedBox(height: 14),
+
+            // Mobile Number with Country Code
+            AuthTextField(
+              controller: _phoneController,
+              label: l10n.t('mobileNumber'),
+              hint: '9876543210',
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              prefixWidget: InkWell(
+                onTap: busy ? null : _pickSignUpCountry,
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 14, right: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_signUpCountry.flag, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 4),
+                      Text(
+                        _signUpCountry.dialCode,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.arrow_drop_down, size: 18, color: palette.textSecondary),
+                    ],
+                  ),
                 ),
               ),
-              child: value
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    )
-                  : null,
+              validator: (v) {
+                final digits = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                if (digits.length < 6) return 'Enter a valid mobile number';
+                return null;
+              },
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w500,
+            const SizedBox(height: 18),
+
+            // Verification Method Selector
+            Text(
+              'Verification Method',
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _MethodCard(
+                    icon: Icons.mark_email_read_outlined,
+                    title: 'Email OTP',
+                    subtitle: 'Code sent to email',
+                    selected: _signupVerificationMethod == VerificationChannel.email,
+                    onTap: () => setState(() => _signupVerificationMethod = VerificationChannel.email),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MethodCard(
+                    icon: Icons.sms_outlined,
+                    title: 'Mobile OTP',
+                    subtitle: 'Code sent to mobile',
+                    selected: _signupVerificationMethod == VerificationChannel.phone,
+                    onTap: () => setState(() => _signupVerificationMethod = VerificationChannel.phone),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Terms & Privacy Acceptance
+            InkWell(
+              onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _acceptedTerms,
+                        onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
+                        activeColor: AppColors.primaryGreen,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'I agree to the ',
+                          style: TextStyle(fontSize: 12.5, color: palette.textSecondary, height: 1.35),
+                          children: [
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: InkWell(
+                                onTap: _openTerms,
+                                child: Text(
+                                  'Terms of Service',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppColors.primaryGreen,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const TextSpan(text: ' & '),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: InkWell(
+                                onTap: _openPrivacy,
+                                child: Text(
+                                  'Privacy Policy',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppColors.primaryGreen,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const TextSpan(text: ' (18+ attestation)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Primary CTA
+            AuthPrimaryButton(
+              label: 'Send Verification Code',
+              busy: busy,
+              onPressed: busy ? null : _handleNewUserSignup,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Sign In Form (Existing User) ------------------------------------------
+
+  Widget _buildSignInForm(AppPalette palette, AppLocalizations l10n, bool busy) {
+    return FadeSlideIn(
+      delay: const Duration(milliseconds: 160),
+      child: Form(
+        key: _signInFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // OTP Channel Selector (Phone OTP vs Email OTP)
+            if (!_signInWithPassword) ...[
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: palette.isDark ? palette.surfaceVariant : AppColors.tealPale.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: palette.border.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _ChannelTabButton(
+                        icon: Icons.phone_android_rounded,
+                        label: 'Mobile OTP',
+                        active: _signInChannel == VerificationChannel.phone,
+                        onTap: () {
+                          FocusScope.of(context).unfocus();
+                          setState(() {
+                            _signInChannel = VerificationChannel.phone;
+                            _signInIdentifierController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: _ChannelTabButton(
+                        icon: Icons.email_outlined,
+                        label: 'Email OTP',
+                        active: _signInChannel == VerificationChannel.email,
+                        onTap: () {
+                          FocusScope.of(context).unfocus();
+                          setState(() {
+                            _signInChannel = VerificationChannel.email;
+                            _signInIdentifierController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            if (!_signInWithPassword && _signInChannel == VerificationChannel.phone) ...[
+              AuthTextField(
+                key: const ValueKey('signin_phone_field'),
+                controller: _signInIdentifierController,
+                label: l10n.t('mobileNumber'),
+                hint: '9876543210',
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleExistingUserSignIn(),
+                prefixWidget: InkWell(
+                  onTap: busy ? null : _pickSignInCountry,
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 14, right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_signInCountry.flag, style: const TextStyle(fontSize: 18)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _signInCountry.dialCode,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.arrow_drop_down, size: 18, color: palette.textSecondary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              AuthTextField(
+                key: ValueKey(_signInWithPassword ? 'signin_password_user_field' : 'signin_email_field'),
+                controller: _signInIdentifierController,
+                label: _signInWithPassword ? l10n.t('emailOrMobile') : l10n.t('emailAddress'),
+                hint: 'you@example.com',
+                icon: Icons.alternate_email_rounded,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: _signInWithPassword ? TextInputAction.next : TextInputAction.done,
+                onSubmitted: (_) => _handleExistingUserSignIn(),
+              ),
+            ],
+
+            if (_signInWithPassword) ...[
+              const SizedBox(height: 14),
+              AuthTextField(
+                controller: _signInPasswordController,
+                label: l10n.t('password'),
+                hint: '••••••••',
+                icon: Icons.lock_outline_rounded,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
+                onSubmitted: (_) => _handleExistingUserSignIn(),
+                suffix: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: palette.textSecondary,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Flexible(
+                  child: InkWell(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                            activeColor: AppColors.primaryGreen,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            l10n.t('rememberMe'),
+                            style: TextStyle(color: palette.textSecondary, fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: busy ? null : _goToForgotPassword,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    l10n.t('forgotPasswordQ'),
+                    style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
+            // CTA
+            AuthPrimaryButton(
+              label: _signInWithPassword ? l10n.t('signIn') : 'Send OTP',
+              busy: busy,
+              onPressed: busy ? null : _handleExistingUserSignIn,
+            ),
+
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _signInWithPassword = !_signInWithPassword),
+                child: Text(
+                  _signInWithPassword ? 'Use Passwordless OTP instead' : 'Sign in with Password instead',
+                  style: TextStyle(
+                    color: palette.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -691,81 +1004,194 @@ class _RememberMe extends StatelessWidget {
   }
 }
 
-/// "OR" separator between the primary CTA and the social buttons.
-class _OrDivider extends StatelessWidget {
-  const _OrDivider({required this.label});
+// --- Mode Toggle Button (Create Account / Sign In) ---------------------------
 
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final line = Expanded(
-      child: Divider(color: AppColors.tealMist, height: 1),
-    );
-    return Row(
-      children: [
-        line,
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: AppColors.textMuted.withValues(alpha: 0.8),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
-        ),
-        line,
-      ],
-    );
-  }
-}
-
-/// The "Don't have an account? Create Account" / inverse row shared by
-/// Login and Signup.
-class _AuthSwitchRow extends StatelessWidget {
-  const _AuthSwitchRow({
-    required this.prompt,
-    required this.action,
+class _ModeTabButton extends StatelessWidget {
+  const _ModeTabButton({
+    required this.label,
+    required this.active,
     required this.onTap,
   });
 
-  final String prompt;
-  final String action;
+  final String label;
+  final bool active;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            prompt,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textMuted),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+    final palette = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primaryGreen : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        TextButton(
-          onPressed: onTap,
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            minimumSize: const Size(0, 0),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
+        child: Center(
           child: Text(
-            action,
+            label,
             style: TextStyle(
-              color: AppColors.primaryGreen,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
+              color: active ? Colors.white : palette.textSecondary,
             ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+// --- Channel Tab Button (Mobile OTP / Email OTP) -----------------------------
+
+class _ChannelTabButton extends StatelessWidget {
+  const _ChannelTabButton({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primaryGreen : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: active ? Colors.white : palette.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: active ? Colors.white : palette.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- Verification Method Card ------------------------------------------------
+
+class _MethodCard extends StatelessWidget {
+  const _MethodCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : (palette.isDark ? palette.surfaceVariant : Colors.white),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primaryGreen : palette.border,
+            width: selected ? 1.6 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: selected ? AppColors.primaryGreen : palette.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                      color: selected ? AppColors.primaryGreen : palette.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: palette.textFaint,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(
+                Icons.check_circle_rounded,
+                size: 16,
+                color: AppColors.primaryGreen,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

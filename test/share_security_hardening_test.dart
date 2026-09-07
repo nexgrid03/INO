@@ -70,20 +70,25 @@ void main() {
 
   group('HIGH H3: App Links & Deep Linking Canonical Host Unification', () {
     const canonicalHost = 'share.inoapp.com';
+    const deployedHost = 'ino-share-web1.vercel.app';
 
-    test('ShareConfig uses canonical host for public and view-once links', () {
-      expect(ShareConfig.publicBase, equals('https://$canonicalHost/s'));
-      expect(ShareConfig.viewOncePublicBase, equals('https://$canonicalHost/v'));
+    test('ShareConfig uses deployed host for public and view-once links', () {
+      expect(ShareConfig.publicBase, equals('https://$deployedHost/s'));
+      expect(ShareConfig.viewOncePublicBase, equals('https://$deployedHost/v'));
+
+      // Requirement 5 verification
+      expect(ShareConfig.publicUrl('abc'), equals('https://$deployedHost/s/abc'));
 
       final shareUrl = ShareConfig.publicUrl('a8f9x2k40b1c');
-      expect(shareUrl, equals('https://$canonicalHost/s/a8f9x2k40b1c'));
+      expect(shareUrl, equals('https://$deployedHost/s/a8f9x2k40b1c'));
 
       final viewOnceUrl = ShareConfig.viewOncePublicUrl('a1b2c3d4e5f60718293a4b5c6d7e8f90');
-      expect(viewOnceUrl, equals('https://$canonicalHost/v/a1b2c3d4e5f60718293a4b5c6d7e8f90'));
+      expect(viewOnceUrl, equals('https://$deployedHost/v/a1b2c3d4e5f60718293a4b5c6d7e8f90'));
     });
 
-    test('ShareLinkValidator recognizes canonical host as approved', () {
+    test('ShareLinkValidator recognizes canonical host and deployed host as approved', () {
       expect(ShareLinkValidator.isApprovedHost(canonicalHost), isTrue);
+      expect(ShareLinkValidator.isApprovedHost(deployedHost), isTrue);
       expect(ShareLinkValidator.isApprovedHost('https://$canonicalHost/s/abc'), isFalse); // expects host string
       expect(ShareLinkValidator.isApprovedHost('evil-$canonicalHost'), isFalse);
     });

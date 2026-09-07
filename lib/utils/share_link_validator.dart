@@ -53,6 +53,7 @@ class ShareLinkValidator {
     'staging.ino.app',
     'app.ino.bank',
     'ino-share-web.vercel.app',
+    'ino-share-web1.vercel.app',
     'ino', // Custom scheme host e.g. ino://share/...
   };
 

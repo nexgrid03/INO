@@ -12,7 +12,8 @@ class AuthTextField extends StatefulWidget {
     super.key,
     required this.controller,
     required this.label,
-    required this.icon,
+    this.icon,
+    this.prefixWidget,
     this.hint,
     this.obscureText = false,
     this.keyboardType,
@@ -31,7 +32,8 @@ class AuthTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final String? hint;
-  final IconData icon;
+  final IconData? icon;
+  final Widget? prefixWidget;
   final bool obscureText;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -115,12 +117,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
             isDense: true,
             filled: true,
             fillColor: fill,
-            prefixIcon: Icon(
-              widget.icon,
-              color: _focused
-                  ? AppColors.primaryGreen
-                  : AppColors.primaryGreen.withValues(alpha: 0.65),
-            ),
+            prefixIcon: widget.prefixWidget ?? (widget.icon != null
+                ? Icon(
+                    widget.icon,
+                    color: _focused
+                        ? AppColors.primaryGreen
+                        : AppColors.primaryGreen.withValues(alpha: 0.65),
+                  )
+                : null),
             suffixIcon: widget.suffix,
             hintStyle: TextStyle(
               color: palette.textFaint,
