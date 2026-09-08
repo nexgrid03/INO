@@ -558,6 +558,15 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     return [for (final r in rows) VaultDocument.fromRow(r)];
   }
 
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  static bool _isValidUuid(String? s) {
+    if (s == null || s.trim().isEmpty) return false;
+    return _uuidRegex.hasMatch(s.trim());
+  }
+
   @override
   Future<VaultDocument> shareDocument({
     required String vaultId,
@@ -573,6 +582,11 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     // Via the SECURITY DEFINER RPC rather than a direct insert: it makes the
     // editor check server-side and stamps `shared_by` from auth.uid(), so a
     // client cannot attribute a share to someone else.
+    //
+    // Guard sourceId: p_source_id in the RPC is typed uuid. If sourceId is a custom
+    // non-UUID string (e.g. prop_..., inv_...), pass null to avoid PostgreSQL 22P02.
+    final sanitizedSourceId = _isValidUuid(sourceId) ? sourceId : null;
+
     final row = await _client.rpc('share_document_to_vault', params: {
       'p_vault': vaultId,
       'p_object_path': objectPath,
@@ -581,7 +595,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       'p_size_bytes': sizeBytes,
       'p_content_type': contentType,
       'p_source_table': sourceTable,
-      'p_source_id': sourceId,
+      'p_source_id': sanitizedSourceId,
       'p_note': note,
     }).timeout(NetGuard.mutation);
     return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));

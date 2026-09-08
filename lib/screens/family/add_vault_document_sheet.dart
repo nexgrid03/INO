@@ -685,6 +685,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
           'hidden': false,
           'is_hidden': false,
           'active': true,
+          'source_id': item.id,
           ...?((disclosure != null) ? {'fields': disclosure} : null),
         };
 
