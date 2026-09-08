@@ -39,6 +39,7 @@ class ScanReviewScreen extends StatefulWidget {
     required this.imagePath,
     this.pages,
     required this.onRetake,
+    this.onAddPage,
     required this.onContinue,
     this.onContinueAll,
     required this.onClose,
@@ -54,6 +55,7 @@ class ScanReviewScreen extends StatefulWidget {
   final List<String>? pages;
 
   final VoidCallback onRetake;
+  final VoidCallback? onAddPage;
 
   /// Called with the *edited* image path (crop / rotate / copy mode baked in)
   /// so OCR and the saved document use exactly what the user sees.
@@ -279,6 +281,12 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                           onTap: _rotate,
                         ),
                       ],
+                      if (widget.onAddPage != null)
+                        _Tool(
+                          icon: Icons.add_photo_alternate_rounded,
+                          label: 'Add Page',
+                          onTap: widget.onAddPage!,
+                        ),
                       _Tool(
                         icon: Icons.refresh_rounded,
                         label: l10n.t('retake'),

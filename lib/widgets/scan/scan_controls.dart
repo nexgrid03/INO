@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../pressable_scale.dart';
 import '../common/ino_loader.dart';
 
@@ -37,20 +36,18 @@ class ScanControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _SideButton(
-          icon: Icons.photo_library_rounded,
-          label: l10n.t('gallery'),
+        _GalleryButton(
           onTap: enabled ? onGallery : null,
         ),
         _CaptureButton(
           state: captureState,
           onTap: enabled ? onCapture : null,
         ),
-        const SizedBox(width: 64),
+        // Balanced spacer to keep the shutter button centered
+        const SizedBox(width: 56),
       ],
     );
   }
@@ -69,11 +66,9 @@ class _CaptureButton extends StatelessWidget {
 
     Widget core;
     if (busy) {
-      // Sized to the button's white inner disc (76 - 3.5px ring - 4.5px
-      // inset = 58), so the mark fills it without touching the edge.
-      core = const InoLoader(size: 40, color: Colors.black);
+      core = const InoLoader(size: 38, color: Colors.black);
     } else if (success) {
-      core = const Icon(Icons.check_rounded, color: Colors.black, size: 30);
+      core = const Icon(Icons.check_rounded, color: Colors.black, size: 32);
     } else {
       core = const SizedBox.shrink();
     }
@@ -84,14 +79,13 @@ class _CaptureButton extends StatelessWidget {
         onTap: busy ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          width: 76,
-          height: 76,
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black.withValues(alpha: 0.3),
             border: Border.all(
               color: Colors.white,
-              width: 3.5,
+              width: 4.0,
             ),
           ),
           padding: const EdgeInsets.all(4.5),
@@ -108,54 +102,35 @@ class _CaptureButton extends StatelessWidget {
   }
 }
 
-class _SideButton extends StatelessWidget {
-  const _SideButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+class _GalleryButton extends StatelessWidget {
+  const _GalleryButton({required this.onTap});
 
-  final IconData icon;
-  final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Opacity(
-      opacity: onTap == null ? 0.4 : 1,
+      opacity: onTap == null ? 0.4 : 1.0,
       child: PressableScale(
-        pressedScale: 0.9,
+        pressedScale: 0.92,
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
-          child: SizedBox(
-            width: 64,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 23),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.4),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white,
+                width: 2.0,
+              ),
+            ),
+            child: const Icon(
+              Icons.photo_outlined,
+              color: Colors.white,
+              size: 24,
             ),
           ),
         ),

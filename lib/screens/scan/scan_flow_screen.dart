@@ -83,19 +83,62 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _stage = _Stage.scanner;
+    if (DocumentScannerService.instance.isSupported) {
+      _stage = _Stage.mlkit;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _launchMlKit());
+    } else {
+      _stage = _Stage.scanner;
+    }
   }
 
   void _go(_Stage stage) => setState(() => _stage = stage);
 
   void _exit(ScanFlowResult? result) => Navigator.of(context).pop(result);
 
-  /// Retake / review-back: return to the camera scanner surface.
+  /// Opens the native ML Kit document scanner (auto edge detection, auto-crop,
+  /// perspective correction, multi-page). Cancelling exits the flow; a genuine
+  /// failure falls back to the in-app camera so scanning always works.
+  Future<void> _launchMlKit() async {
+    try {
+      final pages = await DocumentScannerService.instance.scanPages(
+        pageLimit: 20,
+        allowGalleryImport: true,
+      );
+      if (!mounted) return;
+      if (pages == null || pages.isEmpty) {
+        _exit(null); // user cancelled the scanner
+        return;
+      }
+      setState(() {
+        _usedMlKit = true;
+        _pages = pages;
+        _capturePath = pages.first;
+        _stage = _Stage.review;
+      });
+    } catch (e) {
+      developer.log(
+          'ML Kit scanner failed, falling back to in-app camera: $e',
+          name: 'scan');
+      if (mounted) {
+        setState(() {
+          _usedMlKit = false;
+          _stage = _Stage.scanner;
+        });
+      }
+    }
+  }
+
+  /// Retake / review-back: return to whichever capture surface produced the
+  /// current pages.
   void _recapture() {
     _pages = null;
     _capturePath = null;
-    _usedMlKit = false;
-    _go(_Stage.scanner);
+    if (_usedMlKit && DocumentScannerService.instance.isSupported) {
+      _go(_Stage.mlkit);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _launchMlKit());
+    } else {
+      _go(_Stage.scanner);
+    }
   }
 
   /// Maps the system back gesture to the previous stage (instead of exiting).
@@ -191,8 +234,6 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
   Widget _buildStage() {
     switch (_stage) {
       case _Stage.mlkit:
-        // The native scanner activity is in the foreground; behind it we show
-        // a calm dark backdrop so returning transitions feel seamless.
         return const _NativeScannerBackdrop();
       case _Stage.scanner:
         return ScannerScreen(
@@ -210,6 +251,34 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           pages: _pages,
           onClose: _recapture,
           onRetake: _recapture,
+          onAddPage: () async {
+            if (_usedMlKit && DocumentScannerService.instance.isSupported) {
+              final morePages = await DocumentScannerService.instance.scanPages(
+                pageLimit: 10,
+              );
+              if (morePages != null && morePages.isNotEmpty && mounted) {
+                setState(() {
+                  _pages = [...?_pages, ...morePages];
+                  _capturePath = morePages.last;
+                });
+              }
+            } else {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => ScannerScreen(
+                    onClose: () => Navigator.of(ctx).pop(),
+                    onCaptured: (newPage) {
+                      Navigator.of(ctx).pop();
+                      setState(() {
+                        _pages = [...?_pages, newPage];
+                        _capturePath = newPage;
+                      });
+                    },
+                  ),
+                ),
+              );
+            }
+          },
           onContinue: (editedPath) {
             // Use the edited image (crop / rotate / copy mode) for OCR + save.
             if (editedPath != null) {
@@ -228,8 +297,6 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.processing:
         return OcrProcessingScreen(
           imagePath: _capturePath,
-          // ML Kit output is already upright + cropped + rectified → OCR can
-          // skip its own orientation/resolution bake (the fast path).
           assumeClean: _usedMlKit,
           onResult: (result) {
             _ocr = result;
@@ -268,7 +335,7 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
 }
 
 /// Shown behind the native ML Kit scanner activity and during the brief
-/// transition back - a calm dark surface matching the capture chrome.
+/// transition back — a calm dark surface matching the capture chrome.
 class _NativeScannerBackdrop extends StatelessWidget {
   const _NativeScannerBackdrop();
 
@@ -276,7 +343,7 @@ class _NativeScannerBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPalette.dark.bg,
-      body:  Center(
+      body: Center(
         child: InoLoader(color: AppColors.primaryGreen),
       ),
     );

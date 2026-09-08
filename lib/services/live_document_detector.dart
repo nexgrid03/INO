@@ -254,7 +254,16 @@ class LiveDocumentDetector {
     final double r = (rx + (right + 1 + pad) * cellW).clamp(0.0, 1.0);
     final double b = (ry + (bottom + 1 + pad) * cellH).clamp(0.0, 1.0);
 
-    if (r - l < _minBoundsExtent || b - t < _minBoundsExtent) return null;
+    final double bw = r - l;
+    final double bh = b - t;
+    if (bw < _minBoundsExtent || bh < _minBoundsExtent) return null;
+
+    // Aspect ratio filter: legitimate rectangular documents (Aadhar, PAN, certificates,
+    // A4 sheets, bills) possess aspect ratios between 0.45 and 2.2.
+    // Extremely wide (keyboards, desk edges) or narrow objects are ignored.
+    final double aspect = bw / bh;
+    if (aspect < 0.45 || aspect > 2.2) return null;
+
     final bounds = Rect.fromLTRB(l, t, r, b);
 
     final corners = _corners(

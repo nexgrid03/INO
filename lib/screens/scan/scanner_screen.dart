@@ -86,11 +86,11 @@ class _ScannerScreenState extends State<ScannerScreen>
   DateTime? _stableStart;
 
   // Tunables (may be calibrated per device).
-  static const int _kSampleIntervalMs = 150; // process ~6–7 frames/sec
-  static const int _kConfirmFrames = 2; // ~300ms of presence before badge
-  static const double _kDetectConfidence = 0.5; // enter "detected"
-  static const double _kLoseConfidence = 0.35; // hysteresis: drop back to idle
-  static const Duration _kStableDuration = Duration(milliseconds: 1200);
+  static const int _kSampleIntervalMs = 90; // Snappy ~11 frames/sec live tracking
+  static const int _kConfirmFrames = 2; // ~180ms of presence before locking outline
+  static const double _kDetectConfidence = 0.48; // Crisp, fast detection threshold
+  static const double _kLoseConfidence = 0.32; // Hysteresis: drop back to idle
+  static const Duration _kStableDuration = Duration(milliseconds: 700);
 
   @override
   void initState() {
@@ -293,13 +293,32 @@ class _ScannerScreenState extends State<ScannerScreen>
     // Track the document with the highlight border only once the state machine
     // actually recognises one - stray edges on the desk behind it never draw an
     // outline. Assigned after [_handleSignal] so it reads the updated state.
-    _docCorners.value = switch (_state) {
-      ScannerState.detecting ||
-      ScannerState.documentDetected ||
-      ScannerState.readyToScan =>
-        signal.corners,
-      _ => null,
-    };
+    final newCorners = signal.corners;
+    if (newCorners != null && newCorners.length == 4) {
+      final shouldShow = switch (_state) {
+        ScannerState.detecting ||
+        ScannerState.documentDetected ||
+        ScannerState.readyToScan =>
+          true,
+        _ => false,
+      };
+      if (shouldShow) {
+        final prev = _docCorners.value;
+        if (prev != null && prev.length == 4 && signal.steady) {
+          // Exponential moving average for corner stability and zero jitter
+          _docCorners.value = [
+            for (int i = 0; i < 4; i++)
+              Offset.lerp(prev[i], newCorners[i], 0.65)!,
+          ];
+        } else {
+          _docCorners.value = newCorners;
+        }
+      } else {
+        _docCorners.value = null;
+      }
+    } else {
+      _docCorners.value = null;
+    }
   }
 
   /// The state machine: idle → detecting → documentDetected → readyToScan,
@@ -521,12 +540,34 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  String _statusBubbleText(AppLocalizations l10n) {
+    if (_state == ScannerState.readyToScan ||
+        _state == ScannerState.capturing) {
+      return 'Scanning... Hold Steady';
+    }
+    if (_state == ScannerState.documentDetected) {
+      if (_stableStart != null) {
+        return 'Scanning... Hold Steady';
+      }
+      return 'Hold steady';
+    }
+    if (_state == ScannerState.detecting) {
+      return 'Document detected';
+    }
+    if (_state == ScannerState.success) {
+      return 'Document captured';
+    }
+    return 'Position your document inside the frame';
+  }
+
   // ---- Build ---------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final ready = _phase == _Phase.ready;
     final l10n = AppLocalizations.of(context);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -537,60 +578,66 @@ class _ScannerScreenState extends State<ScannerScreen>
             _documentHighlight(),
             if (_cropping) const _CroppingScrim(),
             SafeArea(
+              bottom: false,
               child: Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _FloatingGlassButton(
+                          _CleanIconButton(
                             icon: Icons.close_rounded,
                             onTap: widget.onClose,
                             tooltip: l10n.t('close'),
                           ),
-                          _FloatingGlassButton(
+                          _CleanIconButton(
                             icon: _flashIcon,
-                            active: _flash != 0,
                             onTap: _cycleFlash,
                             tooltip: '${l10n.t('flash')}: $_flashLabel',
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      const _InstructionPill(),
+                      const SizedBox(height: 12),
+                      _InstructionPill(
+                        message: _statusBubbleText(l10n),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-            SafeArea(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _AutoManualToggle(
-                        isAuto: _isAutoMode,
-                        onChanged: (isAuto) => setState(() => _isAutoMode = isAuto),
-                      ),
-                      const SizedBox(height: 18),
-                      ScanControls(
-                        onGallery: _galleryPressed,
-                        onCapture: _capturePressed,
-                        onToggleFlash: _cycleFlash,
-                        flashIcon: _flashIcon,
-                        flashLabel: _flashLabel,
-                        flashActive: _flash != 0,
-                        captureState: _captureButtonState,
-                      ),
-                    ],
-                  ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.94),
+                ),
+                padding: EdgeInsets.fromLTRB(28, 18, 28, bottomInset > 0 ? bottomInset + 8 : 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ScanControls(
+                      onGallery: _galleryPressed,
+                      onCapture: _capturePressed,
+                      onToggleFlash: _cycleFlash,
+                      flashIcon: _flashIcon,
+                      flashLabel: _flashLabel,
+                      flashActive: _flash != 0,
+                      captureState: _captureButtonState,
+                    ),
+                    const SizedBox(height: 18),
+                    _AutoManualToggle(
+                      isAuto: _isAutoMode,
+                      onChanged: (isAuto) => setState(() => _isAutoMode = isAuto),
+                    ),
+                    const SizedBox(height: 14),
+                    const _PrivacyFooter(),
+                  ],
                 ),
               ),
             ),
@@ -883,38 +930,30 @@ class _GradientButton extends StatelessWidget {
   }
 }
 
-class _FloatingGlassButton extends StatelessWidget {
-  const _FloatingGlassButton({
+class _CleanIconButton extends StatelessWidget {
+  const _CleanIconButton({
     required this.icon,
     required this.onTap,
-    this.active = false,
     this.tooltip,
   });
 
   final IconData icon;
   final VoidCallback onTap;
-  final bool active;
   final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final button = GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: 44,
         height: 44,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
-            width: 1.5,
-          ),
-        ),
+        alignment: Alignment.center,
         child: Icon(
           icon,
           color: Colors.white,
-          size: 22,
+          size: 26,
         ),
       ),
     );
@@ -960,28 +999,34 @@ class _CroppingScrim extends StatelessWidget {
 }
 
 class _InstructionPill extends StatelessWidget {
-  const _InstructionPill();
+  const _InstructionPill({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xE61E1E20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
-      child: Text(
-        l10n.t('positionDocument'),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Text(
+          message,
+          key: ValueKey(message),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.2,
+          ),
         ),
       ),
     );
@@ -999,58 +1044,87 @@ class _AutoManualToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Container(
-      height: 38,
+      height: 42,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
-          width: 1,
-        ),
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildOption(
-              label: l10n.t('scanModeAuto'),
-              active: isAuto,
-              onTap: () => onChanged(true)),
-          _buildOption(
-              label: l10n.t('scanModeManual'),
-              active: !isAuto,
-              onTap: () => onChanged(false)),
+          _buildSegment(
+            label: 'Manual',
+            active: !isAuto,
+            onTap: () => onChanged(false),
+          ),
+          _buildSegment(
+            label: 'Auto capture',
+            active: isAuto,
+            onTap: () => onChanged(true),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildOption({
+  Widget _buildSegment({
     required String label,
     required bool active,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
         decoration: BoxDecoration(
           color: active ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(19),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Colors.black : Colors.white.withValues(alpha: 0.7),
-            fontSize: 11.5,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-            letterSpacing: 0.8,
+            color: active ? Colors.black : Colors.white.withValues(alpha: 0.85),
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PrivacyFooter extends StatelessWidget {
+  const _PrivacyFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            'inoapp will have access only to the images that you scan',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Icon(
+          Icons.info_outline_rounded,
+          color: Colors.white.withValues(alpha: 0.85),
+          size: 15,
+        ),
+      ],
     );
   }
 }
