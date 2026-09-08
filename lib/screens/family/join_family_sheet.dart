@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import '../../data/family_vault_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
+import '../../services/account_security_service.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -95,6 +96,12 @@ class _JoinFamilySheetState extends State<_JoinFamilySheet> {
   }
 
   Future<void> _request(FamilyMatch match) async {
+    final ok = await AccountSecurityService.instance.ensureEmailVerified(
+      context,
+      reason: 'To send join requests and access shared family documents, your email address must be verified for security.',
+    );
+    if (!ok || !mounted) return;
+
     final l10n = AppLocalizations.of(context);
     setState(() {
       _sendingId = match.id;

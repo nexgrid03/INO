@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
+import '../../services/account_security_service.dart';
 import '../../services/family_vault_store.dart';
 import '../../services/screen_security_service.dart';
 import '../../theme/app_dimens.dart';
@@ -84,6 +85,12 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   // ---- Join requests (incoming: I decide) ----------------------------------
 
   Future<void> _approve(VaultJoinRequest req) async {
+    final ok = await AccountSecurityService.instance.ensureEmailVerified(
+      context,
+      reason: 'To approve join requests and grant access to this Family Vault, your email address must be verified for security.',
+    );
+    if (!ok || !mounted) return;
+
     final l10n = AppLocalizations.of(context);
     final palette = AppPalette.of(context);
     // The approver picks what the newcomer may do.
@@ -237,6 +244,12 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   }
 
   Future<void> _create() async {
+    final ok = await AccountSecurityService.instance.ensureEmailVerified(
+      context,
+      reason: 'To create a Family Vault and share access with family members, your email address must be verified for security.',
+    );
+    if (!ok || !mounted) return;
+
     final l10n = AppLocalizations.of(context);
     final name = await showModalBottomSheet<String>(
       context: context,

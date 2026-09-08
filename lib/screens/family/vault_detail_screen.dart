@@ -131,9 +131,16 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     }
   }
 
+  List<VaultDocument> get _effectiveDocuments {
+    if (_myRole.canManageMembers) {
+      return _documents;
+    }
+    return _documents.where((d) => d.isVisibleToMembers).toList();
+  }
+
   /// Total size of vault documents for the hero subtitle (no fake GB).
   String get _storageLabel {
-    final total = _documents.fold<int>(0, (sum, d) => sum + (d.sizeBytes ?? 0));
+    final total = _effectiveDocuments.fold<int>(0, (sum, d) => sum + (d.sizeBytes ?? 0));
     if (total <= 0) return '';
     final l10n = AppLocalizations.of(context);
     String used(String size) => l10n.t('storageUsed').replaceAll('{size}', size);
@@ -144,6 +151,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       return used('${(total / (1024 * 1024)).toStringAsFixed(1)} MB');
     }
     return used('${(total / 1024).round()} KB');
+  }
+
+  Future<void> _toggleDocVisibility(VaultDocument doc, bool isVisible) async {
+    try {
+      await _repo.updateDocumentVisibility(doc.id, isVisible);
+      await _loadDocuments();
+      if (!mounted) return;
+      _toast(isVisible
+          ? 'Document is now visible to members'
+          : 'Document is now hidden from members');
+    } catch (e) {
+      if (mounted) _toast('Could not update document visibility', error: true);
+    }
   }
 
   void _openProfile() {
@@ -1125,7 +1145,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (_documents.isEmpty && !_docsLoading)
+        if (_effectiveDocuments.isEmpty && !_docsLoading)
           AdaptiveGlassCard(
             padding: const EdgeInsets.all(AppSpacing.md),
             radius: AppRadius.card,
@@ -1139,12 +1159,12 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             ),
           )
-        else if (_documents.isNotEmpty) ...[
+        else if (_effectiveDocuments.isNotEmpty) ...[
           // Wallet filter chips for shared documents
           Builder(
             builder: (context) {
               final docWallets = <String>{};
-              for (final d in _documents) {
+              for (final d in _effectiveDocuments) {
                 final w = d.sourceTable ??
                     (d.category?.contains('Wallet') == true ? d.category! : null) ??
                     'Document Wallet';
@@ -1161,7 +1181,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                     children: [
                       _DocWalletFilterPill(
                         label: l10n.t('all'),
-                        count: _documents.length,
+                        count: _effectiveDocuments.length,
                         selected: _selectedDocWallet == null,
                         accentColor: AppColors.primaryGreen,
                         onTap: () => setState(() => _selectedDocWallet = null),
@@ -1172,7 +1192,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                           padding: const EdgeInsets.only(right: 6),
                           child: _DocWalletFilterPill(
                             label: localizedWalletName(l10n, w),
-                            count: _documents.where((d) {
+                            count: _effectiveDocuments.where((d) {
                               final dw = d.sourceTable ??
                                   (d.category?.contains('Wallet') == true ? d.category! : null) ??
                                   'Document Wallet';
@@ -1201,8 +1221,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             child: Builder(
               builder: (context) {
                 final list = _selectedDocWallet == null
-                    ? _documents
-                    : _documents.where((d) {
+                    ? _effectiveDocuments
+                    : _effectiveDocuments.where((d) {
                         final w = d.sourceTable ??
                             (d.category?.contains('Wallet') == true ? d.category! : null) ??
                             'Document Wallet';
@@ -1232,8 +1252,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                           _currentUid,
                           _myRole,
                         ),
+                        canToggleVisibility: _myRole.canManageMembers,
                         onOpen: () => _openDocument(list[i]),
                         onRemove: () => _removeDocument(list[i]),
+                        onToggleVisibility: (isVisible) =>
+                            _toggleDocVisibility(list[i], isVisible),
                       ),
                     ],
                   ],
@@ -2038,14 +2061,18 @@ class _VaultDocRow extends StatelessWidget {
   const _VaultDocRow({
     required this.doc,
     required this.canRemove,
+    this.canToggleVisibility = false,
     required this.onOpen,
     required this.onRemove,
+    this.onToggleVisibility,
   });
 
   final VaultDocument doc;
   final bool canRemove;
+  final bool canToggleVisibility;
   final VoidCallback onOpen;
   final VoidCallback onRemove;
+  final ValueChanged<bool>? onToggleVisibility;
 
   String get _walletName =>
       doc.sourceTable ??
@@ -2108,15 +2135,42 @@ class _VaultDocRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      doc.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                        color: palette.textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            doc.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.subtitle.copyWith(
+                              color: palette.textPrimary,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (doc.isHidden) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.critical.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.critical.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Text(
+                              'Hidden',
+                              style: TextStyle(
+                                color: AppColors.critical,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -2167,6 +2221,21 @@ class _VaultDocRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (canToggleVisibility && onToggleVisibility != null)
+                IconButton(
+                  onPressed: () => onToggleVisibility!(!doc.isVisibleToMembers),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: doc.isVisibleToMembers ? 'Hide from members' : 'Show to members',
+                  icon: Icon(
+                    doc.isVisibleToMembers
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                    size: 19,
+                    color: doc.isVisibleToMembers
+                        ? AppColors.primaryGreen
+                        : AppColors.critical,
+                  ),
+                ),
               if (canRemove)
                 IconButton(
                   onPressed: onRemove,

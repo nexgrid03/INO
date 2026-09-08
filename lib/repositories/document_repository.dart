@@ -788,18 +788,21 @@ class DocumentRepository {
   }
 
   /// Uploads arbitrary bytes to an object path (used for JSON cloud backups).
-  /// Overwrites any existing object at that path.
   Future<void> uploadBytes(
     String objectPath,
     Uint8List bytes, {
     String contentType = 'application/octet-stream',
   }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw const AuthException('You must be signed in to upload.');
+    }
     await _client.storage
         .from(_bucket)
         .uploadBinary(
           objectPath,
           bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
+          fileOptions: FileOptions(contentType: contentType, upsert: false),
         )
         .timeout(NetGuard.storage);
     developer.log('uploaded ${bytes.length}B to $objectPath', name: 'storage');

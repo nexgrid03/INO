@@ -209,6 +209,19 @@ class _FakeVaultRepo implements FamilyVaultRepository {
   }
 
   @override
+  Future<void> updateDocumentVisibility(String documentId, bool isVisible) async {
+    for (final list in docsByVault.values) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id == documentId) {
+          list[i] = list[i].copyWith(
+            note: isVisible ? null : '{"hidden":true}',
+          );
+        }
+      }
+    }
+  }
+
+  @override
   Future<String> documentUrl(VaultDocument doc,
       {int expiresInSeconds = 900}) async {
     if (revokedVaults.contains(doc.vaultId)) throw Exception('403');

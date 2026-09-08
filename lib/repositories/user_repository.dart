@@ -59,6 +59,7 @@ class UserRepository {
   /// `auth.uid() = auth_user_id`).
   Future<UserProfile> updateProfile({
     required String authUserId,
+    String? email,
     String? phone,
     String? fullName,
     String? preferredLanguage,
@@ -66,6 +67,7 @@ class UserRepository {
     bool? biometricEnabled,
   }) async {
     final updates = <String, dynamic>{};
+    if (email != null) updates['email'] = email.trim();
     if (phone != null) updates['phone'] = phone.trim();
     if (fullName != null) updates['full_name'] = fullName.trim();
     if (preferredLanguage != null) {

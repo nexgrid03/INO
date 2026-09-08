@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -569,6 +571,86 @@ class VaultDocument {
   /// Mirrors `remove_vault_document()`; the authoritative check is server-side.
   bool canBeRemovedBy(String? uid, VaultRole role) =>
       (uid != null && sharedBy == uid) || role.canManageMembers;
+
+  /// Whether the admin/owner has toggled this document OFF/hidden for family members.
+  bool get isHidden {
+    final raw = note?.trim();
+    if (raw == null || raw.isEmpty) return false;
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        return map['hidden'] == true ||
+            map['is_hidden'] == true ||
+            map['active'] == false;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /// Whether regular members / viewers can see this document.
+  bool get isVisibleToMembers => !isHidden;
+
+  /// Custom field disclosures for structured items (e.g. price, registration number, address).
+  Map<String, dynamic>? get customDisclosure {
+    final raw = note?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        return map['fields'] as Map<String, dynamic>?;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// User-friendly note text (stripped of internal json config if any).
+  String? get displayNote {
+    final raw = note?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final userNote = map['user_note']?.toString().trim();
+        return (userNote != null && userNote.isNotEmpty) ? userNote : null;
+      } catch (_) {
+        return raw;
+      }
+    }
+    return raw;
+  }
+
+  VaultDocument copyWith({
+    String? id,
+    String? vaultId,
+    String? sharedBy,
+    String? objectPath,
+    String? name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceId,
+    String? note,
+    DateTime? createdAt,
+  }) =>
+      VaultDocument(
+        id: id ?? this.id,
+        vaultId: vaultId ?? this.vaultId,
+        sharedBy: sharedBy ?? this.sharedBy,
+        objectPath: objectPath ?? this.objectPath,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        sizeBytes: sizeBytes ?? this.sizeBytes,
+        contentType: contentType ?? this.contentType,
+        sourceTable: sourceTable ?? this.sourceTable,
+        sourceId: sourceId ?? this.sourceId,
+        note: note ?? this.note,
+        createdAt: createdAt ?? this.createdAt,
+      );
 
   factory VaultDocument.fromRow(Map<String, dynamic> row) => VaultDocument(
         id: row['id'].toString(),

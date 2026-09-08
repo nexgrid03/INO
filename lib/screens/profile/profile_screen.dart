@@ -41,6 +41,8 @@ import '../auth/login_screen.dart';
 import '../family/family_vault_screen.dart';
 import '../language/language_selection_screen.dart';
 import '../legal/legal_document_screen.dart';
+import '../../services/account_security_service.dart';
+import '../../widgets/profile/link_entity_sheet.dart';
 import 'about_screen.dart';
 import 'contact_support_screen.dart';
 import 'edit_profile_screen.dart';
@@ -698,6 +700,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     _toast(AppLocalizations.of(context).t('profileUpdated'));
   }
 
+  Future<void> _verifyEntity(VerificationChannel channel) async {
+    final updated = await showLinkEntitySheet(
+      context,
+      profile: _profile,
+      channel: channel,
+    );
+    if (updated == null || !mounted) return;
+    setState(() => _profile = updated);
+    widget.onProfileUpdated?.call(updated);
+    _toast(
+      channel == VerificationChannel.email
+          ? 'Email verified and linked to your account!'
+          : 'Mobile number verified and linked to your account!',
+    );
+  }
+
   // ---- Accounts (multi-account) --------------------------------------------
 
   /// Starts the add-account flow: the current session is saved so it can be
@@ -807,6 +825,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final p = _profile;
+    final securityStatus = AccountSecurityService.instance.getStatus(p);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -880,6 +899,117 @@ class _ProfileScreenState extends State<ProfileScreen>
       SettingsGroup(
         caption: l10n.t('security'),
         children: [
+          if (securityStatus.needsEmailVerification)
+            SettingsRow(
+              icon: Icons.mail_lock_rounded,
+              title: 'Verify Email Address',
+              subtitle: 'Verify your email to secure your account & enable email login',
+              accent: AppColors.warning,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Verify',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
+                  ],
+                ),
+              ),
+              onTap: () => _verifyEntity(VerificationChannel.email),
+            )
+          else if (securityStatus.needsPhoneVerification)
+            SettingsRow(
+              icon: Icons.phone_android_rounded,
+              title: 'Verify Mobile Number',
+              subtitle: 'Verify your mobile to secure your account & enable SMS login',
+              accent: AppColors.warning,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Verify',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
+                  ],
+                ),
+              ),
+              onTap: () => _verifyEntity(VerificationChannel.phone),
+            )
+          else
+            SettingsRow(
+              icon: Icons.verified_user_rounded,
+              title: 'Account Fully Secured',
+              subtitle: 'Mobile number & email are verified and linked',
+              accent: AppColors.primaryGreen,
+              showChevron: false,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: AppColors.primaryGreen,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           SettingsRow(
             icon: Icons.fingerprint_rounded,
             title: l10n.t('biometricAuth'),

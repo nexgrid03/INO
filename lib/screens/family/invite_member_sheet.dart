@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import '../../data/family_vault_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
+import '../../services/account_security_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pressable_scale.dart';
@@ -22,7 +23,13 @@ import '../../widgets/common/ino_loader.dart';
 ///   * ambiguous  → several users share that name; asks for phone/email.
 ///
 /// Pops `true` when an invitation was sent.
-Future<bool?> showInviteMemberSheet(BuildContext context, String vaultId) {
+Future<bool?> showInviteMemberSheet(BuildContext context, String vaultId) async {
+  final ok = await AccountSecurityService.instance.ensureEmailVerified(
+    context,
+    reason: 'To give access and invite members to your Family Vault, your email address must be verified for security.',
+  );
+  if (!ok || !context.mounted) return null;
+
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,

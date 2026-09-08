@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -132,6 +133,10 @@ abstract class FamilyVaultRepository {
   /// Withdraws a shared document. Editors may remove only what they shared;
   /// admins and the owner may remove anything.
   Future<void> removeDocument(String documentId);
+
+  /// Toggles visibility of a shared document between active and hidden.
+  /// When hidden, viewers/members cannot see the document.
+  Future<void> updateDocumentVisibility(String documentId, bool isVisible);
 
   /// A short-lived URL for opening/downloading a shared document.
   ///
@@ -587,6 +592,43 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     await _client.rpc('remove_vault_document', params: {
       'p_document': documentId,
     }).timeout(NetGuard.mutation);
+  }
+
+  @override
+  Future<void> updateDocumentVisibility(String documentId, bool isVisible) async {
+    try {
+      final docRow = await _client
+          .from('vault_documents')
+          .select('note')
+          .eq('id', documentId)
+          .maybeSingle()
+          .timeout(NetGuard.query);
+
+      final rawNote = docRow?['note'] as String?;
+      Map<String, dynamic> metadata = {};
+      if (rawNote != null &&
+          rawNote.trim().startsWith('{') &&
+          rawNote.trim().endsWith('}')) {
+        try {
+          metadata = jsonDecode(rawNote.trim()) as Map<String, dynamic>;
+        } catch (_) {}
+      } else if (rawNote != null && rawNote.isNotEmpty) {
+        metadata['user_note'] = rawNote;
+      }
+
+      metadata['hidden'] = !isVisible;
+      metadata['is_hidden'] = !isVisible;
+      metadata['active'] = isVisible;
+
+      await _client
+          .from('vault_documents')
+          .update({'note': jsonEncode(metadata)})
+          .eq('id', documentId)
+          .timeout(NetGuard.mutation);
+    } catch (e) {
+      debugPrint('[FamilyVault] updateDocumentVisibility failed: $e');
+      rethrow;
+    }
   }
 
   @override

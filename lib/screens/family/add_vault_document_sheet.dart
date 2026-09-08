@@ -47,9 +47,12 @@ class VaultShareItem {
   final Map<String, dynamic>? structuredJson;
 
   bool get hasFile => filePath != null && filePath!.trim().isNotEmpty;
+  bool get hasCustomizableFields =>
+      structuredJson != null && structuredJson!.isNotEmpty;
 }
 
-/// Adds a document or wallet information to a Family Vault, segregated by wallet.
+/// Adds documents or wallet items to a Family Vault with granular wallet/document
+/// selection and customized field disclosure (e.g. for properties/assets).
 ///
 /// Returns true when something was added.
 Future<bool> showAddVaultDocumentSheet(
@@ -88,6 +91,9 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
 
   List<VaultShareItem> _allItems = const [];
   String? _selectedWallet; // null = 'All'
+  final Set<String> _selectedIds = <String>{};
+  final Map<String, Map<String, bool>> _itemDisclosures = {};
+
   bool _loading = true;
   bool _uploading = false;
   String? _busyItemId;
@@ -222,10 +228,15 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
 
   static IconData _iconForWallet(String wallet, String? category) {
     final cat = category?.toLowerCase() ?? '';
-    if (cat.contains('identity') || cat.contains('aadhaar') || cat.contains('pan') || cat.contains('passport')) {
+    if (cat.contains('identity') ||
+        cat.contains('aadhaar') ||
+        cat.contains('pan') ||
+        cat.contains('passport')) {
       return Icons.badge_rounded;
     }
-    if (cat.contains('health') || cat.contains('medical') || cat.contains('doctor')) {
+    if (cat.contains('health') ||
+        cat.contains('medical') ||
+        cat.contains('doctor')) {
       return Icons.favorite_rounded;
     }
     if (cat.contains('insurance') || cat.contains('policy')) {
@@ -234,10 +245,14 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     if (cat.contains('property') || cat.contains('deed')) {
       return Icons.home_work_rounded;
     }
-    if (cat.contains('investment') || cat.contains('stock') || cat.contains('gold')) {
+    if (cat.contains('investment') ||
+        cat.contains('stock') ||
+        cat.contains('gold')) {
       return Icons.trending_up_rounded;
     }
-    if (cat.contains('bank') || cat.contains('statement') || cat.contains('card')) {
+    if (cat.contains('bank') ||
+        cat.contains('statement') ||
+        cat.contains('card')) {
       return Icons.account_balance_rounded;
     }
 
@@ -267,14 +282,15 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     return AppColors.vaultAccentFor(wallet);
   }
 
-  /// List of wallets to display in tabs (All + built-ins + active custom wallets).
   List<WalletCategory> get _availableWallets {
     return SupabaseWalletRepository.categories;
   }
 
   int _countForWallet(String? walletName) {
     if (walletName == null) return _allItems.length;
-    return _allItems.where((item) => _isMatchingWallet(item.wallet, walletName)).length;
+    return _allItems
+        .where((item) => _isMatchingWallet(item.wallet, walletName))
+        .length;
   }
 
   bool _isMatchingWallet(String itemWallet, String targetWallet) {
@@ -286,7 +302,8 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
   List<VaultShareItem> get _visibleItems {
     final q = _query.trim().toLowerCase();
     return _allItems.where((item) {
-      if (_selectedWallet != null && !_isMatchingWallet(item.wallet, _selectedWallet!)) {
+      if (_selectedWallet != null &&
+          !_isMatchingWallet(item.wallet, _selectedWallet!)) {
         return false;
       }
       if (q.isEmpty) return true;
@@ -298,58 +315,398 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     }).toList();
   }
 
-  Future<void> _shareItem(VaultShareItem item) async {
+  void _toggleSelection(String id) {
     setState(() {
-      _busyItemId = item.id;
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      final visible = _visibleItems;
+      final allSelected =
+          visible.isNotEmpty && visible.every((item) => _selectedIds.contains(item.id));
+      if (allSelected) {
+        for (final item in visible) {
+          _selectedIds.remove(item.id);
+        }
+      } else {
+        for (final item in visible) {
+          _selectedIds.add(item.id);
+        }
+      }
+    });
+  }
+
+  Future<void> _customizeDisclosure(VaultShareItem item) async {
+    final rawJson = item.structuredJson ?? {};
+    final isProperty = item.wallet.toLowerCase().contains('property');
+    final isInvestment = item.wallet.toLowerCase().contains('investment');
+    final isBanking = item.wallet.toLowerCase().contains('bank');
+
+    // Default configuration for disclosure fields
+    final currentConfig = Map<String, bool>.from(_itemDisclosures[item.id] ?? {
+      'name': true,
+      'file': true,
+      'price': true,
+      'location': true,
+      'registration_number': true,
+      'institution': true,
+      'card_details': true,
+    });
+
+    final updated = await showModalBottomSheet<Map<String, bool>>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final palette = AppPalette.of(ctx);
+          return Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            decoration: BoxDecoration(
+              color: palette.bgElevated,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: palette.border),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (item.accentColor ?? AppColors.primaryGreen)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        item.icon ?? Icons.shield_rounded,
+                        size: 20,
+                        color: item.accentColor ?? AppColors.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Customize Disclosure',
+                            style: AppText.title.copyWith(
+                              color: palette.textPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            'Choose what details family members can see for ${item.name}',
+                            style: AppText.caption.copyWith(
+                              color: palette.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(height: 1, color: palette.border),
+                const SizedBox(height: 10),
+
+                // Name switch
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  activeTrackColor: AppColors.primaryGreen,
+                  title: Text(
+                    isProperty
+                        ? 'Property Name'
+                        : isBanking
+                            ? 'Bank Name'
+                            : 'Title / Name',
+                    style: AppText.subtitle.copyWith(
+                      color: palette.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    item.name,
+                    style: AppText.caption.copyWith(color: palette.textSecondary),
+                  ),
+                  value: currentConfig['name'] ?? true,
+                  onChanged: (v) => setModalState(() => currentConfig['name'] = v),
+                ),
+
+                // Uploaded document / file switch
+                if (item.hasFile)
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: AppColors.primaryGreen,
+                    title: Text(
+                      isProperty
+                          ? 'Uploaded Deed / Document'
+                          : 'Uploaded File Attachment',
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Allow members to view/download the document attachment',
+                      style: AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                    value: currentConfig['file'] ?? true,
+                    onChanged: (v) => setModalState(() => currentConfig['file'] = v),
+                  ),
+
+                // Price / Value switch
+                if (isProperty || isInvestment || rawJson.containsKey('current_value') || rawJson.containsKey('currentValue'))
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: AppColors.primaryGreen,
+                    title: Text(
+                      isProperty ? 'Property Price & Valuation' : 'Asset Value / Valuation',
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Display property estimated price and purchase valuation',
+                      style: AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                    value: currentConfig['price'] ?? true,
+                    onChanged: (v) => setModalState(() => currentConfig['price'] = v),
+                  ),
+
+                // Location / City switch
+                if (isProperty || rawJson.containsKey('city') || rawJson.containsKey('address'))
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: AppColors.primaryGreen,
+                    title: Text(
+                      'Location & City Details',
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Display address, city, and location coordinates',
+                      style: AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                    value: currentConfig['location'] ?? true,
+                    onChanged: (v) => setModalState(() => currentConfig['location'] = v),
+                  ),
+
+                // Registration / Survey / Account Number switch
+                if (item.recordNumber != null || isProperty || isInvestment || isBanking)
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: AppColors.primaryGreen,
+                    title: Text(
+                      isProperty
+                          ? 'Registration / Survey Number'
+                          : isInvestment
+                              ? 'Folio / Account Number'
+                              : 'Card & Record Number',
+                      style: AppText.subtitle.copyWith(
+                        color: palette.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Display official registration or account reference numbers',
+                      style: AppText.caption.copyWith(color: palette.textSecondary),
+                    ),
+                    value: currentConfig['registration_number'] ?? true,
+                    onChanged: (v) =>
+                        setModalState(() => currentConfig['registration_number'] = v),
+                  ),
+
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(currentConfig),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.button),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save Disclosure Settings',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _itemDisclosures[item.id] = updated;
+        _selectedIds.add(item.id);
+      });
+    }
+  }
+
+  Future<void> _shareItems(List<VaultShareItem> itemsToShare) async {
+    if (itemsToShare.isEmpty) return;
+
+    setState(() {
+      _uploading = true;
       _error = null;
     });
 
-    try {
-      String objectPath;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() {
+        _uploading = false;
+        _error = 'You must be signed in to share.';
+      });
+      return;
+    }
 
-      if (item.hasFile) {
-        objectPath = item.filePath!;
-      } else {
-        // Generate and upload a structured snapshot for records without a direct storage file
-        final uid = Supabase.instance.client.auth.currentUser?.id;
-        if (uid == null) {
-          throw const AuthException('You must be signed in to share.');
-        }
-        final summaryPayload = {
-          'id': item.id,
-          'name': item.name,
-          'wallet': item.wallet,
-          'category': item.category,
-          'record_number': item.recordNumber,
-          'details': item.details,
-          if (item.structuredJson != null) 'data': item.structuredJson,
-          'shared_at': DateTime.now().toIso8601String(),
-        };
-        final bytes = Uint8List.fromList(utf8.encode(jsonEncode(summaryPayload)));
-        final ext = 'json';
-        objectPath = '$uid/records/${item.id}.$ext';
-        await _docs.uploadBytes(
-          objectPath,
-          bytes,
-          contentType: 'application/json',
-        );
+    try {
+      // 1. Ensure token is valid before interacting with storage
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && session.isExpired) {
+        try {
+          await Supabase.instance.client.auth.refreshSession();
+        } catch (_) {}
       }
 
-      await _repo.shareDocument(
-        vaultId: widget.vaultId,
-        objectPath: objectPath,
-        name: item.name,
-        category: item.category ?? item.wallet,
-        sourceTable: item.wallet,
-        sourceId: item.id,
-      );
+      for (final item in itemsToShare) {
+        final disclosure = _itemDisclosures[item.id];
+        final includeFile = disclosure?['file'] ?? true;
+        final includePrice = disclosure?['price'] ?? true;
+        final includeLoc = disclosure?['location'] ?? true;
+        final includeReg = disclosure?['registration_number'] ?? true;
+        final includeName = disclosure?['name'] ?? true;
+
+        String objectPath;
+
+        // Check if item has a valid file path that is already in storage vs local
+        final isLocalFile = item.hasFile &&
+            (item.filePath!.contains(Platform.pathSeparator) ||
+                File(item.filePath!).existsSync());
+
+        if (item.hasFile && includeFile) {
+          if (isLocalFile && File(item.filePath!).existsSync()) {
+            // Local file on device (e.g. from local PropertyStore) -> upload first
+            objectPath = await _docs.uploadFile(item.filePath!);
+          } else {
+            // Already an object in Supabase storage bucket
+            objectPath = item.filePath!;
+          }
+        } else {
+          // It's a structured record without an uploaded storage file
+          final filteredData = <String, dynamic>{};
+          if (item.structuredJson != null) {
+            final raw = item.structuredJson!;
+            raw.forEach((k, v) {
+              final key = k.toLowerCase();
+              if ((key.contains('price') ||
+                      key.contains('value') ||
+                      key.contains('worth')) &&
+                  !includePrice) {
+                return;
+              }
+              if ((key.contains('city') ||
+                      key.contains('address') ||
+                      key.contains('loc')) &&
+                  !includeLoc) {
+                return;
+              }
+              if ((key.contains('reg') ||
+                      key.contains('survey') ||
+                      key.contains('acc')) &&
+                  !includeReg) {
+                return;
+              }
+              filteredData[k] = v;
+            });
+          }
+
+          final ts = DateTime.now().millisecondsSinceEpoch;
+          final summaryPayload = {
+            'id': item.id,
+            'name': includeName ? item.name : 'Shared Asset',
+            'wallet': item.wallet,
+            'category': item.category,
+            if (includeReg) 'record_number': item.recordNumber,
+            'details': item.details,
+            if (filteredData.isNotEmpty) 'data': filteredData,
+            'shared_at': DateTime.now().toIso8601String(),
+          };
+
+          final bytes =
+              Uint8List.fromList(utf8.encode(jsonEncode(summaryPayload)));
+          objectPath = '$uid/record_${ts}_${item.id}.json';
+          try {
+            await _docs.uploadBytes(
+              objectPath,
+              bytes,
+              contentType: 'application/json',
+            );
+          } catch (e) {
+            developer.log(
+                'uploadBytes snapshot note fallback: $e',
+                name: 'vault');
+          }
+        }
+
+        final notePayload = <String, dynamic>{
+          'hidden': false,
+          'is_hidden': false,
+          'active': true,
+          ...?((disclosure != null) ? {'fields': disclosure} : null),
+        };
+
+        await _repo.shareDocument(
+          vaultId: widget.vaultId,
+          objectPath: objectPath,
+          name: includeName ? item.name : 'Shared Asset',
+          category: item.category ?? item.wallet,
+          sourceTable: item.wallet,
+          sourceId: item.id,
+          note: jsonEncode(notePayload),
+        );
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e, st) {
-      developer.log('shareDocument failed', name: 'vault', error: e, stackTrace: st);
+      developer.log('shareItems failed',
+          name: 'vault', error: e, stackTrace: st);
       if (!mounted) return;
       setState(() {
+        _uploading = false;
         _busyItemId = null;
         _error = describeVaultError(e);
       });
@@ -373,6 +730,12 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
       final file = File(path);
       final name = path.split(RegExp(r'[\\/]')).last;
 
+      final notePayload = {
+        'hidden': false,
+        'is_hidden': false,
+        'active': true,
+      };
+
       await _repo.shareDocument(
         vaultId: widget.vaultId,
         objectPath: objectPath,
@@ -380,11 +743,13 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
         category: _selectedWallet ?? 'Uploaded Document',
         sourceTable: _selectedWallet ?? 'Document Wallet',
         sizeBytes: await file.length(),
+        note: jsonEncode(notePayload),
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e, st) {
-      developer.log('upload+share failed', name: 'vault', error: e, stackTrace: st);
+      developer.log('upload+share failed',
+          name: 'vault', error: e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _uploading = false;
@@ -399,11 +764,13 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     final l10n = AppLocalizations.of(context);
     final visible = _visibleItems;
     final busy = _uploading || _busyItemId != null;
+    final allSelectedInView = visible.isNotEmpty &&
+        visible.every((item) => _selectedIds.contains(item.id));
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
+      initialChildSize: 0.88,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
       expand: false,
       builder: (context, scrollController) => Container(
         decoration: BoxDecoration(
@@ -456,7 +823,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                               ),
                             ),
                             Text(
-                              l10n.t('addToVaultSubtitle'),
+                              'Share full wallets, specific documents, or custom disclosures',
                               style: AppText.caption.copyWith(
                                 color: palette.textSecondary,
                                 fontSize: 12,
@@ -469,10 +836,10 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  // Upload straight from the device button.
+                  // Upload straight from device button.
                   SizedBox(
                     width: double.infinity,
-                    height: 46,
+                    height: 44,
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : _uploadAndShare,
                       icon: _uploading
@@ -485,9 +852,12 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
+                        side: BorderSide(
+                            color: AppColors.primaryGreen
+                                .withValues(alpha: 0.4)),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.button),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
                         ),
                       ),
                     ),
@@ -500,16 +870,19 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                       decoration: BoxDecoration(
                         color: AppColors.critical.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.critical.withValues(alpha: 0.2)),
+                        border: Border.all(
+                            color: AppColors.critical.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.critical),
+                          const Icon(Icons.error_outline_rounded,
+                              size: 16, color: AppColors.critical),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _error!,
-                              style: AppText.caption.copyWith(color: AppColors.critical, height: 1.3),
+                              style: AppText.caption.copyWith(
+                                  color: AppColors.critical, height: 1.3),
                             ),
                           ),
                         ],
@@ -517,20 +890,24 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                     ),
                   ],
 
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.sm),
 
                   // Search bar
                   TextField(
                     onChanged: (v) => setState(() => _query = v),
-                    style: AppText.body.copyWith(color: palette.textPrimary, fontSize: 14),
+                    style: AppText.body
+                        .copyWith(color: palette.textPrimary, fontSize: 14),
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: l10n.t('searchYourDocuments'),
-                      hintStyle: AppText.caption.copyWith(color: palette.textFaint),
-                      prefixIcon: Icon(Icons.search_rounded, size: 19, color: palette.textFaint),
+                      hintStyle:
+                          AppText.caption.copyWith(color: palette.textFaint),
+                      prefixIcon: Icon(Icons.search_rounded,
+                          size: 19, color: palette.textFaint),
                       filled: true,
                       fillColor: palette.surfaceVariant,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.chip),
                         borderSide: BorderSide(color: palette.border),
@@ -541,7 +918,8 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.chip),
-                        borderSide: BorderSide(color: AppColors.primaryGreen, width: 1.4),
+                        borderSide: BorderSide(
+                            color: AppColors.primaryGreen, width: 1.4),
                       ),
                     ),
                   ),
@@ -573,17 +951,69 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                               accentColor: w.gradient.first,
                               selected: _selectedWallet == w.name,
                               onTap: () => setState(() {
-                                _selectedWallet = _selectedWallet == w.name ? null : w.name;
+                                _selectedWallet =
+                                    _selectedWallet == w.name ? null : w.name;
                               }),
                             ),
                           ),
                       ],
                     ),
                   ),
+
+                  // Selection Header Row
+                  if (visible.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          _selectedWallet != null
+                              ? '${localizedWalletName(l10n, _selectedWallet!)} (${visible.length})'
+                              : 'All Wallet Items (${visible.length})',
+                          style: AppText.caption.copyWith(
+                            color: palette.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        InkWell(
+                          onTap: _toggleSelectAll,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  allSelectedInView
+                                      ? Icons.check_box_rounded
+                                      : Icons.check_box_outline_blank_rounded,
+                                  size: 16,
+                                  color: AppColors.primaryGreen,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  allSelectedInView
+                                      ? 'Deselect All'
+                                      : _selectedWallet != null
+                                          ? 'Select Wallet'
+                                          : 'Select All',
+                                  style: TextStyle(
+                                    color: AppColors.primaryGreen,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Expanded(
               child: _loading
                   ? Center(
@@ -618,21 +1048,101 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                         )
                       : ListView.separated(
                           controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
                           itemCount: visible.length,
                           separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (context, i) {
                             final item = visible[i];
                             final isBusy = _busyItemId == item.id;
+                            final isSelected = _selectedIds.contains(item.id);
+                            final hasCustomDisclosure =
+                                _itemDisclosures.containsKey(item.id);
+
                             return _ShareItemCard(
                               item: item,
+                              isSelected: isSelected,
                               isBusy: isBusy,
                               disabled: busy,
-                              onTap: () => _shareItem(item),
+                              hasCustomDisclosure: hasCustomDisclosure,
+                              onToggleSelect: () => _toggleSelection(item.id),
+                              onCustomize: () => _customizeDisclosure(item),
+                              onDirectShare: () => _shareItems([item]),
                             );
                           },
                         ),
             ),
+
+            // Bottom Sticky Multi-Share Bar
+            if (_selectedIds.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                decoration: BoxDecoration(
+                  color: palette.bgElevated,
+                  border: Border(top: BorderSide(color: palette.border)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_selectedIds.length} item${_selectedIds.length > 1 ? "s" : ""} selected',
+                            style: AppText.subtitle.copyWith(
+                              color: palette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                          Text(
+                            'Ready to share with vault members',
+                            style: AppText.caption.copyWith(
+                              color: palette.textSecondary,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () {
+                              final selected = _allItems
+                                  .where((i) => _selectedIds.contains(i.id))
+                                  .toList();
+                              _shareItems(selected);
+                            },
+                      icon: _uploading
+                          ? InoLoader(size: 16, color: Colors.white)
+                          : const Icon(Icons.send_rounded, size: 18),
+                      label: Text(
+                        _uploading ? 'Sharing...' : 'Share Selected',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.button),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -697,7 +1207,8 @@ class _WalletPill extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? accentColor
@@ -724,15 +1235,23 @@ class _WalletPill extends StatelessWidget {
 class _ShareItemCard extends StatelessWidget {
   const _ShareItemCard({
     required this.item,
+    required this.isSelected,
     required this.isBusy,
     required this.disabled,
-    required this.onTap,
+    required this.hasCustomDisclosure,
+    required this.onToggleSelect,
+    required this.onCustomize,
+    required this.onDirectShare,
   });
 
   final VaultShareItem item;
+  final bool isSelected;
   final bool isBusy;
   final bool disabled;
-  final VoidCallback onTap;
+  final bool hasCustomDisclosure;
+  final VoidCallback onToggleSelect;
+  final VoidCallback onCustomize;
+  final VoidCallback onDirectShare;
 
   @override
   Widget build(BuildContext context) {
@@ -741,31 +1260,57 @@ class _ShareItemCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     return InkWell(
-      onTap: disabled ? null : onTap,
+      onTap: disabled ? null : onToggleSelect,
       borderRadius: BorderRadius.circular(AppRadius.card),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: palette.surfaceVariant,
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : palette.surfaceVariant,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: palette.border),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryGreen.withValues(alpha: 0.6)
+                : palette.border,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
         child: Row(
           children: [
+            // Compact Checkbox
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: Checkbox(
+                value: isSelected,
+                activeColor: AppColors.primaryGreen,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                onChanged: disabled ? null : (_) => onToggleSelect(),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Icon
             Container(
-              width: 42,
-              height: 42,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.13),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 item.icon ?? Icons.description_rounded,
-                size: 20,
+                size: 18,
                 color: color,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+
+            // Name + Meta
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,15 +1321,17 @@ class _ShareItemCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.subtitle.copyWith(
                       color: palette.textPrimary,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
@@ -793,13 +1340,14 @@ class _ShareItemCard extends StatelessWidget {
                           localizedWalletName(l10n, item.wallet),
                           style: TextStyle(
                             color: color,
-                            fontSize: 10.5,
+                            fontSize: 9.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      if (item.category != null && item.category!.isNotEmpty) ...[
-                        const SizedBox(width: 5),
+                      if (item.category != null &&
+                          item.category!.isNotEmpty) ...[
+                        const SizedBox(width: 4),
                         Flexible(
                           child: Text(
                             '· ${item.category}',
@@ -807,12 +1355,13 @@ class _ShareItemCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: AppText.caption.copyWith(
                               color: palette.textSecondary,
-                              fontSize: 11.5,
+                              fontSize: 10.5,
                             ),
                           ),
                         ),
                       ],
-                      if (item.details != null && item.details!.isNotEmpty) ...[
+                      if (item.details != null &&
+                          item.details!.isNotEmpty) ...[
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
@@ -821,7 +1370,7 @@ class _ShareItemCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: AppText.caption.copyWith(
                               color: palette.textFaint,
-                              fontSize: 11,
+                              fontSize: 10,
                             ),
                           ),
                         ),
@@ -831,22 +1380,49 @@ class _ShareItemCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            if (isBusy)
-              InoLoader(size: 20, color: AppColors.primaryGreen)
-            else
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 20,
-                  color: AppColors.primaryGreen,
-                ),
-              ),
+            const SizedBox(width: 4),
+
+            // Trailing Actions (Compact)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.hasCustomizableFields || item.wallet.contains('Property'))
+                  IconButton(
+                    onPressed: disabled ? null : onCustomize,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Customize Disclosure',
+                    icon: Icon(
+                      hasCustomDisclosure
+                          ? Icons.tune_rounded
+                          : Icons.tune_outlined,
+                      size: 18,
+                      color: hasCustomDisclosure
+                          ? AppColors.primaryGreen
+                          : palette.textSecondary,
+                    ),
+                  ),
+                if (isBusy)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: InoLoader(size: 16, color: AppColors.primaryGreen),
+                  )
+                else
+                  IconButton(
+                    onPressed: disabled ? null : onDirectShare,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Share now',
+                    icon: Icon(
+                      Icons.send_rounded,
+                      size: 17,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),

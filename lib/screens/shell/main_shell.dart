@@ -7,6 +7,7 @@ import '../../services/app_settings.dart';
 import '../../services/family_vault_store.dart';
 import '../../services/guest_mode.dart';
 import '../../services/voice_greeting_service.dart';
+import '../../widgets/profile/security_reminder_dialog.dart';
 import '../../widgets/shell/feature_tour.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/shell/quick_actions.dart';
@@ -100,6 +101,19 @@ class _MainShellState extends State<MainShell>
       if (!AppSettings.instance.tourSeen.value) {
         Future<void>.delayed(const Duration(milliseconds: 700), () {
           if (mounted) setState(() => _tourActive = true);
+        });
+      } else if (!GuestMode.active) {
+        // If tour was already seen, check if user needs to link their second entity
+        Future<void>.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) {
+            SecurityReminderDialog.showIfEligible(
+              context,
+              profile: _profile,
+              onProfileUpdated: (updated) {
+                if (mounted) setState(() => _profile = updated);
+              },
+            );
+          }
         });
       }
       // Surface any Family Vault invitations addressed to this user on app open
@@ -270,6 +284,19 @@ class _MainShellState extends State<MainShell>
   void _finishTour() {
     setState(() => _tourActive = false);
     AppSettings.instance.setTourSeen(true);
+    if (!GuestMode.active) {
+      Future<void>.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) {
+          SecurityReminderDialog.showIfEligible(
+            context,
+            profile: _profile,
+            onProfileUpdated: (updated) {
+              if (mounted) setState(() => _profile = updated);
+            },
+          );
+        }
+      });
+    }
   }
 
   @override
