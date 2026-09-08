@@ -116,6 +116,10 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
         _stage = _Stage.review;
       });
     } catch (e) {
+      if (DocumentScannerService.isUserCancelled(e)) {
+        if (mounted) _exit(null); // user cancelled / pressed back
+        return;
+      }
       developer.log(
           'ML Kit scanner failed, falling back to in-app camera: $e',
           name: 'scan');

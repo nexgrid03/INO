@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/data/scan_repository.dart';
 import 'package:inoapp/l10n/app_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:inoapp/screens/scan/scan_flow_screen.dart';
 import 'package:inoapp/screens/scan/scan_review_screen.dart';
 import 'package:inoapp/screens/scan/scanner_screen.dart';
 import 'package:inoapp/services/document_crop_service.dart';
+import 'package:inoapp/services/document_scanner_service.dart';
 import 'package:inoapp/services/live_document_detector.dart';
 import 'package:inoapp/theme/app_theme.dart';
 
@@ -80,6 +82,38 @@ void main() {
 
     test('Proof 4: DocumentCropService performs automatic 4-corner perspective rectification', () {
       expect(DocumentCropService.rectify, isA<Function>());
+    });
+
+    test('Proof 5: DocumentScannerService correctly identifies user cancellation vs real errors', () {
+      expect(
+        DocumentScannerService.isUserCancelled(
+          PlatformException(
+            code: 'DocumentScanner',
+            message: 'Operation cancelled',
+          ),
+        ),
+        isTrue,
+      );
+
+      expect(
+        DocumentScannerService.isUserCancelled(
+          PlatformException(
+            code: 'cancel',
+            message: 'User tapped back',
+          ),
+        ),
+        isTrue,
+      );
+
+      expect(
+        DocumentScannerService.isUserCancelled(
+          PlatformException(
+            code: 'CAMERA_ERROR',
+            message: 'Camera device unavailable',
+          ),
+        ),
+        isFalse,
+      );
     });
   });
 }
