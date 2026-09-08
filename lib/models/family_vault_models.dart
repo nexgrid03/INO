@@ -517,6 +517,8 @@ class VaultDocument {
     this.category,
     this.sizeBytes,
     this.contentType,
+    this.sourceTable,
+    this.sourceId,
     this.note,
     required this.createdAt,
   });
@@ -537,6 +539,8 @@ class VaultDocument {
   final String? category;
   final int? sizeBytes;
   final String? contentType;
+  final String? sourceTable;
+  final String? sourceId;
   final String? note;
   final DateTime createdAt;
 
@@ -575,6 +579,8 @@ class VaultDocument {
         category: row['category'] as String?,
         sizeBytes: (row['size_bytes'] as num?)?.toInt(),
         contentType: row['content_type'] as String?,
+        sourceTable: row['source_table'] as String?,
+        sourceId: row['source_id']?.toString(),
         note: row['note'] as String?,
         createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
                 ?.toLocal() ??

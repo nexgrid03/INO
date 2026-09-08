@@ -25,6 +25,7 @@ import 'add_vault_document_sheet.dart';
 import 'family_vault_screen.dart' show VaultRoleBadge;
 import 'invite_member_sheet.dart';
 import '../../widgets/common/ino_loader.dart';
+import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
 
 /// One Family Vault: members, their roles, and (for owners/admins) invitations.
 ///
@@ -60,6 +61,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   List<VaultInvitation> _invitations = const [];
   List<VaultAuditEntry> _audit = const [];
   List<VaultDocument> _documents = const [];
+  String? _selectedDocWallet;
   bool _loading = true;
   bool _invitesLoading = false;
   bool _auditLoading = false;
@@ -1092,7 +1094,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ),
         ],
 
-        // Shared documents — compact list under members.
+        // Shared documents — segregated by wallet with filter tabs.
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
@@ -1100,6 +1102,23 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               l10n.t('sharedDocuments'),
               style: AppText.title.copyWith(color: palette.textPrimary),
             ),
+            const SizedBox(width: 8),
+            if (_documents.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  '${_documents.length}',
+                  style: TextStyle(
+                    color: AppColors.primaryGreen,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             const Spacer(),
             if (_docsLoading)
               InoLoader(size: 14, color: AppColors.primaryGreen),
@@ -1120,30 +1139,109 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             ),
           )
-        else if (_documents.isNotEmpty)
+        else if (_documents.isNotEmpty) ...[
+          // Wallet filter chips for shared documents
+          Builder(
+            builder: (context) {
+              final docWallets = <String>{};
+              for (final d in _documents) {
+                final w = d.sourceTable ??
+                    (d.category?.contains('Wallet') == true ? d.category! : null) ??
+                    'Document Wallet';
+                docWallets.add(w);
+              }
+              if (docWallets.length <= 1) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      _DocWalletFilterPill(
+                        label: l10n.t('all'),
+                        count: _documents.length,
+                        selected: _selectedDocWallet == null,
+                        accentColor: AppColors.primaryGreen,
+                        onTap: () => setState(() => _selectedDocWallet = null),
+                      ),
+                      const SizedBox(width: 6),
+                      for (final w in docWallets)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _DocWalletFilterPill(
+                            label: localizedWalletName(l10n, w),
+                            count: _documents.where((d) {
+                              final dw = d.sourceTable ??
+                                  (d.category?.contains('Wallet') == true ? d.category! : null) ??
+                                  'Document Wallet';
+                              return dw.toLowerCase().replaceAll(' ', '') ==
+                                  w.toLowerCase().replaceAll(' ', '');
+                            }).length,
+                            selected: _selectedDocWallet == w,
+                            accentColor: AppColors.vaultAccentFor(w),
+                            onTap: () => setState(() {
+                              _selectedDocWallet = _selectedDocWallet == w ? null : w;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           AdaptiveGlassCard(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
             ),
             radius: AppRadius.card,
-            child: Column(
-              children: [
-                for (var i = 0; i < _documents.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: palette.border),
-                  _VaultDocRow(
-                    doc: _documents[i],
-                    canRemove: _documents[i].canBeRemovedBy(
-                      _currentUid,
-                      _myRole,
+            child: Builder(
+              builder: (context) {
+                final list = _selectedDocWallet == null
+                    ? _documents
+                    : _documents.where((d) {
+                        final w = d.sourceTable ??
+                            (d.category?.contains('Wallet') == true ? d.category! : null) ??
+                            'Document Wallet';
+                        return w.toLowerCase().replaceAll(' ', '') ==
+                            _selectedDocWallet!.toLowerCase().replaceAll(' ', '');
+                      }).toList();
+
+                if (list.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Center(
+                      child: Text(
+                        l10n.t('noDocumentsMatchSearch'),
+                        style: AppText.caption.copyWith(color: palette.textSecondary),
+                      ),
                     ),
-                    onOpen: () => _openDocument(_documents[i]),
-                    onRemove: () => _removeDocument(_documents[i]),
-                  ),
-                ],
-              ],
+                  );
+                }
+
+                return Column(
+                  children: [
+                    for (var i = 0; i < list.length; i++) ...[
+                      if (i > 0) Divider(height: 1, color: palette.border),
+                      _VaultDocRow(
+                        doc: list[i],
+                        canRemove: list[i].canBeRemovedBy(
+                          _currentUid,
+                          _myRole,
+                        ),
+                        onOpen: () => _openDocument(list[i]),
+                        onRemove: () => _removeDocument(list[i]),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
+        ],
 
         // Recent Activity timeline.
         const SizedBox(height: AppSpacing.lg),
@@ -1949,19 +2047,43 @@ class _VaultDocRow extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onRemove;
 
+  String get _walletName =>
+      doc.sourceTable ??
+      (doc.category?.contains('Wallet') == true ? doc.category! : null) ??
+      'Document Wallet';
+
+  Color get _walletColor => AppColors.vaultAccentFor(_walletName);
+
   IconData get _icon {
     if (doc.isImage) return Icons.image_rounded;
     if (doc.isPdf) return Icons.picture_as_pdf_rounded;
+    final cat = (doc.category ?? '').toLowerCase();
+    if (cat.contains('identity') || cat.contains('aadhaar') || cat.contains('pan')) {
+      return Icons.badge_rounded;
+    }
+    if (cat.contains('property') || cat.contains('deed')) {
+      return Icons.home_work_rounded;
+    }
+    if (cat.contains('health') || cat.contains('medical')) {
+      return Icons.favorite_rounded;
+    }
+    if (cat.contains('insurance') || cat.contains('policy')) {
+      return Icons.shield_rounded;
+    }
+    if (cat.contains('investment') || cat.contains('stock')) {
+      return Icons.trending_up_rounded;
+    }
+    if (cat.contains('bank') || cat.contains('card')) {
+      return Icons.account_balance_rounded;
+    }
     return Icons.description_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final meta = [
-      if (doc.category != null && doc.category!.isNotEmpty) doc.category!,
-      if (doc.sizeLabel.isNotEmpty) doc.sizeLabel,
-    ].join(' · ');
+    final color = _walletColor;
+    final walletLabel = localizedWalletName(AppLocalizations.of(context), _walletName);
 
     return PressableScale(
       pressedScale: 0.99,
@@ -1973,15 +2095,15 @@ class _VaultDocRow extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.13),
+                  color: color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(_icon, size: 19, color: AppColors.primaryGreen),
+                child: Icon(_icon, size: 20, color: color),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1993,19 +2115,55 @@ class _VaultDocRow extends StatelessWidget {
                       style: AppText.subtitle.copyWith(
                         color: palette.textPrimary,
                         fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (meta.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.caption.copyWith(
-                          color: palette.textSecondary,
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            walletLabel,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        if (doc.category != null &&
+                            doc.category!.isNotEmpty &&
+                            doc.category != _walletName) ...[
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              '· ${doc.category}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.copyWith(
+                                color: palette.textSecondary,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (doc.sizeLabel.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '· ${doc.sizeLabel}',
+                            style: AppText.caption.copyWith(
+                              color: palette.textFaint,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2033,3 +2191,77 @@ class _VaultDocRow extends StatelessWidget {
     );
   }
 }
+
+class _DocWalletFilterPill extends StatelessWidget {
+  const _DocWalletFilterPill({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final isSelected = selected;
+    return PressableScale(
+      pressedScale: 0.95,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accentColor.withValues(alpha: 0.16)
+                : palette.surfaceVariant,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: isSelected ? accentColor : palette.border,
+              width: isSelected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? accentColor : palette.textPrimary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? accentColor
+                      : palette.textFaint.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : palette.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

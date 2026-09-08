@@ -42,11 +42,9 @@ import '../family/family_vault_screen.dart';
 import '../language/language_selection_screen.dart';
 import '../legal/legal_document_screen.dart';
 import 'about_screen.dart';
-import 'change_password_screen.dart';
 import 'contact_support_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
-import 'trusted_devices_screen.dart';
 
 /// The Profile screen - a premium, grouped **settings** page (Apple Settings /
 /// Google Account), NOT a dashboard.
@@ -460,10 +458,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   // ---- Security / support navigation --------------------------------------
-
-  Future<void> _openChangePassword() async {
-    await _push(ChangePasswordScreen(email: _profile.email));
-  }
 
   Future<void> _exportData() async {
     final l10n = AppLocalizations.of(context);
@@ -890,17 +884,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.fingerprint_rounded,
             title: l10n.t('biometricAuth'),
             trailing: _switch(_biometric, _toggleBiometric),
-          ),
-          SettingsRow(
-            icon: Icons.password_rounded,
-            title: l10n.t('changePassword'),
-            onTap: _openChangePassword,
-          ),
-          SettingsRow(
-            icon: Icons.devices_rounded,
-            title: l10n.t('trustedDevices'),
-            subtitle: 'Manage active device sessions & remote sign-out',
-            onTap: () => _push(const TrustedDevicesScreen()),
           ),
           SettingsRow(
             icon: Icons.account_balance_wallet_rounded,
