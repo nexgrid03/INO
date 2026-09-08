@@ -99,15 +99,6 @@ final List<FinanceTool> financeTools = [
     builder: (_) => const CurrencyCalculatorScreen(),
   ),
   FinanceTool(
-    id: 'stamp',
-    title: 'Stamp Duty Calculator',
-    shortTitle: 'Stamp Duty',
-    subtitle: 'Calculate stamp duty on property',
-    icon: Icons.gavel_rounded,
-    color: AppColors.accentAmber,
-    builder: (_) => const PropertyValuationScreen(),
-  ),
-  FinanceTool(
     id: 'tax',
     title: 'Tax Calculator',
     shortTitle: 'Tax',

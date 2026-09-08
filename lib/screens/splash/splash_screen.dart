@@ -297,6 +297,12 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
+    // First-time launch: show the animated onboarding carousel
+    if (!AppSettings.instance.onboardingSeen.value) {
+      _replace(const OnboardingScreen());
+      return;
+    }
+
     _goToGuestShellFade();
   }
 

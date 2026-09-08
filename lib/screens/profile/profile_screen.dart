@@ -39,6 +39,7 @@ import '../../widgets/security/biometric_ux.dart';
 import '../auth/auth_flow.dart';
 import '../auth/login_screen.dart';
 import '../family/family_vault_screen.dart';
+import '../language/language_selection_screen.dart';
 import '../legal/legal_document_screen.dart';
 import 'about_screen.dart';
 import 'change_password_screen.dart';
@@ -668,7 +669,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       await AccountService.instance.deleteAccount();
       if (!mounted) return;
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
         (route) => false,
       );
     } catch (e, st) {
@@ -684,7 +685,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     await AuthService.instance.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
       (route) => false,
     );
   }

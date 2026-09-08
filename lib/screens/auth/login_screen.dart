@@ -77,9 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _signInIdentifierController = TextEditingController();
   CountryCode _signInCountry = kCountryCodes.first;
 
-  /// True while the identifier reads as an email, so the country-code prefix
-  /// hides itself instead of sitting uselessly beside an address.
-  bool _identifierLooksLikeEmail = false;
+  /// True only when the user is typing a mobile number, so the country-code prefix
+  /// appears dynamically for phone numbers and stays hidden for email / empty state.
+  bool _isPhoneInput = false;
 
   // Sign up controllers
   final _nameController = TextEditingController();
@@ -111,10 +111,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onIdentifierChanged() {
-    final looksEmail =
-        AuthValidators.looksLikeEmail(_signInIdentifierController.text);
-    if (looksEmail != _identifierLooksLikeEmail) {
-      setState(() => _identifierLooksLikeEmail = looksEmail);
+    final text = _signInIdentifierController.text.trim();
+    // It's phone input only if it starts with digits or +, has no @ and no letters
+    final isPhone = text.isNotEmpty &&
+        RegExp(r'^[0-9+]').hasMatch(text) &&
+        !text.contains('@') &&
+        !RegExp(r'[a-zA-Z]').hasMatch(text);
+    if (isPhone != _isPhoneInput) {
+      setState(() => _isPhoneInput = isPhone);
     }
   }
 
@@ -125,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
   ({String value, bool isEmail})? _readIdentifier() {
     final raw = _signInIdentifierController.text.trim();
     if (raw.isEmpty) return null;
-    if (AuthValidators.looksLikeEmail(raw)) {
+    if (AuthValidators.looksLikeEmail(raw) || RegExp(r'[a-zA-Z]').hasMatch(raw)) {
       return AuthValidators.isValidEmail(raw)
           ? (value: raw, isEmail: true)
           : null;
@@ -824,9 +828,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Sign In Form (Existing User) ------------------------------------------
 
   Widget _buildSignInForm(AppPalette palette, AppLocalizations l10n, bool busy) {
-    // The country prefix only makes sense while the field holds a number; the
-    // moment an "@" appears it would just be noise beside an address.
-    final showDialCode = !_identifierLooksLikeEmail;
+    // Show country prefix only when user is typing a phone number; default to clean email input.
+    final showDialCode = _isPhoneInput;
 
     return FadeSlideIn(
       delay: const Duration(milliseconds: 160),
@@ -839,7 +842,7 @@ class _LoginScreenState extends State<LoginScreen> {
               key: const ValueKey('login_identifier_field'),
               controller: _signInIdentifierController,
               label: l10n.t('emailOrMobile'),
-              hint: 'you@example.com or 9876543210',
+              hint: 'you@example.com',
               icon: showDialCode ? null : Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,

@@ -13,7 +13,9 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../../widgets/common/ino_background.dart';
 import '../auth/auth_flow.dart';
+import '../auth/login_screen.dart';
 import '../auth/signup_screen.dart';
+import '../language/language_selection_screen.dart';
 import 'onboarding_layout.dart';
 import '../../widgets/common/ino_loader.dart';
 
@@ -115,7 +117,8 @@ class _SecuredIntroScreenState extends State<SecuredIntroScreen>
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 380),
         reverseTransitionDuration: const Duration(milliseconds: 260),
-        pageBuilder: (_, _, _) => const SignupScreen(),
+        pageBuilder: (_, _, _) =>
+            const LanguageSelectionScreen(targetMode: AuthMode.signUp),
         transitionsBuilder: (_, animation, _, child) {
           final curved = CurvedAnimation(
             parent: animation,
