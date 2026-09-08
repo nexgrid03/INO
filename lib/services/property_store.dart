@@ -88,6 +88,7 @@ class PropertyStore extends LocalCollectionStore<Property> {
         'other_expenses': p.otherExpenses,
         // misc
         'reminder_note': p.reminderNote,
+        'reminder_date': p.reminderDate?.toIso8601String(),
         'attachments': [for (final a in p.attachments) a.toJson()],
       };
 
@@ -142,6 +143,7 @@ class PropertyStore extends LocalCollectionStore<Property> {
         otherExpenses: _num(r['other_expenses']),
         notes: r['notes'] as String?,
         reminderNote: r['reminder_note'] as String?,
+        reminderDate: _parseDate(r['reminder_date']),
         attachments: [
           for (final a in (r['attachments'] as List?) ?? const [])
             PropertyAttachment.fromJson(Map<String, dynamic>.from(a as Map)),

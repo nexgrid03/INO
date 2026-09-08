@@ -1,16 +1,20 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
+import '../../models/reminder_models.dart';
 import '../../services/app_settings.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/property_store.dart';
+import '../../services/reminder_scheduler.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -84,9 +88,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   final _rent = TextEditingController();
   final _otherExpenses = TextEditingController();
 
-  // Notes
+  // Notes & Reminders
   final _notes = TextEditingController();
   final _reminder = TextEditingController();
+  DateTime? _reminderDate;
+  TimeOfDay? _reminderTime;
 
   List<PropertyAttachment> _attachments = [];
   bool _saving = false;
@@ -134,6 +140,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     _otherExpenses.text = _numText(p.otherExpenses);
     _notes.text = p.notes ?? '';
     _reminder.text = p.reminderNote ?? '';
+    _reminderDate = p.reminderDate;
+    if (p.reminderDate != null) {
+      _reminderTime = TimeOfDay(
+        hour: p.reminderDate!.hour,
+        minute: p.reminderDate!.minute,
+      );
+    }
     _attachments = [...p.attachments];
   }
 
@@ -237,6 +250,59 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     });
   }
 
+  Future<void> _pickReminderDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _reminderDate ?? now,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        final palette = AppPalette.of(context);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: (palette.isDark
+                    ? const ColorScheme.dark()
+                    : const ColorScheme.light())
+                .copyWith(
+              primary: AppColors.primaryGreen,
+              onPrimary: Colors.white,
+              surface: palette.surface,
+              onSurface: palette.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _reminderDate = picked;
+        _reminderTime ??= const TimeOfDay(hour: 9, minute: 0);
+      });
+    }
+  }
+
+  Future<void> _pickReminderTime() async {
+    final now = TimeOfDay.now();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _reminderTime ??
+          TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
+      helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
+    );
+    if (picked != null) {
+      setState(() => _reminderTime = picked);
+    }
+  }
+
+  void _clearReminderDate() {
+    setState(() {
+      _reminderDate = null;
+      _reminderTime = null;
+    });
+  }
+
   Future<void> _addCoOwner() async {
     final result = await showModalBottomSheet<CoOwner>(
       context: context,
@@ -299,6 +365,17 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         .where((h) => h.isNotEmpty)
         .toList();
 
+    DateTime? finalReminderDate = _reminderDate;
+    if (finalReminderDate != null && _reminderTime != null) {
+      finalReminderDate = DateTime(
+        finalReminderDate.year,
+        finalReminderDate.month,
+        finalReminderDate.day,
+        _reminderTime!.hour,
+        _reminderTime!.minute,
+      );
+    }
+
     final property = Property(
       id: widget.existing?.id ?? _store.newId('prop'),
       name: _name.text.trim(),
@@ -339,6 +416,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       otherExpenses: _parse(_otherExpenses),
       notes: _emptyOrNull(_notes),
       reminderNote: _emptyOrNull(_reminder),
+      reminderDate: finalReminderDate,
       attachments: _attachments,
       isFavorite: widget.existing?.isFavorite ?? false,
     );
@@ -348,6 +426,56 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     } else {
       await _store.add(property);
     }
+
+    // Direct sync to Reminders page via central ReminderStore
+    final reminderId = 'prop-${property.id}';
+    if (finalReminderDate != null) {
+      try {
+        await ReminderScheduler.instance.ensureExactPermission();
+      } catch (_) {}
+      try {
+        final existingMatch = ReminderStore.instance.active
+            .where((r) => r.id == reminderId)
+            .firstOrNull;
+        if (existingMatch != null) {
+          ReminderStore.instance.remove(existingMatch);
+        }
+        final note = _reminder.text.trim();
+        final subtitle = note.isNotEmpty
+            ? 'Property · $note'
+            : 'Property Wallet · Due Date';
+        unawaited(ReminderStore.instance.add(
+          Reminder(
+            id: reminderId,
+            title: property.name,
+            subtitle: subtitle,
+            category: ReminderCategory.property,
+            priority: ReminderPriority.important,
+            date: finalReminderDate,
+          ),
+        ).catchError((Object err) {
+          debugPrint('Property reminder not saved: $err');
+          return Reminder(
+            id: reminderId,
+            title: property.name,
+            subtitle: subtitle,
+            category: ReminderCategory.property,
+            priority: ReminderPriority.important,
+            date: finalReminderDate!,
+          );
+        }));
+      } catch (e) {
+        debugPrint('Error syncing property reminder: $e');
+      }
+    } else {
+      final existingMatch = ReminderStore.instance.active
+          .where((r) => r.id == reminderId)
+          .firstOrNull;
+      if (existingMatch != null) {
+        ReminderStore.instance.remove(existingMatch);
+      }
+    }
+
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     if (_isEdit) {
@@ -841,6 +969,96 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
+                // ---- Reminder (Optional) ----
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 270),
+                  child: ModuleSection(
+                    title: '${l10n.t('reminder')} (${l10n.t('optional')})',
+                    icon: Icons.alarm_rounded,
+                    accent: AppColors.warning,
+                    trailing: _reminderDate != null
+                        ? GestureDetector(
+                            onTap: _clearReminderDate,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                l10n.t('clear'),
+                                style: AppText.caption.copyWith(
+                                  color: AppColors.critical,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                        : null,
+                    children: [
+                      ModulePickerField(
+                        label: l10n.t('reminderDate'),
+                        value: _reminderDate == null
+                            ? null
+                            : formatModuleDate(_reminderDate!),
+                        hint: l10n.t('selectReminderDate'),
+                        icon: Icons.event_rounded,
+                        trailingIcon: Icons.calendar_month_rounded,
+                        onTap: _pickReminderDate,
+                      ),
+                      if (_reminderDate != null) ...[
+                        ModulePickerField(
+                          label: l10n.t('dueTime'),
+                          value: _reminderTime == null
+                              ? '9:00 AM'
+                              : reminderTimeLabel(
+                                  DateTime(
+                                    2000,
+                                    1,
+                                    1,
+                                    _reminderTime!.hour,
+                                    _reminderTime!.minute,
+                                  ),
+                                ),
+                          hint: l10n.t('pickTime'),
+                          icon: Icons.access_time_rounded,
+                          trailingIcon: Icons.schedule_rounded,
+                          onTap: _pickReminderTime,
+                        ),
+                      ],
+                      ModuleField(
+                        label: l10n.t('importantReminder'),
+                        controller: _reminder,
+                        hint: l10n.t('importantReminderHint'),
+                        maxLines: 2,
+                      ),
+                      if (_reminderDate != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 14,
+                                color: palette.textSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  l10n.t('propertyReminderSyncNotice'),
+                                  style: AppText.caption.copyWith(
+                                    color: palette.textSecondary,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
                 // ---- Notes ----
                 FadeSlideIn(
                   delay: const Duration(milliseconds: 280),
@@ -854,12 +1072,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         controller: _notes,
                         hint: l10n.t('customNotesHint'),
                         maxLines: 4,
-                      ),
-                      ModuleField(
-                        label: l10n.t('importantReminder'),
-                        controller: _reminder,
-                        hint: l10n.t('importantReminderHint'),
-                        maxLines: 2,
                       ),
                     ],
                   ),

@@ -6,6 +6,7 @@ import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
+import '../../models/reminder_models.dart' show reminderShortDate;
 import '../../models/wallet_models.dart' show WalletCategory;
 import '../../navigation/wallet_module_router.dart';
 import '../../services/app_settings.dart';
@@ -744,11 +745,21 @@ class PropertyCard extends StatelessWidget {
                     ),
                     Container(
                       width: 1,
-                      height: 36,
+                      height: property.reminderDate != null ? 48 : 36,
                       margin: const EdgeInsets.symmetric(horizontal: 12),
                       color: palette.border,
                     ),
-                    _StatusPill(status: property.status),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _StatusPill(status: property.status),
+                        if (property.reminderDate != null) ...[
+                          const SizedBox(height: 5),
+                          _ReminderPill(date: property.reminderDate!),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -831,6 +842,36 @@ class _StatusPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             status.localizedLabel(AppLocalizations.of(context)),
+            style: AppText.label.copyWith(color: color, fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReminderPill extends StatelessWidget {
+  const _ReminderPill({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.alarm_rounded, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            reminderShortDate(date),
             style: AppText.label.copyWith(color: color, fontSize: 10.5),
           ),
         ],

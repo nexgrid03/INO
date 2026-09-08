@@ -140,6 +140,10 @@ const Map<String, Map<String, String>> _strings = {
     'reminderWillRingAt': 'You will be reminded on {when}',
     'reminderSaveFailed': 'Could not save the reminder: {error}',
     'remindersLoadFailed': "Couldn't load your reminders. Check your connection and try again.",
+    'reminderDate': 'Reminder Date',
+    'selectReminderDate': 'Select reminder date',
+    'propertyReminderSyncNotice': 'This reminder will be directly added to your Reminders page.',
+    'viewInReminders': 'View in Reminders',
     // --- Family Vault: create / join / co-owners (Sep 2026) ---
     'familyVaultChoose': 'What would you like to do?',
     'createOrJoin': 'Create or join',
@@ -2405,6 +2409,10 @@ const Map<String, Map<String, String>> _strings = {
     'reminderWillRingAt': 'आपको {when} पर याद दिलाया जाएगा',
     'reminderSaveFailed': 'रिमाइंडर सहेजा नहीं जा सका: {error}',
     'remindersLoadFailed': 'आपके रिमाइंडर लोड नहीं हो सके। कनेक्शन जाँचें और फिर कोशिश करें।',
+    'reminderDate': 'रिमाइंडर की तारीख',
+    'selectReminderDate': 'रिमाइंडर की तारीख चुनें',
+    'propertyReminderSyncNotice': 'यह रिमाइंडर सीधे आपके रिमाइंडर पेज पर जोड़ा जाएगा।',
+    'viewInReminders': 'रिमाइंडर में देखें',
     // --- Family Vault: create / join / co-owners (Sep 2026) ---
     'familyVaultChoose': 'आप क्या करना चाहेंगे?',
     'createOrJoin': 'बनाएँ या जुड़ें',
@@ -4612,6 +4620,10 @@ const Map<String, Map<String, String>> _strings = {
     'reminderWillRingAt': '{when}కి మీకు గుర్తు చేయబడుతుంది',
     'reminderSaveFailed': 'రిమైండర్‌ను సేవ్ చేయలేకపోయాము: {error}',
     'remindersLoadFailed': 'మీ రిమైండర్లను లోడ్ చేయలేకపోయాము. కనెక్షన్ తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+    'reminderDate': 'రిమైండర్ తేదీ',
+    'selectReminderDate': 'రిమైండర్ తేదీని ఎంచుకోండి',
+    'propertyReminderSyncNotice': 'ఈ రిమైండర్ నేరుగా మీ రిమైండర్‌ల పేజీకి జోడించబడుతుంది.',
+    'viewInReminders': 'రిమైండర్‌లలో చూడండి',
     // --- Family Vault: create / join / co-owners (Sep 2026) ---
     'familyVaultChoose': 'మీరు ఏమి చేయాలనుకుంటున్నారు?',
     'createOrJoin': 'సృష్టించండి లేదా చేరండి',

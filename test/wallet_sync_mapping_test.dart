@@ -65,6 +65,7 @@ void main() {
       otherExpenses: 5000,
       notes: 'Tenant lease renews in March.',
       reminderNote: 'Renew lease',
+      reminderDate: DateTime.utc(2026, 9, 15, 9, 30),
       attachments: const [
         PropertyAttachment(
           id: 'att1',
@@ -126,6 +127,7 @@ void main() {
 
       expect(back.notes, property.notes);
       expect(back.reminderNote, property.reminderNote);
+      expect(back.reminderDate, property.reminderDate);
       expect(back.attachments.single.name, 'Sale deed');
       expect(back.isFavorite, isTrue);
     });

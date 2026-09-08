@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../data/reminder_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
+import '../../models/reminder_models.dart';
 import '../../services/app_settings.dart';
 import '../../services/property_store.dart';
 import '../../theme/app_dimens.dart';
@@ -17,7 +19,9 @@ import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
+import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../reminders/all_reminders_screen.dart';
 import 'property_form_screen.dart';
 
 /// The property dashboard - everything recorded about one property, organised
@@ -72,6 +76,13 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       confirmLabel: l10n.t('delete'),
     );
     if (!ok || !mounted) return;
+    final reminderId = 'prop-${p.id}';
+    final match = ReminderStore.instance.active
+        .where((r) => r.id == reminderId)
+        .firstOrNull;
+    if (match != null) {
+      ReminderStore.instance.remove(match);
+    }
     await _store.remove(p.id);
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -451,29 +462,67 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 const SizedBox(height: AppSpacing.md),
               ],
 
-              // ---- Notes ----
-              if ((p.notes ?? '').isNotEmpty ||
+              // ---- Reminder ----
+              if (p.reminderDate != null ||
                   (p.reminderNote ?? '').isNotEmpty) ...[
                 FadeSlideIn(
-                  delay: const Duration(milliseconds: 250),
+                  delay: const Duration(milliseconds: 240),
                   child: ModuleSection(
-                    title: l10n.t('notes'),
-                    icon: Icons.sticky_note_2_rounded,
-                    accent: const Color(0xFF64748B),
-                    children: [
-                      if ((p.notes ?? '').isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            p.notes!,
-                            style: AppText.body.copyWith(
-                              color: palette.textPrimary,
-                              height: 1.5,
+                    title: l10n.t('reminder'),
+                    icon: Icons.alarm_rounded,
+                    accent: AppColors.warning,
+                    trailing: PressableScale(
+                      pressedScale: 0.95,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AllRemindersScreen(
+                                initialFilter: ReminderFilterKind.property,
+                              ),
                             ),
+                          );
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                l10n.t('viewInReminders'),
+                                style: AppText.caption.copyWith(
+                                  color: AppColors.primaryGreen,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 11,
+                                color: AppColors.primaryGreen,
+                              ),
+                            ],
                           ),
                         ),
+                      ),
+                    ),
+                    children: [
+                      if (p.reminderDate != null) ...[
+                        DetailRow(
+                          label: l10n.t('reminderDate'),
+                          value:
+                              '${formatModuleDate(p.reminderDate!)} · ${reminderTimeLabel(p.reminderDate!)}',
+                          icon: Icons.event_rounded,
+                        ),
+                      ],
                       if ((p.reminderNote ?? '').isNotEmpty)
                         Container(
+                          margin: const EdgeInsets.only(top: 6),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppColors.warning.withValues(alpha: 0.10),
@@ -484,19 +533,48 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.notifications_active_rounded,
-                                  size: 17, color: AppColors.warning),
+                              const Icon(
+                                Icons.notifications_active_rounded,
+                                size: 17,
+                                color: AppColors.warning,
+                              ),
                               const SizedBox(width: 9),
                               Expanded(
                                 child: Text(
                                   p.reminderNote!,
-                                  style: AppText.caption
-                                      .copyWith(color: palette.textPrimary),
+                                  style: AppText.caption.copyWith(
+                                    color: palette.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+
+              // ---- Notes ----
+              if ((p.notes ?? '').isNotEmpty) ...[
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 250),
+                  child: ModuleSection(
+                    title: l10n.t('notes'),
+                    icon: Icons.sticky_note_2_rounded,
+                    accent: const Color(0xFF64748B),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          p.notes!,
+                          style: AppText.body.copyWith(
+                            color: palette.textPrimary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

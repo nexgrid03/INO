@@ -273,6 +273,7 @@ class Property {
     // Notes
     this.notes,
     this.reminderNote,
+    this.reminderDate,
     this.attachments = const [],
     this.isFavorite = false,
   });
@@ -321,6 +322,7 @@ class Property {
 
   final String? notes;
   final String? reminderNote;
+  final DateTime? reminderDate;
   final List<PropertyAttachment> attachments;
   final bool isFavorite;
 
@@ -409,6 +411,8 @@ class Property {
     double? otherExpenses,
     String? notes,
     String? reminderNote,
+    DateTime? reminderDate,
+    bool clearReminderDate = false,
     List<PropertyAttachment>? attachments,
     bool? isFavorite,
   }) {
@@ -452,6 +456,8 @@ class Property {
       otherExpenses: otherExpenses ?? this.otherExpenses,
       notes: notes ?? this.notes,
       reminderNote: reminderNote ?? this.reminderNote,
+      reminderDate:
+          clearReminderDate ? null : (reminderDate ?? this.reminderDate),
       attachments: attachments ?? this.attachments,
       isFavorite: isFavorite ?? this.isFavorite,
     );
@@ -497,6 +503,7 @@ class Property {
         'otherExpenses': otherExpenses,
         'notes': notes,
         'reminderNote': reminderNote,
+        'reminderDate': reminderDate?.toIso8601String(),
         'attachments': [for (final a in attachments) a.toJson()],
         'isFavorite': isFavorite,
       };
@@ -552,6 +559,7 @@ class Property {
       otherExpenses: num_(j['otherExpenses']),
       notes: j['notes'] as String?,
       reminderNote: j['reminderNote'] as String?,
+      reminderDate: date(j['reminderDate']),
       attachments: [
         for (final a in (j['attachments'] as List?) ?? const [])
           PropertyAttachment.fromJson(Map<String, dynamic>.from(a as Map)),
