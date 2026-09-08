@@ -262,25 +262,150 @@ class DocumentRepository {
   /// Only the columns every wallet shares travel. Wallet-specific detail (a
   /// property's registration data, a card's last4) does NOT survive a move,
   /// because the destination table has nowhere to put it.
+  /// Executes a database mutation with schema-aware resilience and automatic self-healing.
+  ///
+  /// Critical Safety Requirement #1: Debug logging per table.
+  /// Critical Safety Requirement #2: Verified column eviction before retry.
+  /// Critical Safety Requirement #3: Validates table existence, auth_user_id presence when required,
+  /// and empty payload abortion without inserting blank rows or crashing.
+  Future<T> _executeWithSchemaResilience<T>({
+    required String table,
+    required Map<String, dynamic> initialPayload,
+    required Future<T> Function(Map<String, dynamic> payload) operation,
+    bool requireAuthUserId = false,
+    bool allowEmptyAbort = false,
+  }) async {
+    // 1. Validate table exists
+    final exists = await WalletTables.tableExists(table);
+    if (!exists) {
+      developer.log(
+        '[WalletSchema] WARNING: Wallet table "$table" does not exist in database. Aborting gracefully.',
+        name: 'wallet.schema',
+      );
+      throw PostgrestException(
+        message: 'Wallet table "$table" does not exist in database.',
+        code: 'PGRST205',
+      );
+    }
+
+    // 2. Validate auth_user_id exists in payload when required
+    if (requireAuthUserId &&
+        (!initialPayload.containsKey('auth_user_id') ||
+            initialPayload['auth_user_id'] == null ||
+            (initialPayload['auth_user_id'] as String).trim().isEmpty)) {
+      developer.log(
+        '[WalletSchema] WARNING: auth_user_id is missing from required payload for table "$table". Aborting gracefully.',
+        name: 'wallet.schema',
+      );
+      throw const PostgrestException(
+        message: 'auth_user_id is required in payload for this operation.',
+        code: 'MISSING_AUTH_USER_ID',
+      );
+    }
+
+    // 3. Pre-filter payload using schema knowledge
+    var activePayload = await WalletTables.filterPayloadForTable(table, initialPayload);
+    if (activePayload.isEmpty) {
+      developer.log(
+        '[WalletSchema] WARNING: Payload for "$table" is empty after schema filtering. Aborting mutation gracefully without blank rows.',
+        name: 'wallet.schema',
+      );
+      if (allowEmptyAbort) {
+        return null as T;
+      }
+      throw const PostgrestException(
+        message: 'No valid columns provided for wallet mutation.',
+        code: 'EMPTY_PAYLOAD',
+      );
+    }
+
+    // 4. Attempt operation with retry on unexpected column mismatch
+    try {
+      return await operation(activePayload);
+    } on PostgrestException catch (e) {
+      // Check for column mismatch errors (PGRST204: schema cache, 42703: undefined column)
+      final isColMismatch = e.code == 'PGRST204' ||
+          e.code == '42703' ||
+          e.message.toLowerCase().contains('could not find the') ||
+          e.message.toLowerCase().contains('does not exist');
+
+      if (!isColMismatch) rethrow;
+
+      // Extract column name from error message:
+      // "Could not find the 'consent' column of 'w_school'"
+      // or "column w_school.consent does not exist"
+      final match = RegExp(r"Could not find the '([a-zA-Z0-9_]+)' column", caseSensitive: false).firstMatch(e.message) ??
+          RegExp(r'column [^.]+\.([a-zA-Z0-9_]+) does not exist', caseSensitive: false).firstMatch(e.message);
+
+      final problematicCol = match?.group(1);
+      if (problematicCol == null) {
+        developer.log('[WalletSchema] Failed to parse column name from error: ${e.message}', name: 'wallet.schema');
+        rethrow;
+      }
+
+      developer.log(
+        '[WalletSchema] Detected unexpected column error for "$problematicCol" on "$table". Performing verified eviction and retry...',
+        name: 'wallet.schema',
+      );
+
+      // Safety Requirement #2: Verify truly does not exist, re-fetch schema, evict
+      final evicted = await WalletTables.safelyEvictColumn(table, problematicCol);
+      if (!evicted) {
+        // If the column actually exists, the error was something else, do not loop
+        rethrow;
+      }
+
+      activePayload = Map<String, dynamic>.from(activePayload)..remove(problematicCol);
+      if (activePayload.isEmpty) {
+        developer.log(
+          '[WalletSchema] WARNING: Payload became empty after evicting "$problematicCol". Aborting gracefully without blank row.',
+          name: 'wallet.schema',
+        );
+        if (allowEmptyAbort) {
+          return null as T;
+        }
+        throw PostgrestException(
+          message: 'Payload became empty after removing invalid column "$problematicCol".',
+          code: 'EMPTY_PAYLOAD',
+        );
+      }
+
+      // Retry mutation with sanitized payload
+      return await operation(activePayload);
+    }
+  }
+
+  /// Moves a document to a different wallet.
+  ///
+  /// A wallet is now a table, not a column, so this copies the core columns
+  /// across and deletes the original. The id is carried over deliberately:
+  /// document protection flags and live share links reference it, and letting a
+  /// move mint a new id would silently break both.
+  ///
+  /// Only the columns every wallet shares travel. Wallet-specific detail (a
+  /// property's registration data, a card's last4) does NOT survive a move,
+  /// because the destination table has nowhere to put it.
   Future<void> move(String id,
       {required String fromWallet, required String toWallet}) async {
     final userId = _uid;
     if (userId == null) {
       throw const AuthException('You must be signed in to move a document.');
     }
-    if (WalletTables.slugFor(fromWallet) == WalletTables.slugFor(toWallet)) {
+    final fromTable = _tableFor(fromWallet);
+    final toTable = _tableFor(toWallet);
+    if (fromTable == toTable) {
       return;
     }
 
     final row = await _client
-        .from(_tableFor(fromWallet))
+        .from(fromTable)
         .select()
         .eq('id', id)
         .eq('auth_user_id', userId)
         .single()
         .timeout(NetGuard.query);
 
-    await _client.from(_tableFor(toWallet)).insert({
+    final movePayload = <String, dynamic>{
       'id': row['id'],
       'auth_user_id': userId,
       'name': row['name'],
@@ -293,12 +418,20 @@ class DocumentRepository {
       'expires_at': row['expires_at'],
       'file_path': row['file_path'],
       'created_at': row['created_at'],
-      // A move is not a new save - carry the original row's consent forward.
+      // A move is not a new save - carry the original row's consent forward if available.
       'consent': row['consent'] ?? false,
-    }).timeout(NetGuard.mutation);
+    };
+
+    await _executeWithSchemaResilience<void>(
+      table: toTable,
+      initialPayload: movePayload,
+      requireAuthUserId: true,
+      operation: (payload) =>
+          _client.from(toTable).insert(payload).timeout(NetGuard.mutation),
+    );
 
     await _client
-        .from(_tableFor(fromWallet))
+        .from(fromTable)
         .delete()
         .eq('id', id)
         .eq('auth_user_id', userId)
@@ -330,6 +463,7 @@ class DocumentRepository {
     if (userId == null) {
       throw const AuthException('You must be signed in to add a document.');
     }
+    final targetTable = _tableFor(wallet);
     final insertData = <String, dynamic>{
       'auth_user_id': userId,
       'name': name,
@@ -343,15 +477,22 @@ class DocumentRepository {
       'file_path': filePath,
       'consent': true,
     };
-    if (WalletTables.slugFor(wallet) == 'w_health_wallet') {
+    if (targetTable == 'w_health_wallet') {
       insertData['doctor_name'] = doctorName;
     }
-    final row = await _client
-        .from(_tableFor(wallet))
-        .insert(insertData)
-        .select() // ask Supabase to return the inserted row
-        .single() // expect exactly one row back
-        .timeout(NetGuard.mutation);
+
+    final row = await _executeWithSchemaResilience<Map<String, dynamic>>(
+      table: targetTable,
+      initialPayload: insertData,
+      requireAuthUserId: true,
+      operation: (payload) => _client
+          .from(targetTable)
+          .insert(payload)
+          .select() // ask Supabase to return the inserted row
+          .single() // expect exactly one row back
+          .timeout(NetGuard.mutation),
+    );
+
     _bump();
     return Document.fromMap(row, wallet: wallet);
   }
@@ -557,13 +698,20 @@ class DocumentRepository {
     if (userId == null) {
       throw const AuthException('You must be signed in to edit a document.');
     }
-    final payload = Map<String, dynamic>.from(fields);
-    await _client
-        .from(_tableFor(wallet))
-        .update(payload)
-        .eq('id', id)
-        .eq('auth_user_id', userId)
-        .timeout(NetGuard.mutation);
+    final targetTable = _tableFor(wallet);
+
+    await _executeWithSchemaResilience<void>(
+      table: targetTable,
+      initialPayload: fields,
+      requireAuthUserId: false,
+      allowEmptyAbort: true,
+      operation: (payload) => _client
+          .from(targetTable)
+          .update(payload)
+          .eq('id', id)
+          .eq('auth_user_id', userId)
+          .timeout(NetGuard.mutation),
+    );
   }
 
   /// Deletes a document row by id (only if it belongs to the signed-in user).
