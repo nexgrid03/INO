@@ -13,19 +13,57 @@ class TourStep {
     required this.title,
     required this.body,
     required this.target,
-    this.radius = 34,
+    this.padding = 8,
   });
 
   final String name;
   final String title;
   final String body;
 
-  /// Resolved lazily each frame so the spotlight lands on wherever the target
-  /// actually is (e.g. the voice button found via its GlobalKey).
-  final Offset Function() target;
+  /// The target's bounds in screen coordinates, resolved lazily each frame so
+  /// the spotlight lands on wherever the widget actually is (e.g. the voice
+  /// tile found via its GlobalKey).
+  ///
+  /// Bounds - not a bare centre - because the spotlight is sized from them.
+  /// A quick-action tile is a disc *plus* its caption and a nav tab is an icon
+  /// *plus* its label, so a circle of guessed radius dropped on the tile's
+  /// centre sits low and clips the very thing it is pointing at.
+  final Rect Function() target;
 
-  /// Spotlight radius around the target's centre.
-  final double radius;
+  /// Breathing room between the target's bounds and the spotlight's edge.
+  final double padding;
+
+  /// The spotlight hole for this step: the target's bounds, padded, rounded so
+  /// the shape suits what it is pointing at without ever cutting into it.
+  ///
+  /// A square target - a FAB, an icon button - is a disc in practice, so it
+  /// gets a true circle. The tolerance is deliberately tight: a quick-action
+  /// tile is 78x89, near enough to square to slip through a loose one, and
+  /// circling it clips the caption's ends. Anything else gets a
+  /// rounded rect whose corners are provably clear of the target's own: a
+  /// target corner sits `r - padding` in from the corner arc's centre on both
+  /// axes, so it stays inside while `(r - padding)·√2 ≤ r`, i.e.
+  /// `r ≤ padding·√2/(√2−1)`.
+  RRect hole() {
+    final bounds = target();
+    final rect = bounds.inflate(padding);
+    // Squareness is judged on the widget itself, not on the padded box - the
+    // padding would otherwise nudge a 64x68 tile over the line.
+    if ((bounds.width - bounds.height).abs() <= bounds.shortestSide * 0.05) {
+      final r = rect.longestSide / 2;
+      return RRect.fromRectAndRadius(
+        Rect.fromCircle(center: rect.center, radius: r),
+        Radius.circular(r),
+      );
+    }
+    // The containment bound above allows up to padding*sqrt2/(sqrt2-1) ~= 3.4x
+    // padding; 2.5x keeps a comfortable margin off that ceiling while still
+    // reading as a properly rounded frame.
+    return RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(math.min(rect.shortestSide / 2, padding * 2.5)),
+    );
+  }
 }
 
 /// The one-time, step-by-step coach-mark overlay shown the first time the user
@@ -50,8 +88,7 @@ class _FeatureTourState extends State<FeatureTour> {
   int _i = 0;
 
   // Where the spotlight is animating FROM (the previous step's hole).
-  Offset? _fromCenter;
-  double _fromRadius = 34;
+  RRect? _fromHole;
 
   TourStep get _step => widget.steps[_i];
 
@@ -62,8 +99,7 @@ class _FeatureTourState extends State<FeatureTour> {
       return;
     }
     setState(() {
-      _fromCenter = _step.target();
-      _fromRadius = _step.radius;
+      _fromHole = _step.hole();
       _i++;
     });
   }
@@ -77,7 +113,15 @@ class _FeatureTourState extends State<FeatureTour> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final isLast = _i == widget.steps.length - 1;
-    final target = _step.target();
+    final target = _step.hole();
+
+    assert(() {
+      // Once per step, not once per animation frame - this used to spam the
+      // log ~60x a second for the whole tour.
+      debugPrint('[Tutorial] Step=$_i Target=${_step.name} '
+          'Hole=${target.outerRect}');
+      return true;
+    }());
 
     // The overlay fills the shell, so its own constraints - not MediaQuery -
     // are the truthful screen size (MediaQuery lies under test surfaces).
@@ -99,23 +143,18 @@ class _FeatureTourState extends State<FeatureTour> {
             duration: const Duration(milliseconds: 340),
             curve: Curves.easeOutCubic,
             builder: (context, t, _) {
-              final center = Offset.lerp(_fromCenter ?? target, target, t)!;
-              final radius = _fromRadius + (_step.radius - _fromRadius) * t;
-
-              debugPrint(
-                '[Tutorial] Step=$_i Target=${_step.name} Position=(${target.dx.toStringAsFixed(1)}, ${target.dy.toStringAsFixed(1)}) SpotlightCenter=(${center.dx.toStringAsFixed(1)}, ${center.dy.toStringAsFixed(1)})',
-              );
+              final hole = RRect.lerp(_fromHole ?? target, target, t)!;
 
               // Card fades in during the tail of the slide so it never trails the
               // moving hole.
               final cardT = ((t - 0.35) / 0.65).clamp(0.0, 1.0);
 
-              // Place the card above or below the spotlight, whichever has room.
-              final below = center.dy < size.height * 0.55;
-              final cardTop = below ? center.dy + radius + 22 : null;
-              final cardBottom = below
-                  ? null
-                  : size.height - (center.dy - radius) + 22;
+              // Place the card above or below the spotlight, whichever has room,
+              // measured from the hole's real edges rather than a nominal radius.
+              final bounds = hole.outerRect;
+              final below = bounds.center.dy < size.height * 0.55;
+              final cardTop = below ? bounds.bottom + 22 : null;
+              final cardBottom = below ? null : size.height - bounds.top + 22;
 
               return Stack(
                 children: [
@@ -125,10 +164,7 @@ class _FeatureTourState extends State<FeatureTour> {
                       behavior: HitTestBehavior.opaque,
                       onTap: _next,
                       child: CustomPaint(
-                        painter: _SpotlightPainter(
-                          center: center,
-                          radius: radius,
-                        ),
+                        painter: _SpotlightPainter(hole: hole),
                       ),
                     ),
                   ),
@@ -265,52 +301,51 @@ class _FeatureTourState extends State<FeatureTour> {
 /// Dim everything except a soft-edged circular hole over the target, ringed by
 /// a bright brand stroke so the eye lands exactly where the step points.
 class _SpotlightPainter extends CustomPainter {
-  _SpotlightPainter({required this.center, required this.radius});
+  _SpotlightPainter({required this.hole});
 
-  final Offset center;
-  final double radius;
+  /// The cut-out, already sized to the target's bounds. A square target rounds
+  /// all the way to a circle; a wide nav tab becomes a stadium.
+  final RRect hole;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final hole = Path()
-      ..addOval(Rect.fromCircle(center: center, radius: radius));
     final scrim = Path.combine(
       PathOperation.difference,
       Path()..addRect(Offset.zero & size),
-      hole,
+      Path()..addRRect(hole),
     );
     canvas.drawPath(
       scrim,
       Paint()..color = Colors.black.withValues(alpha: 0.62),
     );
 
+    final bounds = hole.outerRect;
+
     // Brand ring + soft outer glow around the hole.
-    canvas.drawCircle(
-      center,
-      radius,
+    canvas.drawRRect(
+      hole,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
-        ..shader =  SweepGradient(
+        ..shader = SweepGradient(
           colors: [
             AppColors.primaryGreen,
             Color(0xFF7DD3FC),
             AppColors.primaryGreen,
           ],
-        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+        ).createShader(bounds),
     );
-    canvas.drawCircle(
-      center,
-      radius + 3,
+    canvas.drawRRect(
+      hole.inflate(3),
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(6, radius * 0.16)
+        ..strokeWidth =
+            math.max(6, math.min(bounds.width, bounds.height) * 0.16)
         ..color = AppColors.secondaryGreen.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
   }
 
   @override
-  bool shouldRepaint(_SpotlightPainter old) =>
-      old.center != center || old.radius != radius;
+  bool shouldRepaint(_SpotlightPainter old) => old.hole != hole;
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+
+import 'package:http/http.dart' show ClientException;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -199,12 +201,20 @@ class AuthService {
   // --- Email OTP (passwordless sign-in / verification) ----------------------
 
   /// Sends a 6-digit code to [email] via Supabase Auth.
-  Future<void> sendEmailOtp(String email, {Map<String, dynamic>? data}) {
+  ///
+  /// [shouldCreateUser] must be false on the login path. Leaving it true is
+  /// what used to mint a second account whenever someone signed in with an
+  /// identifier their auth user did not carry - see [accountExists].
+  Future<void> sendEmailOtp(
+    String email, {
+    Map<String, dynamic>? data,
+    bool shouldCreateUser = true,
+  }) {
     return _client.auth
         .signInWithOtp(
           email: email.trim(),
           data: data,
-          shouldCreateUser: true,
+          shouldCreateUser: shouldCreateUser,
         )
         .timeout(NetGuard.auth);
   }
@@ -256,12 +266,18 @@ class AuthService {
   // logout all work identically.
 
   /// Sends a 6-digit SMS code to [phone] (E.164 format, e.g. `+919876543210`).
-  Future<void> sendPhoneOtp(String phone, {Map<String, dynamic>? data}) {
+  ///
+  /// [shouldCreateUser] must be false on the login path - see [sendEmailOtp].
+  Future<void> sendPhoneOtp(
+    String phone, {
+    Map<String, dynamic>? data,
+    bool shouldCreateUser = true,
+  }) {
     return _client.auth
         .signInWithOtp(
           phone: phone.trim(),
           data: data,
-          shouldCreateUser: true,
+          shouldCreateUser: shouldCreateUser,
         )
         .timeout(NetGuard.auth);
   }
@@ -282,6 +298,75 @@ class AuthService {
         .timeout(NetGuard.auth);
   }
 
+  // --- One account, two identifiers ----------------------------------------
+  //
+  // Supabase keys an account by email OR phone, so an account is only reachable
+  // by an identifier that is actually attached to its auth user. Signup
+  // therefore confirms BOTH: the first channel mints the user, then [linkPhone]
+  // / [verifyPhoneLink] (or [linkEmail] / [verifyEmailLink]) attach and confirm
+  // the second. After that either one signs the same person in.
+
+  /// Whether a confirmed account already owns [identifier] (email or phone).
+  ///
+  /// Backed by the `account_exists` SECURITY DEFINER function, because anon
+  /// cannot read `auth.users` directly. The login screen calls this BEFORE
+  /// asking for a code, so an unknown identifier is told to sign up instead of
+  /// silently getting an account created for it.
+  ///
+  /// Fails closed: if the lookup itself errors (offline, function missing) it
+  /// rethrows, because treating "we could not check" as "no account" would send
+  /// an existing user to the signup form.
+  Future<bool> accountExists(String identifier) async {
+    final result = await _client
+        .rpc<dynamic>('account_exists', params: {'p_identifier': identifier.trim()})
+        .timeout(NetGuard.auth);
+    return result == true;
+  }
+
+  /// Attaches [phone] to the CURRENT signed-in user and sends a confirmation
+  /// SMS. The number is not usable for sign-in until [verifyPhoneLink] passes.
+  Future<void> linkPhone(String phone) {
+    return _client.auth
+        .updateUser(UserAttributes(phone: phone.trim()))
+        .timeout(NetGuard.auth);
+  }
+
+  /// Confirms the code from [linkPhone], completing the attachment.
+  Future<AuthResponse> verifyPhoneLink({
+    required String phone,
+    required String token,
+  }) {
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.phoneChange,
+          phone: phone.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
+  }
+
+  /// Attaches [email] to the CURRENT signed-in user and sends a confirmation
+  /// code. Mirror of [linkPhone] for accounts that started from a phone.
+  Future<void> linkEmail(String email) {
+    return _client.auth
+        .updateUser(UserAttributes(email: email.trim()))
+        .timeout(NetGuard.auth);
+  }
+
+  /// Confirms the code from [linkEmail], completing the attachment.
+  Future<AuthResponse> verifyEmailLink({
+    required String email,
+    required String token,
+  }) {
+    return _client.auth
+        .verifyOTP(
+          type: OtpType.emailChange,
+          email: email.trim(),
+          token: token.trim(),
+        )
+        .timeout(NetGuard.auth);
+  }
+
   /// Helper to convert authentication / Supabase errors into human-readable friendly messages.
   static String formatAuthError(Object error) {
     if (error is AuthException) {
@@ -295,8 +380,15 @@ class AuthService {
       if (msg.contains('rate limit') || msg.contains('too many requests') || msg.contains('over_email_send_rate_limit')) {
         return 'Too many attempts. Please wait a moment before requesting another code.';
       }
-      if (msg.contains('user not found')) {
+      if (msg.contains('user not found') ||
+          msg.contains('signups not allowed') ||
+          msg.contains('signup_disabled')) {
         return 'No account found with these details. Please create an account first.';
+      }
+      if (msg.contains('already been registered') ||
+          msg.contains('already registered') ||
+          msg.contains('already exists')) {
+        return 'That email or mobile number is already on another INO account.';
       }
       if (msg.contains('network') || msg.contains('connection')) {
         return 'Unable to connect. Please check your internet connection and try again.';
@@ -306,6 +398,46 @@ class AuthService {
     if (error is TimeoutException) {
       return 'The connection timed out. Please check your internet connection and try again.';
     }
+    // Database-side failures reach the login screen too, because the flow calls
+    // the `account_exists` RPC before it asks for a code. These used to fall
+    // through to the generic message below, which made a missing migration
+    // indistinguishable from a real outage - so name them.
+    if (error is PostgrestException) {
+      final code = error.code ?? '';
+      final msg = error.message.toLowerCase();
+      if (code == 'PGRST202' ||
+          code == '42883' ||
+          msg.contains('could not find the function') ||
+          msg.contains('does not exist')) {
+        return 'Login is not set up on the server yet: the account_exists '
+            'function is missing. Run the single_account_identity migration in '
+            'Supabase, then try again.';
+      }
+      if (code == '42501' || msg.contains('permission denied')) {
+        return 'The server refused the account lookup. Grant execute on '
+            'account_exists to anon and authenticated, then try again.';
+      }
+      developer.log(
+        'Postgrest failure during auth: code=$code message=${error.message} '
+        'hint=${error.hint}',
+        name: 'auth',
+      );
+      return 'The server rejected that request (${code.isEmpty ? 'no code' : code}). '
+          'Please try again.';
+    }
+    // Transport failures. Matched without importing dart:io, so this file stays
+    // compilable for web.
+    final text = error.toString().toLowerCase();
+    if (error is ClientException ||
+        text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('connection refused') ||
+        text.contains('connection closed') ||
+        text.contains('network is unreachable')) {
+      return 'Unable to connect. Please check your internet connection and try again.';
+    }
+    developer.log('Unhandled auth error: ${error.runtimeType} - $error',
+        name: 'auth');
     return 'An unexpected error occurred. Please try again.';
   }
 

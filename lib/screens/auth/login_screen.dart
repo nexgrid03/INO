@@ -27,7 +27,6 @@ import '../legal/legal_document_screen.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
 import 'biometric_setup_screen.dart';
-import 'forgot_password_screen.dart';
 import 'otp_verification_screen.dart';
 import 'phone_login_screen.dart';
 import 'signup_screen.dart';
@@ -35,11 +34,6 @@ import 'signup_screen.dart';
 enum AuthMode {
   signIn,
   signUp,
-}
-
-enum VerificationChannel {
-  email,
-  phone,
 }
 
 /// Redesigned INO Authentication Screen: Supports seamless switching between
@@ -63,35 +57,65 @@ class _LoginScreenState extends State<LoginScreen> {
   final _signInFormKey = GlobalKey<FormState>();
   final _signUpFormKey = GlobalKey<FormState>();
 
-  // Sign in controllers
+  // Login - one field that takes either an email or a mobile number.
   final _signInIdentifierController = TextEditingController();
-  final _signInPasswordController = TextEditingController();
-  bool _signInWithPassword = false;
-  VerificationChannel _signInChannel = VerificationChannel.phone;
   CountryCode _signInCountry = kCountryCodes.first;
+
+  /// True while the identifier reads as an email, so the country-code prefix
+  /// hides itself instead of sitting uselessly beside an address.
+  bool _identifierLooksLikeEmail = false;
 
   // Sign up controllers
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   CountryCode _signUpCountry = kCountryCodes.first;
-  VerificationChannel _signupVerificationMethod = VerificationChannel.email;
   bool _acceptedTerms = false;
 
-  bool _obscurePassword = true;
   bool _rememberMe = true;
   bool _busy = false;
   bool _googleBusy = false;
   bool _guestBusy = false;
 
   @override
+  void initState() {
+    super.initState();
+    _signInIdentifierController.addListener(_onIdentifierChanged);
+  }
+
+  @override
   void dispose() {
+    _signInIdentifierController.removeListener(_onIdentifierChanged);
     _signInIdentifierController.dispose();
-    _signInPasswordController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  void _onIdentifierChanged() {
+    final looksEmail =
+        AuthValidators.looksLikeEmail(_signInIdentifierController.text);
+    if (looksEmail != _identifierLooksLikeEmail) {
+      setState(() => _identifierLooksLikeEmail = looksEmail);
+    }
+  }
+
+  /// The login identifier as the backend sees it: a trimmed address, or the
+  /// selected dial code joined to the typed digits.
+  ///
+  /// Returns null when the input is not yet a plausible email or number.
+  ({String value, bool isEmail})? _readIdentifier() {
+    final raw = _signInIdentifierController.text.trim();
+    if (raw.isEmpty) return null;
+    if (AuthValidators.looksLikeEmail(raw)) {
+      return AuthValidators.isValidEmail(raw)
+          ? (value: raw, isEmail: true)
+          : null;
+    }
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length < 6) return null;
+    return (value: '${_signInCountry.dialCode}$digits', isEmail: false);
   }
 
   void _showMessage(String message, {bool isError = true}) {
@@ -139,45 +163,39 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
 
     try {
-      if (_signupVerificationMethod == VerificationChannel.email) {
-        // Send OTP to Email
-        await AuthService.instance.sendEmailOtp(
-          email,
-          data: {
-            'full_name': name,
-            'phone': fullPhone,
-            'accepted_terms': true,
-            'attestation_18_plus': true,
-          },
+      // Refuse up front if either identifier is already spoken for - otherwise
+      // Supabase would fail deep inside the OTP step with a cryptic message,
+      // after the user had already waited for a code.
+      if (await AuthService.instance.accountExists(email)) {
+        _showMessage(
+          'That email already has an INO account. Please log in instead.',
         );
-        if (!mounted) return;
-        _goToNewUserOtpScreen(
-          destination: email,
-          name: name,
-          email: email,
-          phone: fullPhone,
-          isEmail: true,
-        );
-      } else {
-        // Send OTP to Mobile (Twilio provider via Supabase)
-        await AuthService.instance.sendPhoneOtp(
-          fullPhone,
-          data: {
-            'full_name': name,
-            'email': email,
-            'accepted_terms': true,
-            'attestation_18_plus': true,
-          },
-        );
-        if (!mounted) return;
-        _goToNewUserOtpScreen(
-          destination: fullPhone,
-          name: name,
-          email: email,
-          phone: fullPhone,
-          isEmail: false,
-        );
+        return;
       }
+      if (await AuthService.instance.accountExists(fullPhone)) {
+        _showMessage(
+          'That mobile number already has an INO account. Please log in instead.',
+        );
+        return;
+      }
+
+      // The email mints the account; the phone is attached and confirmed
+      // straight after, so either one can sign this person in later.
+      await AuthService.instance.sendEmailOtp(
+        email,
+        data: {
+          'full_name': name,
+          'phone': fullPhone,
+          'accepted_terms': true,
+          'attestation_18_plus': true,
+        },
+      );
+      if (!mounted) return;
+      _goToNewUserOtpScreen(
+        name: name,
+        email: email,
+        phone: fullPhone,
+      );
     } catch (e) {
       _showMessage(AuthService.formatAuthError(e));
     } finally {
@@ -185,93 +203,112 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Step 1 of signup verification - the email code, which creates the account.
+  ///
+  /// On success it does NOT go to the shell: it hands straight over to
+  /// [_goToPhoneLinkOtpScreen], because an account that has only confirmed one
+  /// of its two identifiers cannot yet be signed into by the other.
   void _goToNewUserOtpScreen({
-    required String destination,
     required String name,
     required String email,
     required String phone,
-    required bool isEmail,
   }) {
-    User? verifiedUser;
-    UserProfile? createdProfile;
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerificationScreen(
-          title: 'Verify Your ${isEmail ? "Email" : "Mobile Number"}',
-          destination: destination,
-          onResend: () async {
-            if (isEmail) {
-              await AuthService.instance.sendEmailOtp(
-                email,
-                data: {
-                  'full_name': name,
-                  'phone': phone,
-                  'accepted_terms': true,
-                  'attestation_18_plus': true,
-                },
-              );
-            } else {
-              await AuthService.instance.sendPhoneOtp(
-                phone,
-                data: {
-                  'full_name': name,
-                  'email': email,
-                  'accepted_terms': true,
-                  'attestation_18_plus': true,
-                },
-              );
-            }
-          },
+          title: 'Verify Your Email',
+          destination: email,
+          onResend: () => AuthService.instance.sendEmailOtp(
+            email,
+            data: {
+              'full_name': name,
+              'phone': phone,
+              'accepted_terms': true,
+              'attestation_18_plus': true,
+            },
+          ),
           onVerify: (code) async {
-            final AuthResponse res;
-            if (isEmail) {
-              res = await AuthService.instance.verifyEmailOtp(
-                email: email,
-                token: code,
-              );
-            } else {
-              res = await AuthService.instance.verifyPhoneOtp(
-                phone: phone,
-                token: code,
-              );
-            }
-            final user = res.user;
-            if (user == null) return false;
-            verifiedUser = user;
+            final res = await AuthService.instance.verifyEmailOtp(
+              email: email,
+              token: code,
+            );
+            if (res.user == null) return false;
 
-            // Record terms consent in metadata & audit table
             await AuthService.instance.recordTermsConsent(
               version: '1.0',
               attest18Plus: true,
             );
+            // Attach the mobile to this same auth user and send its code. Done
+            // here, inside the verify step, so any failure surfaces on the OTP
+            // screen the user is already looking at.
+            await AuthService.instance.linkPhone(phone);
+            return true;
+          },
+          onVerified: (navCtx) => _goToPhoneLinkOtpScreen(
+            navCtx,
+            name: name,
+            email: email,
+            phone: phone,
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Create/Upsert User Profile in public.users
+  /// Step 2 of signup verification - the SMS code that confirms the mobile
+  /// against the account the email just created. Only once this passes does the
+  /// account carry both identifiers, which is what makes "log in with either"
+  /// work at all.
+  void _goToPhoneLinkOtpScreen(
+    BuildContext navCtx, {
+    required String name,
+    required String email,
+    required String phone,
+  }) {
+    UserProfile? profile;
+
+    Navigator.of(navCtx).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: 'Verify Your Mobile Number',
+          destination: phone,
+          onResend: () => AuthService.instance.linkPhone(phone),
+          onVerify: (code) async {
+            final res = await AuthService.instance.verifyPhoneLink(
+              phone: phone,
+              token: code,
+            );
+            final user = res.user ?? AuthService.instance.currentUser;
+            if (user == null) return false;
+
             try {
-              createdProfile = await UserRepository.instance.createProfile(
+              profile = await UserRepository.instance.createProfile(
                 authUserId: user.id,
                 fullName: name,
                 email: email,
                 phone: phone,
               );
             } catch (_) {
-              // Fallback to fetch existing if already created by trigger
-              createdProfile = await UserRepository.instance.getProfileByAuthId(user.id);
+              // A database trigger may already have written the row.
+              profile =
+                  await UserRepository.instance.getProfileByAuthId(user.id);
             }
             return true;
           },
-          onVerified: (navCtx) {
-            final profile = createdProfile;
-            final user = verifiedUser;
-            if (profile != null) {
-              goToShell(navCtx, profile);
-            } else if (user != null) {
-              routeAfterAuth(
-                authUserId: user.id,
-                fullName: name,
-                email: email,
-                phone: phone,
-              );
+          onVerified: (ctx) {
+            final created = profile;
+            if (created != null) {
+              goToShell(ctx, created);
+            } else {
+              final user = AuthService.instance.currentUser;
+              if (user != null) {
+                routeAfterAuth(
+                  authUserId: user.id,
+                  fullName: name,
+                  email: email,
+                  phone: phone,
+                );
+              }
             }
           },
         ),
@@ -282,50 +319,48 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Existing User: Send OTP & Sign In -------------------------------------
 
   Future<void> _handleExistingUserSignIn() async {
-    if (_signInWithPassword) {
-      await _signInWithEmailPassword();
+    FocusScope.of(context).unfocus();
+
+    final id = _readIdentifier();
+    if (id == null) {
+      _showMessage('Enter a valid email address or mobile number.');
       return;
     }
 
-    FocusScope.of(context).unfocus();
-    final l10n = AppLocalizations.of(context);
-
-    if (_signInChannel == VerificationChannel.phone) {
-      final nationalPhone =
-          _signInIdentifierController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      if (nationalPhone.length < 6) {
-        _showMessage(l10n.t('valInvalidMobile'));
-        return;
-      }
-      final fullPhone = '${_signInCountry.dialCode}$nationalPhone';
-
-      setState(() => _busy = true);
-      try {
-        await AuthService.instance.sendPhoneOtp(fullPhone);
+    setState(() => _busy = true);
+    try {
+      // The whole point of this pre-flight: an identifier with no account must
+      // be told to sign up, NOT handed to signInWithOtp - which, left to its
+      // own devices, would happily create a brand new empty account for it.
+      if (!await AuthService.instance.accountExists(id.value)) {
         if (!mounted) return;
-        _goToExistingUserOtpScreen(destination: fullPhone, isEmail: false);
-      } catch (e) {
-        _showMessage(AuthService.formatAuthError(e));
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-    } else {
-      final email = _signInIdentifierController.text.trim();
-      if (!AuthValidators.looksLikeEmail(email)) {
-        _showMessage('Please enter a valid email address.');
+        _showMessage(
+          'No INO account uses that ${id.isEmail ? "email address" : "mobile number"}. '
+          'Please create an account first.',
+        );
+        setState(() => _mode = AuthMode.signUp);
         return;
       }
 
-      setState(() => _busy = true);
-      try {
-        await AuthService.instance.sendEmailOtp(email);
-        if (!mounted) return;
-        _goToExistingUserOtpScreen(destination: email, isEmail: true);
-      } catch (e) {
-        _showMessage(AuthService.formatAuthError(e));
-      } finally {
-        if (mounted) setState(() => _busy = false);
+      // shouldCreateUser:false is belt-and-braces behind the check above - the
+      // account can have been deleted between the two calls.
+      if (id.isEmail) {
+        await AuthService.instance.sendEmailOtp(
+          id.value,
+          shouldCreateUser: false,
+        );
+      } else {
+        await AuthService.instance.sendPhoneOtp(
+          id.value,
+          shouldCreateUser: false,
+        );
       }
+      if (!mounted) return;
+      _goToExistingUserOtpScreen(destination: id.value, isEmail: id.isEmail);
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -339,13 +374,15 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerificationScreen(
-          title: 'Sign In Verification',
+          title: 'Login Verification',
           destination: destination,
           onResend: () async {
             if (isEmail) {
-              await AuthService.instance.sendEmailOtp(destination);
+              await AuthService.instance
+                  .sendEmailOtp(destination, shouldCreateUser: false);
             } else {
-              await AuthService.instance.sendPhoneOtp(destination);
+              await AuthService.instance
+                  .sendPhoneOtp(destination, shouldCreateUser: false);
             }
           },
           onVerify: (code) async {
@@ -364,9 +401,8 @@ class _LoginScreenState extends State<LoginScreen> {
             final user = res.user;
             if (user == null) return false;
             verifiedUser = user;
-
-            // Load existing profile
-            loadedProfile = await UserRepository.instance.getProfileByAuthId(user.id);
+            loadedProfile =
+                await UserRepository.instance.getProfileByAuthId(user.id);
             return true;
           },
           onVerified: (navCtx) {
@@ -381,44 +417,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     (user.userMetadata?['name'] as String?) ??
                     'INO User',
                 email: user.email ?? (isEmail ? destination : ''),
-                phone: isEmail ? null : destination,
+                phone: user.phone ?? (isEmail ? null : destination),
               );
             }
           },
         ),
       ),
     );
-  }
-
-  Future<void> _signInWithEmailPassword() async {
-    if (!(_signInFormKey.currentState?.validate() ?? false)) return;
-    final identifier = _signInIdentifierController.text.trim();
-    if (!AuthValidators.looksLikeEmail(identifier)) {
-      _showMessage('Password login requires a valid email address.');
-      return;
-    }
-
-    setState(() => _busy = true);
-    try {
-      final res = await AuthService.instance.signInWithEmail(
-        email: identifier,
-        password: _signInPasswordController.text,
-      );
-      final user = res.user;
-      if (user == null) {
-        _showMessage('Sign in failed. Please try again.');
-        return;
-      }
-      await routeAfterAuth(
-        authUserId: user.id,
-        fullName: (user.userMetadata?['full_name'] as String?) ?? 'INO User',
-        email: user.email ?? identifier,
-      );
-    } catch (e) {
-      _showMessage(AuthService.formatAuthError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   // --- Google & Social Auth -------------------------------------------------
@@ -450,28 +455,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _googleBusy = false);
     }
-  }
-
-  void _continueWithApple() {
-    _showMessage('Sign in with Apple is coming soon.', isError: false);
-  }
-
-  void _continueWithPhone() {
-    setState(() {
-      _mode = AuthMode.signIn;
-      _signInChannel = VerificationChannel.phone;
-      _signInWithPassword = false;
-    });
-  }
-
-  void _goToForgotPassword() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ForgotPasswordScreen(
-          initialIdentifier: _signInIdentifierController.text.trim(),
-        ),
-      ),
-    );
   }
 
   void _openTerms() {
@@ -686,38 +669,36 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 18),
 
-            // Verification Method Selector
-            Text(
-              'Verification Method',
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
+            // Both identifiers are confirmed during signup - one code to the
+            // email, then one to the mobile - so either can log this account in
+            // afterwards. Explained here so the second code is not a surprise.
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.tealPale.withValues(alpha: 0.30),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: palette.border.withValues(alpha: 0.6)),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _MethodCard(
-                    icon: Icons.mark_email_read_outlined,
-                    title: 'Email OTP',
-                    subtitle: 'Code sent to email',
-                    selected: _signupVerificationMethod == VerificationChannel.email,
-                    onTap: () => setState(() => _signupVerificationMethod = VerificationChannel.email),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.verified_user_outlined,
+                      size: 18, color: AppColors.primaryGreen),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "We'll send one code to your email and one to your "
+                      'mobile. Once both are verified you can log in with '
+                      'either.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: palette.textSecondary,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _MethodCard(
-                    icon: Icons.sms_outlined,
-                    title: 'Mobile OTP',
-                    subtitle: 'Code sent to mobile',
-                    selected: _signupVerificationMethod == VerificationChannel.phone,
-                    onTap: () => setState(() => _signupVerificationMethod = VerificationChannel.phone),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -804,6 +785,10 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Sign In Form (Existing User) ------------------------------------------
 
   Widget _buildSignInForm(AppPalette palette, AppLocalizations l10n, bool busy) {
+    // The country prefix only makes sense while the field holds a number; the
+    // moment an "@" appears it would just be noise beside an address.
+    final showDialCode = !_identifierLooksLikeEmail;
+
     return FadeSlideIn(
       delay: const Duration(milliseconds: 160),
       child: Form(
@@ -811,191 +796,90 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // OTP Channel Selector (Phone OTP vs Email OTP)
-            if (!_signInWithPassword) ...[
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: palette.isDark ? palette.surfaceVariant : AppColors.tealPale.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: palette.border.withValues(alpha: 0.5),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _ChannelTabButton(
-                        icon: Icons.phone_android_rounded,
-                        label: 'Mobile OTP',
-                        active: _signInChannel == VerificationChannel.phone,
-                        onTap: () {
-                          FocusScope.of(context).unfocus();
-                          setState(() {
-                            _signInChannel = VerificationChannel.phone;
-                            _signInIdentifierController.clear();
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: _ChannelTabButton(
-                        icon: Icons.email_outlined,
-                        label: 'Email OTP',
-                        active: _signInChannel == VerificationChannel.email,
-                        onTap: () {
-                          FocusScope.of(context).unfocus();
-                          setState(() {
-                            _signInChannel = VerificationChannel.email;
-                            _signInIdentifierController.clear();
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            if (!_signInWithPassword && _signInChannel == VerificationChannel.phone) ...[
-              AuthTextField(
-                key: const ValueKey('signin_phone_field'),
-                controller: _signInIdentifierController,
-                label: l10n.t('mobileNumber'),
-                hint: '9876543210',
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _handleExistingUserSignIn(),
-                prefixWidget: InkWell(
-                  onTap: busy ? null : _pickSignInCountry,
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 14, right: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_signInCountry.flag, style: const TextStyle(fontSize: 18)),
-                        const SizedBox(width: 4),
-                        Text(
-                          _signInCountry.dialCode,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: palette.textPrimary,
-                          ),
+            AuthTextField(
+              key: const ValueKey('login_identifier_field'),
+              controller: _signInIdentifierController,
+              label: l10n.t('emailOrMobile'),
+              hint: 'you@example.com or 9876543210',
+              icon: showDialCode ? null : Icons.alternate_email_rounded,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _handleExistingUserSignIn(),
+              prefixWidget: showDialCode
+                  ? InkWell(
+                      onTap: busy ? null : _pickSignInCountry,
+                      borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 14, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_signInCountry.flag,
+                                style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _signInCountry.dialCode,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(Icons.arrow_drop_down,
+                                size: 18, color: palette.textSecondary),
+                          ],
                         ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.arrow_drop_down, size: 18, color: palette.textSecondary),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Enter the email or mobile number on your INO account - either '
+              'one opens the same account.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.4,
+                color: palette.textSecondary,
               ),
-            ] else ...[
-              AuthTextField(
-                key: ValueKey(_signInWithPassword ? 'signin_password_user_field' : 'signin_email_field'),
-                controller: _signInIdentifierController,
-                label: _signInWithPassword ? l10n.t('emailOrMobile') : l10n.t('emailAddress'),
-                hint: 'you@example.com',
-                icon: Icons.alternate_email_rounded,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: _signInWithPassword ? TextInputAction.next : TextInputAction.done,
-                onSubmitted: (_) => _handleExistingUserSignIn(),
-              ),
-            ],
+            ),
 
-            if (_signInWithPassword) ...[
-              const SizedBox(height: 14),
-              AuthTextField(
-                controller: _signInPasswordController,
-                label: l10n.t('password'),
-                hint: '••••••••',
-                icon: Icons.lock_outline_rounded,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
-                onSubmitted: (_) => _handleExistingUserSignIn(),
-                suffix: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: palette.textSecondary,
-                  ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Flexible(
-                  child: InkWell(
-                    onTap: () => setState(() => _rememberMe = !_rememberMe),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: (v) => setState(() => _rememberMe = v ?? true),
-                            activeColor: AppColors.primaryGreen,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            l10n.t('rememberMe'),
-                            style: TextStyle(color: palette.textSecondary, fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: _rememberMe,
+                    onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                    activeColor: AppColors.primaryGreen,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5)),
                   ),
                 ),
-                TextButton(
-                  onPressed: busy ? null : _goToForgotPassword,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    l10n.t('forgotPasswordQ'),
-                    style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w600, fontSize: 13),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    child: Text(
+                      l10n.t('rememberMe'),
+                      style: TextStyle(
+                          color: palette.textSecondary, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
             ),
 
             const SizedBox(height: 18),
-
-            // CTA
             AuthPrimaryButton(
-              label: _signInWithPassword ? l10n.t('signIn') : 'Send OTP',
+              label: 'Send OTP',
               busy: busy,
               onPressed: busy ? null : _handleExistingUserSignIn,
-            ),
-
-            const SizedBox(height: 12),
-            Center(
-              child: TextButton(
-                onPressed: () => setState(() => _signInWithPassword = !_signInWithPassword),
-                child: Text(
-                  _signInWithPassword ? 'Use Passwordless OTP instead' : 'Sign in with Password instead',
-                  style: TextStyle(
-                    color: palette.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -1054,144 +938,3 @@ class _ModeTabButton extends StatelessWidget {
   }
 }
 
-// --- Channel Tab Button (Mobile OTP / Email OTP) -----------------------------
-
-class _ChannelTabButton extends StatelessWidget {
-  const _ChannelTabButton({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primaryGreen : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: active ? Colors.white : palette.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: active ? Colors.white : palette.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- Verification Method Card ------------------------------------------------
-
-class _MethodCard extends StatelessWidget {
-  const _MethodCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primaryGreen.withValues(alpha: 0.08)
-              : (palette.isDark ? palette.surfaceVariant : Colors.white),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primaryGreen : palette.border,
-            width: selected ? 1.6 : 1.0,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected ? AppColors.primaryGreen : palette.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                      color: selected ? AppColors.primaryGreen : palette.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: palette.textFaint,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              Icon(
-                Icons.check_circle_rounded,
-                size: 16,
-                color: AppColors.primaryGreen,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}

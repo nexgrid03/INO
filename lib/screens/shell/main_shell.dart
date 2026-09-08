@@ -195,13 +195,15 @@ class _MainShellState extends State<MainShell>
   }
 
   /// The one-time tour's stops: the four nav destinations, the centre quick-add
-  /// button, then the voice assistant up top. Target positions are resolved
-  /// live via GlobalKey + RenderBox.localToGlobal() on every frame tick.
+  /// button, then the voice assistant up top. Target *bounds* are resolved live
+  /// via GlobalKey + RenderBox.localToGlobal() on every frame tick, so the
+  /// spotlight is sized by the widget itself instead of a hand-tuned radius
+  /// that drifts the moment a tile's icon or label changes size.
   List<TourStep> _tourSteps(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final size = MediaQuery.sizeOf(context);
 
-    Offset resolveCenter(GlobalKey key, String name, {GlobalKey? fallbackKey}) {
+    Rect resolveBounds(GlobalKey key, String name, {GlobalKey? fallbackKey}) {
       var ctx = key.currentContext;
       if (ctx == null && fallbackKey != null) {
         ctx = fallbackKey.currentContext;
@@ -209,11 +211,16 @@ class _MainShellState extends State<MainShell>
       if (ctx != null) {
         final box = ctx.findRenderObject() as RenderBox?;
         if (box != null && box.hasSize && box.attached) {
-          final pos = box.localToGlobal(box.size.center(Offset.zero));
-          return pos;
+          return box.localToGlobal(Offset.zero) & box.size;
         }
       }
-      return Offset(size.width / 2, size.height / 2);
+      // Unresolvable target (tab not built yet): a modest circle dead centre,
+      // so the step still reads rather than punching a hole over nothing.
+      return Rect.fromCenter(
+        center: Offset(size.width / 2, size.height / 2),
+        width: 68,
+        height: 68,
+      );
     }
 
     return [
@@ -221,26 +228,25 @@ class _MainShellState extends State<MainShell>
         name: 'HomeTab',
         title: l10n.t('home'),
         body: l10n.t('tourHomeBody'),
-        target: () => resolveCenter(_homeTabKey, 'HomeTab'),
+        target: () => resolveBounds(_homeTabKey, 'HomeTab'),
       ),
       TourStep(
         name: 'VaultTab',
         title: l10n.t('vault'),
         body: l10n.t('tourVaultBody'),
-        target: () => resolveCenter(_vaultTabKey, 'VaultTab'),
+        target: () => resolveBounds(_vaultTabKey, 'VaultTab'),
       ),
       TourStep(
         name: 'QuickAddFAB',
         title: l10n.t('quickAdd'),
         body: l10n.t('tourQuickAddBody'),
-        target: () => resolveCenter(_quickAddKey, 'QuickAddFAB'),
-        radius: 40,
+        target: () => resolveBounds(_quickAddKey, 'QuickAddFAB'),
       ),
       TourStep(
         name: 'NotificationBell',
         title: l10n.t('alerts'),
         body: l10n.t('tourAlertsBody'),
-        target: () => resolveCenter(
+        target: () => resolveBounds(
           _notificationsKey,
           'NotificationBell',
           fallbackKey: _alertsTabKey,
@@ -250,14 +256,13 @@ class _MainShellState extends State<MainShell>
         name: 'ProfileTab',
         title: l10n.t('profile'),
         body: l10n.t('tourProfileBody'),
-        target: () => resolveCenter(_profileTabKey, 'ProfileTab'),
+        target: () => resolveBounds(_profileTabKey, 'ProfileTab'),
       ),
       TourStep(
         name: 'VoiceAssistant',
         title: l10n.t('voiceAssistant'),
         body: l10n.t('tourVoiceBody'),
-        target: () => resolveCenter(_voiceKey, 'VoiceAssistant'),
-        radius: 32,
+        target: () => resolveBounds(_voiceKey, 'VoiceAssistant'),
       ),
     ];
   }

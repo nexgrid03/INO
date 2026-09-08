@@ -101,6 +101,10 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # Only for tests: synthesising CameraImage frames for the live document
+  # detector. camera.dart does not re-export CameraImageData/Plane/Format.
+  camera_platform_interface: ^2.13.1
+
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:

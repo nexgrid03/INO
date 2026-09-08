@@ -30,8 +30,13 @@ class AuthValidators {
   // 10–15 digits, optional leading + and spaces/dashes (kept forgiving).
   static final RegExp _phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
 
-  /// Language-independent shape check - stays static (no message to localize).
+  /// Language-independent shape checks - static (no message to localize).
+  ///
+  /// [looksLikeEmail] answers "did they *mean* an email", which is what picks
+  /// the branch on a combined email-or-mobile field; [isValidEmail] answers
+  /// "is it actually one".
   static bool looksLikeEmail(String value) => value.contains('@');
+  static bool isValidEmail(String value) => _emailRegex.hasMatch(value.trim());
 
   String? name(String? value) {
     final name = value?.trim() ?? '';

@@ -35,10 +35,17 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
     expect(find.text('Remember me'), findsOneWidget);
-    expect(find.text('Forgot password?'), findsOneWidget);
     expect(find.text('Create Account'), findsOneWidget);
+
+    // Login is OTP-only now: one field that takes either identifier, and no
+    // password affordance anywhere on the screen.
+    expect(find.text('Email or mobile number'), findsOneWidget);
+    expect(find.text('Send OTP'), findsOneWidget);
+    expect(find.text('Forgot password?'), findsNothing);
+    expect(find.text('Password'), findsNothing);
+    expect(find.text('Sign in with Password instead'), findsNothing);
   });
 
   testWidgets('Signup renders registration fields, OTP methods, and CTA', (tester) async {
@@ -50,9 +57,17 @@ void main() {
     expect(find.text('Full Name'), findsOneWidget);
     expect(find.text('Email address'), findsOneWidget);
     expect(find.text('Mobile number'), findsOneWidget);
-    expect(find.text('Email OTP'), findsOneWidget);
-    expect(find.text('Mobile OTP'), findsOneWidget);
     expect(find.text('Send Verification Code'), findsOneWidget);
+
+    // Signup confirms BOTH identifiers, so there is no channel to pick - and
+    // the form says so, since the second code would otherwise surprise people.
+    expect(find.text('Verification Method'), findsNothing);
+    expect(find.text('Email OTP'), findsNothing);
+    expect(find.text('Mobile OTP'), findsNothing);
+    expect(
+      find.textContaining('one code to your email and one to your mobile'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Forgot Password validates and shows its reset CTA',
