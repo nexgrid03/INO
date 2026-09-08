@@ -22,6 +22,7 @@ import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/property/property_document_picker.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
 /// Add / edit a property.
@@ -315,30 +316,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _addAttachment() async {
-    final l10n = AppLocalizations.of(context);
-    final kindIndex = await showModulePicker(
-      context,
-      title: l10n.t('attachDocument'),
-      labels: [
-        for (final k in PropertyDocKind.values) k.localizedLabel(l10n),
-      ],
-      icons: [for (final k in PropertyDocKind.values) k.icon],
-    );
-    if (kindIndex == null || !mounted) return;
-    final kind = PropertyDocKind.values[kindIndex];
-    final path = await GalleryImportService.instance.pickImage();
-    if (path == null || !mounted) return;
+    final attachment = await showPropertyAttachmentPicker(context);
+    if (attachment == null || !mounted) return;
     setState(() {
-      _attachments = [
-        ..._attachments,
-        PropertyAttachment(
-          id: 'att_${DateTime.now().microsecondsSinceEpoch}',
-          kind: kind,
-          name: kind.label,
-          path: path,
-          addedAt: DateTime.now(),
-        ),
-      ];
+      _attachments = [..._attachments, attachment];
     });
   }
 
@@ -1312,30 +1293,118 @@ class _AttachmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final isPdf = attachment.isPdf;
+    final isImg = attachment.isImage;
+
+    final color = isPdf
+        ? const Color(0xFFE11D48)
+        : isImg
+            ? const Color(0xFF0284C7)
+            : const Color(0xFF0891B2);
+
+    final icon = isPdf
+        ? Icons.picture_as_pdf_rounded
+        : isImg
+            ? Icons.image_rounded
+            : attachment.kind.icon;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
+        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
         decoration: BoxDecoration(
-          color: palette.surfaceVariant,
+          color: palette.surfaceVariant.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(AppRadius.chip),
-          border: Border.all(color: palette.border),
+          border: Border.all(
+            color: attachment.isBiometricProtected
+                ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                : palette.border,
+          ),
         ),
         child: Row(
           children: [
-            Icon(attachment.kind.icon, size: 17, color: const Color(0xFF0891B2)),
-            const SizedBox(width: 9),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                attachment.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(color: palette.textPrimary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          attachment.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.body.copyWith(
+                            color: palette.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (attachment.isBiometricProtected) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen
+                                .withValues(alpha: 0.15),
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.lock_rounded,
+                                  size: 10, color: AppColors.primaryGreen),
+                              const SizedBox(width: 2),
+                              Text(
+                                'Locked',
+                                style: TextStyle(
+                                  color: AppColors.primaryGreen,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      attachment.kind.localizedLabel(l10n),
+                      if (attachment.formattedSize != null)
+                        attachment.formattedSize!,
+                      if (attachment.linkedDocumentId != null) 'Vault Linked',
+                    ].join(' · '),
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
             IconButton(
               onPressed: onRemove,
-              icon: const Icon(Icons.close_rounded, size: 17),
+              icon: const Icon(Icons.close_rounded, size: 18),
               color: palette.textFaint,
               visualDensity: VisualDensity.compact,
             ),

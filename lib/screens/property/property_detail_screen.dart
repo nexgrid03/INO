@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/perf/image_decode.dart';
@@ -11,17 +12,25 @@ import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
 import '../../models/reminder_models.dart';
+import '../../models/wallet_detail_models.dart';
+import '../../repositories/document_repository.dart';
 import '../../services/app_settings.dart';
+import '../../services/document_protection_store.dart';
 import '../../services/property_store.dart';
+import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/property/property_document_picker.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 import '../reminders/all_reminders_screen.dart';
+import '../wallet/document_viewer_screen.dart';
+import 'property_attachment_viewer_screen.dart';
 import 'property_form_screen.dart';
 
 /// The property dashboard - everything recorded about one property, organised
@@ -46,11 +55,13 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   void initState() {
     super.initState();
     _store.addListener(_onChanged);
+    DocumentProtectionStore.instance.addListener(_onChanged);
   }
 
   @override
   void dispose() {
     _store.removeListener(_onChanged);
+    DocumentProtectionStore.instance.removeListener(_onChanged);
     super.dispose();
   }
 
@@ -65,6 +76,249 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PropertyFormScreen(existing: p)),
     );
+  }
+
+  Future<void> _addAttachment(Property p) async {
+    final attachment = await showPropertyAttachmentPicker(context);
+    if (attachment == null || !mounted) return;
+
+    final updated = p.copyWith(attachments: [...p.attachments, attachment]);
+    await _store.update(updated);
+
+    if (mounted) {
+      showModuleToast(context, 'Document attached successfully');
+    }
+  }
+
+  Future<void> _openAttachment(Property p, PropertyAttachment a) async {
+    final l10n = AppLocalizations.of(context);
+    final isProtected = a.isBiometricProtected ||
+        DocumentProtectionStore.instance.isProtected(a.id);
+
+    if (isProtected) {
+      final unlocked = await VaultGuard.instance.ensureUnlocked(
+        context,
+        reason: l10n.t('authProtectedDocReason'),
+        title: l10n.t('verifyIdentity'),
+      );
+      if (!unlocked || !mounted) return;
+    }
+
+    if (a.linkedDocumentId != null) {
+      try {
+        final docs = await DocumentRepository.instance.listAll();
+        final doc = docs.firstWhere((d) => d.id == a.linkedDocumentId);
+        final record = DocumentRecord(
+          id: doc.id,
+          name: doc.name,
+          category: doc.category ?? 'Property',
+          icon: Icons.description_rounded,
+          uploadedAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          status: DocumentStatus.active,
+          filePath: doc.filePath,
+          notes: doc.notes,
+          doctorName: doc.doctorName,
+          expiresAt: doc.expiresAt,
+          recordNumber: doc.recordNumber,
+          tags: doc.tags,
+          isFavorite: doc.isFavorite,
+        );
+
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DocumentViewerScreen(
+              record: record,
+              walletName: doc.wallet,
+              accent: [
+                AppColors.primaryGreen,
+                AppColors.skyBrandSecondary,
+              ],
+              protected: isProtected,
+            ),
+          ),
+        );
+        return;
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PropertyAttachmentViewerScreen(
+          propertyId: p.id,
+          attachment: a,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAttachmentOptions(
+      Property p, PropertyAttachment a) async {
+    final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    final isProtected = a.isBiometricProtected ||
+        DocumentProtectionStore.instance.isProtected(a.id);
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.large),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                leading: Icon(a.kind.icon, color: AppColors.primaryGreen),
+                title: Text(a.name,
+                    style: AppText.title.copyWith(color: palette.textPrimary)),
+                subtitle: Text(a.kind.localizedLabel(l10n),
+                    style:
+                        AppText.caption.copyWith(color: palette.textSecondary)),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.visibility_rounded,
+                    color: Color(0xFF0891B2)),
+                title: const Text('Open / View Document'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _openAttachment(p, a);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  isProtected
+                      ? Icons.lock_open_rounded
+                      : Icons.fingerprint_rounded,
+                  color:
+                      isProtected ? AppColors.warning : AppColors.primaryGreen,
+                ),
+                title: Text(isProtected
+                    ? 'Remove Biometric Lock'
+                    : 'Protect with Biometrics'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _toggleProtection(p, a);
+                },
+              ),
+              if (a.path != null && File(a.path!).existsSync())
+                ListTile(
+                  leading: const Icon(Icons.share_rounded,
+                      color: Color(0xFF0284C7)),
+                  title: const Text('Share Document'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _shareAttachment(a);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.critical),
+                title: const Text('Remove Document',
+                    style: TextStyle(color: AppColors.critical)),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _deleteAttachment(p, a);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleProtection(Property p, PropertyAttachment a) async {
+    final isProtected = a.isBiometricProtected ||
+        DocumentProtectionStore.instance.isProtected(a.id);
+
+    final ok = await VaultGuard.instance.ensureUnlocked(
+      context,
+      reason: isProtected
+          ? 'Authenticate to unlock this document'
+          : 'Authenticate to protect this document with biometrics',
+      title: 'Biometric Verification',
+    );
+    if (!ok || !mounted) return;
+
+    final next = !isProtected;
+    await DocumentProtectionStore.instance.setProtected(a.id, next);
+
+    final updated = p.copyWith(
+      attachments: p.attachments
+          .map((att) => att.id == a.id
+              ? att.copyWith(isBiometricProtected: next)
+              : att)
+          .toList(),
+    );
+    await _store.update(updated);
+
+    if (mounted) {
+      showModuleToast(
+        context,
+        next
+            ? 'Biometric protection enabled'
+            : 'Biometric protection removed',
+      );
+    }
+  }
+
+  Future<void> _shareAttachment(PropertyAttachment a) async {
+    if (a.path == null) return;
+    try {
+      final origin = shareOrigin(context);
+      await Share.shareXFiles(
+        [XFile(a.path!, name: a.name)],
+        text: a.name,
+        sharePositionOrigin: origin,
+      );
+    } catch (_) {
+      if (mounted) {
+        showModuleToast(context, 'Unable to share document', error: true);
+      }
+    }
+  }
+
+  Future<void> _deleteAttachment(Property p, PropertyAttachment a) async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await confirmDestructive(
+      context,
+      title: 'Remove Document',
+      message: 'Remove "${a.name}" from this property?',
+      confirmLabel: l10n.t('delete'),
+    );
+    if (!ok || !mounted) return;
+
+    final updated = p.copyWith(
+      attachments: p.attachments.where((att) => att.id != a.id).toList(),
+    );
+    await _store.update(updated);
+    await DocumentProtectionStore.instance.setProtected(a.id, false);
+
+    if (mounted) {
+      showModuleToast(context, 'Document removed');
+    }
   }
 
   Future<void> _delete(Property p) async {
@@ -439,28 +693,92 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               ],
 
               // ---- Documents ----
-              if (p.attachments.isNotEmpty) ...[
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 220),
-                  child: ModuleSection(
-                    title: l10n.t('documents'),
-                    icon: Icons.folder_copy_rounded,
-                    accent: const Color(0xFF0891B2),
-                    subtitle: l10n
-                        .t('nAttached')
-                        .replaceAll('{n}', '${p.attachments.length}'),
-                    children: [
-                      for (final a in p.attachments)
-                        DetailRow(
-                          label: a.kind.localizedLabel(l10n),
-                          value: a.name,
-                          icon: a.kind.icon,
-                        ),
-                    ],
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 220),
+                child: ModuleSection(
+                  title: l10n.t('documents'),
+                  icon: Icons.folder_copy_rounded,
+                  accent: const Color(0xFF0891B2),
+                  trailing: ModuleIconButton(
+                    icon: Icons.add_rounded,
+                    size: 34,
+                    tooltip: l10n.t('attach'),
+                    onTap: () => _addAttachment(p),
                   ),
+                  children: [
+                    if (p.attachments.isEmpty)
+                      GestureDetector(
+                        onTap: () => _addAttachment(p),
+                        child: PressableScale(
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color:
+                                  palette.surfaceVariant.withValues(alpha: 0.5),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.card),
+                              border: Border.all(
+                                color: palette.border,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0891B2)
+                                      .withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.add_photo_alternate_rounded,
+                                  color: Color(0xFF0891B2),
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No documents attached yet',
+                                style: AppText.body.copyWith(
+                                  color: palette.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap to scan, upload from gallery, or link from vault',
+                                style: AppText.caption.copyWith(
+                                  color: palette.textFaint,
+                                  fontSize: 11.5,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                    else
+                      for (final a in p.attachments)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _PropertyDocumentTile(
+                            attachment: a,
+                            onTap: () => _openAttachment(p, a),
+                            onOptions: () => _showAttachmentOptions(p, a),
+                          ),
+                        ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-              ],
+              ),
+              const SizedBox(height: AppSpacing.md),
 
               // ---- Reminder ----
               if (p.reminderDate != null ||
@@ -910,3 +1228,154 @@ class _ValuationCard extends StatelessWidget {
     );
   }
 }
+
+class _PropertyDocumentTile extends StatelessWidget {
+  const _PropertyDocumentTile({
+    required this.attachment,
+    required this.onTap,
+    required this.onOptions,
+  });
+
+  final PropertyAttachment attachment;
+  final VoidCallback onTap;
+  final VoidCallback onOptions;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final isProtected = attachment.isBiometricProtected ||
+        DocumentProtectionStore.instance.isProtected(attachment.id);
+
+    final isImg = attachment.isImage;
+    final isPdf = attachment.isPdf;
+
+    final color = isPdf
+        ? const Color(0xFFE11D48)
+        : isImg
+            ? const Color(0xFF0284C7)
+            : const Color(0xFF0891B2);
+
+    final icon = isPdf
+        ? Icons.picture_as_pdf_rounded
+        : isImg
+            ? Icons.image_rounded
+            : attachment.kind.icon;
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onOptions,
+      child: PressableScale(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+          decoration: BoxDecoration(
+            color: palette.surfaceVariant.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: isProtected
+                  ? AppColors.primaryGreen.withValues(alpha: 0.45)
+                  : palette.border,
+              width: isProtected ? 1.4 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            attachment.name,
+                            style: AppText.body.copyWith(
+                              color: palette.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isProtected) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen
+                                  .withValues(alpha: 0.15),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.pill),
+                              border: Border.all(
+                                color: AppColors.primaryGreen
+                                    .withValues(alpha: 0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.lock_rounded,
+                                    size: 10, color: AppColors.primaryGreen),
+                                const SizedBox(width: 2.5),
+                                Text(
+                                  'Locked',
+                                  style: TextStyle(
+                                    color: AppColors.primaryGreen,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                  Text(
+                    [
+                      attachment.kind.localizedLabel(l10n),
+                      if (attachment.formattedSize != null)
+                        attachment.formattedSize!,
+                      if (attachment.linkedDocumentId != null) 'Vault Linked',
+                    ].join(' · '),
+                    style: AppText.caption.copyWith(
+                      color: palette.textSecondary,
+                      fontSize: 11.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.more_vert_rounded,
+                  size: 20, color: palette.textSecondary),
+              tooltip: 'Options',
+              onPressed: onOptions,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+}
+
