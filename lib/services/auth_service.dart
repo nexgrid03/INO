@@ -323,6 +323,24 @@ class AuthService {
     return result == true;
   }
 
+  /// Whether [identifier] is already on ANY account - as a login credential in
+  /// `auth.users`, or merely as contact detail on a `public.users` profile.
+  ///
+  /// This is the SIGNUP check. [accountExists] is the LOGIN check and asks a
+  /// narrower question ("can Supabase send a code here?"); using that one here
+  /// would let a second person claim an email that is already sitting on
+  /// someone's profile, and the duplicate would only surface as a failed
+  /// profile INSERT after the code was verified.
+  ///
+  /// Fails closed, like [accountExists].
+  Future<bool> identifierTaken(String identifier) async {
+    final result = await _client
+        .rpc<dynamic>('identifier_taken',
+            params: {'p_identifier': identifier.trim()})
+        .timeout(NetGuard.auth);
+    return result == true;
+  }
+
   /// Attaches [phone] to the CURRENT signed-in user and sends a confirmation
   /// SMS. The number is not usable for sign-in until [verifyPhoneLink] passes.
   Future<void> linkPhone(String phone) {

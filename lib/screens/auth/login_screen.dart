@@ -36,6 +36,22 @@ enum AuthMode {
   signUp,
 }
 
+/// Which identifier a new account verifies - and therefore the ONE it can log
+/// in with afterwards.
+///
+/// Signup confirms exactly one channel. The other is kept on the profile as
+/// contact detail, never as a credential: an identifier nobody proved they own
+/// would let whoever claims that address or number into the account.
+enum VerificationChannel {
+  email,
+  phone;
+
+  String get label => switch (this) {
+        VerificationChannel.email => 'Email',
+        VerificationChannel.phone => 'Mobile number',
+      };
+}
+
 /// Redesigned INO Authentication Screen: Supports seamless switching between
 /// New User (Create Account + Email/Mobile OTP) and Existing User (Phone/Email OTP / password).
 class LoginScreen extends StatefulWidget {
@@ -70,6 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   CountryCode _signUpCountry = kCountryCodes.first;
+  VerificationChannel _signupChannel = VerificationChannel.phone;
   bool _acceptedTerms = false;
 
   bool _rememberMe = true;
@@ -166,35 +183,43 @@ class _LoginScreenState extends State<LoginScreen> {
       // Refuse up front if either identifier is already spoken for - otherwise
       // Supabase would fail deep inside the OTP step with a cryptic message,
       // after the user had already waited for a code.
-      if (await AuthService.instance.accountExists(email)) {
+      //
+      // identifierTaken, not accountExists: only ONE channel gets verified, so
+      // the other lives on the profile without ever reaching auth.users. The
+      // login-side check would call it free, and the duplicate would surface as
+      // a failed profile INSERT once the code was already verified.
+      if (await AuthService.instance.identifierTaken(email)) {
         _showMessage(
           'That email already has an INO account. Please log in instead.',
         );
         return;
       }
-      if (await AuthService.instance.accountExists(fullPhone)) {
+      if (await AuthService.instance.identifierTaken(fullPhone)) {
         _showMessage(
           'That mobile number already has an INO account. Please log in instead.',
         );
         return;
       }
 
-      // The email mints the account; the phone is attached and confirmed
-      // straight after, so either one can sign this person in later.
-      await AuthService.instance.sendEmailOtp(
-        email,
-        data: {
-          'full_name': name,
-          'phone': fullPhone,
-          'accepted_terms': true,
-          'attestation_18_plus': true,
-        },
-      );
+      // Only the chosen channel is verified, and it becomes the credential.
+      final metadata = {
+        'full_name': name,
+        'email': email,
+        'phone': fullPhone,
+        'accepted_terms': true,
+        'attestation_18_plus': true,
+      };
+      if (_signupChannel == VerificationChannel.email) {
+        await AuthService.instance.sendEmailOtp(email, data: metadata);
+      } else {
+        await AuthService.instance.sendPhoneOtp(fullPhone, data: metadata);
+      }
       if (!mounted) return;
       _goToNewUserOtpScreen(
         name: name,
         email: email,
         phone: fullPhone,
+        channel: _signupChannel,
       );
     } catch (e) {
       _showMessage(AuthService.formatAuthError(e));
@@ -203,83 +228,50 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Step 1 of signup verification - the email code, which creates the account.
+  /// Signup verification: one code, to whichever channel the user chose.
   ///
-  /// On success it does NOT go to the shell: it hands straight over to
-  /// [_goToPhoneLinkOtpScreen], because an account that has only confirmed one
-  /// of its two identifiers cannot yet be signed into by the other.
+  /// That channel becomes the account's login credential. The other identifier
+  /// is written to the profile as contact detail and is deliberately NOT a way
+  /// in - nobody proved ownership of it, so accepting it later would hand the
+  /// account to whoever claimed that address or number.
   void _goToNewUserOtpScreen({
     required String name,
     required String email,
     required String phone,
+    required VerificationChannel channel,
   }) {
+    final isEmail = channel == VerificationChannel.email;
+    final destination = isEmail ? email : phone;
+    final metadata = {
+      'full_name': name,
+      'email': email,
+      'phone': phone,
+      'accepted_terms': true,
+      'attestation_18_plus': true,
+    };
+    UserProfile? profile;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerificationScreen(
-          title: 'Verify Your Email',
-          destination: email,
-          onResend: () => AuthService.instance.sendEmailOtp(
-            email,
-            data: {
-              'full_name': name,
-              'phone': phone,
-              'accepted_terms': true,
-              'attestation_18_plus': true,
-            },
-          ),
+          title: isEmail ? 'Verify Your Email' : 'Verify Your Mobile Number',
+          destination: destination,
+          onResend: () => isEmail
+              ? AuthService.instance.sendEmailOtp(email, data: metadata)
+              : AuthService.instance.sendPhoneOtp(phone, data: metadata),
           onVerify: (code) async {
-            final res = await AuthService.instance.verifyEmailOtp(
-              email: email,
-              token: code,
-            );
-            if (res.user == null) return false;
+            final res = isEmail
+                ? await AuthService.instance
+                    .verifyEmailOtp(email: email, token: code)
+                : await AuthService.instance
+                    .verifyPhoneOtp(phone: phone, token: code);
+            final user = res.user;
+            if (user == null) return false;
 
             await AuthService.instance.recordTermsConsent(
               version: '1.0',
               attest18Plus: true,
             );
-            // Attach the mobile to this same auth user and send its code. Done
-            // here, inside the verify step, so any failure surfaces on the OTP
-            // screen the user is already looking at.
-            await AuthService.instance.linkPhone(phone);
-            return true;
-          },
-          onVerified: (navCtx) => _goToPhoneLinkOtpScreen(
-            navCtx,
-            name: name,
-            email: email,
-            phone: phone,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Step 2 of signup verification - the SMS code that confirms the mobile
-  /// against the account the email just created. Only once this passes does the
-  /// account carry both identifiers, which is what makes "log in with either"
-  /// work at all.
-  void _goToPhoneLinkOtpScreen(
-    BuildContext navCtx, {
-    required String name,
-    required String email,
-    required String phone,
-  }) {
-    UserProfile? profile;
-
-    Navigator.of(navCtx).push(
-      MaterialPageRoute(
-        builder: (_) => OtpVerificationScreen(
-          title: 'Verify Your Mobile Number',
-          destination: phone,
-          onResend: () => AuthService.instance.linkPhone(phone),
-          onVerify: (code) async {
-            final res = await AuthService.instance.verifyPhoneLink(
-              phone: phone,
-              token: code,
-            );
-            final user = res.user ?? AuthService.instance.currentUser;
-            if (user == null) return false;
 
             try {
               profile = await UserRepository.instance.createProfile(
@@ -334,9 +326,13 @@ class _LoginScreenState extends State<LoginScreen> {
       // own devices, would happily create a brand new empty account for it.
       if (!await AuthService.instance.accountExists(id.value)) {
         if (!mounted) return;
+        // Most often this is someone who signed up with the OTHER identifier
+        // and is reaching for the one they never verified, so say so rather
+        // than a bare "not found".
         _showMessage(
           'No INO account uses that ${id.isEmail ? "email address" : "mobile number"}. '
-          'Please create an account first.',
+          'If you signed up with your ${id.isEmail ? "mobile number" : "email"}, '
+          'use that instead - otherwise create an account first.',
         );
         setState(() => _mode = AuthMode.signUp);
         return;
@@ -669,9 +665,51 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 18),
 
-            // Both identifiers are confirmed during signup - one code to the
-            // email, then one to the mobile - so either can log this account in
-            // afterwards. Explained here so the second code is not a surprise.
+            // Which identifier to verify. Exactly one gets confirmed, and it
+            // becomes the only way into the account - so the choice is made
+            // here, explicitly, and spelled out below rather than discovered at
+            // the next login.
+            Text(
+              'Send my code to',
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _ChannelCard(
+                    icon: Icons.sms_outlined,
+                    title: 'Mobile OTP',
+                    subtitle: 'Code by SMS',
+                    selected: _signupChannel == VerificationChannel.phone,
+                    onTap: busy
+                        ? null
+                        : () => setState(
+                            () => _signupChannel = VerificationChannel.phone),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ChannelCard(
+                    icon: Icons.mark_email_read_outlined,
+                    title: 'Email OTP',
+                    subtitle: 'Code by email',
+                    selected: _signupChannel == VerificationChannel.email,
+                    onTap: busy
+                        ? null
+                        : () => setState(
+                            () => _signupChannel = VerificationChannel.email),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // The consequence of that choice, stated before they commit to it.
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -682,14 +720,15 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.verified_user_outlined,
+                  Icon(Icons.info_outline_rounded,
                       size: 18, color: AppColors.primaryGreen),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "We'll send one code to your email and one to your "
-                      'mobile. Once both are verified you can log in with '
-                      'either.',
+                      'You will log in with your '
+                      '${_signupChannel.label.toLowerCase()} from now on. '
+                      'Signing in with the other one will not find this '
+                      'account.',
                       style: TextStyle(
                         fontSize: 12.5,
                         height: 1.4,
@@ -880,6 +919,80 @@ class _LoginScreenState extends State<LoginScreen> {
               label: 'Send OTP',
               busy: busy,
               onPressed: busy ? null : _handleExistingUserSignIn,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One option in the signup "send my code to" picker.
+class _ChannelCard extends StatelessWidget {
+  const _ChannelCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryGreen.withValues(alpha: 0.10)
+              : palette.surfaceVariant.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppColors.primaryGreen
+                : palette.border.withValues(alpha: 0.7),
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon,
+                    size: 18,
+                    color: selected
+                        ? AppColors.primaryGreen
+                        : palette.textSecondary),
+                const Spacer(),
+                if (selected)
+                  Icon(Icons.check_circle_rounded,
+                      size: 16, color: AppColors.primaryGreen),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 11.5, color: palette.textSecondary),
             ),
           ],
         ),
