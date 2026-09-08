@@ -130,13 +130,48 @@ abstract class FamilyVaultRepository {
     String? note,
   });
 
+  /// Shares a wallet record into [vaultId] with a field-level disclosure mask.
+  ///
+  /// [sharedFields] is `{jsonKey: shared?}` and [sharedData] the values that
+  /// survived it — sending a property's deed while withholding its price is the
+  /// whole point. [sourceRef] is the source record's own id (uuid once synced,
+  /// `prop_17…` while device-local); re-sharing the same record updates its row
+  /// instead of adding a second copy to the family's list.
+  Future<VaultDocument> shareItem({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceRef,
+    Map<String, bool> sharedFields,
+    Map<String, dynamic>? sharedData,
+    String? note,
+    bool isHidden,
+  });
+
   /// Withdraws a shared document. Editors may remove only what they shared;
   /// admins and the owner may remove anything.
   Future<void> removeDocument(String documentId);
 
   /// Toggles visibility of a shared document between active and hidden.
-  /// When hidden, viewers/members cannot see the document.
+  ///
+  /// Hiding is enforced server-side: a hidden row stops being returned to plain
+  /// members and its file stops resolving. Contributors control their own
+  /// contributions, admins anything in the vault.
   Future<void> updateDocumentVisibility(String documentId, bool isVisible);
+
+  /// Flips every document in one wallet group at once — the switch at the top
+  /// of a wallet. [sourceTable] null means every wallet in the vault. Returns
+  /// how many documents actually changed (the caller's own contributions, or
+  /// all of them for an admin/owner).
+  Future<int> setWalletVisibility(
+    String vaultId,
+    String? sourceTable,
+    bool isVisible,
+  );
 
   /// A short-lived URL for opening/downloading a shared document.
   ///
@@ -601,6 +636,86 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
   }
 
+  /// True when [e] means "that function is not in this database (yet)".
+  ///
+  /// The 20260909 migration is applied by hand through the SQL editor, so an app
+  /// build routinely runs against a database that predates it. Every new RPC
+  /// below therefore degrades to the pre-migration path on exactly this error —
+  /// and on nothing else, so a genuine permission or validation failure still
+  /// surfaces instead of being silently retried through a weaker route.
+  static bool _isMissingFunction(Object e) {
+    if (e is! PostgrestException) return false;
+    final code = e.code ?? '';
+    final message = e.message.toLowerCase();
+    // Matched NARROWLY, on PostgREST's own code and phrasing plus Postgres'
+    // undefined_function. Adding a broad `contains('does not exist')` here
+    // would swallow a missing column or relation too and quietly downgrade
+    // every share to the legacy path — the same over-broad matching that
+    // describeVaultError below was rewritten to stop doing.
+    return code == 'PGRST202' ||
+        code == '42883' ||
+        message.contains('could not find the function');
+  }
+
+  @override
+  Future<VaultDocument> shareItem({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceRef,
+    Map<String, bool> sharedFields = const {},
+    Map<String, dynamic>? sharedData,
+    String? note,
+    bool isHidden = false,
+  }) async {
+    try {
+      final row = await _client.rpc('share_vault_item', params: {
+        'p_vault': vaultId,
+        'p_object_path': objectPath,
+        'p_name': name,
+        'p_category': category,
+        'p_size_bytes': sizeBytes,
+        'p_content_type': contentType,
+        'p_source_table': sourceTable,
+        'p_source_ref': sourceRef,
+        'p_shared_fields': sharedFields,
+        'p_shared_data': sharedData,
+        'p_note': note,
+        'p_is_hidden': isHidden,
+      }).timeout(NetGuard.mutation);
+      return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
+    } catch (e) {
+      if (!_isMissingFunction(e)) rethrow;
+      // Pre-20260909 database: the mask has no columns to live in, so fold it
+      // back into the note blob the old model reads. The share still lands and
+      // still carries its disclosures — it just isn't server-enforced yet.
+      debugPrint('[FamilyVault] share_vault_item missing; using legacy share');
+      return shareDocument(
+        vaultId: vaultId,
+        objectPath: objectPath,
+        name: name,
+        category: category,
+        sizeBytes: sizeBytes,
+        contentType: contentType,
+        sourceTable: sourceTable,
+        sourceId: sourceRef,
+        note: jsonEncode({
+          'hidden': isHidden,
+          'is_hidden': isHidden,
+          'active': !isHidden,
+          'source_id': ?sourceRef,
+          if (sharedFields.isNotEmpty) 'fields': sharedFields,
+          if (sharedData?.isNotEmpty ?? false) 'data': sharedData,
+          if (note != null && note.trim().isNotEmpty) 'user_note': note.trim(),
+        }),
+      );
+    }
+  }
+
   @override
   Future<void> removeDocument(String documentId) async {
     await _client.rpc('remove_vault_document', params: {
@@ -611,38 +726,102 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
   @override
   Future<void> updateDocumentVisibility(String documentId, bool isVisible) async {
     try {
-      final docRow = await _client
-          .from('vault_documents')
-          .select('note')
-          .eq('id', documentId)
-          .maybeSingle()
-          .timeout(NetGuard.query);
+      await _client.rpc('set_vault_document_visibility', params: {
+        'p_document': documentId,
+        'p_visible': isVisible,
+      }).timeout(NetGuard.mutation);
+      return;
+    } catch (e) {
+      if (!_isMissingFunction(e)) rethrow;
+      debugPrint('[FamilyVault] visibility RPC missing; writing note flag');
+    }
+    await _legacyVisibilityWrite(documentId, isVisible);
+  }
 
-      final rawNote = docRow?['note'] as String?;
-      Map<String, dynamic> metadata = {};
-      if (rawNote != null &&
-          rawNote.trim().startsWith('{') &&
-          rawNote.trim().endsWith('}')) {
-        try {
-          metadata = jsonDecode(rawNote.trim()) as Map<String, dynamic>;
-        } catch (_) {}
-      } else if (rawNote != null && rawNote.isNotEmpty) {
+  /// The pre-20260909 path: the hidden flag lives inside `note` as JSON.
+  ///
+  /// Worth being explicit about what this does NOT do — the flag is advisory.
+  /// Nothing on the server acts on it, so a hidden document written this way is
+  /// still readable through the API by any member. Only the migration makes the
+  /// switch real.
+  Future<void> _legacyVisibilityWrite(String documentId, bool isVisible) async {
+    final docRow = await _client
+        .from(_documents)
+        .select('note')
+        .eq('id', documentId)
+        .maybeSingle()
+        .timeout(NetGuard.query);
+
+    final rawNote = (docRow?['note'] as String?)?.trim();
+    final metadata = <String, dynamic>{};
+    if (rawNote != null && rawNote.startsWith('{') && rawNote.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(rawNote);
+        if (decoded is Map<String, dynamic>) metadata.addAll(decoded);
+      } catch (_) {
         metadata['user_note'] = rawNote;
       }
-
-      metadata['hidden'] = !isVisible;
-      metadata['is_hidden'] = !isVisible;
-      metadata['active'] = isVisible;
-
-      await _client
-          .from('vault_documents')
-          .update({'note': jsonEncode(metadata)})
-          .eq('id', documentId)
-          .timeout(NetGuard.mutation);
-    } catch (e) {
-      debugPrint('[FamilyVault] updateDocumentVisibility failed: $e');
-      rethrow;
+    } else if (rawNote != null && rawNote.isNotEmpty) {
+      metadata['user_note'] = rawNote;
     }
+
+    metadata['hidden'] = !isVisible;
+    metadata['is_hidden'] = !isVisible;
+    metadata['active'] = isVisible;
+
+    await _client
+        .from(_documents)
+        .update({'note': jsonEncode(metadata)})
+        .eq('id', documentId)
+        .timeout(NetGuard.mutation);
+  }
+
+  @override
+  Future<int> setWalletVisibility(
+    String vaultId,
+    String? sourceTable,
+    bool isVisible,
+  ) async {
+    try {
+      final changed = await _client.rpc('set_vault_wallet_visibility', params: {
+        'p_vault': vaultId,
+        'p_source_table': sourceTable,
+        'p_visible': isVisible,
+      }).timeout(NetGuard.mutation);
+      return (changed as num?)?.toInt() ?? 0;
+    } catch (e) {
+      if (!_isMissingFunction(e)) rethrow;
+      debugPrint('[FamilyVault] wallet visibility RPC missing; per-document');
+    }
+
+    // Fallback: flip the rows one at a time. Only what the caller may actually
+    // change — an update they are not allowed to make is refused by RLS, so the
+    // failures are counted as "not changed" rather than surfaced as an error.
+    final docs = await documents(vaultId);
+    final uid = _uid;
+    var changed = 0;
+    for (final doc in docs) {
+      if (doc.isVisibleToMembers == isVisible) continue;
+      if (sourceTable != null && !_sameWallet(doc.sourceTable, sourceTable)) {
+        continue;
+      }
+      try {
+        await _legacyVisibilityWrite(doc.id, isVisible);
+        changed++;
+      } catch (e) {
+        debugPrint('[FamilyVault] could not flip ${doc.id} (uid=$uid): $e');
+      }
+    }
+    return changed;
+  }
+
+  /// Wallet names travel denormalized and inconsistently cased
+  /// ("Property Wallet" / "property_wallet"), so compare them the way the app
+  /// groups them — and the way the server RPC does.
+  static bool _sameWallet(String? a, String? b) {
+    String norm(String? s) =>
+        (s ?? '').toLowerCase().replaceAll(' ', '').replaceAll('_', '');
+    return norm(a) == norm(b);
   }
 
   @override
@@ -781,6 +960,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
 /// Owner hunting for a permissions problem they did not have. Each
 /// distinguishable cause now says what it actually is.
 String describeVaultError(Object e) {
+  if (e is VaultShareFailure) {
+    return e.message;
+  }
   if (e is StorageQuotaExceededException) {
     return e.message;
   }
@@ -844,6 +1026,16 @@ String describeVaultError(Object e) {
 /// The identifier given to [FamilyVaultRepository.inviteUser] matches no INO
 /// account. The person has to install the app and sign up before they can be
 /// invited.
+/// A share that could not be completed for a reason the user can act on —
+/// the file would not upload, say. Typed so [describeVaultError] prints the
+/// message as written instead of wrapping it in "Bad state:".
+class VaultShareFailure implements Exception {
+  const VaultShareFailure(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 class VaultUserNotFound implements Exception {
   const VaultUserNotFound(this.query, this.message);
   final String query;

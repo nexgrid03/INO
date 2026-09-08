@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 import '../../data/family_vault_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
+import '../../models/vault_share_field.dart';
 import '../../services/auth_service.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
@@ -66,6 +67,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   bool _invitesLoading = false;
   bool _auditLoading = false;
   bool _docsLoading = false;
+  bool _walletSwitchBusy = false;
   String? _error;
 
   /// Search text applied to the members + invitations lists.
@@ -131,11 +133,45 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     }
   }
 
+  /// What this user may see in the list.
+  ///
+  /// Once the 20260909 migration is applied the server already withholds hidden
+  /// rows from plain members, so this is defence in depth rather than the
+  /// gate — but it has to include the two cases the server also includes, or a
+  /// contributor would lose sight of the document they just switched off and
+  /// have no way to switch it back on.
   List<VaultDocument> get _effectiveDocuments {
-    if (_myRole.canManageMembers) {
-      return _documents;
-    }
-    return _documents.where((d) => d.isVisibleToMembers).toList();
+    if (_myRole.canManageMembers) return _documents;
+    final uid = _currentUid;
+    return _documents
+        .where((d) => d.isVisibleToMembers || (uid != null && d.sharedBy == uid))
+        .toList();
+  }
+
+  /// The wallet group a shared document belongs to, normalised the same way
+  /// everywhere: the filter pills, the group switch and the server RPC.
+  static String walletOf(VaultDocument d) =>
+      d.sourceTable ??
+      (d.category?.contains('Wallet') == true ? d.category! : null) ??
+      'Document Wallet';
+
+  static bool _sameWallet(String a, String b) {
+    String norm(String s) =>
+        s.toLowerCase().replaceAll(' ', '').replaceAll('_', '');
+    return norm(a) == norm(b);
+  }
+
+  /// The documents in the wallet the user is currently filtered to (all of them
+  /// when the filter is "All") that this user is allowed to switch.
+  List<VaultDocument> get _switchableInView {
+    final uid = _currentUid;
+    return _effectiveDocuments.where((d) {
+      if (!(_myRole.canManageMembers || (uid != null && d.sharedBy == uid))) {
+        return false;
+      }
+      final filter = _selectedDocWallet;
+      return filter == null || _sameWallet(walletOf(d), filter);
+    }).toList();
   }
 
   /// Total size of vault documents for the hero subtitle (no fake GB).
@@ -154,15 +190,66 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
   }
 
   Future<void> _toggleDocVisibility(VaultDocument doc, bool isVisible) async {
+    final l10n = AppLocalizations.of(context);
+    // Optimistic: the switch has to move under the thumb. _loadDocuments()
+    // below replaces this with what the server actually stored.
+    setState(() {
+      _documents = [
+        for (final d in _documents)
+          d.id == doc.id ? d.copyWith(hiddenColumn: !isVisible) : d,
+      ];
+    });
     try {
       await _repo.updateDocumentVisibility(doc.id, isVisible);
       await _loadDocuments();
       if (!mounted) return;
-      _toast(isVisible
-          ? 'Document is now visible to members'
-          : 'Document is now hidden from members');
+      _toast(isVisible ? l10n.t('documentNowVisible') : l10n.t('documentNowHidden'));
     } catch (e) {
-      if (mounted) _toast('Could not update document visibility', error: true);
+      debugPrint('[FamilyVault] toggleDocVisibility failed: $e');
+      await _loadDocuments();
+      if (mounted) _toast(l10n.t('couldNotUpdateVisibility'), error: true);
+    }
+  }
+
+  /// The switch at the top of a wallet: show or hide everything in it at once.
+  Future<void> _toggleWalletVisibility(bool isVisible) async {
+    final l10n = AppLocalizations.of(context);
+    final wallet = _selectedDocWallet;
+    // Snapshot the ids ONCE. _switchableInView reads _documents, which the
+    // optimistic update below replaces — evaluating it inside the loop would
+    // both re-scan per row and read a list that is mid-swap.
+    final targetIds = {
+      for (final d in _switchableInView)
+        if (d.isVisibleToMembers != isVisible) d.id,
+    };
+    if (targetIds.isEmpty) return;
+
+    setState(() {
+      _walletSwitchBusy = true;
+      // Same optimistic move as the per-document switch, for the same reason.
+      _documents = [
+        for (final d in _documents)
+          targetIds.contains(d.id)
+              ? d.copyWith(hiddenColumn: !isVisible)
+              : d,
+      ];
+    });
+
+    try {
+      final changed =
+          await _repo.setWalletVisibility(_vaultId, wallet, isVisible);
+      await _loadDocuments();
+      if (!mounted) return;
+      _toast(
+        (isVisible ? l10n.t('walletNowVisible') : l10n.t('walletNowHidden'))
+            .replaceAll('{n}', '$changed'),
+      );
+    } catch (e) {
+      debugPrint('[FamilyVault] toggleWalletVisibility failed: $e');
+      await _loadDocuments();
+      if (mounted) _toast(l10n.t('couldNotUpdateVisibility'), error: true);
+    } finally {
+      if (mounted) setState(() => _walletSwitchBusy = false);
     }
   }
 
@@ -954,8 +1041,8 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                     if (_myRole.canEditDocuments)
                       Expanded(
                         child: _HeroFilledButton(
-                          icon: Icons.add_rounded,
-                          label: l10n.t('upload'),
+                          icon: Icons.folder_shared_rounded,
+                          label: l10n.t('shareWithFamily'),
                           onTap: _addDocument,
                         ),
                       ),
@@ -1123,7 +1210,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               style: AppText.title.copyWith(color: palette.textPrimary),
             ),
             const SizedBox(width: 8),
-            if (_documents.isNotEmpty)
+            // The count has to match the list beneath it. _documents includes
+            // rows a plain member is not shown, so counting it made the badge
+            // promise documents that were nowhere on screen.
+            if (_effectiveDocuments.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
@@ -1131,7 +1221,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
                 child: Text(
-                  '${_documents.length}',
+                  '${_effectiveDocuments.length}',
                   style: TextStyle(
                     color: AppColors.primaryGreen,
                     fontSize: 11,
@@ -1141,7 +1231,30 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             const Spacer(),
             if (_docsLoading)
-              InoLoader(size: 14, color: AppColors.primaryGreen),
+              InoLoader(size: 14, color: AppColors.primaryGreen)
+            else if (_myRole.canEditDocuments)
+              PressableScale(
+                pressedScale: 0.95,
+                child: GestureDetector(
+                  onTap: _addDocument,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_rounded,
+                          size: 16, color: AppColors.primaryGreen),
+                      const SizedBox(width: 3),
+                      Text(
+                        l10n.t('shareWithFamily'),
+                        style: AppText.subtitle.copyWith(
+                          color: AppColors.primaryGreen,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -1163,13 +1276,9 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           // Wallet filter chips for shared documents
           Builder(
             builder: (context) {
-              final docWallets = <String>{};
-              for (final d in _effectiveDocuments) {
-                final w = d.sourceTable ??
-                    (d.category?.contains('Wallet') == true ? d.category! : null) ??
-                    'Document Wallet';
-                docWallets.add(w);
-              }
+              final docWallets = <String>{
+                for (final d in _effectiveDocuments) walletOf(d),
+              };
               if (docWallets.length <= 1) return const SizedBox.shrink();
 
               return Padding(
@@ -1192,13 +1301,9 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                           padding: const EdgeInsets.only(right: 6),
                           child: _DocWalletFilterPill(
                             label: localizedWalletName(l10n, w),
-                            count: _effectiveDocuments.where((d) {
-                              final dw = d.sourceTable ??
-                                  (d.category?.contains('Wallet') == true ? d.category! : null) ??
-                                  'Document Wallet';
-                              return dw.toLowerCase().replaceAll(' ', '') ==
-                                  w.toLowerCase().replaceAll(' ', '');
-                            }).length,
+                            count: _effectiveDocuments
+                                .where((d) => _sameWallet(walletOf(d), w))
+                                .length,
                             selected: _selectedDocWallet == w,
                             accentColor: AppColors.vaultAccentFor(w),
                             onTap: () => setState(() {
@@ -1212,6 +1317,24 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               );
             },
           ),
+
+          // The switch at the top of the wallet. Everything the user may
+          // control in the current filter, shown to the family or withheld
+          // from them in one move.
+          if (_switchableInView.isNotEmpty) ...[
+            _WalletVisibilitySwitch(
+              walletLabel: _selectedDocWallet == null
+                  ? l10n.t('allSharedDocuments')
+                  : localizedWalletName(l10n, _selectedDocWallet!),
+              total: _switchableInView.length,
+              visibleCount:
+                  _switchableInView.where((d) => d.isVisibleToMembers).length,
+              busy: _walletSwitchBusy,
+              onChanged: _toggleWalletVisibility,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+
           AdaptiveGlassCard(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -1222,13 +1345,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               builder: (context) {
                 final list = _selectedDocWallet == null
                     ? _effectiveDocuments
-                    : _effectiveDocuments.where((d) {
-                        final w = d.sourceTable ??
-                            (d.category?.contains('Wallet') == true ? d.category! : null) ??
-                            'Document Wallet';
-                        return w.toLowerCase().replaceAll(' ', '') ==
-                            _selectedDocWallet!.toLowerCase().replaceAll(' ', '');
-                      }).toList();
+                    : _effectiveDocuments
+                        .where((d) =>
+                            _sameWallet(walletOf(d), _selectedDocWallet!))
+                        .toList();
 
                 if (list.isEmpty) {
                   return Padding(
@@ -1252,7 +1372,12 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                           _currentUid,
                           _myRole,
                         ),
-                        canToggleVisibility: _myRole.canManageMembers,
+                        // Same reach as removal: your own contributions, or
+                        // anything at all if you run the vault.
+                        canToggleVisibility: list[i].canBeRemovedBy(
+                          _currentUid,
+                          _myRole,
+                        ),
                         onOpen: () => _openDocument(list[i]),
                         onRemove: () => _removeDocument(list[i]),
                         onToggleVisibility: (isVisible) =>
@@ -2057,6 +2182,109 @@ class _NoMatches extends StatelessWidget {
 /// The remove control is shown only to someone who may actually remove it, but
 /// that is presentation only — `remove_vault_document()` re-checks server-side,
 /// so hiding the button is never what enforces the rule.
+/// The switch at the top of a wallet in the Family Vault.
+///
+/// One control for "can the family see what I put in here". It reads as ON only
+/// when EVERY document it covers is visible — a half-on state would claim the
+/// family can see things they cannot, which is exactly the assurance this
+/// switch exists to give. The mixed case says so in words instead.
+class _WalletVisibilitySwitch extends StatelessWidget {
+  const _WalletVisibilitySwitch({
+    required this.walletLabel,
+    required this.total,
+    required this.visibleCount,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  final String walletLabel;
+  final int total;
+  final int visibleCount;
+  final bool busy;
+  final ValueChanged<bool> onChanged;
+
+  bool get _allVisible => total > 0 && visibleCount == total;
+  bool get _mixed => visibleCount > 0 && visibleCount < total;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final on = _allVisible;
+
+    final subtitle = _mixed
+        ? l10n
+            .t('visibleCountOfTotal')
+            .replaceAll('{n}', '$visibleCount')
+            .replaceAll('{total}', '$total')
+        : on
+            ? l10n.t('familyCanSeeThese').replaceAll('{n}', '$total')
+            : l10n.t('familyCannotSeeThese').replaceAll('{n}', '$total');
+
+    return AdaptiveGlassCard(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 6, 6, 6),
+      radius: AppRadius.card,
+      child: Row(
+        children: [
+          Icon(
+            on
+                ? Icons.visibility_rounded
+                : _mixed
+                    ? Icons.remove_red_eye_outlined
+                    : Icons.visibility_off_rounded,
+            size: 20,
+            color: on
+                ? AppColors.primaryGreen
+                : _mixed
+                    ? AppColors.warning
+                    : palette.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n
+                      .t('showToFamilySwitch')
+                      .replaceAll('{wallet}', walletLabel),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: AppText.caption.copyWith(
+                    color: palette.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (busy)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: InoLoader(size: 16),
+            )
+          else
+            Switch.adaptive(
+              value: on,
+              activeTrackColor: AppColors.primaryGreen,
+              onChanged: onChanged,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _VaultDocRow extends StatelessWidget {
   const _VaultDocRow({
     required this.doc,
@@ -2074,12 +2302,22 @@ class _VaultDocRow extends StatelessWidget {
   final VoidCallback onRemove;
   final ValueChanged<bool>? onToggleVisibility;
 
-  String get _walletName =>
-      doc.sourceTable ??
-      (doc.category?.contains('Wallet') == true ? doc.category! : null) ??
-      'Document Wallet';
+  String get _walletName => _VaultDetailScreenState.walletOf(doc);
 
   Color get _walletColor => AppColors.vaultAccentFor(_walletName);
+
+  /// "Address · Nominee · Registration Number" — the fields the family can read
+  /// on this share. Null when the item is a plain file with no data behind it.
+  String? get _disclosedSummary {
+    final data = doc.disclosedData;
+    if (data == null || data.isEmpty) return null;
+    final labels = [
+      for (final k in data.keys.take(4)) VaultShareFields.labelFor(k),
+    ];
+    if (labels.isEmpty) return null;
+    final more = data.length - labels.length;
+    return more > 0 ? '${labels.join(' · ')} +$more' : labels.join(' · ');
+  }
 
   IconData get _icon {
     if (doc.isImage) return Icons.image_rounded;
@@ -2149,6 +2387,25 @@ class _VaultDocRow extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (doc.isRedacted) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              AppLocalizations.of(context).t('partialShare'),
+                              style: const TextStyle(
+                                color: AppColors.warning,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (doc.isHidden) ...[
                           const SizedBox(width: 6),
                           Container(
@@ -2218,6 +2475,22 @@ class _VaultDocRow extends StatelessWidget {
                         ],
                       ],
                     ),
+                    // What the contributor actually let through. A property
+                    // shared with its price withheld should say so on the row —
+                    // otherwise a member reads a blank field as missing data
+                    // rather than a deliberate choice.
+                    if (_disclosedSummary != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        _disclosedSummary!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption.copyWith(
+                          color: palette.textFaint,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

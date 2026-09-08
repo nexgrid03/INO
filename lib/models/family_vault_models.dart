@@ -521,6 +521,10 @@ class VaultDocument {
     this.contentType,
     this.sourceTable,
     this.sourceId,
+    this.sourceRef,
+    this.hiddenColumn,
+    this.sharedFields = const {},
+    this.sharedData,
     this.note,
     required this.createdAt,
   });
@@ -543,6 +547,23 @@ class VaultDocument {
   final String? contentType;
   final String? sourceTable;
   final String? sourceId;
+
+  /// The source wallet record's own id as text — a uuid once the record has
+  /// synced, `prop_17…` while it is still device-local. Unique per vault, so
+  /// re-sharing the same property updates its row instead of adding a copy.
+  final String? sourceRef;
+
+  /// `vault_documents.is_hidden`. Null on a database that predates the
+  /// 20260909 migration, which is what makes [isHidden] fall back to the old
+  /// note-JSON flag instead of reporting every document as visible.
+  final bool? hiddenColumn;
+
+  /// The disclosure mask the contributor chose, `{field: shared?}`.
+  final Map<String, dynamic> sharedFields;
+
+  /// The field values that survived [sharedFields] — what a member may read.
+  final Map<String, dynamic>? sharedData;
+
   final String? note;
   final DateTime createdAt;
 
@@ -572,40 +593,65 @@ class VaultDocument {
   bool canBeRemovedBy(String? uid, VaultRole role) =>
       (uid != null && sharedBy == uid) || role.canManageMembers;
 
-  /// Whether the admin/owner has toggled this document OFF/hidden for family members.
-  bool get isHidden {
+  /// The note parsed as the legacy config blob, or null if it is a plain note.
+  ///
+  /// Before the 20260909 migration the hidden flag and the disclosure mask had
+  /// no columns of their own and were encoded into this text field. New writes
+  /// go to real columns; this stays as the reader for rows written earlier.
+  Map<String, dynamic>? get _legacyConfig {
     final raw = note?.trim();
-    if (raw == null || raw.isEmpty) return false;
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        return map['hidden'] == true ||
-            map['is_hidden'] == true ||
-            map['active'] == false;
-      } catch (_) {
-        return false;
-      }
+    if (raw == null || !raw.startsWith('{') || !raw.endsWith('}')) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
     }
-    return false;
+  }
+
+  /// Whether this document is switched OFF for the family.
+  ///
+  /// Hiding is enforced by RLS once the migration is applied — a hidden row is
+  /// not returned to a plain member at all, and its file stops resolving. This
+  /// getter exists for the two people who DO still see it: the contributor and
+  /// the vault's admins, whose UI has to show them the switch is off.
+  bool get isHidden {
+    final column = hiddenColumn;
+    if (column != null) return column;
+    final map = _legacyConfig;
+    if (map == null) return false;
+    return map['hidden'] == true ||
+        map['is_hidden'] == true ||
+        map['active'] == false;
   }
 
   /// Whether regular members / viewers can see this document.
   bool get isVisibleToMembers => !isHidden;
 
-  /// Custom field disclosures for structured items (e.g. price, registration number, address).
+  /// The disclosure mask, `{field: shared?}`. Null when the whole record was
+  /// shared or the item never had fields to choose from.
   Map<String, dynamic>? get customDisclosure {
-    final raw = note?.trim();
-    if (raw == null || raw.isEmpty) return null;
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        return map['fields'] as Map<String, dynamic>?;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
+    if (sharedFields.isNotEmpty) return sharedFields;
+    final fields = _legacyConfig?['fields'];
+    return fields is Map<String, dynamic> ? fields : null;
   }
+
+  /// The field values a member may read, already filtered by the mask.
+  ///
+  /// Travels on the row rather than inside the shared file so the vault list
+  /// can render "Address · Nominee" inline without a download per item — and
+  /// so a withheld field is genuinely absent from what the server sends,
+  /// instead of present in a payload the client is trusted not to show.
+  Map<String, dynamic>? get disclosedData {
+    final direct = sharedData;
+    if (direct != null && direct.isNotEmpty) return direct;
+    final data = _legacyConfig?['data'];
+    return data is Map<String, dynamic> ? data : null;
+  }
+
+  /// True when the contributor withheld at least one field of the source record.
+  bool get isRedacted =>
+      customDisclosure?.values.any((v) => v == false) ?? false;
 
   /// User-friendly note text (stripped of internal json config if any).
   String? get displayNote {
@@ -634,6 +680,10 @@ class VaultDocument {
     String? contentType,
     String? sourceTable,
     String? sourceId,
+    String? sourceRef,
+    bool? hiddenColumn,
+    Map<String, dynamic>? sharedFields,
+    Map<String, dynamic>? sharedData,
     String? note,
     DateTime? createdAt,
   }) =>
@@ -648,6 +698,10 @@ class VaultDocument {
         contentType: contentType ?? this.contentType,
         sourceTable: sourceTable ?? this.sourceTable,
         sourceId: sourceId ?? this.sourceId,
+        sourceRef: sourceRef ?? this.sourceRef,
+        hiddenColumn: hiddenColumn ?? this.hiddenColumn,
+        sharedFields: sharedFields ?? this.sharedFields,
+        sharedData: sharedData ?? this.sharedData,
         note: note ?? this.note,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -663,6 +717,15 @@ class VaultDocument {
         contentType: row['content_type'] as String?,
         sourceTable: row['source_table'] as String?,
         sourceId: row['source_id']?.toString(),
+        sourceRef: (row['source_ref'] as String?) ?? row['source_id']?.toString(),
+        // Absent (not false) on a pre-20260909 database — see [hiddenColumn].
+        hiddenColumn: row['is_hidden'] as bool?,
+        sharedFields: row['shared_fields'] is Map
+            ? Map<String, dynamic>.from(row['shared_fields'] as Map)
+            : const {},
+        sharedData: row['shared_data'] is Map
+            ? Map<String, dynamic>.from(row['shared_data'] as Map)
+            : null,
         note: row['note'] as String?,
         createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '')
                 ?.toLocal() ??

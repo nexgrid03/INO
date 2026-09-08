@@ -12,6 +12,7 @@ import '../../utils/share_origin.dart';
 import '../../utils/identifier_masker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException, AuthException;
 
+import '../../core/perf/image_decode.dart';
 import '../../data/wallet_detail_repository.dart';
 import '../../data/wallet_repository.dart' show SupabaseWalletRepository;
 import '../../l10n/app_localizations.dart';
@@ -1331,8 +1332,15 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                 quarterTurns: _rotation,
                 child: Hero(
                   tag: 'doc-${_record.id}',
-                  child: Image.network(
-                    url,
+                  child: Image(
+                    // Decoded within the GPU's texture limit. Unbounded, a
+                    // gallery photo from a modern phone (8160x6120 on a 50MP
+                    // sensor) exceeds what the device can turn into a texture,
+                    // and Flutter then paints NOTHING - no exception, no
+                    // errorBuilder. The viewer drew its chrome over an empty
+                    // black canvas and the document looked like it had failed
+                    // to load. See [zoomableNetworkImage].
+                    image: zoomableNetworkImage(context, url),
                     key: ValueKey('img-$_imageAttempt'),
                     fit: BoxFit.contain,
                     loadingBuilder: (context, child, progress) {

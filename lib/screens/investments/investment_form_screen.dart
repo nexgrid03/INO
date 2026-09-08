@@ -7,6 +7,7 @@ import '../../models/investment_models.dart';
 import '../../services/app_settings.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/investment_store.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
@@ -216,6 +217,22 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
     if (!mounted) return;
     setState(() => _saving = true);
 
+    // Upload the statements before the record is built, so what is stored is a
+    // storage object path and not a path into this phone's cache — see
+    // [WalletMediaSync].
+    final uploaded = <InvestmentAttachment>[];
+    for (final a in _attachments) {
+      final remote = await WalletMediaSync.instance.ensureUploaded(a.path);
+      uploaded.add(remote == a.path
+          ? a
+          : InvestmentAttachment(
+              id: a.id,
+              name: a.name,
+              path: remote,
+              linkedDocumentId: a.linkedDocumentId,
+            ));
+    }
+
     final now = DateTime.now();
     final investment = Investment(
       id: widget.existing?.id ?? _store.newId('inv'),
@@ -233,7 +250,7 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
       maturityDate: _type.hasMaturity ? _maturityDate : null,
       nominee: _emptyOrNull(_nominee),
       notes: _emptyOrNull(_notes),
-      attachments: _attachments,
+      attachments: uploaded,
       isFavorite: widget.existing?.isFavorite ?? false,
     );
 
@@ -242,6 +259,8 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
     } else {
       await _store.add(investment);
     }
+    if (!mounted) return;
+    await warnIfNotSynced(context, _store.lastSyncError);
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     if (_isEdit) await showSuccessBurst(context, l10n.t('changesSaved'));

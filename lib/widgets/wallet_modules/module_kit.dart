@@ -1430,3 +1430,19 @@ const List<String> kMonthNames = [
 /// "12 Mar 2024" - the module date format.
 String formatModuleDate(DateTime d) =>
     '${d.day} ${kMonthNames[d.month - 1]} ${d.year}';
+
+/// Tells the user when a record saved on the phone but the SERVER refused it.
+///
+/// [LocalCollectionStore] writes locally first and syncs behind it, which is
+/// the right shape - but it used to swallow the server's answer entirely, so a
+/// rejected record looked identical to a saved one and the wallet table stayed
+/// empty with nobody the wiser. A save that only half happened has to say so.
+Future<void> warnIfNotSynced(
+  BuildContext context,
+  ValueNotifier<String?> lastSyncError,
+) async {
+  final error = lastSyncError.value;
+  if (error == null || !context.mounted) return;
+  lastSyncError.value = null;
+  showModuleToast(context, error, error: true);
+}

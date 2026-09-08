@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,9 +9,11 @@ import '../../services/expense_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/dashboard/ino_card.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/expense_widgets.dart';
@@ -22,6 +22,17 @@ import 'add_expense_screen.dart';
 
 /// Read-only view of one transaction: all ITR fields, the attached receipt
 /// (image / PDF) and a share action.
+/// Opens a receipt in the device's default app.
+///
+/// Handed straight to OpenFilex, a storage object path is just a string the OS
+/// cannot find, so this resolves it to a real file (downloading and caching it
+/// once) before asking anything to open it.
+Future<void> _openExternally(String path) async {
+  final file = await WalletMediaSync.instance.resolve(path);
+  if (file == null) return;
+  await OpenFilex.open(file.path);
+}
+
 class TransactionDetailsScreen extends StatelessWidget {
   const TransactionDetailsScreen({super.key, required this.id});
 
@@ -31,8 +42,12 @@ class TransactionDetailsScreen extends StatelessWidget {
     if (t.receiptPath == null) return;
     final l10n = AppLocalizations.of(context);
     final origin = shareOrigin(context);
+    // The receipt lives in the bucket; handing its object path to the share
+    // sheet would share a filename, not a file.
+    final file = await WalletMediaSync.instance.resolve(t.receiptPath);
+    if (file == null) return;
     await Share.shareXFiles(
-      [XFile(t.receiptPath!)],
+      [XFile(file.path)],
       subject: t.description,
       text: l10n.t('receiptFor').replaceFirst('{name}', t.description) +
           (t.reference != null ? ' (${t.reference})' : ''),
@@ -373,7 +388,7 @@ class _ReceiptView extends StatelessWidget {
       return InoCard(
         radius: AppRadius.card,
         padding: const EdgeInsets.all(AppSpacing.md),
-        onTap: () => OpenFilex.open(txn.receiptPath!),
+        onTap: () => _openExternally(txn.receiptPath!),
         child: Row(
           children: [
             Container(
@@ -400,8 +415,8 @@ class _ReceiptView extends StatelessWidget {
       onTap: () => _openFull(context, txn.receiptPath!),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Image.file(
-          File(txn.receiptPath!),
+        child: WalletMediaImage(
+          path: txn.receiptPath,
           width: double.infinity,
           height: 260,
           fit: BoxFit.cover,
@@ -409,7 +424,7 @@ class _ReceiptView extends StatelessWidget {
           // 260px tall; the full-resolution decode is only needed by the
           // zoomable viewer that `_openFull` pushes.
           cacheHeight: context.decodeWidthFor(260),
-          errorBuilder: (_, _, _) => Container(
+          fallback: Container(
             height: 160,
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -439,7 +454,14 @@ class _ReceiptView extends StatelessWidget {
           ),
         ),
         body: Center(
-          child: InteractiveViewer(child: Image.file(File(path))),
+          child: InteractiveViewer(
+            child: WalletMediaImage(
+              path: path,
+              fit: BoxFit.contain,
+              zoomable: true,
+              fallback: const SizedBox.shrink(),
+            ),
+          ),
         ),
       ),
     ));

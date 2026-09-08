@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,11 +16,13 @@ import '../../services/app_settings.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/property_store.dart';
 import '../../services/vault_guard.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -82,7 +82,14 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     final attachment = await showPropertyAttachmentPicker(context);
     if (attachment == null || !mounted) return;
 
-    final updated = p.copyWith(attachments: [...p.attachments, attachment]);
+    // Upload before storing. The picker hands back a device path; persisting
+    // that alone is how attachments used to survive the sync and vanish on the
+    // next device - see [WalletMediaSync].
+    final remote = await WalletMediaSync.instance.ensureUploaded(attachment.path);
+    final stored =
+        remote == attachment.path ? attachment : attachment.copyWith(path: remote);
+
+    final updated = p.copyWith(attachments: [...p.attachments, stored]);
     await _store.update(updated);
 
     if (mounted) {
@@ -222,7 +229,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   _toggleProtection(p, a);
                 },
               ),
-              if (a.path != null && File(a.path!).existsSync())
+              if (a.path != null && a.path!.isNotEmpty)
                 ListTile(
                   leading: const Icon(Icons.share_rounded,
                       color: Color(0xFF0284C7)),
@@ -287,9 +294,19 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   Future<void> _shareAttachment(PropertyAttachment a) async {
     if (a.path == null) return;
     try {
+      // Resolve first: a stored attachment is an object in the bucket, and
+      // handing its object path to the OS share sheet shares nothing.
+      final file = await WalletMediaSync.instance.resolve(a.path);
+      if (file == null) {
+        if (mounted) {
+          showModuleToast(context, 'Unable to share document', error: true);
+        }
+        return;
+      }
+      if (!mounted) return;
       final origin = shareOrigin(context);
       await Share.shareXFiles(
-        [XFile(a.path!, name: a.name)],
+        [XFile(file.path, name: a.name)],
         text: a.name,
         sharePositionOrigin: origin,
       );
@@ -986,13 +1003,13 @@ class _HeroCard extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (has)
-            Image.file(
-              File(path),
+            WalletMediaImage(
+              path: path,
               fit: BoxFit.cover,
               // Bound the decode to the 190px band this actually paints into.
               // Passing only the height keeps the aspect ratio intact.
               cacheHeight: context.decodeWidthFor(190),
-              errorBuilder: (_, _, _) => _fallback(context, accent),
+              fallback: _fallback(context, accent),
             )
           else
             _fallback(context, accent),

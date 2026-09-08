@@ -7,6 +7,7 @@ import '../../models/expense_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
 import '../../services/gallery_import_service.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../services/pdf_import_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -21,6 +22,14 @@ import '../../widgets/common/ino_loader.dart';
 /// The Tax Document Vault - Form 16, 26AS, AIS, TDS, salary slips, proofs, rent
 /// receipts, medical & insurance bills, home-loan certificates - filed under the
 /// selected financial year.
+/// Opens a filed tax document. Its stored path is a storage object, which
+/// OpenFilex cannot resolve on its own — this fetches it (cached) first.
+Future<void> _openTaxDocument(String path) async {
+  final file = await WalletMediaSync.instance.resolve(path);
+  if (file == null) return;
+  await OpenFilex.open(file.path);
+}
+
 class TaxRecordsScreen extends StatefulWidget {
   const TaxRecordsScreen({super.key});
 
@@ -93,20 +102,27 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
         }
         final path = await GalleryImportService.instance.pickImage();
         if (path != null) {
+          // Upload first. tax_documents.file_path syncs to Supabase, so
+          // storing the device path filed a tax record whose document only
+          // existed on the phone that filed it - and a tax folder you cannot
+          // open next April is not a filed document.
+          final stored = await WalletMediaSync.instance.ensureUploaded(path);
           _store.addTaxDocument(
             type: type,
             fileName: path.split(RegExp(r'[\\/]')).last,
-            filePath: path,
+            filePath: stored ?? path,
             isPdf: false,
           );
         }
       } else {
         final picked = await PdfImportService.instance.pickPdf();
         if (picked != null) {
+          final stored =
+              await WalletMediaSync.instance.ensureUploaded(picked.path);
           _store.addTaxDocument(
             type: type,
             fileName: picked.name,
-            filePath: picked.path,
+            filePath: stored ?? picked.path,
             isPdf: true,
           );
         }
@@ -134,7 +150,12 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
     final origin = shareOrigin(context);
     try {
       await Share.shareXFiles(
-        [for (final d in docs) XFile(d.filePath)],
+        [
+          for (final f in await Future.wait([
+            for (final d in docs) WalletMediaSync.instance.resolve(d.filePath),
+          ]))
+            if (f != null) XFile(f.path),
+        ],
         // Subject stays English - it's brand metadata the recipient (e.g. a CA)
         // sees, not in-app UI.
         subject: 'INO Tax Folder - FY ${fy.label}',
@@ -391,7 +412,7 @@ class _TypeSection extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => OpenFilex.open(d.filePath),
+                        onTap: () => _openTaxDocument(d.filePath),
                         child: Text(d.fileName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

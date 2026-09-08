@@ -788,10 +788,17 @@ class DocumentRepository {
   }
 
   /// Uploads arbitrary bytes to an object path (used for JSON cloud backups).
+  ///
+  /// [upsert] overwrites an object that already exists. Needed by callers that
+  /// write to a DETERMINISTIC path — the Family Vault re-writes one snapshot
+  /// object per shared record so that changing the disclosure mask replaces the
+  /// old snapshot instead of leaving the previous, less-redacted copy sitting
+  /// in the bucket still readable through its existing share row.
   Future<void> uploadBytes(
     String objectPath,
     Uint8List bytes, {
     String contentType = 'application/octet-stream',
+    bool upsert = false,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -802,7 +809,7 @@ class DocumentRepository {
         .uploadBinary(
           objectPath,
           bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: false),
+          fileOptions: FileOptions(contentType: contentType, upsert: upsert),
         )
         .timeout(NetGuard.storage);
     developer.log('uploaded ${bytes.length}B to $objectPath', name: 'storage');

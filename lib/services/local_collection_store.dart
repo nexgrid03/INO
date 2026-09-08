@@ -111,6 +111,20 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
   String? _loadedUid;
   int _seq = 0;
 
+  /// The last error that stopped a record reaching Supabase, or null when the
+  /// most recent write went through.
+  ///
+  /// This exists because the alternative was worse than a crash: every server
+  /// write here was wrapped in `catch (_)`, so a record the database REFUSED
+  /// still appeared in the app, saved and correct-looking, while the wallet
+  /// table stayed empty. Silence is the wrong answer for a failed save - the
+  /// user has no way to find out, and neither did we.
+  final ValueNotifier<String?> lastSyncError = ValueNotifier<String?>(null);
+
+  /// Records that exist only on this device - created offline, or refused by
+  /// the server. Every one of them is retried on the next load.
+  int get pendingCount => items.where((i) => !isServerId(idOf(i))).length;
+
   bool get isLoaded => _loaded;
   bool get isLoading => _loading;
   bool get isEmpty => items.isEmpty;
@@ -244,16 +258,20 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
       final pending = [for (final i in items) if (!isServerId(idOf(i))) i];
       for (final item in pending) {
         try {
-          final inserted = await Supabase.instance.client
-              .from(table)
-              .insert({...await toRow(item), 'auth_user_id': uid})
-              .select()
-              .single()
-              .timeout(NetGuard.mutation);
+          final inserted = await _sendRow(
+            (payload) async => await Supabase.instance.client
+                .from(table)
+                .insert(payload)
+                .select()
+                .single()
+                .timeout(NetGuard.mutation),
+            {...await toRow(item), 'auth_user_id': uid},
+          );
           remote.add(await fromRow(inserted));
-        } catch (_) {
+        } catch (e) {
           // Upload failed - KEEP the local copy so the record is not lost, and
           // let the next sync try again.
+          _noteSyncFailure('backfill insert', e);
           remote.add(item);
         }
       }
@@ -263,8 +281,12 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
         ..addAll(remote);
       notifyListeners();
       await persist();
-    } catch (_) {
-      // Offline / table missing → keep the cache we already loaded.
+    } catch (e) {
+      // Offline / table missing → keep the cache we already loaded. Still
+      // worth naming: "the table does not exist" and "there is no network"
+      // look identical from the UI, and only one of them is fixable by the
+      // user waiting.
+      debugPrint('[$storageKey] sync($table) failed: $e');
     }
   }
 
@@ -279,6 +301,97 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     } catch (_) {
       // Best-effort; the in-memory list stays correct for this session.
     }
+  }
+
+  /// The substring between the first [open] and the next [close].
+  static String? _between(String s, String open, String close) {
+    final a = s.indexOf(open);
+    if (a < 0) return null;
+    final b = s.indexOf(close, a + open.length);
+    if (b <= a) return null;
+    final v = s.substring(a + open.length, b).trim();
+    return v.isEmpty ? null : v;
+  }
+
+  /// The column the database says the table does not have, or null when [e] is
+  /// a different kind of failure.
+  ///
+  /// Two shapes, because the complaint can come from either layer:
+  ///   PGRST204 - Could not find the 'reminder_date' column of
+  ///              'w_property_wallet' in the schema cache
+  ///   42703    - column "reminder_date" of relation "..." does not exist
+  @visibleForTesting
+  static String? missingColumnOf(Object e) => _missingColumn(e);
+
+  static String? _missingColumn(Object e) {
+    if (e is! PostgrestException) return null;
+    switch (e.code) {
+      case 'PGRST204':
+        return _between(e.message, "'", "'");
+      case '42703':
+        return _between(e.message, '"', '"');
+      default:
+        return null;
+    }
+  }
+
+  /// Sends [payload] to the server, dropping any column the database turns out
+  /// not to have and trying again.
+  ///
+  /// The wallet schema arrives across several migrations - the property table
+  /// alone spans three (base columns, then `consent`, then `reminder_date`).
+  /// With the last one unapplied, PostgREST rejects the WHOLE insert, so a
+  /// partially-migrated database silently produced an empty wallet table while
+  /// the app looked perfectly healthy. Saving everything the database CAN
+  /// accept is strictly better than saving nothing, and the dropped column is
+  /// named in the log and in [lastSyncError] so the fix is obvious rather than
+  /// a hunt.
+  ///
+  /// Terminates: each pass removes exactly one key, and a payload cannot lose
+  /// more keys than it has.
+  Future<Map<String, dynamic>> _sendRow(
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> payload) send,
+    Map<String, dynamic> payload,
+  ) async {
+    final working = Map<String, dynamic>.from(payload);
+    final dropped = <String>[];
+    while (true) {
+      try {
+        final row = await send(working);
+        if (dropped.isEmpty) {
+          lastSyncError.value = null;
+        } else {
+          final cols = dropped.join(', ');
+          final msg = 'Saved without $cols - $syncTable is missing '
+              '${dropped.length == 1 ? "that column" : "those columns"}. '
+              'Apply the latest wallet migration to store it.';
+          debugPrint('[$storageKey] $msg');
+          lastSyncError.value = msg;
+        }
+        return row;
+      } on PostgrestException catch (e) {
+        final missing = _missingColumn(e);
+        if (missing == null || !working.containsKey(missing)) rethrow;
+        debugPrint('[$storageKey] $syncTable has no "$missing" column '
+            '(${e.code}) - retrying without it');
+        working.remove(missing);
+        dropped.add(missing);
+      }
+    }
+  }
+
+  /// Records why a write did not reach the server, instead of discarding it.
+  void _noteSyncFailure(String action, Object e) {
+    final detail = e is PostgrestException
+        ? [
+            e.message,
+            if ((e.details ?? '').toString().trim().isNotEmpty) '${e.details}',
+            if ((e.hint ?? '').trim().isNotEmpty) 'Hint: ${e.hint}',
+          ].join(' - ')
+        : e.toString();
+    final msg = 'Saved on this device only - $syncTable $action failed: $detail';
+    debugPrint('[$storageKey] $msg');
+    lastSyncError.value = msg;
   }
 
   /// A collision-proof local id (microsecond clock + a per-session counter).
@@ -304,20 +417,26 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     final uid = _loadedUid;
     if (table == null || uid == null) return;
     try {
-      final row = await Supabase.instance.client
-          .from(table)
-          .insert({...await toRow(item), 'auth_user_id': uid})
-          .select()
-          .single()
-          .timeout(NetGuard.mutation);
+      final row = await _sendRow(
+        (payload) async => await Supabase.instance.client
+            .from(table)
+            .insert(payload)
+            .select()
+            .single()
+            .timeout(NetGuard.mutation),
+        {...await toRow(item), 'auth_user_id': uid},
+      );
       final i = items.indexWhere((e) => idOf(e) == idOf(item));
       if (i != -1) {
         items[i] = await fromRow(row);
         notifyListeners();
         await persist();
       }
-    } catch (_) {
-      // Stays local with its `prop_17…` id; picked up by the next sync.
+    } catch (e) {
+      // Stays local with its `prop_17…` id; picked up by the next sync - but
+      // no longer in silence, so the user can be told and the cause is in the
+      // log rather than nowhere at all.
+      _noteSyncFailure('insert', e);
     }
   }
 
@@ -336,14 +455,21 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     // update - the next sync inserts it whole.
     if (table == null || uid == null || !isServerId(id)) return;
     try {
-      await Supabase.instance.client
-          .from(table)
-          .update(await toRow(item))
-          .eq('id', id)
-          .eq('auth_user_id', uid)
-          .timeout(NetGuard.mutation);
-    } catch (_) {
+      await _sendRow(
+        (payload) async {
+          await Supabase.instance.client
+              .from(table)
+              .update(payload)
+              .eq('id', id)
+              .eq('auth_user_id', uid)
+              .timeout(NetGuard.mutation);
+          return const <String, dynamic>{};
+        },
+        await toRow(item),
+      );
+    } catch (e) {
       // Local copy is already correct; the edit re-uploads on the next sync.
+      _noteSyncFailure('update', e);
     }
   }
 
@@ -364,10 +490,11 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
           .eq('id', id)
           .eq('auth_user_id', uid)
           .timeout(NetGuard.mutation);
-    } catch (_) {
+    } catch (e) {
       // The row survives on the server and would return on the next sync.
       // Accepted: a failed delete that reappears is safer than a local
       // tombstone that silently drops a record the server still has.
+      _noteSyncFailure('delete', e);
     }
   }
 

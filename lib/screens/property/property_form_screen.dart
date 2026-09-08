@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,10 +14,12 @@ import '../../services/app_settings.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/property_store.dart';
 import '../../services/reminder_scheduler.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/save_consent_sheet.dart';
+import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -357,6 +358,20 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       );
     }
 
+    // Upload the photo and every attachment BEFORE building the record, so what
+    // gets stored is a storage object path rather than a path into this phone's
+    // cache directory. Without this the row synced fine and the pictures did
+    // not exist anywhere but here — see [WalletMediaSync].
+    final imagePath = await WalletMediaSync.instance.ensureUploaded(_imagePath);
+    final uploadedAttachments = <PropertyAttachment>[];
+    for (final a in _attachments) {
+      final remote = await WalletMediaSync.instance.ensureUploaded(a.path);
+      uploadedAttachments.add(remote == a.path ? a : a.copyWith(path: remote));
+    }
+    if (mounted && imagePath != _imagePath) {
+      setState(() => _imagePath = imagePath);
+    }
+
     final property = Property(
       id: widget.existing?.id ?? _store.newId('prop'),
       name: _name.text.trim(),
@@ -364,7 +379,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       status: _status,
       createdAt: widget.existing?.createdAt ?? now,
       updatedAt: now,
-      imagePath: _imagePath,
+      imagePath: imagePath,
       purchaseDate: _purchaseDate,
       purchasePrice: _parse(_purchasePrice),
       currentValue: _parse(_currentValue),
@@ -398,7 +413,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       notes: _emptyOrNull(_notes),
       reminderNote: _emptyOrNull(_reminder),
       reminderDate: finalReminderDate,
-      attachments: _attachments,
+      attachments: uploadedAttachments,
       isFavorite: widget.existing?.isFavorite ?? false,
     );
 
@@ -457,6 +472,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       }
     }
 
+    if (!mounted) return;
+    // Before the success burst: if the row never reached w_property_wallet the
+    // user needs to know that now, not when a second device shows nothing.
+    await warnIfNotSynced(context, _store.lastSyncError);
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     if (_isEdit) {
@@ -1141,13 +1160,13 @@ class _PhotoPicker extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (has)
-                Image.file(
-                  File(imagePath!),
+                WalletMediaImage(
+                  path: imagePath,
                   fit: BoxFit.cover,
                   // Preview band is 168px tall — decode to that, not to the
                   // full camera resolution of the photo just picked.
                   cacheHeight: context.decodeWidthFor(168),
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  fallback: const SizedBox.shrink(),
                 )
               else
                 Center(

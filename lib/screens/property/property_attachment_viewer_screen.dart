@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
@@ -11,9 +9,12 @@ import '../../services/document_protection_store.dart';
 import '../../services/property_store.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/vault_guard.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/share_origin.dart';
+import '../../widgets/common/ino_loader.dart';
+import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
 
@@ -112,20 +113,23 @@ class _PropertyAttachmentViewerScreenState
   Future<void> _shareFile() async {
     final path = _attachment.path;
     if (path == null || path.isEmpty) {
-      showModuleToast(context, 'No local file available to share', error: true);
+      showModuleToast(context, 'No file available to share', error: true);
       return;
     }
 
-    final file = File(path);
-    if (!file.existsSync()) {
-      showModuleToast(context, 'File not found on device', error: true);
+    // The attachment may live in the bucket rather than on this device; resolve
+    // downloads it (once, cached) so the share sheet gets real bytes either way.
+    final file = await WalletMediaSync.instance.resolve(path);
+    if (!mounted) return;
+    if (file == null) {
+      showModuleToast(context, 'File could not be loaded', error: true);
       return;
     }
 
     try {
       final origin = shareOrigin(context);
       await Share.shareXFiles(
-        [XFile(path, name: _attachment.name)],
+        [XFile(file.path, name: _attachment.name)],
         text: _attachment.name,
         sharePositionOrigin: origin,
       );
@@ -139,13 +143,20 @@ class _PropertyAttachmentViewerScreenState
   Future<void> _openWithSystemApp() async {
     final path = _attachment.path;
     if (path == null || path.isEmpty) {
-      showModuleToast(context, 'No local file available', error: true);
+      showModuleToast(context, 'No file available', error: true);
       return;
     }
 
     setState(() => _openingFile = true);
     try {
-      final result = await OpenFilex.open(path);
+      final file = await WalletMediaSync.instance.resolve(path);
+      if (file == null) {
+        if (mounted) {
+          showModuleToast(context, 'File could not be loaded', error: true);
+        }
+        return;
+      }
+      final result = await OpenFilex.open(file.path);
       if (result.type != ResultType.done && mounted) {
         showModuleToast(
           context,
@@ -197,7 +208,12 @@ class _PropertyAttachmentViewerScreenState
     final l10n = AppLocalizations.of(context);
     final isImg = _attachment.isImage;
     final path = _attachment.path;
-    final exists = path != null && File(path).existsSync();
+    // A stored attachment is an object path, not a file on this device, so an
+    // existsSync() here reported every synced attachment as missing. Presence
+    // of a path is the test; the viewers below resolve it.
+    final exists = path != null &&
+        path.isNotEmpty &&
+        (WalletMediaSync.isRemote(path) || WalletMediaSync.isLocalFile(path));
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -344,10 +360,14 @@ class _PropertyAttachmentViewerScreenState
         maxScale: 5.0,
         child: RotatedBox(
           quarterTurns: _rotationQuarterTurns,
-          child: Image.file(
-            File(path),
+          child: WalletMediaImage(
+            path: path,
             fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Center(
+            // Full-screen and pinch-zoomable: decode within the texture limit
+            // or a full-resolution photo paints nothing at all.
+            zoomable: true,
+            loading: const Center(child: InoLoader(color: Colors.white)),
+            fallback: const Center(
               child: Text(
                 'Failed to load image',
                 style: TextStyle(color: Colors.white70),

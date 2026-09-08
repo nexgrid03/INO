@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../core/perf/image_decode.dart';
@@ -16,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/indian_number_format.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -784,8 +783,8 @@ class _Thumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final path = property.imagePath;
     if (path != null && path.isNotEmpty) {
-      return Image.file(
-        File(path),
+      return WalletMediaImage(
+        path: path,
         fit: BoxFit.cover,
         // Decode straight to thumbnail size. Property photos come from the
         // camera/gallery at full resolution; without this a 48px tile pulled a
@@ -793,10 +792,10 @@ class _Thumbnail extends StatelessWidget {
         // card's thumbnail, so scrolling re-decoded them over and over.
         cacheWidth: context.decodeWidthFor(_size),
         cacheHeight: context.decodeWidthFor(_size),
-        // A deleted/moved photo must never break the card. This also covers the
-        // missing-file case that an `existsSync()` used to pre-check — that was
-        // a blocking disk stat running on the UI thread on every single build.
-        errorBuilder: (_, _, _) => _placeholder(context),
+        // Covers a deleted/moved photo AND a stored object still downloading.
+        // This also replaces the `existsSync()` that used to guard it — that
+        // was a blocking disk stat running on the UI thread on every build.
+        fallback: _placeholder(context),
       );
     }
     return _placeholder(context);

@@ -208,6 +208,93 @@ class _FakeVaultRepo implements FamilyVaultRepository {
     }
   }
 
+  /// Mirrors share_vault_item(): the same editor gate, and the same upsert
+  /// order — match on (vault, source record) FIRST, so re-sharing a property
+  /// with a different disclosure mask replaces its row instead of adding a
+  /// second copy under a new object path.
+  @override
+  Future<VaultDocument> shareItem({
+    required String vaultId,
+    required String objectPath,
+    required String name,
+    String? category,
+    int? sizeBytes,
+    String? contentType,
+    String? sourceTable,
+    String? sourceRef,
+    Map<String, bool> sharedFields = const {},
+    Map<String, dynamic>? sharedData,
+    String? note,
+    bool isHidden = false,
+  }) async {
+    if (revokedVaults.contains(vaultId)) {
+      throw Exception('not a member');
+    }
+    final role = vaults
+        .where((v) => v.vault.id == vaultId)
+        .map((v) => v.myRole)
+        .firstOrNull;
+    if (role == null || !role.canEditDocuments) {
+      throw Exception('insufficient role');
+    }
+
+    final list = docsByVault[vaultId] ??= [];
+    var index = sourceRef == null
+        ? -1
+        : list.indexWhere((d) => d.sourceRef == sourceRef);
+    if (index == -1) {
+      index = list.indexWhere((d) => d.objectPath == objectPath);
+    }
+
+    final doc = VaultDocument(
+      id: index == -1 ? 'd${_seq++}' : list[index].id,
+      vaultId: vaultId,
+      sharedBy: 'me',
+      objectPath: objectPath,
+      name: name,
+      category: category,
+      sizeBytes: sizeBytes,
+      contentType: contentType,
+      sourceTable: sourceTable,
+      sourceRef: sourceRef,
+      hiddenColumn: isHidden,
+      sharedFields: sharedFields,
+      sharedData: sharedData,
+      note: note,
+      createdAt: DateTime(2026, 7, 29),
+    );
+    if (index == -1) {
+      list.insert(0, doc);
+    } else {
+      list[index] = doc;
+    }
+    return doc;
+  }
+
+  @override
+  Future<int> setWalletVisibility(
+    String vaultId,
+    String? sourceTable,
+    bool isVisible,
+  ) async {
+    if (revokedVaults.contains(vaultId)) throw Exception('not a member');
+    String norm(String? v) =>
+        (v ?? '').toLowerCase().replaceAll(' ', '').replaceAll('_', '');
+    final list = docsByVault[vaultId] ?? [];
+    var changed = 0;
+    for (var i = 0; i < list.length; i++) {
+      final d = list[i];
+      if (sourceTable != null && norm(d.sourceTable) != norm(sourceTable)) {
+        continue;
+      }
+      if (d.isVisibleToMembers == isVisible) continue;
+      list[i] = d.copyWith(hiddenColumn: !isVisible);
+      changed++;
+    }
+    return changed;
+  }
+
+
   @override
   Future<void> updateDocumentVisibility(String documentId, bool isVisible) async {
     for (final list in docsByVault.values) {
@@ -692,6 +779,120 @@ void main() {
       expect(doc('u/x.jpg').isImage, isTrue);
       expect(doc('u/x.docx').isImage, isFalse);
       expect(doc('u/noext').extension, '');
+    });
+
+    test('re-sharing the same record replaces its row, it does not add one',
+        () async {
+      // The failure this guards: a structured record with no file is shared as
+      // a JSON snapshot, so changing the disclosure mask changes the object
+      // path. Keyed only on the path, the family would end up looking at the
+      // property twice — once with the price, once without.
+      repo.vaults.add(vaultAs(VaultRole.editor));
+
+      await repo.shareItem(
+        vaultId: 'v1',
+        objectPath: 'me/vault_v1_prop123.json',
+        name: 'Lake House',
+        sourceTable: 'Property Wallet',
+        sourceRef: 'prop_123',
+        sharedFields: const {'purchasePrice': true},
+        sharedData: const {'purchasePrice': 4500000},
+      );
+      await repo.shareItem(
+        vaultId: 'v1',
+        objectPath: 'me/vault_v1_prop123_v2.json',
+        name: 'Lake House',
+        sourceTable: 'Property Wallet',
+        sourceRef: 'prop_123',
+        sharedFields: const {'purchasePrice': false},
+        sharedData: const {},
+      );
+
+      final docs = await repo.documents('v1');
+      expect(docs, hasLength(1));
+      expect(docs.single.objectPath, 'me/vault_v1_prop123_v2.json');
+      expect(docs.single.isRedacted, isTrue);
+    });
+
+    test('sharing hidden stages a document without showing it', () async {
+      repo.vaults.add(vaultAs(VaultRole.editor));
+      final doc = await repo.shareItem(
+        vaultId: 'v1',
+        objectPath: 'me/deed.pdf',
+        name: 'Deed',
+        sourceTable: 'Property Wallet',
+        sourceRef: 'prop_9',
+        isHidden: true,
+      );
+      expect(doc.isVisibleToMembers, isFalse);
+    });
+
+    test('the wallet switch flips only that wallet, and reports the count',
+        () async {
+      repo.vaults.add(vaultAs(VaultRole.admin));
+      for (final (ref, wallet) in const [
+        ('p1', 'Property Wallet'),
+        ('p2', 'Property Wallet'),
+        ('i1', 'Investment Wallet'),
+      ]) {
+        await repo.shareItem(
+          vaultId: 'v1',
+          objectPath: 'me/$ref.pdf',
+          name: ref,
+          sourceTable: wallet,
+          sourceRef: ref,
+        );
+      }
+
+      // The wallet name arrives denormalized and inconsistently cased, so the
+      // match has to survive "property_wallet" vs "Property Wallet".
+      final changed =
+          await repo.setWalletVisibility('v1', 'property_wallet', false);
+      expect(changed, 2);
+
+      final docs = await repo.documents('v1');
+      expect(
+        {for (final d in docs) d.sourceRef: d.isVisibleToMembers},
+        {'p1': false, 'p2': false, 'i1': true},
+      );
+
+      // Flipping again changes nothing, so the UI can report "0" honestly
+      // rather than claiming work it did not do.
+      expect(await repo.setWalletVisibility('v1', 'property_wallet', false), 0);
+    });
+
+    test('a null wallet means every wallet in the vault', () async {
+      repo.vaults.add(vaultAs(VaultRole.admin));
+      await repo.shareItem(
+        vaultId: 'v1',
+        objectPath: 'me/a.pdf',
+        name: 'A',
+        sourceTable: 'Property Wallet',
+        sourceRef: 'a',
+      );
+      await repo.shareItem(
+        vaultId: 'v1',
+        objectPath: 'me/b.pdf',
+        name: 'B',
+        sourceTable: 'Investment Wallet',
+        sourceRef: 'b',
+      );
+      expect(await repo.setWalletVisibility('v1', null, false), 2);
+      final docs = await repo.documents('v1');
+      expect(docs.every((d) => !d.isVisibleToMembers), isTrue);
+    });
+
+    test('a viewer cannot share a wallet item in either', () async {
+      repo.vaults.add(vaultAs(VaultRole.viewer));
+      expect(
+        () => repo.shareItem(
+          vaultId: 'v1',
+          objectPath: 'me/x.pdf',
+          name: 'X',
+          sourceRef: 'x',
+        ),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 

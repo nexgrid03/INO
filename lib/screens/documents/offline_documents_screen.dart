@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/document_protection_store.dart';
@@ -633,8 +634,12 @@ class _OfflineImageViewer extends StatelessWidget {
       body: Center(
         child: InteractiveViewer(
           maxScale: 6,
-          child: Image.file(
-            file,
+          child: Image(
+            // Bounded by the GPU's texture limit. A full-resolution photo
+            // exceeds it and then paints nothing at all - no exception, no
+            // errorBuilder - leaving this viewer's black background looking
+            // like a document that failed to open.
+            image: zoomableFileImage(context, file),
             fit: BoxFit.contain,
             errorBuilder: (context, _, _) => Padding(
               padding: const EdgeInsets.all(24),

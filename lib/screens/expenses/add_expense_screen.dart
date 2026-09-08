@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +6,7 @@ import '../../models/expense_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
 import '../../services/gallery_import_service.dart';
+import '../../services/wallet_media_sync.dart';
 import '../../services/pdf_import_service.dart';
 import '../../services/receipt_scan_service.dart';
 import '../../theme/app_dimens.dart';
@@ -18,6 +17,7 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/expenses/direction_toggle.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/common/ino_loader.dart';
+import '../../widgets/common/wallet_media_image.dart';
 
 /// Add / edit an ITR-ready transaction. Attaching a photo receipt runs OCR and
 /// pre-fills amount / date / vendor automatically.
@@ -419,7 +419,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
     final desc = _description.text.trim();
     final finalDesc = desc.isEmpty ? _category.label(l10n) : desc;
@@ -432,6 +432,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final note = _note.text.trim().isEmpty ? null : _note.text.trim();
     final gst = double.tryParse(_gst.text.trim());
     final e = widget.existing;
+
+    // The receipt goes to storage BEFORE the row is written. `receipt_path`
+    // syncs to Supabase either way, but a device path names a file that exists
+    // on one phone, inside a cache the OS may empty - the transaction survived
+    // and its proof did not. Uploading here is also why it is done at save and
+    // not at pick time: a receipt attached to a form the user then abandons
+    // should not consume their storage quota.
+    final receiptPath =
+        await WalletMediaSync.instance.ensureUploaded(_receiptPath);
+    if (!mounted) return;
+    if (receiptPath != _receiptPath) setState(() => _receiptPath = receiptPath);
     if (e == null) {
       _store.add(
         description: finalDesc,
@@ -444,7 +455,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         vendorName: vendor,
         paymentMethod: _payment,
         note: note,
-        receiptPath: _receiptPath,
+        receiptPath: receiptPath,
         receiptIsPdf: _receiptIsPdf,
         direction: _direction,
       );
@@ -460,7 +471,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         vendorName: vendor,
         paymentMethod: _payment,
         note: note,
-        receiptPath: _receiptPath,
+        receiptPath: receiptPath,
         receiptIsPdf: _receiptIsPdf,
         direction: _direction,
       ));
@@ -972,17 +983,19 @@ class _UploadProof extends StatelessWidget {
                                           color: AppColors.lightBlue,
                                           size: 26),
                                     )
-                                  : Image.file(File(path!),
+                                  : WalletMediaImage(
+                                      path: path,
                                       width: 56,
                                       height: 56,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                            width: 56,
-                                            height: 56,
-                                            color: palette.surface,
-                                            child: Icon(Icons.image_rounded,
-                                                color: palette.textFaint),
-                                          )),
+                                      fallback: Container(
+                                        width: 56,
+                                        height: 56,
+                                        color: palette.surface,
+                                        child: Icon(Icons.image_rounded,
+                                            color: palette.textFaint),
+                                      ),
+                                    ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
