@@ -40,11 +40,29 @@ void main() {
       expect(find.text('Terms of Service'), findsOneWidget);
       expect(find.text('Privacy Policy'), findsOneWidget);
 
-      // No channel picker: both identifiers get confirmed, which is the only
-      // way either of them can log the account in afterwards.
-      expect(find.text('Verification Method'), findsNothing);
-      expect(find.text('Email OTP'), findsNothing);
-      expect(find.text('Mobile OTP'), findsNothing);
+      // The user picks which identifier gets verified - and that one becomes
+      // the only way into the account.
+      expect(find.text('Send my code to'), findsOneWidget);
+      expect(find.text('Email OTP'), findsOneWidget);
+      expect(find.text('Mobile OTP'), findsOneWidget);
+    });
+
+    testWidgets('the picker states which identifier will log you in',
+        (tester) async {
+      useTallView(tester);
+      await tester.pumpWidget(
+          host(const LoginScreen(initialMode: AuthMode.signUp)));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Mobile is the default.
+      expect(find.textContaining('log in with your mobile number'),
+          findsOneWidget);
+
+      await tester.tap(find.text('Email OTP'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.textContaining('log in with your email'), findsOneWidget);
+      expect(find.textContaining('log in with your mobile number'),
+          findsNothing);
     });
 
     testWidgets('Login takes ONE identifier field - email or mobile, no password',
@@ -59,7 +77,9 @@ void main() {
       expect(find.text('Email or mobile number'), findsOneWidget);
       expect(find.text('Send OTP'), findsOneWidget);
 
-      // The old two-tab channel picker and the password path are both gone.
+      // Login takes either identifier - it has to, so that typing the one you
+      // did NOT verify can tell you so - but offers no channel picker of its
+      // own and no password path.
       expect(find.text('Mobile OTP'), findsNothing);
       expect(find.text('Email OTP'), findsNothing);
       expect(find.text('Sign in with Password instead'), findsNothing);

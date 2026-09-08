@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/user_profile.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/signup_screen.dart';
+import '../screens/auth/login_screen.dart' show AuthMode;
+import '../screens/language/language_selection_screen.dart';
 import '../theme/app_dimens.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/shiny_icon.dart';
@@ -102,12 +102,18 @@ class GuestMode {
             ),
             const SizedBox(height: 22),
             FilledButton(
-              onPressed: () => _go(sheetContext, const LoginScreen()),
+              onPressed: () => _go(
+                sheetContext,
+                const LanguageSelectionScreen(targetMode: AuthMode.signIn),
+              ),
               child: Text(l10n.t('signIn')),
             ),
             const SizedBox(height: 10),
             OutlinedButton(
-              onPressed: () => _go(sheetContext, const SignupScreen()),
+              onPressed: () => _go(
+                sheetContext,
+                const LanguageSelectionScreen(targetMode: AuthMode.signUp),
+              ),
               child: Text(l10n.t('createAccount')),
             ),
             const SizedBox(height: 4),

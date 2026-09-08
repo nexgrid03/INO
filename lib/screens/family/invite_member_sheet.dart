@@ -119,8 +119,25 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
         _kind == _Kind.phone ? value.replaceAll(' ', '') : value,
       );
       if (mounted) Navigator.of(context).pop(true);
+    } on VaultUserNotFound catch (_) {
+      if (mounted) {
+        setState(() => _error =
+            l10n.t('inviteUserNotFound').replaceAll('{query}', value));
+      }
+    } on VaultUserAmbiguous catch (_) {
+      if (mounted) {
+        setState(() => _error = l10n.t('inviteUserAmbiguous'));
+      }
     } on PostgrestException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        if (e.message.contains('does not exist') ||
+            e.message.contains('relation')) {
+          setState(() => _error =
+              'Service temporarily busy. Please run database update and try again.');
+        } else {
+          setState(() => _error = e.message);
+        }
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _error = l10n.t('couldNotSendInvitation'));

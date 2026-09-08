@@ -356,108 +356,118 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         ),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.border,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (canManage) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l10n.t('changeRole'),
-                    style: AppText.label.copyWith(color: palette.textFaint),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+          ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
-              ),
-              for (final role in VaultRoleX.assignable)
-                ListTile(
-                  leading: Icon(role.icon, color: role.color),
-                  title: Text(role.localizedLabel(l10n)),
-                  subtitle: Text(role.localizedDescription(l10n)),
-                  trailing: member.role == role
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: AppColors.primaryGreen,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop('role:${role.name}'),
-                ),
-            ],
-            if (canPromote) ...[
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                leading: Icon(
-                  Icons.workspace_premium_rounded,
-                  color: AppColors.primaryGreen,
-                ),
-                title: Text(l10n.t('makeCoOwner')),
-                subtitle: Text(l10n.t('makeCoOwnerSubtitle')),
-                onTap: () => Navigator.of(context).pop('promote'),
-              ),
-            ],
-            if (canDemote) ...[
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                leading: const Icon(
-                  Icons.remove_moderator_rounded,
-                  color: AppColors.warning,
-                ),
-                title: Text(l10n.t('removeOwnerRole')),
-                subtitle: Text(l10n.t('removeOwnerRoleSubtitle')),
-                onTap: () => Navigator.of(context).pop('demote'),
-              ),
-            ],
-            if (canTransfer) ...[
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                leading: Icon(
-                  Icons.swap_horiz_rounded,
-                  color: AppColors.primaryGreen,
-                ),
-                title: Text(l10n.t('transferPrimaryOwnership')),
-                subtitle: Text(l10n.t('transferOwnershipSubtitle')),
-                onTap: () => Navigator.of(context).pop('transfer'),
-              ),
-            ],
-            if (canManage) ...[
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                leading: const Icon(
-                  Icons.person_remove_rounded,
-                  color: AppColors.critical,
-                ),
-                title: Text(
-                  l10n.t('removeFromVault'),
-                  style: const TextStyle(color: AppColors.critical),
-                ),
-                onTap: () => Navigator.of(context).pop('remove'),
-              ),
-            ],
-            if (canLeave)
-              ListTile(
-                leading: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.critical,
-                ),
-                title: Text(
-                  l10n.t('leaveVault'),
-                  style: const TextStyle(color: AppColors.critical),
-                ),
-                onTap: () => Navigator.of(context).pop('leave'),
-              ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
+                const SizedBox(height: AppSpacing.sm),
+                if (canManage) ...[
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        l10n.t('changeRole'),
+                        style: AppText.label.copyWith(color: palette.textFaint),
+                      ),
+                    ),
+                  ),
+                  for (final role in VaultRoleX.assignable)
+                    ListTile(
+                      leading: Icon(role.icon, color: role.color),
+                      title: Text(role.localizedLabel(l10n)),
+                      subtitle: Text(role.localizedDescription(l10n)),
+                      trailing: member.role == role
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primaryGreen,
+                            )
+                          : null,
+                      onTap: () =>
+                          Navigator.of(context).pop('role:${role.name}'),
+                    ),
+                ],
+                if (canPromote) ...[
+                  Divider(height: 1, color: palette.border),
+                  ListTile(
+                    leading: Icon(
+                      Icons.workspace_premium_rounded,
+                      color: AppColors.primaryGreen,
+                    ),
+                    title: Text(l10n.t('makeCoOwner')),
+                    subtitle: Text(l10n.t('makeCoOwnerSubtitle')),
+                    onTap: () => Navigator.of(context).pop('promote'),
+                  ),
+                ],
+                if (canDemote) ...[
+                  Divider(height: 1, color: palette.border),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.remove_moderator_rounded,
+                      color: AppColors.warning,
+                    ),
+                    title: Text(l10n.t('removeOwnerRole')),
+                    subtitle: Text(l10n.t('removeOwnerRoleSubtitle')),
+                    onTap: () => Navigator.of(context).pop('demote'),
+                  ),
+                ],
+                if (canTransfer) ...[
+                  Divider(height: 1, color: palette.border),
+                  ListTile(
+                    leading: Icon(
+                      Icons.swap_horiz_rounded,
+                      color: AppColors.primaryGreen,
+                    ),
+                    title: Text(l10n.t('transferPrimaryOwnership')),
+                    subtitle: Text(l10n.t('transferOwnershipSubtitle')),
+                    onTap: () => Navigator.of(context).pop('transfer'),
+                  ),
+                ],
+                if (canManage) ...[
+                  Divider(height: 1, color: palette.border),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.person_remove_rounded,
+                      color: AppColors.critical,
+                    ),
+                    title: Text(
+                      l10n.t('removeFromVault'),
+                      style: const TextStyle(color: AppColors.critical),
+                    ),
+                    onTap: () => Navigator.of(context).pop('remove'),
+                  ),
+                ],
+                if (canLeave)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.critical,
+                    ),
+                    title: Text(
+                      l10n.t('leaveVault'),
+                      style: const TextStyle(color: AppColors.critical),
+                    ),
+                    onTap: () => Navigator.of(context).pop('leave'),
+                  ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -619,68 +629,80 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         ),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.border,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (inv.isPending) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l10n.t('changeRole'),
-                    style: AppText.label.copyWith(color: palette.textFaint),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+          ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
-              ),
-              for (final role in VaultRoleX.assignable)
-                ListTile(
-                  leading: Icon(role.icon, color: role.color),
-                  title: Text(role.localizedLabel(l10n)),
-                  trailing: inv.role == role
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: AppColors.primaryGreen,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop('role:${role.name}'),
-                ),
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                leading: const Icon(
-                  Icons.cancel_rounded,
-                  color: AppColors.critical,
-                ),
-                title: Text(
-                  l10n.t('cancelInvitation'),
-                  style: const TextStyle(color: AppColors.critical),
-                ),
-                onTap: () => Navigator.of(context).pop('cancel'),
-              ),
-            ] else
-              ListTile(
-                leading: Icon(
-                  Icons.refresh_rounded,
-                  color: AppColors.primaryGreen,
-                ),
-                title: Text(l10n.t('resendInvitation')),
-                subtitle: Text(
-                  l10n.t('resendInvitationTo').replaceAll('{target}', inv.target),
-                ),
-                onTap: () => Navigator.of(context).pop('resend'),
-              ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
+                const SizedBox(height: AppSpacing.sm),
+                if (inv.isPending) ...[
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        l10n.t('changeRole'),
+                        style: AppText.label.copyWith(color: palette.textFaint),
+                      ),
+                    ),
+                  ),
+                  for (final role in VaultRoleX.assignable)
+                    ListTile(
+                      leading: Icon(role.icon, color: role.color),
+                      title: Text(role.localizedLabel(l10n)),
+                      trailing: inv.role == role
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primaryGreen,
+                            )
+                          : null,
+                      onTap: () =>
+                          Navigator.of(context).pop('role:${role.name}'),
+                    ),
+                  Divider(height: 1, color: palette.border),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.cancel_rounded,
+                      color: AppColors.critical,
+                    ),
+                    title: Text(
+                      l10n.t('cancelInvitation'),
+                      style: const TextStyle(color: AppColors.critical),
+                    ),
+                    onTap: () => Navigator.of(context).pop('cancel'),
+                  ),
+                ] else
+                  ListTile(
+                    leading: Icon(
+                      Icons.refresh_rounded,
+                      color: AppColors.primaryGreen,
+                    ),
+                    title: Text(l10n.t('resendInvitation')),
+                    subtitle: Text(
+                      l10n
+                          .t('resendInvitationTo')
+                          .replaceAll('{target}', inv.target),
+                    ),
+                    onTap: () => Navigator.of(context).pop('resend'),
+                  ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
+          ),
         ),
       ),
     );

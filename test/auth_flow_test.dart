@@ -59,13 +59,13 @@ void main() {
     expect(find.text('Mobile number'), findsOneWidget);
     expect(find.text('Send Verification Code'), findsOneWidget);
 
-    // Signup confirms BOTH identifiers, so there is no channel to pick - and
-    // the form says so, since the second code would otherwise surprise people.
-    expect(find.text('Verification Method'), findsNothing);
-    expect(find.text('Email OTP'), findsNothing);
-    expect(find.text('Mobile OTP'), findsNothing);
+    // The user picks which identifier receives the code, and the form states
+    // the consequence before they commit to it.
+    expect(find.text('Send my code to'), findsOneWidget);
+    expect(find.text('Email OTP'), findsOneWidget);
+    expect(find.text('Mobile OTP'), findsOneWidget);
     expect(
-      find.textContaining('one code to your email and one to your mobile'),
+      find.textContaining('You will log in with your'),
       findsOneWidget,
     );
   });

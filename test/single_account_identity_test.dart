@@ -54,7 +54,7 @@ void main() {
       expect(login.contains('accountExists'), isTrue);
       // The "no account" branch must send people to signup, not silently pass
       // the identifier to Supabase.
-      expect(login, contains('Please create an account first'));
+      expect(login, contains('create an account first'));
       expect(login, contains('_mode = AuthMode.signUp'));
     });
 
@@ -67,12 +67,42 @@ void main() {
           reason: 'a failed lookup must rethrow, not report "no account"');
     });
 
-    test('signup confirms the mobile as well as the email', () {
-      // Without linkPhone + verifyPhoneLink the phone is never attached to the
-      // auth user, and logging in with it could only ever create a new account.
-      expect(login.contains('linkPhone'), isTrue);
-      expect(login.contains('verifyPhoneLink'), isTrue);
-      expect(auth.contains('OtpType.phoneChange'), isTrue);
+    test('signup verifies exactly the channel the user picked', () {
+      // One code, to the chosen identifier - and that identifier is the only
+      // way back in. Both branches must exist, or one of the two options on
+      // the picker silently does nothing.
+      expect(login, contains('VerificationChannel.email'));
+      expect(login, contains('VerificationChannel.phone'));
+      expect(login, contains('sendEmailOtp(email, data: metadata)'));
+      expect(login, contains('sendPhoneOtp(fullPhone, data: metadata)'));
+    });
+
+    test('signup pre-flights with identifierTaken, login with accountExists',
+        () {
+      // These ask different questions and are NOT interchangeable. Signup
+      // verifies one channel, so the other never reaches auth.users - checking
+      // it with the login-side lookup would call a taken email free, and the
+      // duplicate would land as a failed profile INSERT after the code was
+      // already verified.
+      final signup = login.substring(
+        login.indexOf('_handleNewUserSignup'),
+        login.indexOf('_goToNewUserOtpScreen({'),
+      );
+      expect(signup, contains('identifierTaken(email)'));
+      expect(signup, contains('identifierTaken(fullPhone)'));
+      expect(signup.contains('accountExists('), isFalse,
+          reason: 'the login-side lookup must not gate signup');
+
+      final signin = login.substring(login.indexOf('_handleExistingUserSignIn'));
+      expect(signin.substring(0, signin.indexOf('_goToExistingUserOtpScreen(')),
+          contains('accountExists('));
+    });
+
+    test('the unverified identifier is told to use the other one', () {
+      // Someone who signed up by email and reaches for their mobile is the
+      // common case, not a stranger - a bare "not found" would read as a bug.
+      expect(login, contains('If you signed up with your'));
+      expect(login, contains('otherwise create an account first'));
     });
 
     test('password sign-in is gone from the login screen', () {
@@ -115,6 +145,27 @@ void main() {
     test('one email and one phone can never map to two profiles', () {
       expect(sql, contains('users_email_unique_idx'));
       expect(sql, contains('users_phone_unique_idx'));
+    });
+
+    test('identifier_taken reads both tables, account_exists only auth', () {
+      expect(sql, contains('create or replace function public.identifier_taken'));
+      expect(sql, contains(
+          'grant execute on function public.identifier_taken(text) to anon'));
+
+      // The signup lookup must consider profile rows; the login lookup must
+      // not, or it would promise codes Supabase cannot deliver.
+      final taken = sql.substring(
+        sql.indexOf('create or replace function public.identifier_taken'),
+      );
+      expect(taken.substring(0, taken.indexOf(r'$$;')),
+          contains('from public.users u'));
+
+      final exists = sql.substring(
+        sql.indexOf('create or replace function public.account_exists'),
+      );
+      final existsBody = exists.substring(0, exists.indexOf(r'$$;'));
+      expect(existsBody.contains('public.users'), isFalse,
+          reason: 'the login pre-flight must read auth.users only');
     });
 
     test('the migration deletes nothing', () {
