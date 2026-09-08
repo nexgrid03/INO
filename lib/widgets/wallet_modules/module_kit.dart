@@ -144,27 +144,32 @@ class DetailRow extends StatelessWidget {
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 15, color: palette.textFaint),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, size: 15, color: palette.textFaint),
+            ),
             const SizedBox(width: 8),
           ],
-          SizedBox(
-            width: 88,
+          Flexible(
+            flex: 5,
             child: Text(
               label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: palette.textSecondary),
+              style: AppText.caption.copyWith(
+                color: palette.textSecondary,
+                height: 1.25,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
+            flex: 6,
             child: Text(
               isUrl ? _shortMapsLabel(v, l10n) : v,
               textAlign: TextAlign.right,
-              maxLines: isUrl ? 1 : 3,
+              maxLines: isUrl ? 1 : 4,
               overflow: TextOverflow.ellipsis,
               style: valueStyle,
             ),

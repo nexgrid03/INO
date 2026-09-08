@@ -19,6 +19,8 @@ import '../../widgets/wallet/create_wallet_sheet.dart';
 import '../../widgets/wallet/wallet_grid.dart';
 import '../notifications/notifications_screen.dart';
 import 'document_search_delegate.dart';
+import '../../repositories/document_repository.dart';
+import '../../services/property_store.dart';
 import '../../widgets/common/ino_loader.dart';
 
 /// The INO Wallet Hub - a premium, fast-access vault launcher.
@@ -65,11 +67,30 @@ class _WalletScreenState extends State<WalletScreen> {
     // warm-up exists to remove.
     _lastData = AppPreload.instance.seedWalletHub();
     _future = _load();
+
+    // Listen for custom wallet restorations and background sync completions so the
+    // hub refreshes dynamically without requiring app restart or manual pull-to-refresh.
+    CustomWalletStore.instance.addListener(_onStoreChanged);
+    DocumentRepository.revision.addListener(_onStoreChanged);
+    PropertyStore.instance.addListener(_onStoreChanged);
+  }
+
+  @override
+  void dispose() {
+    CustomWalletStore.instance.removeListener(_onStoreChanged);
+    DocumentRepository.revision.removeListener(_onStoreChanged);
+    PropertyStore.instance.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  void _onStoreChanged() {
+    _reload();
   }
 
   /// Re-reads the hub so a freshly added / removed wallet shows up with its
   /// live record count.
   void _reload() {
+    if (!mounted) return;
     // Block body on purpose: an arrow would hand setState the assigned Future
     // as its return value, which Flutter rejects.
     setState(() {

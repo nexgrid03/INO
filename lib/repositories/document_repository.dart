@@ -497,8 +497,8 @@ class DocumentRepository {
     return Document.fromMap(row, wallet: wallet);
   }
 
-  /// Fast 2-second timeout for document query network fetches so offline detection is instant.
-  static const Duration _queryOfflineTimeout = Duration(seconds: 2);
+  /// Resilient network timeout for document queries to ensure complete sync on fresh install.
+  static const Duration _queryTimeout = NetGuard.query;
 
   /// All documents in one wallet, newest first. Reads the wallet's own table
   /// rather than the union view, so it never scans the other wallets.
@@ -529,7 +529,7 @@ class DocumentRepository {
               .order('created_at', ascending: false)
               .order('id', ascending: false)
               .range(from, to)
-              .timeout(_queryOfflineTimeout),
+              .timeout(_queryTimeout),
           label: 'listForWallet($wallet)',
         );
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];
@@ -598,14 +598,18 @@ class DocumentRepository {
               .order('created_at', ascending: false)
               .order('id', ascending: false)
               .range(from, to)
-              .timeout(_queryOfflineTimeout),
+              .timeout(_queryTimeout),
           label: 'listAll',
         );
         final list = [for (final r in rows) Document.fromMap(r)];
+        final wasEmpty = _cachedAll == null || _cachedAll!.isEmpty;
         _cachedAll = list;
         _cachedAllTime = DateTime.now();
         developer.log('[DOC_CACHE] Network sync success count=${list.length}', name: 'documents');
         unawaited(_persistDiskCache(userId, list));
+        if (wasEmpty && list.isNotEmpty) {
+          revision.value++;
+        }
         return list;
       } catch (e) {
         developer.log('[DOC_CACHE] Network sync failed using cache error: $e', name: 'documents');

@@ -189,14 +189,21 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     await loadLocalCache(uid);
+
+    // If local cache is empty and a server sync table exists (fresh install / reinstall),
+    // await the server sync so the initial load actually hydrates the records.
+    if (items.isEmpty && syncTable != null && uid != null) {
+      await _syncFromServer(uid);
+    }
+
     _loaded = true;
     _loading = false;
     _loadedUid = uid;
     notifyListeners();
 
-    // Paint from the local cache first (above), then reconcile with the server.
-    if (syncTable != null && uid != null) {
-      await _syncFromServer(uid);
+    // If local cache was already present, reconcile with the server in background.
+    if (items.isNotEmpty && syncTable != null && uid != null) {
+      unawaited(_syncFromServer(uid));
     }
   }
 

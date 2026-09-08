@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/net/net_guard.dart';
 import '../core/storage/shared_prefs_cache.dart';
 import '../models/wallet_models.dart';
 import '../repositories/wallet_tables.dart';
@@ -110,7 +112,15 @@ class CustomWalletStore extends ChangeNotifier {
   bool _loaded = false;
   bool get isLoaded => _loaded;
 
-  /// Hydrates custom wallets from disk. Safe to call once at startup.
+  String? _currentUid() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Hydrates custom wallets from disk, and reconciles with Supabase when signed in.
   Future<void> load() async {
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
@@ -126,6 +136,48 @@ class CustomWalletStore extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+
+    // Reconcile with Supabase for the signed-in user (reinstall / cross-device restore)
+    final uid = _currentUid();
+    if (uid != null) {
+      await syncFromRemote(uid);
+    }
+  }
+
+  /// Restores any custom wallets created by [userId] that are missing from local storage.
+  Future<void> syncFromRemote(String userId) async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('wallets')
+          .select('slug, label, icon_key, color_value')
+          .eq('kind', 'custom')
+          .eq('created_by', userId)
+          .timeout(NetGuard.query);
+
+      var changed = false;
+      for (final r in rows) {
+        final label = (r['label'] as String?)?.trim();
+        if (label == null || label.isEmpty) continue;
+        if (byName(label) == null) {
+          _wallets.add(
+            CustomWallet(
+              name: label,
+              iconKey: (r['icon_key'] as String?) ?? _kDefaultIconKey,
+              colorValue:
+                  (r['color_value'] as num?)?.toInt() ?? _kDefaultAccent,
+            ),
+          );
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await _persist();
+        notifyListeners();
+      }
+    } catch (_) {
+      // Best-effort; network/offline errors keep existing local cache intact.
+    }
   }
 
   /// The user's wallets, in creation order.

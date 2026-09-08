@@ -161,15 +161,28 @@ class SupabaseWalletRepository implements WalletRepository {
       counts[d.wallet] = (counts[d.wallet] ?? 0) + 1;
     }
 
-    // The four data wallets count their own records rather than documents -
-    // a Property Wallet holding three properties should say so, not "0 files".
-    // Hydration is kicked off but never awaited: the stores are already loaded
-    // by `main()` in the real app, and blocking the whole hub on four
-    // `shared_preferences` reads would delay every other wallet's card.
-    unawaited(PropertyStore.instance.ensureLoaded());
-    unawaited(InvestmentStore.instance.ensureLoaded());
-    unawaited(CardStore.instance.ensureLoaded());
-    unawaited(PasswordStore.instance.ensureLoaded());
+    // On cold cache / fresh install, await store hydration so the initial hub paint
+    // reflects real server records. If already loaded, ensureLoaded() returns instantly.
+    final needsHydration = !PropertyStore.instance.isLoaded ||
+        !InvestmentStore.instance.isLoaded ||
+        !CardStore.instance.isLoaded ||
+        !PasswordStore.instance.isLoaded ||
+        !CustomWalletStore.instance.isLoaded;
+
+    if (needsHydration) {
+      await Future.wait([
+        PropertyStore.instance.ensureLoaded().catchError((_) {}),
+        InvestmentStore.instance.ensureLoaded().catchError((_) {}),
+        CardStore.instance.ensureLoaded().catchError((_) {}),
+        PasswordStore.instance.ensureLoaded().catchError((_) {}),
+        CustomWalletStore.instance.load().catchError((_) {}),
+      ]);
+    } else {
+      unawaited(PropertyStore.instance.ensureLoaded());
+      unawaited(InvestmentStore.instance.ensureLoaded());
+      unawaited(CardStore.instance.ensureLoaded());
+      unawaited(PasswordStore.instance.ensureLoaded());
+    }
 
     int totalRecords = 0;
     // Built-ins + the user's own wallets, each carrying its live record count.
