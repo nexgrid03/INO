@@ -160,8 +160,8 @@ extension PropertyDocKindX on PropertyDocKind {
 // ---------------------------------------------------------------------------
 
 /// A file attached to a property. [path] is a local file path (picked from the
-/// gallery / files); [linkedDocumentId] instead points at a document already in
-/// the vault, so the two systems stay connected rather than duplicated.
+/// gallery / files / scanner); [linkedDocumentId] instead points at a document
+/// already in the vault, so the two systems stay connected rather than duplicated.
 class PropertyAttachment {
   const PropertyAttachment({
     required this.id,
@@ -170,6 +170,9 @@ class PropertyAttachment {
     this.path,
     this.linkedDocumentId,
     this.addedAt,
+    this.isBiometricProtected = false,
+    this.fileSize,
+    this.mimeType,
   });
 
   final String id;
@@ -178,6 +181,73 @@ class PropertyAttachment {
   final String? path;
   final String? linkedDocumentId;
   final DateTime? addedAt;
+  final bool isBiometricProtected;
+  final int? fileSize;
+  final String? mimeType;
+
+  /// Returns true if this attachment is a PDF document.
+  bool get isPdf {
+    final p = (path ?? name).toLowerCase();
+    return p.endsWith('.pdf') || mimeType == 'application/pdf';
+  }
+
+  /// Returns true if this attachment is an image.
+  bool get isImage {
+    final p = (path ?? name).toLowerCase();
+    return p.endsWith('.png') ||
+        p.endsWith('.jpg') ||
+        p.endsWith('.jpeg') ||
+        p.endsWith('.webp') ||
+        p.endsWith('.heic') ||
+        p.endsWith('.gif') ||
+        p.endsWith('.bmp') ||
+        (mimeType?.startsWith('image/') ?? false);
+  }
+
+  /// File extension without dot (e.g. "pdf", "jpg").
+  String get fileExtension {
+    final p = (path ?? name);
+    final dot = p.lastIndexOf('.');
+    if (dot != -1 && dot < p.length - 1) {
+      return p.substring(dot + 1).toLowerCase();
+    }
+    return '';
+  }
+
+  /// Human-readable file size string (e.g. "2.4 MB", "450 KB").
+  String? get formattedSize {
+    final bytes = fileSize;
+    if (bytes == null || bytes <= 0) return null;
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  PropertyAttachment copyWith({
+    String? id,
+    PropertyDocKind? kind,
+    String? name,
+    String? path,
+    String? linkedDocumentId,
+    DateTime? addedAt,
+    bool? isBiometricProtected,
+    int? fileSize,
+    String? mimeType,
+  }) {
+    return PropertyAttachment(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      name: name ?? this.name,
+      path: path ?? this.path,
+      linkedDocumentId: linkedDocumentId ?? this.linkedDocumentId,
+      addedAt: addedAt ?? this.addedAt,
+      isBiometricProtected: isBiometricProtected ?? this.isBiometricProtected,
+      fileSize: fileSize ?? this.fileSize,
+      mimeType: mimeType ?? this.mimeType,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -186,6 +256,9 @@ class PropertyAttachment {
         if (path != null) 'path': path,
         if (linkedDocumentId != null) 'documentId': linkedDocumentId,
         if (addedAt != null) 'addedAt': addedAt!.toIso8601String(),
+        if (isBiometricProtected) 'isBiometricProtected': isBiometricProtected,
+        if (fileSize != null) 'fileSize': fileSize,
+        if (mimeType != null) 'mimeType': mimeType,
       };
 
   factory PropertyAttachment.fromJson(Map<String, dynamic> j) =>
@@ -196,6 +269,9 @@ class PropertyAttachment {
         path: j['path'] as String?,
         linkedDocumentId: j['documentId'] as String?,
         addedAt: DateTime.tryParse(j['addedAt'] as String? ?? ''),
+        isBiometricProtected: (j['isBiometricProtected'] as bool?) ?? false,
+        fileSize: (j['fileSize'] as num?)?.toInt(),
+        mimeType: j['mimeType'] as String?,
       );
 }
 
