@@ -100,9 +100,42 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   void dispose() {
     ScreenSecurityService.instance.disable();
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
-    _scanner.close();
+    final controller = _controller;
+    _controller = null;
+    _streaming = false;
+    _handled = true;
+    _teardownCamera(controller);
+    _teardownScanner();
     super.dispose();
+  }
+
+  Future<void> _teardownCamera(CameraController? controller) async {
+    if (controller == null) return;
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    } catch (_) {}
+    try {
+      await controller.dispose();
+    } catch (_) {}
+  }
+
+  Future<void> _teardownScanner() async {
+    try {
+      await _scanner.close();
+    } catch (_) {}
+  }
+
+  void _onBackInvoked() {
+    _handled = true;
+    _streaming = false;
+    final controller = _controller;
+    if (controller != null && controller.value.isStreamingImages) {
+      try {
+        controller.stopImageStream();
+      } catch (_) {}
+    }
   }
 
   @override
@@ -561,14 +594,20 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_phase == _Phase.ready) _preview() else _placeholder(),
-          _overlay(l10n),
-        ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        _onBackInvoked();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_phase == _Phase.ready) _preview() else _placeholder(),
+            _overlay(l10n),
+          ],
+        ),
       ),
     );
   }
@@ -603,7 +642,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
             child: Row(
               children: [
-                const InoBackButton(),
+                InoBackButton(
+                  onTap: () {
+                    _onBackInvoked();
+                    Navigator.of(context).maybePop();
+                  },
+                ),
                 const Spacer(),
                 if (_phase == _Phase.ready)
                   _TorchButton(on: _torch, onTap: _toggleTorch),

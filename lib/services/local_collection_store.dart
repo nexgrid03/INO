@@ -179,11 +179,16 @@ abstract class LocalCollectionStore<T> extends ChangeNotifier {
     try {
       final p = await SharedPrefsCache.instance.prefsAsync;
       final raw = p.getStringList(_keyFor(uid)) ?? const <String>[];
-      // All collection JSON decoding runs in a background isolate to ensure
-      // the main UI thread stays 100% free of parsing overhead.
-      final maps = raw.isNotEmpty
-          ? await compute(decodeJsonMapList, raw)
-          : <Map<String, dynamic>>[];
+      final List<Map<String, dynamic>> maps;
+      if (raw.isEmpty) {
+        maps = const <Map<String, dynamic>>[];
+      } else if (raw.length >= 50) {
+        // Large list: isolate offloading avoids UI stutters on massive collections
+        maps = await compute(decodeJsonMapList, raw);
+      } else {
+        // Small list: decode synchronously on current isolate to avoid 20-50ms isolate startup penalty
+        maps = decodeJsonMapList(raw);
+      }
       for (final m in maps) {
         try {
           loaded.add(decode(m));

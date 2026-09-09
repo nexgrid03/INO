@@ -348,7 +348,11 @@ class PushService {
     final token = _token;
     if (token == null) return;
     try {
-      await Supabase.instance.client.from(_table).delete().eq('token', token);
+      await Supabase.instance.client
+          .from(_table)
+          .delete()
+          .eq('token', token)
+          .timeout(const Duration(seconds: 3));
       developer.log('token unregistered', name: 'push');
     } catch (e) {
       developer.log('unregister failed: $e', name: 'push');

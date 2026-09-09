@@ -108,7 +108,7 @@ class DocumentRepository {
       final userId = _client.auth.currentUser?.id;
       if (userId != null) {
         final key = '${_diskCachePrefix}_$userId';
-        await _secureStorage.delete(key: key);
+        await _secureStorage.delete(key: key).timeout(const Duration(seconds: 2));
       }
       final prefs = await SharedPrefsCache.instance.prefsAsync;
       final keys = prefs.getKeys();

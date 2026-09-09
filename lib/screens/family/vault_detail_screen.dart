@@ -276,6 +276,23 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     );
   }
 
+  Future<void> _showDocumentDetail(VaultDocument doc) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _VaultDocumentDetailSheet(
+        doc: doc,
+        canRemove: doc.canBeRemovedBy(_currentUid, _myRole),
+        canToggleVisibility: doc.canBeRemovedBy(_currentUid, _myRole),
+        onOpenDocument: () => _openDocument(doc),
+        onRemove: () => _removeDocument(doc),
+        onToggleVisibility: (isVisible) =>
+            _toggleDocVisibility(doc, isVisible),
+      ),
+    );
+  }
+
   /// Opens a shared document in the device's default app.
   ///
   /// The bytes are fetched through the storage layer, where a policy re-checks
@@ -1378,7 +1395,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                           _currentUid,
                           _myRole,
                         ),
-                        onOpen: () => _openDocument(list[i]),
+                        onOpen: () => _showDocumentDetail(list[i]),
                         onRemove: () => _removeDocument(list[i]),
                         onToggleVisibility: (isVisible) =>
                             _toggleDocVisibility(list[i], isVisible),
@@ -2617,6 +2634,445 @@ class _DocWalletFilterPill extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal detail sheet that displays the disclosed fields and a prominent button to open the attached doc/image.
+class _VaultDocumentDetailSheet extends StatelessWidget {
+  const _VaultDocumentDetailSheet({
+    required this.doc,
+    required this.canRemove,
+    required this.canToggleVisibility,
+    required this.onOpenDocument,
+    required this.onRemove,
+    required this.onToggleVisibility,
+  });
+
+  final VaultDocument doc;
+  final bool canRemove;
+  final bool canToggleVisibility;
+  final VoidCallback onOpenDocument;
+  final VoidCallback onRemove;
+  final ValueChanged<bool> onToggleVisibility;
+
+  String get _walletName => _VaultDetailScreenState.walletOf(doc);
+  Color get _walletColor => AppColors.vaultAccentFor(_walletName);
+
+  bool get _hasFile {
+    final path = doc.objectPath.toLowerCase().trim();
+    if (path.isEmpty) return false;
+    if (path.contains('/vault_') && path.endsWith('.json')) {
+      return false;
+    }
+    return true;
+  }
+
+  IconData get _fileIcon {
+    if (doc.isImage) return Icons.image_rounded;
+    if (doc.isPdf) return Icons.picture_as_pdf_rounded;
+    return Icons.description_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final color = _walletColor;
+    final walletLabel = localizedWalletName(l10n, _walletName);
+    final disclosed = doc.disclosedData ?? const {};
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.45,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: palette.bgElevated,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: palette.border),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(_fileIcon, color: color, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          doc.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.title.copyWith(
+                            color: palette.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                walletLabel,
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (doc.category != null &&
+                                doc.category!.isNotEmpty &&
+                                doc.category != _walletName)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: palette.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: palette.border),
+                                ),
+                                child: Text(
+                                  doc.category!,
+                                  style: TextStyle(
+                                    color: palette.textSecondary,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            if (doc.isRedacted)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color:
+                                      AppColors.warning.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  l10n.t('partialShare'),
+                                  style: const TextStyle(
+                                    color: AppColors.warning,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                    color: palette.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: palette.border),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                children: [
+                  // Attachment card with Open button
+                  if (_hasFile) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.35),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(_fileIcon, color: color, size: 20),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Attached ${doc.isImage ? "Image" : (doc.isPdf ? "PDF Document" : "File")}',
+                                      style: TextStyle(
+                                        color: palette.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      [
+                                        if (doc.extension.isNotEmpty)
+                                          doc.extension.toUpperCase(),
+                                        if (doc.sizeLabel.isNotEmpty)
+                                          doc.sizeLabel,
+                                      ].join(' · '),
+                                      style: TextStyle(
+                                        color: palette.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              onOpenDocument();
+                            },
+                            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                            label: Text(
+                              doc.isImage ? 'View Photo' : 'Open Document',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: color,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.pill),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: palette.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 18, color: palette.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No document file attached (details shared directly).',
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+
+                  // Disclosed Fields section
+                  Text(
+                    'SHARED INFORMATION',
+                    style: TextStyle(
+                      color: palette.textFaint,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (disclosed.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: palette.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Column(
+                        children: [
+                          for (var entry in disclosed.entries) ...[
+                            if (entry.key != disclosed.keys.first)
+                              Divider(height: 1, color: palette.border),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 11),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 4,
+                                    child: Text(
+                                      VaultShareFields.labelFor(entry.key),
+                                      style: TextStyle(
+                                        color: palette.textSecondary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 6,
+                                    child: Text(
+                                      VaultShareFields.describe(entry.value) ??
+                                          entry.value.toString(),
+                                      textAlign: TextAlign.end,
+                                      style: TextStyle(
+                                        color: palette.textPrimary,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: palette.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Text(
+                        _hasFile
+                            ? 'Full document shared without additional field filters.'
+                            : 'No specific data fields were shared.',
+                        style: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+                  if (canToggleVisibility || canRemove) ...[
+                    Row(
+                      children: [
+                        if (canToggleVisibility)
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                onToggleVisibility(!doc.isVisibleToMembers);
+                              },
+                              icon: Icon(
+                                doc.isVisibleToMembers
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded,
+                                size: 16,
+                              ),
+                              label: Text(
+                                doc.isVisibleToMembers
+                                    ? 'Hide from Family'
+                                    : 'Show to Family',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: doc.isVisibleToMembers
+                                    ? palette.textSecondary
+                                    : AppColors.primaryGreen,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.pill),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (canToggleVisibility && canRemove)
+                          const SizedBox(width: 10),
+                        if (canRemove)
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                onRemove();
+                              },
+                              icon: const Icon(
+                                  Icons.remove_circle_outline_rounded,
+                                  size: 16),
+                              label: Text(
+                                l10n.t('remove'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.critical,
+                                side: const BorderSide(
+                                    color: AppColors.critical, width: 1),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.pill),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

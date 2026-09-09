@@ -580,29 +580,54 @@ class AuthService {
 
   Future<void> signOut() async {
     // Drop the biometric app-lock so the login screen isn't gated behind it.
-    await BiometricService.instance.setLockEnabled(false);
     try {
-      await GoogleSignIn.instance.signOut();
+      await BiometricService.instance
+          .setLockEnabled(false)
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {}
+
+    try {
+      await GoogleSignIn.instance
+          .signOut()
+          .timeout(const Duration(seconds: 3));
     } catch (_) {
       // Ignore if Google wasn't used / not initialised.
     }
+
     // Release this device's push token BEFORE the session ends. The DELETE is
     // authorised by an RLS policy on auth.uid(), so once signOut() has run the
     // row can no longer be removed - and this phone would keep receiving THIS
     // account's reminder pushes after the next account signs in. Ordering here
     // is the whole point; do not move this below the signOut.
-    await PushService.instance.unregisterToken();
+    try {
+      await PushService.instance
+          .unregisterToken()
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {}
 
     // An explicit logout removes this account from the device's saved-accounts
     // list too - its refresh token is revoked by the signOut below, so the
     // entry could never re-open a session anyway.
-    await AccountSwitcher.instance.forgetCurrent();
+    try {
+      await AccountSwitcher.instance
+          .forgetCurrent()
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {}
 
-    await _client.auth.signOut();
+    try {
+      await _client.auth.signOut().timeout(const Duration(seconds: 3));
+    } catch (e) {
+      developer.log('Supabase signOut error: $e', name: 'auth');
+    }
+
     // Wipe every user-scoped in-memory / local cache so the NEXT account can't
     // see this account's reminders, notifications, categories, etc. Done after
     // the Supabase sign-out so nothing re-hydrates from the old session. See
     // [SessionReset]. Best-effort: never let a cache failure block sign-out.
-    await SessionReset.instance.clear();
+    try {
+      await SessionReset.instance.clear().timeout(const Duration(seconds: 3));
+    } catch (e) {
+      developer.log('SessionReset clear error: $e', name: 'auth');
+    }
   }
 }

@@ -85,7 +85,11 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
     super.initState();
     if (DocumentScannerService.instance.isSupported) {
       _stage = _Stage.mlkit;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _launchMlKit());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) _launchMlKit();
+        });
+      });
     } else {
       _stage = _Stage.scanner;
     }

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/perf/image_decode.dart';
+import '../../main.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/document_repository.dart';
@@ -678,12 +679,27 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _performLogout() async {
-    await AuthService.instance.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
-      (route) => false,
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: InoLoader(size: 34)),
+      ),
     );
+
+    try {
+      await AuthService.instance.signOut();
+    } catch (e, st) {
+      developer.log('Sign-out error: $e', name: 'auth', error: e, stackTrace: st);
+    } finally {
+      final nav = InoApp.navigatorKey.currentState ??
+          (mounted ? Navigator.of(context, rootNavigator: true) : null);
+      nav?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+        (route) => false,
+      );
+    }
   }
 
   Future<void> _editProfile() async {

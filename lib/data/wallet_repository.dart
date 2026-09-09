@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
@@ -144,126 +145,152 @@ class SupabaseWalletRepository implements WalletRepository {
   @override
   Future<WalletHubData> load({List<Document>? documents}) =>
       PerfTracer.traceQuery('WalletRepository.load', () async {
-        List<Document> docs;
-    if (documents != null) {
-      docs = documents;
-    } else {
-      try {
-        docs = await DocumentRepository.instance.listAll();
-      } catch (_) {
-        docs = const []; // offline / not signed in → everything reads as empty
-      }
-    }
+        try {
+          List<Document> docs;
+          if (documents != null) {
+            docs = documents;
+          } else {
+            try {
+              docs = await DocumentRepository.instance.listAll();
+            } catch (_) {
+              docs = const []; // offline / not signed in → everything reads as empty
+            }
+          }
 
-    // Count documents per wallet.
-    final counts = <String, int>{};
-    for (final d in docs) {
-      counts[d.wallet] = (counts[d.wallet] ?? 0) + 1;
-    }
+          // Count documents per wallet.
+          final counts = <String, int>{};
+          for (final d in docs) {
+            counts[d.wallet] = (counts[d.wallet] ?? 0) + 1;
+          }
 
-    // On cold cache / fresh install, await store hydration so the initial hub paint
-    // reflects real server records. If already loaded, ensureLoaded() returns instantly.
-    final needsHydration = !PropertyStore.instance.isLoaded ||
-        !InvestmentStore.instance.isLoaded ||
-        !CardStore.instance.isLoaded ||
-        !PasswordStore.instance.isLoaded ||
-        !CustomWalletStore.instance.isLoaded;
+          // On cold cache / fresh install, await store hydration so the initial hub paint
+          // reflects real server records. If already loaded, ensureLoaded() returns instantly.
+          final needsHydration = !PropertyStore.instance.isLoaded ||
+              !InvestmentStore.instance.isLoaded ||
+              !CardStore.instance.isLoaded ||
+              !PasswordStore.instance.isLoaded ||
+              !CustomWalletStore.instance.isLoaded;
 
-    if (needsHydration) {
-      await Future.wait([
-        PropertyStore.instance.ensureLoaded().catchError((_) {}),
-        InvestmentStore.instance.ensureLoaded().catchError((_) {}),
-        CardStore.instance.ensureLoaded().catchError((_) {}),
-        PasswordStore.instance.ensureLoaded().catchError((_) {}),
-        CustomWalletStore.instance.load().catchError((_) {}),
-      ]);
-    } else {
-      unawaited(PropertyStore.instance.ensureLoaded());
-      unawaited(InvestmentStore.instance.ensureLoaded());
-      unawaited(CardStore.instance.ensureLoaded());
-      unawaited(PasswordStore.instance.ensureLoaded());
-    }
+          if (needsHydration) {
+            await Future.wait([
+              PropertyStore.instance.ensureLoaded().catchError((_) {}),
+              InvestmentStore.instance.ensureLoaded().catchError((_) {}),
+              CardStore.instance.ensureLoaded().catchError((_) {}),
+              PasswordStore.instance.ensureLoaded().catchError((_) {}),
+              CustomWalletStore.instance.load().catchError((_) {}),
+            ]);
+          } else {
+            unawaited(PropertyStore.instance.ensureLoaded());
+            unawaited(InvestmentStore.instance.ensureLoaded());
+            unawaited(CardStore.instance.ensureLoaded());
+            unawaited(PasswordStore.instance.ensureLoaded());
+          }
 
-    int totalRecords = 0;
-    // Built-ins + the user's own wallets, each carrying its live record count.
-    final all = categories;
-    final updatedCategories = all.map((c) {
-      final module = _moduleCountFor(c.name);
-      final count = module?.$1 ?? (counts[c.name] ?? 0);
-      totalRecords += count;
-      return WalletCategory(
-        name: c.name,
-        icon: c.icon,
-        contents: c.contents,
-        metric: '$count',
-        metricLabel: module?.$2 ?? c.metricLabel,
-        gradient: c.gradient,
-      );
-    }).toList();
+          int totalRecords = 0;
+          // Built-ins + the user's own wallets, each carrying its live record count.
+          final all = categories;
+          final updatedCategories = all.map((c) {
+            final module = _moduleCountFor(c.name);
+            final count = module?.$1 ?? (counts[c.name] ?? 0);
+            totalRecords += count;
+            return WalletCategory(
+              name: c.name,
+              icon: c.icon,
+              contents: c.contents,
+              metric: '$count',
+              metricLabel: module?.$2 ?? c.metricLabel,
+              gradient: c.gradient,
+            );
+          }).toList();
 
-    final usedMb = totalRecords * 4;
+          final usedMb = totalRecords * 4;
 
-    // Recents: the five most-recently updated real documents.
-    final recent = [...docs]
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final recents = [
-      for (final d in recent.take(5))
-        RecentItem(
-          name: d.name,
-          category: d.category ?? 'Document',
-          lastOpened: _relativeTime(d.updatedAt),
-          icon: _iconFor(d.category),
-          color: _colorFor(d.wallet),
-        ),
-    ];
+          // Recents: the five most-recently updated real documents.
+          final recent = [...docs]
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          final recents = [
+            for (final d in recent.take(5))
+              RecentItem(
+                name: d.name,
+                category: d.category ?? 'Document',
+                lastOpened: _relativeTime(d.updatedAt),
+                icon: _iconFor(d.category),
+                color: _colorFor(d.wallet),
+              ),
+          ];
 
-    return WalletHubData(
-      overview: WalletOverview(
-        totalWallets: all.length,
-        totalRecords: totalRecords,
-        protectedItems: totalRecords,
-        lastBackup: totalRecords == 0 ? 'No documents yet' : 'Synced',
-        storageUsedLabel: '$usedMb MB of 5 GB',
-        storageFraction: (usedMb / 5120).clamp(0.0, 1.0),
-      ),
-      categories: updatedCategories,
-      quickActions: const [
-        QuickAction(
-            label: 'Scan',
-            icon: Icons.document_scanner_rounded,
-            color: AppColors.skyBrand),
-        QuickAction(
-            label: 'Upload',
-            icon: Icons.upload_file_rounded,
-            color: AppColors.skyBrandSecondary),
-        QuickAction(
-            label: 'Property',
-            icon: Icons.add_home_rounded,
-            color: AppColors.skyBrandSecondary),
-        QuickAction(
-            label: 'Insurance',
-            icon: Icons.add_moderator_rounded,
-            color: AppColors.skyBrandSecondary),
-        QuickAction(
-            label: 'Investment',
-            icon: Icons.savings_rounded,
-            color: AppColors.skyBrandSecondary),
-        QuickAction(
-            label: 'Password',
-            icon: Icons.password_rounded,
-            color: AppColors.skyBrand),
-      ],
-      recents: recents,
-      security: const SecurityStatus(
-        score: 100,
-        vaultLocked: true,
-        biometricEnabled: true,
-        lastBackup: 'Synced',
-        cloudSynced: true,
-      ),
-      insights: const [],
-    );
-  });
+          return WalletHubData(
+            overview: WalletOverview(
+              totalWallets: all.length,
+              totalRecords: totalRecords,
+              protectedItems: totalRecords,
+              lastBackup: totalRecords == 0 ? 'No documents yet' : 'Synced',
+              storageUsedLabel: '$usedMb MB of 5 GB',
+              storageFraction: (usedMb / 5120).clamp(0.0, 1.0),
+            ),
+            categories: updatedCategories,
+            quickActions: const [
+              QuickAction(
+                  label: 'Scan',
+                  icon: Icons.document_scanner_rounded,
+                  color: AppColors.skyBrand),
+              QuickAction(
+                  label: 'Upload',
+                  icon: Icons.upload_file_rounded,
+                  color: AppColors.skyBrandSecondary),
+              QuickAction(
+                  label: 'Property',
+                  icon: Icons.add_home_rounded,
+                  color: AppColors.skyBrandSecondary),
+              QuickAction(
+                  label: 'Insurance',
+                  icon: Icons.add_moderator_rounded,
+                  color: AppColors.skyBrandSecondary),
+              QuickAction(
+                  label: 'Investment',
+                  icon: Icons.savings_rounded,
+                  color: AppColors.skyBrandSecondary),
+              QuickAction(
+                  label: 'Password',
+                  icon: Icons.password_rounded,
+                  color: AppColors.skyBrand),
+            ],
+            recents: recents,
+            security: const SecurityStatus(
+              score: 100,
+              vaultLocked: true,
+              biometricEnabled: true,
+              lastBackup: 'Synced',
+              cloudSynced: true,
+            ),
+            insights: const [],
+          );
+        } catch (e, st) {
+          developer.log('WalletRepository.load error: $e',
+              name: 'wallet', error: e, stackTrace: st);
+          return WalletHubData(
+            overview: const WalletOverview(
+              totalWallets: 8,
+              totalRecords: 0,
+              protectedItems: 0,
+              lastBackup: 'Synced',
+              storageUsedLabel: '0 MB of 5 GB',
+              storageFraction: 0.0,
+            ),
+            categories: categories,
+            quickActions: const [],
+            recents: const [],
+            security: const SecurityStatus(
+              score: 100,
+              vaultLocked: true,
+              biometricEnabled: true,
+              lastBackup: 'Synced',
+              cloudSynced: true,
+            ),
+            insights: const [],
+          );
+        }
+      });
 
   /// The (count, label) a data wallet reports on its hub card, or null for the
   /// document wallets - which keep counting documents.

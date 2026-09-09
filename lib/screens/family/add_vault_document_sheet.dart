@@ -194,6 +194,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
                 (d.tags.isNotEmpty ? d.tags.join(', ') : null),
             icon: _iconForWallet(walletName, d.category),
             accentColor: _colorForWallet(walletName),
+            structuredJson: d.toMap(),
           ),
         );
       }
@@ -447,17 +448,16 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
         }
       });
 
-  /// Whether the pending selection has anything worth a checklist. A set of
-  /// plain documents with no data fields skips the step entirely rather than
-  /// showing a page with one switch on it.
-  bool get _needsFieldStep => _pendingItems.any((i) => i.hasChoices);
+  /// Always present the checklist so the user can verify and choose
+  /// which fields or documents to disclose.
+  bool get _needsFieldStep => true;
 
   void _continueFromDocuments() {
     if (_selectedIds.isEmpty) return;
     if (_needsFieldStep) {
       setState(() => _step = _Step.fields);
     } else {
-      _shareItems(_pendingItems);
+      _shareItems(_allItems.where((i) => _selectedIds.contains(i.id)).toList());
     }
   }
 
@@ -1237,7 +1237,7 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     final count = _selectedIds.length;
     if (count == 0) return null;
 
-    final isFinal = _step == _Step.fields || !_needsFieldStep;
+    final isFinal = _step == _Step.fields;
     final label = _uploading
         ? (_shareTotal > 1
             ? l10n

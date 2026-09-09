@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -75,8 +76,11 @@ class _WalletScreenState extends State<WalletScreen> {
     PropertyStore.instance.addListener(_onStoreChanged);
   }
 
+  Timer? _reloadDebounce;
+
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     CustomWalletStore.instance.removeListener(_onStoreChanged);
     DocumentRepository.revision.removeListener(_onStoreChanged);
     PropertyStore.instance.removeListener(_onStoreChanged);
@@ -84,7 +88,11 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _onStoreChanged() {
-    _reload();
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      _reload();
+    });
   }
 
   /// Re-reads the hub so a freshly added / removed wallet shows up with its
@@ -93,8 +101,11 @@ class _WalletScreenState extends State<WalletScreen> {
     if (!mounted) return;
     // Block body on purpose: an arrow would hand setState the assigned Future
     // as its return value, which Flutter rejects.
-    setState(() {
-      _future = _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _future = _load();
+      });
     });
   }
 
