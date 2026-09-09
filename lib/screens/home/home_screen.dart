@@ -12,6 +12,7 @@ import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../models/wallet_models.dart';
 import '../../repositories/document_repository.dart';
+import '../../services/app_preload.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/market_rates_service.dart';
 import '../../services/net_worth_service.dart';
@@ -127,6 +128,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late Future<_HomeData> _future;
 
+  /// Last successfully loaded dashboard data. Shown while reload is in flight or
+  /// seeded synchronously from AppPreload so the screen paints fully-formed on
+  /// frame 0 without flashing the loading spinner.
+  _HomeData? _lastData;
+
   /// Session-local dismissal of the expiry alert banner.
   bool _bannerDismissed = false;
 
@@ -143,8 +149,147 @@ class _HomeScreenState extends State<HomeScreen> {
     final locale = Localizations.localeOf(context);
     if (_loadedLocale != locale) {
       _loadedLocale = locale;
+      _lastData ??= _seedDataFromPreload(AppLocalizations.of(context));
       _future = _load();
     }
+  }
+
+  _HomeData? _seedDataFromPreload(AppLocalizations l10n) {
+    final hub = AppPreload.instance.walletHub;
+    if (hub == null) return null;
+
+    final docs = AppPreload.instance.documents ??
+        DocumentRepository.instance.cachedAll ??
+        const <Document>[];
+    final market = _marketOverride ?? MarketRatesService.instance.peekCached();
+    final documentCount = docs.length;
+    final now = DateTime.now();
+    final expiringDocuments = docs.where((d) {
+      final e = d.expiresAt;
+      if (e == null) return false;
+      final days = e.difference(now).inDays;
+      return days >= 0 && days <= 30;
+    }).length;
+
+    var pending = expiringDocuments;
+    var remindersToday = 0;
+    var remindersTomorrow = 0;
+    var remindersThisWeek = 0;
+    var remindersCompleted = 0;
+    var insuranceRenewals = 0;
+    final pendingItems = <LauncherPendingItem>[];
+
+    try {
+      final today = ReminderStore.instance.today;
+      final active = ReminderStore.instance.active;
+      pending += active.where((r) => r.daysFrom(today) <= 7).length;
+      remindersToday = active.where((r) => r.daysFrom(today) == 0).length;
+      remindersTomorrow = active.where((r) => r.daysFrom(today) == 1).length;
+      remindersThisWeek = active
+          .where((r) => r.daysFrom(today) >= 0 && r.daysFrom(today) <= 7)
+          .length;
+      remindersCompleted = ReminderStore.instance.completed.length;
+      insuranceRenewals = active
+          .where(
+            (r) =>
+                r.category == ReminderCategory.insurance &&
+                r.daysFrom(today) >= 0 &&
+                r.daysFrom(today) <= 30,
+          )
+          .length;
+
+      for (final r in active.where((r) => r.daysFrom(today) <= 7).take(6)) {
+        final d = r.daysFrom(today);
+        pendingItems.add(
+          LauncherPendingItem(
+            title: r.title,
+            status: l10n.t(
+                d < 0 ? 'overdue' : (d <= 3 ? 'dueSoon' : 'onTrack')),
+            subtitle: l10n.t('reviewToStayOnTrack'),
+            icon: Icons.shield_rounded,
+            accent: reminderUrgencyColor(r, today),
+          ),
+        );
+      }
+    } catch (_) {}
+
+    if (expiringDocuments > 0) {
+      final already = pendingItems.any(
+        (p) => p.title.toLowerCase().contains('expiring'),
+      );
+      if (!already) {
+        pendingItems.insert(
+          0,
+          LauncherPendingItem(
+            title: expiringDocuments == 1
+                ? l10n.t('oneDocumentExpiringSoon')
+                : l10n
+                    .t('documentsExpiringSoon')
+                    .replaceAll('{n}', '$expiringDocuments'),
+            status: l10n.t('dueSoon'),
+            subtitle: l10n.t('reviewToStayOnTrack'),
+            icon: Icons.shield_rounded,
+            accent: AppColors.primaryGreen,
+          ),
+        );
+      }
+    }
+
+    var identityCount = 0;
+    var propertyCount = 0;
+    var investmentCount = 0;
+    var cardsCount = 0;
+    for (final c in hub.categories) {
+      final n = int.tryParse(c.metric) ?? 0;
+      switch (c.name) {
+        case 'Identity Wallet':
+          identityCount = n;
+        case 'Property Wallet':
+          propertyCount = n;
+        case 'Investment Wallet':
+          investmentCount = n;
+        case 'Banking Wallet':
+          cardsCount = n;
+      }
+    }
+
+    HomeHero hero;
+    try {
+      hero = NetWorthService.instance.heroFrom(
+        assets: documentCount,
+        documents: documentCount,
+        pendingTasks: pending,
+        protectedItems: DocumentProtectionStore.instance.protectedCount,
+      );
+    } catch (_) {
+      hero = HomeHero(
+        netWorth: '₹0',
+        growthPercent: 0,
+        growthAmount: '₹0',
+        trend: const [0, 0, 0, 0, 0, 0, 0],
+        assets: documentCount,
+        documents: documentCount,
+        pendingTasks: pending,
+        protectedItems: DocumentProtectionStore.instance.protectedCount,
+      );
+    }
+
+    return _HomeData(
+      hero: hero,
+      market: market,
+      documentsExpiring: expiringDocuments,
+      remindersToday: remindersToday,
+      remindersTomorrow: remindersTomorrow,
+      remindersThisWeek: remindersThisWeek,
+      remindersCompleted: remindersCompleted,
+      insuranceRenewals: insuranceRenewals,
+      emiDue: 0,
+      identityCount: identityCount,
+      propertyCount: propertyCount,
+      investmentCount: investmentCount,
+      cardsCount: cardsCount,
+      pendingItems: pendingItems,
+    );
   }
 
   Future<_HomeData> _load() {
@@ -288,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return _HomeData(
+    final data = _HomeData(
       hero: hero,
       market: market,
       documentsExpiring: expiringDocuments,
@@ -304,6 +449,8 @@ class _HomeScreenState extends State<HomeScreen> {
       cardsCount: cardsCount,
       pendingItems: pendingItems,
     );
+    _lastData = data;
+    return data;
     });
   }
 
@@ -378,10 +525,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: FutureBuilder<_HomeData>(
                     future: _future,
                     builder: (context, snapshot) {
-                      final data = snapshot.data;
+                      final data = snapshot.data ?? _lastData;
                       final hasError =
                           snapshot.connectionState == ConnectionState.done &&
-                              snapshot.hasError;
+                              snapshot.hasError &&
+                              data == null;
                       return CustomScrollView(
                         slivers: [
                           if (hasError)

@@ -68,7 +68,7 @@ class AppPreload {
   /// a slow network must never turn into a stuck splash, and the work already
   /// in flight carries on and still lands in the caches, so the screens fill
   /// in behind their skeletons a moment later.
-  static const Duration splashBudget = Duration(milliseconds: 2500);
+  static const Duration splashBudget = Duration(milliseconds: 1500);
 
   Future<void>? _inFlight;
   bool _done = false;

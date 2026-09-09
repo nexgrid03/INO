@@ -26,15 +26,14 @@ void _log(String message) => developer.log(message, name: 'greeting');
 /// swallowed so the greeting can never interfere with the app.
 class VoiceGreetingService {
   VoiceGreetingService._() {
-    // Flipping the startup-greeting setting OFF must silence an in-flight
-    // greeting IMMEDIATELY, no matter which surface flipped it (the Settings
-    // switch, or any future control). Listening to the setting itself keeps
-    // that guarantee in one place.
     AppSettings.instance.welcomeSound.addListener(_onSettingChanged);
   }
   static final VoiceGreetingService instance = VoiceGreetingService._();
 
+  bool _disposed = false;
+
   void _onSettingChanged() {
+    if (_disposed) return;
     if (!AppSettings.instance.welcomeSound.value && speaking.value) {
       _log('Greeting setting turned off mid-utterance - stopping playback');
       speaking.value = false;
@@ -116,6 +115,12 @@ class VoiceGreetingService {
   /// Test hook: allows the greeting to fire again.
   @visibleForTesting
   void reset() => _greeted = false;
+
+  /// Releases settings listener and marks service as disposed.
+  void dispose() {
+    _disposed = true;
+    AppSettings.instance.welcomeSound.removeListener(_onSettingChanged);
+  }
 
   /// Test hook: the phrase that would be spoken at [hour] for [name].
   @visibleForTesting

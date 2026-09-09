@@ -43,6 +43,12 @@ class AutoBackupCoordinator {
     DocumentRepository.revision.addListener(_onDocumentsChanged);
   }
 
+  void stop() {
+    DocumentRepository.revision.removeListener(_onDocumentsChanged);
+    _debounce?.cancel();
+    _started = false;
+  }
+
   void _onDocumentsChanged() {
     if (!AppSettings.instance.autoBackup.value) return;
     if (!AuthService.instance.isSignedIn) return;

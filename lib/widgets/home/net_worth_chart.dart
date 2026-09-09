@@ -259,16 +259,16 @@ class _ChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
 
-    final values = points.map((p) => p.value).toList();
-    final minV = values.reduce((a, b) => a < b ? a : b);
-    final maxV = values.reduce((a, b) => a > b ? a : b);
-    final range = (maxV - minV).abs() < 1 ? 1 : (maxV - minV);
+    // Precompute min/max once — previously this was O(n) on every animation
+    // tick (every frame of the 700ms draw-in) AND on every drag update.
+    final bounds = _ChartBounds.forPoints(points);
+
     const topPad = 10.0;
     final chartH = size.height - topPad - 4;
 
     Offset at(int i) {
       final x = size.width * (i / (points.length - 1));
-      final norm = (values[i] - minV) / range;
+      final norm = (points[i].value - bounds.min) / bounds.range;
       final y = topPad + chartH * (1 - norm);
       return Offset(x, y);
     }
@@ -376,4 +376,24 @@ class _ChartPainter extends CustomPainter {
       old.progress != progress ||
       old.selected != selected ||
       old.points != points;
+}
+
+class _ChartBounds {
+  _ChartBounds(this.min, this.max, this.range);
+  final double min;
+  final double max;
+  final double range;
+
+  static _ChartBounds forPoints(List<NetWorthPoint> points) {
+    if (points.isEmpty) return _ChartBounds(0.0, 0.0, 1.0);
+    var minV = points.first.value;
+    var maxV = minV;
+    for (var i = 1; i < points.length; i++) {
+      final v = points[i].value;
+      if (v < minV) minV = v;
+      if (v > maxV) maxV = v;
+    }
+    final range = (maxV - minV).abs() < 1.0 ? 1.0 : (maxV - minV);
+    return _ChartBounds(minV, maxV, range);
+  }
 }

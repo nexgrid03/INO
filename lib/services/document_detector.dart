@@ -65,11 +65,12 @@ class DocumentDetector {
       if (score > bestScore) {
         bestScore = score;
         bestType = type;
+        // Early exit: a perfect 4.0+ (2 strong hits) cannot be beaten.
+        if (bestScore >= 4.0) break;
       }
     }
 
     if (bestScore == 0) return const DetectionResult(IdDocumentType.unknown, 0);
-    // ~2 strong hits (score 4) → full confidence; one strong hit → ~0.5.
     final confidence = (bestScore / 4.0).clamp(0.0, 1.0);
     return DetectionResult(bestType, confidence);
   }

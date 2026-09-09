@@ -68,14 +68,17 @@ class DocumentProcessor {
     }
 
     // 1) Bake EXIF orientation + cap resolution to a clean upright base.
-    final ProcessedImage base;
+    final Uint8List bakedBytes;
     try {
-      base = await ImageEnhancer.bakeBase(sourcePath);
+      final ProcessedImage base = await ImageEnhancer.bakeBase(sourcePath);
+      // Read from disk then transfer bytes — the isolate will re-decode from
+      // bytes anyway, so keeping it in memory avoids a second write-then-read
+      // trip through the temp directory.
+      bakedBytes = await File(base.path).readAsBytes();
     } catch (_) {
       throw const DocumentProcessException(
           'Could not read the document image to process it.');
     }
-    final bakedBytes = await File(base.path).readAsBytes();
 
     // 2) Pixel transforms (colour mode + optional compression) in a background
     //    isolate.

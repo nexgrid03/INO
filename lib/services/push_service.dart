@@ -101,6 +101,8 @@ class PushService {
   String? _token;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedAppSub;
 
   /// The current FCM registration token, once [init] has run.
   String? get token => _token;
@@ -134,10 +136,12 @@ class PushService {
       _listenForSignIn();
 
       // Foreground messages: Android hands them to Dart instead of the tray.
-      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      _foregroundSub = FirebaseMessaging.onMessage
+          .listen(_onForegroundMessage);
 
       // Tap on a notification that was shown while the app was BACKGROUNDED.
-      FirebaseMessaging.onMessageOpenedApp.listen(_onNotificationTapped);
+      _openedAppSub = FirebaseMessaging.onMessageOpenedApp
+          .listen(_onNotificationTapped);
 
       // Tap on a notification that COLD-LAUNCHED the app. Delivered once.
       final initial = await FirebaseMessaging.instance.getInitialMessage();
@@ -556,6 +560,10 @@ class PushService {
     _tokenRefreshSub = null;
     _authSub?.cancel();
     _authSub = null;
+    _foregroundSub?.cancel();
+    _foregroundSub = null;
+    _openedAppSub?.cancel();
+    _openedAppSub = null;
     _initialised = false;
   }
 }

@@ -794,6 +794,7 @@ class _StripTile extends StatelessWidget {
 
     final tile = LiquidGlass(
       borderRadius: BorderRadius.circular(16),
+      enableBlur: false,
       blur: 18,
       padding: const EdgeInsets.fromLTRB(10, 9, 9, 9),
       child: Column(

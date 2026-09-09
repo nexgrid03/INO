@@ -34,6 +34,7 @@ class DivineGlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final glass = LiquidGlass(
       borderRadius: BorderRadius.circular(radius),
+      enableBlur: false,
       blur: blur,
       padding: padding,
       child: child,

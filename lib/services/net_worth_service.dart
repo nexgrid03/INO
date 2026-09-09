@@ -122,6 +122,8 @@ class NetWorthService extends ChangeNotifier {
   /// Called on sign-out ([SessionReset]) - the history belongs to whoever was
   /// signed in, and the next account's holdings are different.
   void reset() {
+    InvestmentStore.instance.removeListener(_onStoresChanged);
+    PropertyStore.instance.removeListener(_onStoresChanged);
     _hydration = null;
     _ready = false;
     _history = const [];

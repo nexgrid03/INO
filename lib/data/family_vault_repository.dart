@@ -237,7 +237,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     // Reading each table directly is robust to that. RLS already scopes both
     // reads to vaults the user belongs to; the explicit eq is defense-in-depth.
 
-    debugPrint('[FamilyVault] loading myVaults for uid=$uid');
+    debugPrint('[FamilyVault] loading myVaults');
     final results = await Future.wait([
       _client
           .from(_members)

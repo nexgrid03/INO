@@ -79,6 +79,9 @@ class DocumentRepository {
   DateTime? _cachedAllTime;
   Future<List<Document>>? _inFlightAll;
 
+  /// Current in-memory cached documents snapshot, if populated.
+  List<Document>? get cachedAll => _cachedAll;
+
   final Map<String, List<Document>> _cachedWallet = {};
   final Map<String, DateTime> _cachedWalletTime = {};
   final Map<String, Future<List<Document>>> _inFlightWallet = {};

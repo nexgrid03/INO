@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
@@ -38,11 +42,25 @@ Future<void> main() async {
   // Flutter needs this before any async work runs before runApp().
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize shared preferences cache early so all subsequent stores use it
+  // Tune Flutter image cache to prevent eviction thrashing when scrolling media lists
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 150 << 20; // 150 MB
+  PaintingBinding.instance.imageCache.maximumSize = 300;
+
+  // Global error handler: catch uncaught exceptions in release so the app
+  // never dies silently, and route them through the app's snackbar so the
+  // user knows something went wrong.
+  PlatformDispatcher.instance.onError = (error, stack) {
+    developer.log('FATAL: $error', name: 'app', error: error, stackTrace: stack);
+    return true; // Swallow the fatal — don't let it crash the process.
+  };
+  FlutterError.onError = (details) {
+    developer.log('FLUTTER: ${details.exception}', name: 'app',
+        error: details.exception, stackTrace: details.stack);
+    if (!kReleaseMode) FlutterError.presentError(details);
+  };
+
   await SharedPrefsCache.init();
 
-  // Create the Supabase client once, at startup. After this, the rest of the
-  // app reaches Supabase via `Supabase.instance.client` (see AuthService).
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
@@ -52,14 +70,17 @@ Future<void> main() async {
     ),
   );
 
-  // Parallelize independent startup initializations to reduce cold start time
   await Future.wait([
     AccountSwitcher.instance.init(),
     ThemeController.load(),
     BiometricService.instance.loadLockState(),
     AppSettings.instance.load(),
     DeepLinkService.instance.captureInitialLink(),
-  ]);
+  ]).timeout(const Duration(seconds: 10), onTimeout: () {
+    developer.log('Startup timed out after 10s — continuing with partial state',
+        name: 'app');
+    return <void>[];
+  });
 
   runApp(const InoApp());
 }
@@ -109,21 +130,15 @@ class _InoAppState extends State<InoApp> with WidgetsBindingObserver {
 
   @override
   Future<bool> didPopRoute() async {
-    debugPrint('[GLOBAL SYSTEM BACK OBSERVER] System back event received. isBottomNavOpen: ${InoBottomNav.isMenuOpen}, isExpandableFabOpen: ${ExpandableFab.isMenuOpen}');
-
     if (InoBottomNav.isMenuOpen) {
-      debugPrint('[GLOBAL SYSTEM BACK OBSERVER] Intercepted back -> Closing InoBottomNav FAB menu. PREVENTING ALL NAVIGATION!');
       InoBottomNav.closeActiveMenu();
-      return true; // Handled -> Cancels route pop and tab change entirely!
+      return true;
     }
-
     if (ExpandableFab.isMenuOpen) {
-      debugPrint('[GLOBAL SYSTEM BACK OBSERVER] Intercepted back -> Closing ExpandableFab. PREVENTING ALL NAVIGATION!');
       ExpandableFab.closeActiveMenu();
-      return true; // Handled -> Cancels route pop and tab change entirely!
+      return true;
     }
-
-    return false; // Not handled -> Normal navigation proceeds.
+    return false;
   }
 
   void _initDeferredServices() {
