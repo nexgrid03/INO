@@ -212,7 +212,6 @@ class _VaultPassphraseSheetState extends State<_VaultPassphraseSheet> {
       _error = null;
     });
 
-    final target = _selectedMethod == _RecoveryMethod.email ? _userEmail : _userPhone;
     try {
       if (_selectedMethod == _RecoveryMethod.email && _userEmail.isNotEmpty) {
         await AuthService.instance.sendEmailOtp(_userEmail, shouldCreateUser: false);

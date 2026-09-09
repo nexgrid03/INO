@@ -255,17 +255,11 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            // Floating control sheet: copy modes + tools + Continue.
+            // Floating control sheet: tools + filters (near Extract Text) + Extract Text button.
             FadeSlideIn(
               delay: const Duration(milliseconds: 120),
               child: _ControlSheet(
                 children: [
-                  _ModeSelector(
-                    mode: _mode,
-                    enabled: !_busy,
-                    onSelect: _selectMode,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -293,6 +287,13 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                         onTap: widget.onRetake,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // Filter selector positioned right above Extract Text
+                  _ModeSelector(
+                    mode: _mode,
+                    enabled: !_busy,
+                    onSelect: _selectMode,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _ContinueButton(onContinue: _continue),
@@ -391,44 +392,64 @@ class _ModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SizedBox(
-      height: 36,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final m in ScanColorMode.values) ...[
-            PressableScale(
-              pressedScale: 0.95,
-              child: GestureDetector(
-                onTap: enabled ? () => onSelect(m) : null,
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: m == mode
-                        ? AppColors.tealMist
-                        : AppColors.tealFoam,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: m == mode
-                          ? AppColors.primaryGreen
-                          : AppBorders.line,
-                    ),
-                  ),
-                  child: Text(
-                    l10n.t(m.labelKey),
-                    style: AppText.caption.copyWith(
-                      color: m == mode
-                          ? AppColors.primaryGreen
-                          : AppColors.textMuted,
-                      fontWeight: FontWeight.w700,
+      height: 38,
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final m in ScanColorMode.values) ...[
+                PressableScale(
+                  pressedScale: 0.95,
+                  child: GestureDetector(
+                    onTap: enabled ? () => onSelect(m) : null,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: m == mode
+                            ? AppColors.primaryGreen.withValues(alpha: 0.18)
+                            : AppColors.tealFoam.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(
+                          color: m == mode
+                              ? AppColors.primaryGreen
+                              : AppColors.tealPale.withValues(alpha: 0.4),
+                          width: m == mode ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (m == mode) ...[
+                            Icon(Icons.check_rounded,
+                                size: 14, color: AppColors.primaryGreen),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(
+                            l10n.t(m.labelKey),
+                            style: AppText.caption.copyWith(
+                              color: m == mode
+                                  ? AppColors.primaryGreen
+                                  : AppColors.textMuted,
+                              fontWeight: m == mode
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-        ],
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

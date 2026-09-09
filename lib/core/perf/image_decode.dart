@@ -74,30 +74,21 @@ int zoomableDecodeCap(BuildContext context) {
 }
 
 /// A network image decoded within [zoomableDecodeCap], aspect ratio preserved.
-///
-/// `ResizeImagePolicy.fit` is load-bearing: with the default policy the width
-/// and height are treated as the exact output size and a portrait photo comes
-/// out stretched. `allowUpscaling: false` keeps a small image at its own
-/// resolution instead of blowing it up to the cap.
 ImageProvider zoomableNetworkImage(BuildContext context, String url) {
   final cap = zoomableDecodeCap(context);
-  return ResizeImage(
+  return ResizeImage.resizeIfNeeded(
+    cap,
+    null,
     NetworkImage(url),
-    width: cap,
-    height: cap,
-    policy: ResizeImagePolicy.fit,
-    allowUpscaling: false,
   );
 }
 
 /// [zoomableNetworkImage] for a file already on disk.
 ImageProvider zoomableFileImage(BuildContext context, File file) {
   final cap = zoomableDecodeCap(context);
-  return ResizeImage(
+  return ResizeImage.resizeIfNeeded(
+    cap,
+    null,
     FileImage(file),
-    width: cap,
-    height: cap,
-    policy: ResizeImagePolicy.fit,
-    allowUpscaling: false,
   );
 }

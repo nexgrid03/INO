@@ -463,8 +463,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         final localFile = File(_localFilePath!);
         if (await localFile.exists()) {
           final uploadSize = await localFile.length();
-          final usage = await StorageStatsService.instance.load();
-          if (usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
+          final usage = await StorageStatsService.instance.getCached();
+          if (usage.usedBytes > 0 &&
+              usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
             setState(() => _saving = false);
             if (!mounted) return;
             await _showStorageFullDialog(usage);

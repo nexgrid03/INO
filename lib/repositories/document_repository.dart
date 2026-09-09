@@ -15,6 +15,7 @@ import '../core/net/paged_query.dart';
 import '../core/perf/perf_tracer.dart';
 import '../core/net/stream_download.dart';
 import '../models/document.dart';
+import '../services/document_file_service.dart';
 import '../services/storage_stats_service.dart';
 import 'wallet_tables.dart';
 
@@ -183,16 +184,21 @@ class DocumentRepository {
       throw const AuthException('You must be signed in to upload a document.');
     }
 
-    final file = File(localPath);
+    // Fast-path: optimize image files in background isolate prior to upload
+    final uploadPath =
+        await DocumentFileService.instance.optimizeForUpload(localPath);
+    final file = File(uploadPath);
+
     if (await file.exists()) {
       final uploadSize = await file.length();
-      final usage = await StorageStatsService.instance.load();
-      if (usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
+      final usage = await StorageStatsService.instance.getCached();
+      if (usage.usedBytes > 0 &&
+          usage.usedBytes + uploadSize > StorageUsage.defaultQuotaBytes) {
         throw const StorageQuotaExceededException();
       }
     }
 
-    final ext = localPath.contains('.') ? localPath.split('.').last : 'jpg';
+    final ext = uploadPath.contains('.') ? uploadPath.split('.').last : 'jpg';
     final objectPath = '$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
     final stored = await _client.storage
         .from(_bucket)

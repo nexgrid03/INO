@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 import '../repositories/document_repository.dart';
@@ -48,6 +51,53 @@ class DocumentFileService {
     return file;
   }
 
+  /// Optimizes a local image (caps dimension to 2048px and compresses to quality 85)
+  /// in a background isolate to make network upload fast.
+  Future<String> optimizeForUpload(String localPath) async {
+    final ext = extensionOf(localPath);
+    if (!const ['jpg', 'jpeg', 'png', 'webp', 'bmp'].contains(ext)) {
+      return localPath;
+    }
+    final file = File(localPath);
+    if (!await file.exists()) return localPath;
+    final length = await file.length();
+    // If already small (< 500 KB), no need to compress further
+    if (length < 500 * 1024) return localPath;
+
+    try {
+      final outPath = await Isolate.run(() => _compressImageSync(localPath));
+      return outPath ?? localPath;
+    } catch (_) {
+      return localPath;
+    }
+  }
+
+  static String? _compressImageSync(String srcPath) {
+    try {
+      final bytes = File(srcPath).readAsBytesSync();
+      var image = img.decodeImage(bytes);
+      if (image == null) return null;
+      image = img.bakeOrientation(image);
+      const maxDim = 2048;
+      final longest = math.max(image.width, image.height);
+      if (longest > maxDim) {
+        image = image.width >= image.height
+            ? img.copyResize(image,
+                width: maxDim, interpolation: img.Interpolation.linear)
+            : img.copyResize(image,
+                height: maxDim, interpolation: img.Interpolation.linear);
+      }
+      final dir = File(srcPath).parent.path;
+      final outPath =
+          '$dir/ino_upload_${DateTime.now().microsecondsSinceEpoch}.jpg';
+      final jpgBytes = img.encodeJpg(image, quality: 85);
+      File(outPath).writeAsBytesSync(jpgBytes);
+      return outPath;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// A copy of [source] named with the real document name (nice for Share /
   /// Download so the file isn't the opaque storage key).
   Future<File> namedCopy(
@@ -72,3 +122,4 @@ class DocumentFileService {
     } catch (_) {}
   }
 }
+

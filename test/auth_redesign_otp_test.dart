@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/models/country_code.dart';
-import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/screens/auth/login_screen.dart';
 import 'package:inoapp/screens/auth/otp_verification_screen.dart';
 import 'package:inoapp/services/auth_service.dart';

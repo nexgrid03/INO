@@ -1,35 +1,24 @@
 import 'dart:async';
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../config/demo_account.dart';
 import '../../l10n/app_localizations.dart';
 import '../../main.dart';
 import '../../models/country_code.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
-import '../../services/guest_mode.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/auth/country_code_sheet.dart';
-import '../../widgets/auth/social_auth_button.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
 import '../../widgets/ino_logo.dart';
-import '../../widgets/pressable_scale.dart';
 import '../legal/legal_document_screen.dart';
 import 'auth_flow.dart';
 import 'auth_validators.dart';
-import 'biometric_setup_screen.dart';
 import 'otp_verification_screen.dart';
-import 'phone_login_screen.dart';
-import 'signup_screen.dart';
 
 enum AuthMode {
   signIn,
@@ -91,8 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _rememberMe = true;
   bool _busy = false;
-  bool _googleBusy = false;
-  bool _guestBusy = false;
 
   @override
   void initState() {
@@ -426,37 +413,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- Google & Social Auth -------------------------------------------------
-
-  Future<void> _continueWithGoogle() async {
-    final l10n = AppLocalizations.of(context);
-    setState(() => _googleBusy = true);
-    try {
-      final res = await AuthService.instance.signInWithGoogle();
-      if (res == null) {
-        return;
-      }
-      final user = res.user;
-      if (user == null) {
-        _showMessage(l10n.t('googleSignInFailed'));
-        return;
-      }
-      final fullName = (user.userMetadata?['full_name'] as String?) ??
-          (user.userMetadata?['name'] as String?) ??
-          'INO User';
-      final email = user.email ?? '';
-      await routeAfterAuth(
-        authUserId: user.id,
-        fullName: fullName,
-        email: email,
-      );
-    } catch (e) {
-      _showMessage(AuthService.formatAuthError(e));
-    } finally {
-      if (mounted) setState(() => _googleBusy = false);
-    }
-  }
-
   void _openTerms() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LegalDocumentScreen.terms()),
@@ -491,7 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    final busy = _busy || _googleBusy || _guestBusy;
+    final busy = _busy;
     final isSignUp = _mode == AuthMode.signUp;
 
     return AuthScaffold(

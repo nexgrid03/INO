@@ -136,7 +136,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   bool get _isImageView =>
-      _kind == _FileKind.image && _imageUrl != null && _error == _LoadError.none;
+      _kind == _FileKind.image &&
+      (_imageUrl != null || _file != null) &&
+      _error == _LoadError.none;
 
   // ---- File resolution ------------------------------------------------------
 
@@ -170,6 +172,55 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       name: 'viewer',
     );
 
+    // Fast-path 1: Check if rawPath is already a local on-device file (e.g. freshly uploaded or cached)
+    if (rawPath != null && rawPath.trim().isNotEmpty) {
+      final localFile = File(rawPath.trim());
+      if (localFile.existsSync() && localFile.lengthSync() > 0) {
+        final kind = _kindOf(rawPath);
+        final size = localFile.lengthSync();
+        final text =
+            kind == _FileKind.text ? await localFile.readAsString() : null;
+        if (!mounted) return;
+        setState(() {
+          _kind = kind;
+          _file = localFile;
+          _fileSize = size;
+          _textContent = text;
+          _loading = false;
+          _error = _LoadError.none;
+        });
+        return;
+      }
+    }
+
+    // Fast-path 2: Check if offline store has a decrypted file
+    try {
+      final offlineDoc = OfflineDocumentStore.instance.byId(_record.id);
+      if (offlineDoc != null) {
+        final offlineDecrypted =
+            await OfflineDocumentStore.instance.getDecryptedFile(offlineDoc);
+        if (offlineDecrypted != null &&
+            offlineDecrypted.existsSync() &&
+            offlineDecrypted.lengthSync() > 0) {
+          final kind = _kindOf(offlineDecrypted.path);
+          final size = offlineDecrypted.lengthSync();
+          final text = kind == _FileKind.text
+              ? await offlineDecrypted.readAsString()
+              : null;
+          if (!mounted) return;
+          setState(() {
+            _kind = kind;
+            _file = offlineDecrypted;
+            _fileSize = size;
+            _textContent = text;
+            _loading = false;
+            _error = _LoadError.none;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
     if (rawPath == null || rawPath.trim().isEmpty) {
       _fail(
         _LoadError.invalidPath,
@@ -191,7 +242,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       'folderMatchesUser = ${folder == uid}',
       name: 'viewer',
     );
-    if (storagePath != rawPath) {
+    if (storagePath != rawPath && !rawPath.contains(':\\') && !rawPath.startsWith('/data/')) {
       developer.log(
         'file_path REPAIRED: "$rawPath" -> "$storagePath" - migrating the row.',
         name: 'viewer',
@@ -258,6 +309,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// Full, correct paths (already `<uid>/<file>`) pass through untouched.
   String _normalizeStoragePath(String path, String? uid) {
     var p = path.trim();
+    if (p.startsWith('file://')) p = p.substring('file://'.length);
+    if (p.contains(':\\') || p.contains(':/') || p.startsWith('/data/')) {
+      return p;
+    }
     if (p.startsWith('/')) p = p.substring(1);
     if (p.startsWith('documents/')) p = p.substring('documents/'.length);
     if (!p.contains('/') && uid != null && uid.isNotEmpty) {
@@ -410,7 +465,15 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   /// Ensures a local copy exists (for share / download / open), fetching on
   /// demand if the background warm hasn't finished.
   Future<File?> _localFile() async {
-    if (_file != null) return _file;
+    if (_file != null && await _file!.exists()) return _file;
+    final raw = _record.filePath;
+    if (raw != null && raw.isNotEmpty) {
+      final f = File(raw);
+      if (await f.exists()) {
+        if (mounted) setState(() => _file = f);
+        return f;
+      }
+    }
     final path = _storagePath ?? _record.filePath;
     if (path == null) return null;
     try {
@@ -1316,7 +1379,11 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   Widget _imageBody() {
-    final url = _imageUrl!;
+    final hasLocal = _file != null && _file!.existsSync();
+    final ImageProvider provider = hasLocal
+        ? zoomableFileImage(context, _file!)
+        : zoomableNetworkImage(context, _imageUrl ?? '');
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1333,15 +1400,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                 child: Hero(
                   tag: 'doc-${_record.id}',
                   child: Image(
-                    // Decoded within the GPU's texture limit. Unbounded, a
-                    // gallery photo from a modern phone (8160x6120 on a 50MP
-                    // sensor) exceeds what the device can turn into a texture,
-                    // and Flutter then paints NOTHING - no exception, no
-                    // errorBuilder. The viewer drew its chrome over an empty
-                    // black canvas and the document looked like it had failed
-                    // to load. See [zoomableNetworkImage].
-                    image: zoomableNetworkImage(context, url),
-                    key: ValueKey('img-$_imageAttempt'),
+                    image: provider,
+                    key: ValueKey('img-$_imageAttempt-${_file?.path ?? _imageUrl}'),
                     fit: BoxFit.contain,
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
@@ -1350,6 +1410,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                       );
                     },
                     errorBuilder: (context, error, stack) {
+                      if (_file != null && _file!.existsSync()) {
+                        return Image.file(_file!, fit: BoxFit.contain);
+                      }
                       // Auto-recover once (expired / transient), then surface a
                       // real, classified error.
                       if (_imageAttempt < 1) {
@@ -1362,7 +1425,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                           }
                         });
                       }
-                      return  Center(
+                      return Center(
                         child: InoLoader(color: AppColors.primaryGreen),
                       );
                     },

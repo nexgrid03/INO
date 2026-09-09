@@ -25,8 +25,8 @@ ImageFilter _blurFilterFor(double sigma) => sharedBlurFilter(sigma);
 ImageFilter sharedBlurFilter(double sigma) {
   // Cap at 16: values 18–24 look nearly identical on phone screens but cost
   // disproportionately more fill-rate (backdrop blur is O(sigma²) work).
-  final s = sigma.clamp(0.0, 16.0);
-  final key = (s * 2).round(); // 0.5px buckets
+  final s = sigma.clamp(0.001, 16.0);
+  final key = (s * 2).round().clamp(1, 32); // 0.5px buckets
   return _kBlurFilters.putIfAbsent(
     key,
     () => ImageFilter.blur(sigmaX: key / 2.0, sigmaY: key / 2.0),
@@ -222,7 +222,7 @@ class LiquidGlass extends StatelessWidget {
     final BorderRadius? radius = circle
         ? null
         : (borderRadius ?? BorderRadius.circular(24)).resolve(
-            Directionality.of(context),
+            Directionality.maybeOf(context) ?? TextDirection.ltr,
           );
 
     final frostScale = useBlur ? frost : (dark ? frost : frost * 1.05);

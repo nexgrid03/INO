@@ -901,20 +901,20 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           if (securityStatus.needsEmailVerification)
             SettingsRow(
-              icon: Icons.mail_lock_rounded,
+              icon: Icons.mark_email_unread_rounded,
               title: 'Verify Email Address',
-              subtitle: 'Verify your email to secure your account & enable email login',
-              accent: AppColors.warning,
+              subtitle: 'Verify your email to recover your account & get security alerts',
+              accent: AppColors.primaryGreen,
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.15),
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.4),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.35),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -922,14 +922,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.warning,
+                        color: AppColors.primaryGreen,
                       ),
                     ),
-                    SizedBox(width: 2),
+                    const SizedBox(width: 2),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
-                      color: AppColors.warning,
+                      color: AppColors.primaryGreen,
                     ),
                   ],
                 ),
@@ -941,17 +941,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               icon: Icons.phone_android_rounded,
               title: 'Verify Mobile Number',
               subtitle: 'Verify your mobile to secure your account & enable SMS login',
-              accent: AppColors.warning,
+              accent: AppColors.primaryGreen,
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.15),
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.4),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.35),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -959,14 +959,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.warning,
+                        color: AppColors.primaryGreen,
                       ),
                     ),
-                    SizedBox(width: 2),
+                    const SizedBox(width: 2),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
-                      color: AppColors.warning,
+                      color: AppColors.primaryGreen,
                     ),
                   ],
                 ),

@@ -123,7 +123,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
           Expanded(
             child: ListView.separated(
               itemCount: _filtered.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+              separatorBuilder: (context, index) => const Divider(height: 1, indent: 64),
               itemBuilder: (ctx, i) {
                 final country = _filtered[i];
                 final isSelected = country.dialCode == widget.initial.dialCode &&

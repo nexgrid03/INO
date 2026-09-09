@@ -394,56 +394,108 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
                         onSubmitted: (_) => _sendCode(),
                       )
                     else
-                      Row(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GestureDetector(
-                            onTap: _pickCountry,
-                            child: Container(
-                              height: 56,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: palette.isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : Colors.black.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: palette.border),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _countryCode.flag,
-                                    style: const TextStyle(fontSize: 20),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _countryCode.dialCode,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: palette.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    color: palette.textSecondary,
-                                  ),
-                                ],
-                              ),
+                          Text(
+                            'Mobile Number',
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: AuthTextField(
-                              controller: _inputController,
-                              label: 'Mobile Number',
-                              hint: '98765 43210',
-                              icon: Icons.phone_outlined,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) => _sendCode(),
-                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: _pickCountry,
+                                child: Container(
+                                  height: 52,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: palette.isDark
+                                        ? palette.surfaceVariant
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: palette.border, width: 1.2),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _countryCode.flag,
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _countryCode.dialCode,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: palette.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.arrow_drop_down_rounded,
+                                        color: palette.textSecondary,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _inputController,
+                                  keyboardType: TextInputType.phone,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _sendCode(),
+                                  style: TextStyle(
+                                    color: palette.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '98765 43210',
+                                    floatingLabelBehavior: FloatingLabelBehavior.never,
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: palette.isDark
+                                        ? palette.surfaceVariant
+                                        : Colors.white,
+                                    prefixIcon: Icon(
+                                      Icons.phone_outlined,
+                                      color: AppColors.primaryGreen.withValues(alpha: 0.65),
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color: palette.textFaint,
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide(color: palette.border, width: 1.2),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide(color: palette.border, width: 1.2),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide(color: AppColors.primaryGreen, width: 1.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

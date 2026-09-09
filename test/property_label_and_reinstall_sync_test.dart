@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/l10n/app_localizations.dart';
-import 'package:inoapp/models/wallet_models.dart';
 import 'package:inoapp/services/wallet_store.dart';
 import 'package:inoapp/widgets/wallet_modules/module_kit.dart';
 

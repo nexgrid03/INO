@@ -1646,6 +1646,7 @@ class _HeroFilledButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Container(
           height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.primaryGreen,
@@ -1653,15 +1654,22 @@ class _HeroFilledButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: Colors.white, size: 20),
+              Icon(icon, color: Colors.white, size: 19),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1692,6 +1700,7 @@ class _HeroOutlineButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Container(
           height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.transparent,
@@ -1700,15 +1709,22 @@ class _HeroOutlineButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: AppColors.primaryGreen, size: 18),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: AppColors.primaryGreen,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
             ],
