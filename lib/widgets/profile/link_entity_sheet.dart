@@ -69,14 +69,57 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
   @override
   void initState() {
     super.initState();
-    final initialText = _isEmail
-        ? widget.profile.email
-        : (widget.profile.phone ?? '');
-    _inputController = TextEditingController(
-      text: _isEmail
-          ? (initialText.contains('@') ? initialText : '')
-          : (initialText.replaceAll(RegExp(r'[^0-9]'), '')),
-    );
+    if (_isEmail) {
+      final email = widget.profile.email;
+      _inputController = TextEditingController(
+        text: email.contains('@') ? email : '',
+      );
+    } else {
+      final parsed = _parseSavedPhone(widget.profile.phone);
+      _countryCode = parsed.country;
+      _inputController = TextEditingController(text: parsed.nationalNumber);
+    }
+  }
+
+  static ({CountryCode country, String nationalNumber}) _parseSavedPhone(
+      String? rawPhone) {
+    if (rawPhone == null || rawPhone.trim().isEmpty) {
+      return (country: kCountryCodes.first, nationalNumber: '');
+    }
+
+    final trimmed = rawPhone.trim();
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // 1. Check matching dial code from kCountryCodes (longest first)
+    final sorted = List<CountryCode>.from(kCountryCodes)
+      ..sort((a, b) => b.dialCode.length.compareTo(a.dialCode.length));
+
+    for (final c in sorted) {
+      if (trimmed.startsWith(c.dialCode)) {
+        var national = trimmed
+            .substring(c.dialCode.length)
+            .replaceAll(RegExp(r'[^0-9]'), '');
+        // For India (+91), ensure no accidental double 91 if stored as +91918341378308
+        if (c.dialCode == '+91' &&
+            national.startsWith('91') &&
+            national.length == 12) {
+          national = national.substring(2);
+        }
+        return (country: c, nationalNumber: national);
+      }
+    }
+
+    // 2. If no leading '+', check if it's an Indian 12-digit number (91 + 10 digits)
+    if (digitsOnly.startsWith('91') && digitsOnly.length == 12) {
+      return (
+        country: kCountryCodes.firstWhere((c) => c.dialCode == '+91',
+            orElse: () => kCountryCodes.first),
+        nationalNumber: digitsOnly.substring(2),
+      );
+    }
+
+    // 3. Fallback: default to India (+91) with raw digits
+    return (country: kCountryCodes.first, nationalNumber: digitsOnly);
   }
 
   @override
@@ -106,22 +149,41 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
   Future<void> _sendCode() async {
     FocusScope.of(context).unfocus();
     final raw = _inputController.text.trim();
+    final String destination;
+
     if (_isEmail) {
       if (!AuthValidators.isValidEmail(raw)) {
         setState(() => _errorMessage = 'Please enter a valid email address.');
         return;
       }
+      destination = raw;
     } else {
       final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-      if (digits.length < 6 || digits.length > 14) {
-        setState(() => _errorMessage = 'Please enter a valid mobile number.');
-        return;
-      }
-    }
+      final String cleanNational;
 
-    final destination = _isEmail
-        ? raw
-        : '${_countryCode.dialCode}${raw.replaceAll(RegExp(r'[^0-9]'), '')}';
+      if (_countryCode.dialCode == '+91') {
+        // Strip 91 only when the numeric input contains exactly 12 digits (91 + 10 digits)
+        if (digits.startsWith('91') && digits.length == 12) {
+          cleanNational = digits.substring(2);
+        } else {
+          cleanNational = digits;
+        }
+
+        if (cleanNational.length != 10) {
+          setState(() => _errorMessage =
+              'Please enter a valid 10-digit Indian mobile number.');
+          return;
+        }
+      } else {
+        cleanNational = digits;
+        if (cleanNational.length < 6 || cleanNational.length > 14) {
+          setState(() => _errorMessage = 'Please enter a valid mobile number.');
+          return;
+        }
+      }
+
+      destination = '${_countryCode.dialCode}$cleanNational';
+    }
 
     setState(() {
       _busy = true;
@@ -453,6 +515,12 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
                                   controller: _inputController,
                                   keyboardType: TextInputType.phone,
                                   textInputAction: TextInputAction.done,
+                                  inputFormatters: [
+                                    _LinkPhonePrefixFormatter(_countryCode.dialCode),
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9 \-]')),
+                                    LengthLimitingTextInputFormatter(
+                                        _countryCode.dialCode == '+91' ? 10 : 15),
+                                  ],
                                   onFieldSubmitted: (_) => _sendCode(),
                                   style: TextStyle(
                                     color: palette.textPrimary,
@@ -580,5 +648,38 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
         ),
       ),
     );
+  }
+}
+
+/// Normalizes pasted or autofilled phone numbers for India (+91):
+/// if a full 12-digit international number (+91 / 91 + 10 digits) is entered,
+/// strips the leading '91' country code so only the 10-digit national number is retained.
+/// Valid 10-digit numbers starting with 91 (e.g. 9112345678) are preserved intact.
+class _LinkPhonePrefixFormatter extends TextInputFormatter {
+  const _LinkPhonePrefixFormatter(this.dialCode);
+
+  final String dialCode;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (dialCode != '+91') return newValue;
+
+    final text = newValue.text;
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Only strip 91 when the input contains exactly 12 digits (91 + 10 national digits).
+    // A 10-digit number that starts with 91 (e.g. 9112345678) is preserved intact.
+    if (digits.startsWith('91') && digits.length == 12) {
+      final nationalDigits = digits.substring(2);
+      return TextEditingValue(
+        text: nationalDigits,
+        selection: TextSelection.collapsed(offset: nationalDigits.length),
+      );
+    }
+
+    return newValue;
   }
 }

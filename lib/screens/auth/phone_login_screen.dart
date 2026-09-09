@@ -68,8 +68,15 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   /// National number digits only (strips spaces/dashes and any leading 0 / code).
-  String get _nationalNumber =>
-      _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+  String get _nationalNumber {
+    final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (_country.dialCode == '+91' &&
+        digits.startsWith('91') &&
+        digits.length == 12) {
+      return digits.substring(2);
+    }
+    return digits;
+  }
 
   String get _e164 => '${_country.dialCode}$_nationalNumber';
 
@@ -77,8 +84,14 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     final l10n = AppLocalizations.of(context);
     final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return l10n.t('valEnterMobile');
-    if (digits.length < 6 || digits.length > 14) {
-      return l10n.t('valInvalidMobile');
+    if (_country.dialCode == '+91') {
+      if (digits.length != 10) {
+        return l10n.t('valInvalidMobile');
+      }
+    } else {
+      if (digits.length < 6 || digits.length > 14) {
+        return l10n.t('valInvalidMobile');
+      }
     }
     return null;
   }
@@ -217,6 +230,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       Expanded(
                         child: _PhoneInputField(
                           controller: _phoneController,
+                          dialCode: _country.dialCode,
                           hint: '98765 43210',
                           validator: _validatePhone,
                           onSubmitted: _sendOtp,
@@ -329,12 +343,14 @@ class _CountrySelector extends StatelessWidget {
 class _PhoneInputField extends StatefulWidget {
   const _PhoneInputField({
     required this.controller,
+    required this.dialCode,
     required this.hint,
     required this.validator,
     required this.onSubmitted,
   });
 
   final TextEditingController controller;
+  final String dialCode;
   final String hint;
   final String? Function(String?) validator;
   final VoidCallback onSubmitted;
@@ -376,7 +392,9 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
       autofillHints: const [AutofillHints.telephoneNumber],
       cursorColor: AppColors.primaryGreen,
       inputFormatters: [
+        _CountryPhonePrefixFormatter(widget.dialCode),
         FilteringTextInputFormatter.allow(RegExp(r'[0-9 \-]')),
+        LengthLimitingTextInputFormatter(10),
       ],
       validator: widget.validator,
       onFieldSubmitted: (_) => widget.onSubmitted(),
@@ -423,6 +441,39 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
         ),
       ),
     );
+  }
+}
+
+/// Normalizes pasted or autofilled phone numbers for India (+91):
+/// if a full 12-digit international number (+91 / 91 + 10 digits) is entered,
+/// strips the leading '91' country code so only the 10-digit national number is retained.
+/// Valid 10-digit numbers starting with 91 (e.g. 9112345678) are preserved intact.
+class _CountryPhonePrefixFormatter extends TextInputFormatter {
+  const _CountryPhonePrefixFormatter(this.dialCode);
+
+  final String dialCode;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (dialCode != '+91') return newValue;
+
+    final text = newValue.text;
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Only strip 91 when the input contains exactly 12 digits (91 + 10 national digits).
+    // A 10-digit number that starts with 91 (e.g. 9112345678) is preserved intact.
+    if (digits.startsWith('91') && digits.length == 12) {
+      final nationalDigits = digits.substring(2);
+      return TextEditingValue(
+        text: nationalDigits,
+        selection: TextSelection.collapsed(offset: nationalDigits.length),
+      );
+    }
+
+    return newValue;
   }
 }
 
