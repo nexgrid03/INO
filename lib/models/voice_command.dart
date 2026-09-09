@@ -4,6 +4,7 @@ import '../screens/assets/assets_screen.dart';
 import '../screens/documents/add_document_screen.dart';
 import '../screens/expenses/expense_dashboard_screen.dart';
 import '../screens/expenses/tax_records_screen.dart';
+import '../screens/family/family_vault_screen.dart';
 import '../screens/networth/net_worth_analytics_screen.dart';
 import '../screens/notes/notes_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
@@ -68,6 +69,19 @@ class VoiceCommand {
 /// specific multi-word destinations come first so a broad word can't shadow
 /// them - e.g. "gold calculator" must beat the "gold" investments keyword.
 final List<VoiceCommand> kVoiceCommands = [
+  // ── Family Vault (specific multi-word & dedicated vault first) ────────────
+  VoiceCommand(
+    id: 'family-vault',
+    spokenLabel: 'Family Vault',
+    route: '/family-vault',
+    icon: Icons.family_restroom_rounded,
+    phrases: [
+      'family vault', 'family documents', 'family sharing', 'family members',
+      'family vault screen', 'family', 'కుటుంబం', 'కుటుంబ వాల్ట్', 'పరివార్',
+    ],
+    navigate: () => VoiceNav.push((_) => const FamilyVaultScreen()),
+  ),
+
   // ── Finance calculators (specific multi-word phrases first) ───────────────
   VoiceCommand(
     id: 'emi',
@@ -75,7 +89,7 @@ final List<VoiceCommand> kVoiceCommands = [
     route: '/emi',
     icon: Icons.account_balance_rounded,
     phrases: [
-      'emi calculator', 'emi', 'loan calculator', 'loan emi', 'loan',
+      'emi calculator', 'loan calculator', 'loan emi', 'emi', 'loan',
     ],
     navigate: () => VoiceNav.push((_) => const EmiCalculatorScreen()),
   ),
@@ -409,7 +423,9 @@ final List<VoiceCommand> kVoiceCommands = [
     route: '/reminders',
     icon: Icons.alarm_rounded,
     phrases: [
-      'reminders', 'reminder', 'bills', 'birthdays', 'renewals', 'due dates',
+      'my reminders', 'due dates', 'bill reminders', 'set reminder', 'remind me',
+      'reminders', 'reminder', 'alerts', 'alert', 'bills', 'birthdays', 'renewals',
+      'గుర్తులు', 'gurthulu', 'gurtulu',
     ],
     navigate: () => VoiceNav.goToTab(3),
   ),
@@ -440,18 +456,25 @@ final List<VoiceCommand> kVoiceCommands = [
 
 /// Matches recognized speech to a [VoiceCommand], or null when nothing fits.
 ///
-/// Two passes: (1) a direct substring match (handles multi-word phrases, native
-/// script and romanized forms inside a longer sentence); (2) a fuzzy per-word
-/// match (Levenshtein) for Latin keywords, so a mis-heard character or two
-/// ("nots" → "notes", "documnt" → "document") still resolves.
+/// Two passes: (1) a word-boundary & multi-word phrase match (handles exact
+/// phrases and native scripts without colliding short keywords like 'emi' into
+/// 'reminders'); (2) a fuzzy per-word match (Levenshtein) for Latin keywords,
+/// so a mis-heard character or two ("nots" → "notes", "documnt" → "document")
+/// still resolves.
 VoiceCommand? matchVoiceCommand(String words) {
   final text = words.toLowerCase().trim();
   if (text.isEmpty) return null;
 
-  // Pass 1 - direct substring (registry order = priority).
+  // Pass 1 - Word-boundary and exact phrase matching (registry order = priority).
   for (final c in kVoiceCommands) {
     for (final p in c.phrases) {
-      if (text.contains(p)) return c;
+      if (p.isEmpty) continue;
+      if (!_isLatin(p)) {
+        if (text.contains(p)) return c;
+      } else {
+        final pattern = RegExp(r'(?:\b|^)' + RegExp.escape(p) + r'(?:\b|$)');
+        if (pattern.hasMatch(text)) return c;
+      }
     }
   }
 
@@ -513,11 +536,12 @@ int _levenshtein(String a, String b) {
 
 /// A short list of example phrases shown in the UI so users know what to say.
 const List<String> kVoiceCommandExamples = [
+  'Open Family Vault',
+  'Open Reminders',
   'Open Documents',
   'Open Scanner',
   'Open Investments',
   'Open EMI Calculator',
-  'Open Reminders',
   'Open Profile',
   'Open Settings',
   'Go Home',

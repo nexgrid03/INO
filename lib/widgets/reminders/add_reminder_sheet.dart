@@ -356,7 +356,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
         );
     return InputDecoration(
       hintText: hint,
-      hintStyle: AppText.body.copyWith(color: palette.textFaint),
+      hintStyle: AppText.body.copyWith(color: palette.textPlaceholder),
       filled: true,
       fillColor: palette.surface,
       counterText: '',
@@ -382,7 +382,8 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: AppText.label.copyWith(
-        color: palette.textFaint,
+        color: palette.textSecondary,
+        fontWeight: FontWeight.w700,
         fontSize: 11,
         letterSpacing: 0.6,
       ),

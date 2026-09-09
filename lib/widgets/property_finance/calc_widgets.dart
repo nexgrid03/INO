@@ -226,7 +226,7 @@ class CalcField extends StatelessWidget {
       children: [
         Text(label,
             style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                .copyWith(color: palette.textSecondary, fontSize: 12.0, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         // Single input row on the parent card — no second card chrome.
         DecoratedBox(
@@ -242,7 +242,7 @@ class CalcField extends StatelessWidget {
                 Text(
                   prefix!,
                   style: AppText.title.copyWith(
-                    color: palette.textSecondary,
+                    color: palette.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -261,7 +261,10 @@ class CalcField extends StatelessWidget {
                   style: AppText.title.copyWith(color: palette.textPrimary),
                   decoration: InputDecoration(
                     hintText: hint,
-                    hintStyle: AppText.body.copyWith(color: palette.textFaint),
+                    hintStyle: AppText.body.copyWith(
+                      color: palette.textPlaceholder,
+                      fontWeight: FontWeight.w400,
+                    ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -275,7 +278,10 @@ class CalcField extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   suffix!,
-                  style: AppText.subtitle.copyWith(color: palette.textFaint),
+                  style: AppText.subtitle.copyWith(
+                    color: palette.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ],
@@ -507,12 +513,12 @@ class CalcHint extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.internal),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: palette.textFaint, size: 20),
+          Icon(Icons.info_outline_rounded, color: palette.textSecondary, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(message,
                 style: AppText.body
-                    .copyWith(color: palette.textSecondary, height: 1.4)),
+                    .copyWith(color: palette.textPrimary, height: 1.4, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -596,7 +602,7 @@ class _CalcSegmentedState<T> extends State<CalcSegmented<T>> {
       children: [
         Text(widget.label,
             style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                .copyWith(color: palette.textSecondary, fontSize: 12.0, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(

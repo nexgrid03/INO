@@ -7,6 +7,7 @@ import '../../main.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/app_preload.dart';
+import '../../services/app_settings.dart';
 import '../../services/auth_service.dart';
 import '../../services/guest_mode.dart';
 import '../../services/two_factor_service.dart';
@@ -105,6 +106,14 @@ Future<void> routeAfterAuth({
     if (!navContext.mounted) {
       developer.log('routeAfterAuth: navigator gone after fetch', name: 'auth');
       return;
+    }
+
+    final activeLang = AppSettings.instance.language.value;
+    if (existing != null && existing.preferredLanguage != activeLang && activeLang.isNotEmpty) {
+      unawaited(UserRepository.instance.updateProfile(
+        authUserId: authUserId,
+        preferredLanguage: activeLang,
+      ));
     }
 
     final bool needsDetails = existing == null || _isIncomplete(existing);

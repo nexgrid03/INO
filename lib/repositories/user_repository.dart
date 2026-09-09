@@ -6,6 +6,7 @@ import '../core/storage/shared_prefs_cache.dart';
 
 import '../core/net/net_guard.dart';
 import '../models/user_profile.dart';
+import '../services/app_settings.dart';
 
 /// The ONLY place in the app that reads/writes the `public.users` table.
 ///
@@ -34,13 +35,16 @@ class UserRepository {
     required String fullName,
     required String email,
     String? phone,
+    String? preferredLanguage,
   }) async {
+    final lang = preferredLanguage ?? AppSettings.instance.language.value;
     final row = await _client
         .from(_table)
         .insert({
           'auth_user_id': authUserId,
           'full_name': fullName,
           'email': email,
+          'preferred_language': lang,
           if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         })
         .select() // ask Supabase to return the inserted row

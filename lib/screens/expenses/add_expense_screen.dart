@@ -718,7 +718,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       decoration: InputDecoration(
         hintText: hint,
         prefixText: number ? '₹ ' : null,
-        hintStyle: AppText.body.copyWith(color: palette.textFaint),
+        hintStyle: AppText.body.copyWith(color: palette.textPlaceholder),
         filled: true,
         fillColor: palette.surfaceVariant,
         contentPadding:
@@ -766,7 +766,7 @@ class _AmountField extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: '0',
                 hintStyle: AppText.bigNumber
-                    .copyWith(color: palette.textFaint, fontSize: 30),
+                    .copyWith(color: palette.textPlaceholder, fontSize: 30),
                 border: InputBorder.none,
                 isCollapsed: true,
               ),
@@ -1173,12 +1173,12 @@ class _Field extends StatelessWidget {
         Row(children: [
           Text(label,
               style: AppText.label
-                  .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                  .copyWith(color: palette.textSecondary, fontWeight: FontWeight.w600, fontSize: 11.5)),
           if (optional) ...[
             const SizedBox(width: 6),
             Text(AppLocalizations.of(context).t('optional'),
                 style: AppText.label
-                    .copyWith(color: palette.textFaint, fontSize: 10.5)),
+                    .copyWith(color: palette.textSecondary, fontSize: 10.5)),
           ],
         ]),
         const SizedBox(height: 6),

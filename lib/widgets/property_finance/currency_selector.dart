@@ -45,7 +45,7 @@ class CurrencySelector extends StatelessWidget {
           Icon(
             Icons.keyboard_arrow_down_rounded,
             size: 17,
-            color: palette.textFaint,
+            color: palette.textSecondary,
           ),
         ],
       ),
@@ -167,7 +167,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
               child: Row(
                 children: [
                   Icon(Icons.search_rounded,
-                      size: 20, color: palette.textFaint),
+                      size: 20, color: palette.textSecondary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -177,7 +177,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                       decoration: InputDecoration(
                         hintText: widget.searchHint,
                         hintStyle:
-                            AppText.body.copyWith(color: palette.textFaint),
+                            AppText.body.copyWith(color: palette.textPlaceholder),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,

@@ -52,7 +52,7 @@ class FloatingSearchBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Row(
           children: [
-            Icon(Icons.search_rounded, size: 21, color: palette.textFaint),
+            Icon(Icons.search_rounded, size: 21, color: palette.textSecondary),
             const SizedBox(width: 10),
             Expanded(
               child: _isTapOnly
@@ -60,7 +60,7 @@ class FloatingSearchBar extends StatelessWidget {
                       hint,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.body.copyWith(color: palette.textFaint),
+                      style: AppText.body.copyWith(color: palette.textPlaceholder),
                     )
                   : TextField(
                       controller: controller,
@@ -74,7 +74,8 @@ class FloatingSearchBar extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: hint,
                         hintStyle: AppText.body.copyWith(
-                          color: palette.textFaint,
+                          color: palette.textPlaceholder,
+                          fontWeight: FontWeight.w400,
                         ),
                         isCollapsed: true,
                         filled: false,

@@ -313,7 +313,7 @@ class _UnitSelector extends StatelessWidget {
       children: [
         Text(label,
             style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11.5)),
+                .copyWith(color: palette.textSecondary, fontSize: 12.0, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         PressableScale(
           pressedScale: 0.98,
@@ -342,7 +342,7 @@ class _UnitSelector extends StatelessWidget {
                       ),
                     ),
                     Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 20, color: palette.textFaint),
+                        size: 20, color: palette.textSecondary),
                   ],
                 ),
               ),

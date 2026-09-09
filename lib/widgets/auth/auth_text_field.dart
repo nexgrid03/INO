@@ -127,9 +127,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
                 : null),
             suffixIcon: widget.suffix,
             hintStyle: TextStyle(
-              color: palette.textFaint,
+              color: palette.textPlaceholder,
               fontSize: 14.5,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 16,

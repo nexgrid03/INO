@@ -252,7 +252,7 @@ class _SearchField extends StatelessWidget {
       style: TextStyle(color: palette.textPrimary, fontSize: 16),
       decoration: InputDecoration(
         hintText: AppLocalizations.of(context).t('searchGlobalHint'),
-        hintStyle: TextStyle(color: palette.textFaint, fontSize: 15),
+        hintStyle: TextStyle(color: palette.textPlaceholder, fontSize: 15),
         border: InputBorder.none,
         suffixIcon: ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
@@ -320,7 +320,7 @@ class _ResultTile extends StatelessWidget {
                 ),
               ),
               Icon(Icons.chevron_right_rounded,
-                  size: 20, color: palette.textFaint),
+                  size: 20, color: palette.textSecondary),
             ],
           ),
         ),

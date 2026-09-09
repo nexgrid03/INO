@@ -132,7 +132,7 @@ class _AreaInputCard extends StatelessWidget {
                   children: [
                     Text(AppLocalizations.of(context).t('value'),
                         style: AppText.label
-                            .copyWith(color: palette.textFaint, fontSize: 11)),
+                            .copyWith(color: palette.textSecondary, fontSize: 12.0, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 5),
                     TextField(
                       controller: controller,
@@ -148,7 +148,7 @@ class _AreaInputCard extends StatelessWidget {
                         hintText:
                             AppLocalizations.of(context).t('areaValueHint'),
                         hintStyle:
-                            AppText.body.copyWith(color: palette.textFaint),
+                            AppText.body.copyWith(color: palette.textPlaceholder, fontWeight: FontWeight.w400),
                         filled: true,
                         fillColor: palette.surfaceVariant,
                         contentPadding: const EdgeInsets.symmetric(
@@ -170,7 +170,7 @@ class _AreaInputCard extends StatelessWidget {
                   children: [
                     Text(AppLocalizations.of(context).t('unit'),
                         style: AppText.label
-                            .copyWith(color: palette.textFaint, fontSize: 11)),
+                            .copyWith(color: palette.textSecondary, fontSize: 12.0, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 5),
                     PressableScale(
                       pressedScale: 0.98,
@@ -200,7 +200,7 @@ class _AreaInputCard extends StatelessWidget {
                                   ),
                                 ),
                                 Icon(Icons.keyboard_arrow_down_rounded,
-                                    size: 20, color: palette.textFaint),
+                                    size: 20, color: palette.textSecondary),
                               ],
                             ),
                           ),
@@ -230,13 +230,13 @@ class _EmptyHint extends StatelessWidget {
       child: Row(
         children: [
           Icon(Icons.info_outline_rounded,
-              color: palette.textFaint, size: 20),
+              color: palette.textSecondary, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               AppLocalizations.of(context).t('areaHint'),
               style: AppText.body
-                  .copyWith(color: palette.textSecondary, height: 1.4),
+                  .copyWith(color: palette.textPrimary, height: 1.4, fontWeight: FontWeight.w500),
             ),
           ),
         ],

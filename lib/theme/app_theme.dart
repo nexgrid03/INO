@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -361,6 +362,7 @@ class AppPalette {
     required this.textPrimary,
     required this.textSecondary,
     required this.textFaint,
+    required this.textPlaceholder,
     required this.border,
     required this.shadow,
     required this.ambient,
@@ -389,6 +391,9 @@ class AppPalette {
   final Color textSecondary;
   final Color textFaint;
 
+  /// Light subtle ink for placeholder and hint text so it stays light and distinct from labels.
+  final Color textPlaceholder;
+
   /// Hairline borders / glass edges - rgba(48,172,179,0.15) in light.
   final Color border;
 
@@ -409,6 +414,8 @@ class AppPalette {
       : Color.lerp(textPrimary, const Color(0xFF3D5A6C), 0.16)!;
 
   // Light is the PRIMARY theme - bright, airy, teal-washed, never plain white.
+  // Deepened textSecondary & textFaint so grey labels, descriptions, and info cards
+  // are crisp and readable on blue/grey gradient card surfaces.
   static const AppPalette light = AppPalette(
     brightness: Brightness.light,
     bg: Color(0xFFEAF4FC), // soft teal-white wash
@@ -418,8 +425,9 @@ class AppPalette {
     cardBottom: Color(0xFFFAFCFF), // whisper of mist at the base
     surfaceVariant: Color(0xFFF0F9FF), // teal foam inset
     textPrimary: Color(0xFF0F172A),
-    textSecondary: Color(0xFF64748B),
-    textFaint: Color(0xFF94A3B8), // slate-400
+    textSecondary: Color(0xFF2C3E50), // deep legible slate on grey/blue gradients
+    textFaint: Color(0xFF4B5E70), // readable medium slate (was 0xFF94A3B8)
+    textPlaceholder: Color(0xFFA0AEC0), // light placeholder text
     border: Color(0x260EA5E9), // spec: rgba(48,172,179,0.15)
     shadow: Color(0xFF0EA5E9),
     ambient: Color(0xFF0EA5E9),
@@ -440,6 +448,7 @@ class AppPalette {
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF2A3B4C), // deep slate — readable on aqua
     textFaint: Color(0xFF445A6C),
+    textPlaceholder: Color(0xFF8DA4B8),
     border: Color(0x26098F90),
     shadow: Color(0xFF098F90),
     ambient: Color(0xFF098F90),
@@ -459,6 +468,7 @@ class AppPalette {
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF2A3B4C),
     textFaint: Color(0xFF445A6C),
+    textPlaceholder: Color(0xFF8DA4B8),
     border: Color(0x26098F90),
     shadow: Color(0xFF098F90),
     ambient: Color(0xFF098F90),
@@ -477,6 +487,7 @@ class AppPalette {
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF2A3B4C), // deep slate — readable on mist
     textFaint: Color(0xFF445A6C),
+    textPlaceholder: Color(0xFF8DA4B8),
     border: Color(0x26098F90),
     shadow: Color(0xFF098F90),
     ambient: Color(0xFF098F90),
@@ -494,6 +505,7 @@ class AppPalette {
     textPrimary: Color(0xFFEDF5FB),
     textSecondary: Color(0xFFA8C2D6),
     textFaint: Color(0xFF6F8BA3),
+    textPlaceholder: Color(0xFF4E677E),
     border: Color(0x247DD3FC), // rgba(tint2, 0.14)
     shadow: Color(0xFF000000),
     ambient: Color(0xFF7DD3FC),
@@ -512,6 +524,7 @@ class AppPalette {
     textPrimary: Color(0xFFEDF5FB),
     textSecondary: Color(0xFFA8C2D6),
     textFaint: Color(0xFF6F8BA3),
+    textPlaceholder: Color(0xFF4E677E),
     border: Color(0x33098F90),
     shadow: Color(0xFF000000),
     ambient: Color(0xFF098F90),
@@ -841,18 +854,18 @@ class AppTheme {
         fillColor: isDark ? palette.surfaceVariant : Colors.white,
         hintStyle: TextStyle(
           fontFamily: fontFamily,
-          color: palette.textFaint,
+          color: palette.textPlaceholder,
           fontSize: 14.5,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
         ),
         labelStyle: TextStyle(
           fontFamily: fontFamily,
           color: palette.textSecondary,
           fontSize: 14.5,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
         ),
         prefixIconColor: seed,
-        suffixIconColor: palette.textFaint,
+        suffixIconColor: palette.textSecondary,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 16,

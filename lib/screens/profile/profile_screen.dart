@@ -88,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   late bool _notifications = AppSettings.instance.notifications.value;
   late bool _welcomeSound = AppSettings.instance.welcomeSound.value;
   late bool _paymentAppConsent = AppSettings.instance.paymentAppConsent.value;
-  late String _language = _languageLabel(widget.profile.preferredLanguage);
+  late String _language = _languageLabel(AppSettings.instance.language.value);
 
   // Live storage meter, computed from real Storage objects.
   StorageUsage _storage = StorageUsage.empty;
@@ -104,14 +104,24 @@ class _ProfileScreenState extends State<ProfileScreen>
     WidgetsBinding.instance.addObserver(this);
     // Refresh the storage meter whenever documents change (upload / delete).
     DocumentRepository.revision.addListener(_onDocsChanged);
+    AppSettings.instance.language.addListener(_onLanguageChanged);
     _loadStorage();
   }
 
   @override
   void dispose() {
+    AppSettings.instance.language.removeListener(_onLanguageChanged);
     DocumentRepository.revision.removeListener(_onDocsChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() {
+        _language = _languageLabel(AppSettings.instance.language.value);
+      });
+    }
   }
 
   @override
@@ -180,6 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Endonyms - a language is always offered in its own script, never
     // translated into the currently active one.
     const options = ['English', 'हिन्दी', 'తెలుగు'];
+    final currentLabel = _languageLabel(AppSettings.instance.language.value);
     final picked = await showInoOptionsSheet<String>(
       context: context,
       backgroundColor: palette.surface,
@@ -194,10 +205,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight:
-                      o == _language ? FontWeight.w700 : FontWeight.w500,
+                      o == currentLabel ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              trailing: o == _language
+              trailing: o == currentLabel
                   ? Icon(
                       Icons.check_rounded,
                       color: AppColors.primaryGreen,
@@ -208,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       ),
     );
-    if (picked == null || picked == _language) return;
+    if (picked == null || picked == currentLabel) return;
     setState(() => _language = picked);
     final code = _languageCode(picked);
     // Persist locally (instant) and mirror onto the profile row (best effort).

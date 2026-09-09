@@ -113,7 +113,7 @@ class _AreaQuickConverterState extends State<AreaQuickConverter> {
             style: AppText.title.copyWith(color: palette.textPrimary),
             decoration: InputDecoration(
               hintText: l10n.t('enterValue'),
-              hintStyle: AppText.body.copyWith(color: palette.textFaint),
+              hintStyle: AppText.body.copyWith(color: palette.textPlaceholder),
               filled: true,
               fillColor: palette.surfaceVariant,
               contentPadding: const EdgeInsets.symmetric(
@@ -226,7 +226,7 @@ class _UnitSelector extends StatelessWidget {
       children: [
         Text(label,
             style: AppText.label
-                .copyWith(color: palette.textFaint, fontSize: 11)),
+                .copyWith(color: palette.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
         const SizedBox(height: 5),
         PressableScale(
           pressedScale: 0.98,
@@ -255,7 +255,7 @@ class _UnitSelector extends StatelessWidget {
                       ),
                     ),
                     Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 20, color: palette.textFaint),
+                        size: 20, color: palette.textSecondary),
                   ],
                 ),
               ),

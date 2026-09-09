@@ -1021,7 +1021,8 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: AppText.label.copyWith(
-        color: palette.textFaint,
+        color: palette.textSecondary,
+        fontWeight: FontWeight.w700,
         fontSize: 11,
         letterSpacing: 1.4,
       ),
@@ -1089,7 +1090,7 @@ class _OptionCard extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Icon(
           selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded,
-          color: selected ? Colors.white : palette.textFaint,
+          color: selected ? Colors.white : palette.textSecondary,
           size: selected ? 22 : 24,
         ),
       ],
@@ -1321,7 +1322,7 @@ class _DetailsForm extends StatelessWidget {
               children: [
                 _Field(
                   label: wallet == 'Health Wallet'
-                      ? l10n.t('documentType')
+                       ? l10n.t('documentType')
                       : l10n.t('category'),
                   child: wallet == 'Health Wallet'
                       ? DropdownButtonFormField<String>(
@@ -1333,7 +1334,7 @@ class _DetailsForm extends StatelessWidget {
                           ),
                           dropdownColor: AppPalette.of(context).isDark ? AppPalette.of(context).surface : Colors.white,
                           style: AppText.body.copyWith(color: AppPalette.of(context).textPrimary),
-                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.of(context).textFaint),
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.of(context).textSecondary),
                           // Values stay English - they are the stored category
                           // on the row; only the labels are translated.
                           items: [
@@ -1481,7 +1482,7 @@ class _DetailsForm extends StatelessWidget {
         );
     return InputDecoration(
       hintText: hint,
-      hintStyle: AppText.body.copyWith(color: palette.textFaint),
+      hintStyle: AppText.body.copyWith(color: palette.textPlaceholder),
       filled: true,
       fillColor: palette.surfaceVariant,
       contentPadding: const EdgeInsets.symmetric(
@@ -1521,7 +1522,7 @@ class _Field extends StatelessWidget {
               const SizedBox(width: 6),
               Text(AppLocalizations.of(context).t('optional'),
                   style: AppText.label.copyWith(
-                      color: palette.textFaint, fontSize: 11)),
+                      color: palette.textSecondary, fontSize: 11)),
             ],
           ],
         ),
@@ -1576,11 +1577,11 @@ class _Selector extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.body.copyWith(
-                      color: hasValue ? palette.textPrimary : palette.textFaint,
+                      color: hasValue ? palette.textPrimary : palette.textPlaceholder,
                     ),
                   ),
                 ),
-                Icon(trailing, size: 20, color: palette.textFaint),
+                Icon(trailing, size: 20, color: palette.textSecondary),
               ],
             ),
           ),

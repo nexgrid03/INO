@@ -43,7 +43,7 @@ class ReminderSearchDelegate extends SearchDelegate<void> {
         elevation: 0,
       ),
       inputDecorationTheme: InputDecorationTheme(
-        hintStyle: TextStyle(color: palette.textFaint),
+        hintStyle: TextStyle(color: palette.textPlaceholder),
         border: InputBorder.none,
       ),
     );

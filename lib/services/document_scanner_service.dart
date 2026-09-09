@@ -40,7 +40,7 @@ class DocumentScannerService {
   Future<List<String>?> scanPages({
     int pageLimit = 10,
     bool allowGalleryImport = true,
-    ScannerMode mode = ScannerMode.full,
+    ScannerMode mode = ScannerMode.base,
   }) async {
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
