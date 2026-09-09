@@ -179,6 +179,19 @@ class DocumentRepository {
   /// The path starts with the user's id folder (`<uid>/<timestamp>.ext`), which
   /// is what the Storage RLS policies require. Only succeeds while signed in.
   Future<String> uploadFile(String localPath) async {
+    final session = _client.auth.currentSession;
+    if (session != null &&
+        (session.isExpired ||
+            DateTime.now().isAfter(
+              DateTime.fromMillisecondsSinceEpoch(
+                (session.expiresAt ?? 0) * 1000 - 60000,
+              ),
+            ))) {
+      try {
+        await _client.auth.refreshSession();
+      } catch (_) {}
+    }
+
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw const AuthException('You must be signed in to upload a document.');
@@ -806,6 +819,19 @@ class DocumentRepository {
     String contentType = 'application/octet-stream',
     bool upsert = false,
   }) async {
+    final session = _client.auth.currentSession;
+    if (session != null &&
+        (session.isExpired ||
+            DateTime.now().isAfter(
+              DateTime.fromMillisecondsSinceEpoch(
+                (session.expiresAt ?? 0) * 1000 - 60000,
+              ),
+            ))) {
+      try {
+        await _client.auth.refreshSession();
+      } catch (_) {}
+    }
+
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw const AuthException('You must be signed in to upload.');

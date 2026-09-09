@@ -579,14 +579,21 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
         'shared_at': DateTime.now().toIso8601String(),
       };
       final bytes = Uint8List.fromList(utf8.encode(jsonEncode(payload)));
-      await _docs.uploadBytes(
-        objectPath,
-        bytes,
-        contentType: 'application/json',
-        upsert: true,
-      );
-      sizeBytes = bytes.length;
-      contentType = 'application/json';
+      try {
+        await _docs.uploadBytes(
+          objectPath,
+          bytes,
+          contentType: 'application/json',
+          upsert: true,
+        );
+        sizeBytes = bytes.length;
+        contentType = 'application/json';
+      } catch (storageErr) {
+        // Non-fatal fallback: the structured fields are saved directly in
+        // Postgres via `_repo.shareItem`, so structured records share successfully
+        // without blocking on storage bucket upload constraints.
+        developer.log('Optional JSON snapshot upload skipped: $storageErr', name: 'vault');
+      }
     }
 
     await _repo.shareItem(
