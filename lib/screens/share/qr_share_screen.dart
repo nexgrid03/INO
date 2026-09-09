@@ -15,7 +15,6 @@ import '../../models/document_share.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/share_repository.dart';
 import '../../services/media_saver_service.dart';
-import '../../services/screen_security_service.dart';
 import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -67,7 +66,6 @@ class _QrShareScreenState extends State<QrShareScreen> {
   @override
   void initState() {
     super.initState();
-    ScreenSecurityService.instance.enable();
     developer.log(
       'QR share opened → id=${_share.shareId} url=${_share.url} '
       'docs=${_share.documentCount} expires=${_share.expiresAt.toIso8601String()}',
@@ -84,7 +82,6 @@ class _QrShareScreenState extends State<QrShareScreen> {
 
   @override
   void dispose() {
-    ScreenSecurityService.instance.disable();
     _ticker?.cancel();
     _ticker = null;
     super.dispose();
@@ -420,15 +417,37 @@ class _QrCard extends StatelessWidget {
           border: Border.all(color: AppColors.tealPale),
           boxShadow: AppShadows.card,
         ),
-        child: QrImageView(
-          data: url,
-          version: QrVersions.auto,
-          size: 226,
-          backgroundColor: Colors.white,
-          eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: dark),
-          dataModuleStyle: QrDataModuleStyle(
-              dataModuleShape: QrDataModuleShape.square, color: dark),
-        ),
+        child: url.trim().isEmpty
+            ? SizedBox(
+                width: 226,
+                height: 226,
+                child: Center(
+                  child: Text(
+                    'Invalid QR link',
+                    style: AppText.caption.copyWith(color: AppColors.critical),
+                  ),
+                ),
+              )
+            : QrImageView(
+                data: url,
+                version: QrVersions.auto,
+                size: 226,
+                backgroundColor: Colors.white,
+                eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: dark),
+                dataModuleStyle: QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square, color: dark),
+                errorStateBuilder: (cxt, err) => SizedBox(
+                  width: 226,
+                  height: 226,
+                  child: Center(
+                    child: Text(
+                      'Could not generate QR code',
+                      textAlign: TextAlign.center,
+                      style: AppText.caption.copyWith(color: AppColors.critical),
+                    ),
+                  ),
+                ),
+              ),
       ),
     );
   }

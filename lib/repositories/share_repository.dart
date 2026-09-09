@@ -122,13 +122,12 @@ class ShareRepository {
           name: 'share');
 
       // The RPC returns the inserted row (a JSON object, or a 1-element list).
-      final map = (row is List ? (row.isEmpty ? null : row.first) : row)
-          as Map<String, dynamic>?;
-      if (map == null) {
+      final rawMap = (row is List ? (row.isEmpty ? null : row.first) : row);
+      if (rawMap == null || rawMap is! Map) {
         throw const ShareException(
             'The server did not return a share. Please try again.');
       }
-      final share = DocumentShare.fromMap(map);
+      final share = DocumentShare.fromMap(rawMap);
       developer.log(
         'create_document_share OK → id=${share.shareId} url=${share.url} '
         'expires=${share.expiresAt.toIso8601String()}',
@@ -222,13 +221,12 @@ class ShareRepository {
       final row = await _client
           .rpc('create_processed_share', params: payload)
           .timeout(NetGuard.mutation);
-      final map = (row is List ? (row.isEmpty ? null : row.first) : row)
-          as Map<String, dynamic>?;
-      if (map == null) {
+      final rawMap = (row is List ? (row.isEmpty ? null : row.first) : row);
+      if (rawMap == null || rawMap is! Map) {
         throw const ShareException(
             'The server did not return a share. Please try again.');
       }
-      final share = DocumentShare.fromMap(map);
+      final share = DocumentShare.fromMap(rawMap);
       _bump();
       return share;
     } on PostgrestException catch (e) {

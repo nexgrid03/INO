@@ -106,6 +106,9 @@ class ScreenSecurityService {
     } on MissingPluginException {
       // Native side not present (e.g. a widget test) - not an error.
       return false;
+    } catch (e) {
+      developer.log('enable error: $e', name: 'secure-screen');
+      return false;
     }
   }
 
@@ -124,6 +127,8 @@ class ScreenSecurityService {
       developer.log('disable failed: ${e.message}', name: 'secure-screen');
     } on MissingPluginException {
       /* no native side - nothing to undo */
+    } catch (e) {
+      developer.log('disable error: $e', name: 'secure-screen');
     }
   }
 

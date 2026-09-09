@@ -54,24 +54,28 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             secureChannelName,
         ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "enable" -> {
-                    setSecure(true)
-                    result.success(true)
+            try {
+                when (call.method) {
+                    "enable" -> {
+                        setSecure(true)
+                        result.success(true)
+                    }
+                    "disable" -> {
+                        setSecure(false)
+                        result.success(true)
+                    }
+                    "isCaptured" -> {
+                        result.success(false)
+                    }
+                    "setSecure" -> {
+                        val secure = call.argument<Boolean>("secure") ?: false
+                        setSecure(secure)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
                 }
-                "disable" -> {
-                    setSecure(false)
-                    result.success(true)
-                }
-                "isCaptured" -> {
-                    result.success(false)
-                }
-                "setSecure" -> {
-                    val secure = call.argument<Boolean>("secure") ?: false
-                    setSecure(secure)
-                    result.success(true)
-                }
-                else -> result.notImplemented()
+            } catch (e: Exception) {
+                result.error("SECURE_SCREEN_ERR", e.message, null)
             }
         }
 
@@ -80,25 +84,29 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             upiChannelName,
         ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "list", "getInstalledUpiApps" -> {
-                    result.success(getInstalledUpiApps())
-                }
-                "launch", "launchUpiApp" -> {
-                    val targetPackage = call.argument<String>("id")
-                        ?: call.argument<String>("packageName")
-                    val uri = call.argument<String>("uri")
-                    if (targetPackage.isNullOrBlank() || uri.isNullOrBlank()) {
-                        result.error(
-                            "INVALID_ARGS",
-                            "packageName/id and uri required",
-                            null,
-                        )
-                    } else {
-                        result.success(launchUpiApp(targetPackage, uri))
+            try {
+                when (call.method) {
+                    "list", "getInstalledUpiApps" -> {
+                        result.success(getInstalledUpiApps())
                     }
+                    "launch", "launchUpiApp" -> {
+                        val targetPackage = call.argument<String>("id")
+                            ?: call.argument<String>("packageName")
+                        val uri = call.argument<String>("uri")
+                        if (targetPackage.isNullOrBlank() || uri.isNullOrBlank()) {
+                            result.error(
+                                "INVALID_ARGS",
+                                "packageName/id and uri required",
+                                null,
+                            )
+                        } else {
+                            result.success(launchUpiApp(targetPackage, uri))
+                        }
+                    }
+                    else -> result.notImplemented()
                 }
-                else -> result.notImplemented()
+            } catch (e: Exception) {
+                result.error("UPI_APPS_ERR", e.message, null)
             }
         }
 
@@ -108,23 +116,33 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             mediaSaverChannelName,
         ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "saveImageToGallery" -> {
-                    val bytes = call.argument<ByteArray>("bytes")
-                    val fileName = call.argument<String>("fileName") ?: "ino_qr_${System.currentTimeMillis()}.png"
-                    val mimeType = call.argument<String>("mimeType") ?: "image/png"
-                    if (bytes == null) {
-                        result.error("INVALID_ARGS", "bytes required", null)
-                        return@setMethodCallHandler
-                    }
-                    Thread {
-                        val saved = saveImageToDevice(bytes, fileName, mimeType)
-                        runOnUiThread {
-                            result.success(saved != null)
+            try {
+                when (call.method) {
+                    "saveImageToGallery" -> {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val fileName = call.argument<String>("fileName") ?: "ino_qr_${System.currentTimeMillis()}.png"
+                        val mimeType = call.argument<String>("mimeType") ?: "image/png"
+                        if (bytes == null) {
+                            result.error("INVALID_ARGS", "bytes required", null)
+                            return@setMethodCallHandler
                         }
-                    }.start()
+                        Thread {
+                            try {
+                                val saved = saveImageToDevice(bytes, fileName, mimeType)
+                                runOnUiThread {
+                                    result.success(saved != null)
+                                }
+                            } catch (e: Exception) {
+                                runOnUiThread {
+                                    result.success(false)
+                                }
+                            }
+                        }.start()
+                    }
+                    else -> result.notImplemented()
                 }
-                else -> result.notImplemented()
+            } catch (e: Exception) {
+                result.error("MEDIA_SAVER_ERR", e.message, null)
             }
         }
     }
@@ -270,10 +288,14 @@ class MainActivity : FlutterFragmentActivity() {
     /// it correct if that ever changes.
     private fun setSecure(secure: Boolean) {
         runOnUiThread {
-            if (secure) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            try {
+                if (secure) {
+                    window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            } catch (e: Exception) {
+                // Prevent crash if window token is detached or surface is in transition
             }
         }
     }

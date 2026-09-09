@@ -58,6 +58,31 @@ Future<void> main() async {
         error: details.exception, stackTrace: details.stack);
     if (!kReleaseMode) FlutterError.presentError(details);
   };
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    developer.log('ErrorWidget caught build error: ${details.exception}',
+        name: 'app', error: details.exception, stackTrace: details.stack);
+    return Material(
+      color: Colors.transparent,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.amber, size: 32),
+              const SizedBox(height: 8),
+              const Text(
+                'Unable to display this content',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
 
   await SharedPrefsCache.init();
 

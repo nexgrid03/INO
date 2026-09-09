@@ -189,23 +189,46 @@ class ViewOnceShare {
     );
   }
 
-  factory ViewOnceShare.fromMap(Map<String, dynamic> map) {
+  factory ViewOnceShare.fromMap(Map<dynamic, dynamic> raw) {
+    final map = Map<String, dynamic>.from(raw);
+    final id = map['id']?.toString() ?? '';
+    final token = map['token']?.toString() ?? id;
+    final docId = map['document_id']?.toString() ?? '';
+    final ownerId = map['owner_id']?.toString() ?? '';
+
+    DateTime parsedExpiry;
+    try {
+      parsedExpiry = DateTime.parse(map['expiry_time']?.toString() ?? '');
+    } catch (_) {
+      parsedExpiry = DateTime.now().add(const Duration(hours: 24));
+    }
+
+    DateTime parsedCreated;
+    try {
+      parsedCreated = DateTime.parse(map['created_at']?.toString() ?? '');
+    } catch (_) {
+      parsedCreated = DateTime.now();
+    }
+
+    DateTime? parsedViewedAt;
+    if (map['viewed_at'] != null) {
+      try {
+        parsedViewedAt = DateTime.parse(map['viewed_at']?.toString() ?? '');
+      } catch (_) {}
+    }
+
     return ViewOnceShare(
-      id: map['id'] as String,
-      token: map['token'] as String,
-      documentId: map['document_id'] as String,
-      ownerId: map['owner_id'] as String,
-      expiryTime: DateTime.parse(map['expiry_time'] as String),
-      // Older rows (and an app build talking to a pre-migration backend) have
-      // no column at all — fall back to the same 30s the RPC defaults to.
+      id: id,
+      token: token,
+      documentId: docId,
+      ownerId: ownerId,
+      expiryTime: parsedExpiry,
       viewSeconds: (map['view_seconds'] as num?)?.toInt() ??
           ViewDuration.thirtySeconds.seconds,
       viewed: (map['viewed'] as bool?) ?? false,
       revoked: (map['revoked'] as bool?) ?? false,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      viewedAt: map['viewed_at'] == null
-          ? null
-          : DateTime.parse(map['viewed_at'] as String),
+      createdAt: parsedCreated,
+      viewedAt: parsedViewedAt,
     );
   }
 }

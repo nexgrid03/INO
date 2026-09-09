@@ -85,9 +85,14 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   Future<List<ProcessedShareFile>> _processAll(ShareSettings settings) async {
     final results = <ProcessedShareFile>[];
     for (final doc in widget.documents) {
+      final path = doc.filePath;
+      if (path == null || path.trim().isEmpty) {
+        throw const DocumentProcessException(
+            'One or more selected documents have no uploaded file.');
+      }
       final local =
-          await DocumentFileService.instance.ensureLocal(doc.filePath!);
-      final isPdf = doc.filePath!.toLowerCase().endsWith('.pdf');
+          await DocumentFileService.instance.ensureLocal(path);
+      final isPdf = path.toLowerCase().endsWith('.pdf');
       final r = await DocumentProcessor.instance.process(
         sourcePath: local.path,
         sourceIsPdf: isPdf,
@@ -107,7 +112,10 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
   Future<void> _generateQr() async {
     if (_busy) return;
     final l10n = AppLocalizations.of(context);
-    final missing = widget.documents.where((d) => !d.hasUploadedFile).toList();
+    final missing = widget.documents
+        .where((d) =>
+            !d.hasUploadedFile || d.filePath == null || d.filePath!.trim().isEmpty)
+        .toList();
     if (missing.isNotEmpty) {
       _toast(
         missing.length == widget.documents.length
@@ -158,7 +166,10 @@ class _ShareSettingsScreenState extends State<ShareSettingsScreen> {
         );
       }
       if (!mounted) return;
-      HapticFeedback.mediumImpact();
+      try {
+        await HapticFeedback.mediumImpact();
+      } catch (_) {}
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) =>

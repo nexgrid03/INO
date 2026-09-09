@@ -115,25 +115,67 @@ class DocumentShare {
   /// server update succeeds.
   DocumentShare copyAsRevoked() => copyWith(status: ShareStatus.revoked);
 
-  factory DocumentShare.fromMap(Map<String, dynamic> map) {
+  factory DocumentShare.fromMap(Map<dynamic, dynamic> raw) {
+    final map = Map<String, dynamic>.from(raw);
+    final rawDocs = map['document_ids'];
+    List<String> parsedDocIds = const [];
+    if (rawDocs is List) {
+      parsedDocIds = rawDocs.map((e) => e.toString()).toList();
+    } else if (rawDocs is String) {
+      final clean = rawDocs.replaceAll('{', '').replaceAll('}', '').trim();
+      if (clean.isNotEmpty) {
+        parsedDocIds = clean
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    }
+
+    final id = map['id']?.toString() ?? '';
+    final shareId = map['share_id']?.toString() ??
+        (id.isNotEmpty ? id : 'share_${DateTime.now().millisecondsSinceEpoch}');
+    final token = map['token']?.toString() ?? shareId;
+
+    DateTime parsedCreated;
+    try {
+      parsedCreated = DateTime.parse(map['created_at']?.toString() ?? '');
+    } catch (_) {
+      parsedCreated = DateTime.now();
+    }
+
+    DateTime parsedExpires;
+    try {
+      parsedExpires = DateTime.parse(map['expires_at']?.toString() ?? '');
+    } catch (_) {
+      parsedExpires = DateTime.now().add(const Duration(hours: 24));
+    }
+
+    DateTime? parsedLastAccessed;
+    if (map['last_accessed_at'] != null) {
+      try {
+        parsedLastAccessed =
+            DateTime.parse(map['last_accessed_at']?.toString() ?? '');
+      } catch (_) {}
+    }
+
     return DocumentShare(
-      id: map['id'] as String,
-      shareId: map['share_id'] as String,
-      token: (map['token'] as String?) ?? map['share_id'] as String,
-      ownerId: map['owner_id'] as String,
-      documentIds:
-          (map['document_ids'] as List?)?.map((e) => e.toString()).toList() ??
-              const [],
-      status: _statusFrom(map['status'] as String?),
+      id: id,
+      shareId: shareId,
+      token: token,
+      ownerId: map['owner_id']?.toString() ?? '',
+      documentIds: parsedDocIds,
+      status: _statusFrom(map['status']?.toString()),
       viewsCount: (map['views_count'] as num?)?.toInt() ?? 0,
       downloadsCount: (map['downloads_count'] as num?)?.toInt() ?? 0,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      expiresAt: DateTime.parse(map['expires_at'] as String),
-      lastAccessedAt: map['last_accessed_at'] != null
-          ? DateTime.tryParse(map['last_accessed_at'] as String)
-          : null,
-      hasPassword: (map['has_password'] as bool?) ?? (map['password_hash'] != null),
-      isViewOnly: (map['is_view_only'] as bool?) ?? false,
+      createdAt: parsedCreated,
+      expiresAt: parsedExpires,
+      lastAccessedAt: parsedLastAccessed,
+      hasPassword:
+          (map['has_password'] as bool?) ?? (map['password_hash'] != null),
+      isViewOnly: (map['is_view_only'] as bool?) ??
+          (map['view_only'] as bool?) ??
+          false,
     );
   }
 
