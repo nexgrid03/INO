@@ -95,6 +95,7 @@ class VaultShareFields {
   static const Map<String, String> _labels = {
     'name': 'Name',
     'type': 'Type',
+    'propertytype': 'Property Type',
     'status': 'Status',
     'purchasedate': 'Purchase Date',
     'purchaseprice': 'Purchase Price',
@@ -113,16 +114,16 @@ class VaultShareFields {
     'registrationnumber': 'Registration Number',
     'registrationdate': 'Registration Date',
     'willdetails': 'Will Details',
-    'nomineename': 'Nominee',
+    'nomineename': 'Nominee Name',
     'nomineerelationship': 'Nominee Relationship',
     'legalheirs': 'Legal Heirs',
-    'taxid': 'Tax ID',
-    'encumbrance': 'Encumbrance',
-    'hasloan': 'Has Loan',
-    'loanprovider': 'Loan Provider',
+    'taxid': 'Tax ID / Property Tax No.',
+    'encumbrance': 'Encumbrance Details',
+    'hasloan': 'Loan Status',
+    'loanprovider': 'Loan Provider / Bank',
     'outstandingloan': 'Outstanding Loan',
-    'emi': 'EMI',
-    'annualtax': 'Annual Tax',
+    'emi': 'Monthly EMI',
+    'annualtax': 'Annual Property Tax',
     'maintenancecharges': 'Maintenance Charges',
     'rentalincome': 'Rental Income',
     'otherexpenses': 'Other Expenses',
@@ -131,22 +132,49 @@ class VaultShareFields {
     'reminderdate': 'Reminder Date',
     'institution': 'Institution',
     'accountnumber': 'Account / Folio Number',
+    'folionumber': 'Folio Number',
     'units': 'Units',
     'investedamount': 'Invested Amount',
     'maturitydate': 'Maturity Date',
     'nominee': 'Nominee',
     'bank': 'Bank',
+    'bankname': 'Bank Name',
     'kind': 'Card Type',
     'network': 'Network',
     'holdername': 'Card Holder',
     'last4': 'Last 4 Digits',
     'expirymonth': 'Expiry Month',
     'expiryyear': 'Expiry Year',
+    'cardnumber': 'Card Number',
+    'ifsccode': 'IFSC Code',
     'category': 'Category',
-    'recordnumber': 'Record Number',
+    'recordnumber': 'Document Number',
+    'documentnumber': 'Document Number',
+    'number': 'Document Number',
+    'aadhaarnumber': 'Aadhaar Number',
+    'pannumber': 'PAN Number',
+    'passportnumber': 'Passport Number',
+    'drivinglicensenumber': 'Driving License Number',
+    'voteridnumber': 'Voter ID Number',
+    'dob': 'Date of Birth',
+    'dateofbirth': 'Date of Birth',
+    'gender': 'Gender',
+    'fathername': 'Father\'s Name',
+    'mothername': 'Mother\'s Name',
+    'spousename': 'Spouse\'s Name',
     'issuedate': 'Issue Date',
     'expirydate': 'Expiry Date',
-    'doctorname': 'Doctor',
+    'expiresat': 'Expiry Date',
+    'issuedby': 'Issued By',
+    'placeofissue': 'Place of Issue',
+    'doctorname': 'Doctor Name',
+    'hospitalname': 'Hospital Name',
+    'bloodgroup': 'Blood Group',
+    'allergies': 'Allergies',
+    'policyname': 'Policy Name',
+    'policynumber': 'Policy Number',
+    'suminsured': 'Sum Insured',
+    'premium': 'Premium Amount',
     'tags': 'Tags',
   };
 
@@ -254,6 +282,56 @@ class VaultShareFields {
     if (value is String) {
       final t = value.trim();
       if (t.isEmpty) return null;
+      // Human-readable conversions for common enum strings
+      final lower = t.toLowerCase();
+      switch (lower) {
+        case 'squarefeet':
+          return 'Square Feet (Sq. Ft.)';
+        case 'squareyards':
+          return 'Square Yards';
+        case 'squaremeters':
+          return 'Square Meters';
+        case 'acres':
+          return 'Acres';
+        case 'hectares':
+          return 'Hectares';
+        case 'guntas':
+          return 'Guntas';
+        case 'cents':
+          return 'Cents';
+        case 'grounds':
+          return 'Grounds';
+        case 'bigha':
+          return 'Bigha';
+        case 'marla':
+          return 'Marla';
+        case 'kanal':
+          return 'Kanal';
+        case 'underconstruction':
+          return 'Under Construction';
+        case 'apartment':
+          return 'Apartment';
+        case 'farmland':
+          return 'Farmland';
+        case 'commercial':
+          return 'Commercial';
+        case 'house':
+          return 'House';
+        case 'villa':
+          return 'Villa';
+        case 'plot':
+          return 'Plot';
+        case 'land':
+          return 'Land';
+        case 'owned':
+          return 'Owned';
+        case 'rented':
+          return 'Rented Out';
+        case 'leased':
+          return 'Leased';
+        case 'sold':
+          return 'Sold';
+      }
       // ISO timestamps are unreadable in a checklist; show the date part only.
       final asDate = DateTime.tryParse(t);
       if (asDate != null && t.length >= 10 && t.contains('-')) {
@@ -266,8 +344,26 @@ class VaultShareFields {
       if (value.isEmpty) return null;
       final parts = <String>[];
       for (final v in value) {
-        final d = v is Map ? describe(v['name'] ?? v.values.first) : describe(v);
-        if (d != null) parts.add(d);
+        String? d;
+        if (v is Map) {
+          final name = v['name']?.toString().trim();
+          final share = v['share'] ?? v['sharePercent'] ?? v['share_percent'];
+          final relationship = v['relationship']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            if (share != null && share is num) {
+              d = '$name (${_trimNumber(share)}%)';
+            } else if (relationship != null && relationship.isNotEmpty) {
+              d = '$name ($relationship)';
+            } else {
+              d = name;
+            }
+          } else if (v.isNotEmpty) {
+            d = describe(v.values.first);
+          }
+        } else {
+          d = describe(v);
+        }
+        if (d != null && d.isNotEmpty) parts.add(d);
       }
       if (parts.isEmpty) return null;
       return parts.length > 3
@@ -276,7 +372,15 @@ class VaultShareFields {
     }
     if (value is Map) {
       if (value.isEmpty) return null;
-      return describe(value['name'] ?? value.values.first);
+      final name = value['name']?.toString().trim();
+      final share = value['share'] ?? value['sharePercent'] ?? value['share_percent'];
+      if (name != null && name.isNotEmpty) {
+        if (share != null && share is num) {
+          return '$name (${_trimNumber(share)}%)';
+        }
+        return name;
+      }
+      return describe(value.values.first);
     }
     return value.toString();
   }

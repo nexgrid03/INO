@@ -261,5 +261,178 @@ void main() {
         isFalse,
       );
     });
+
+    test('recognises full https URLs and documents/ prefixes as remote', () {
+      expect(
+        WalletMediaSync.isRemote(
+            'https://example.supabase.co/storage/v1/object/public/documents/3f2504e0-4f89-11d3-9a0c-0305e82c3301/1757000000.jpg'),
+        isTrue,
+      );
+      expect(
+        WalletMediaSync.isRemote(
+            'documents/3f2504e0-4f89-11d3-9a0c-0305e82c3301/1757000000.jpg'),
+        isTrue,
+      );
+    });
+  });
+
+  group('VaultShareFields — full property record with many filled fields', () {
+    test('offers all filled property fields and attached image in checklist', () {
+      final propertyJson = <String, dynamic>{
+        'id': 'prop_full_1',
+        'name': 'Green Meadow Villa',
+        'type': 'villa',
+        'status': 'owned',
+        'createdAt': '2026-01-01T00:00:00.000',
+        'updatedAt': '2026-02-01T00:00:00.000',
+        'imagePath': 'uid/property_photo.jpg',
+        'purchaseDate': '2022-05-15T00:00:00.000',
+        'purchasePrice': 8500000.0,
+        'currentValue': 12000000.0,
+        'area': 3200.0,
+        'areaUnit': 'squareFeet',
+        'country': 'India',
+        'state': 'Telangana',
+        'city': 'Hyderabad',
+        'address': 'Plot 42, Jubilee Hills',
+        'pinCode': '500033',
+        'mapsUrl': 'https://maps.google.com/?q=17.43,78.40',
+        'ownerName': 'John Doe',
+        'coOwners': [
+          {'name': 'Jane Doe', 'share': 50.0, 'relationship': 'Spouse'}
+        ],
+        'ownershipPercent': 50.0,
+        'registrationNumber': 'REG-2022-HYD-9988',
+        'registrationDate': '2022-06-01T00:00:00.000',
+        'willDetails': 'Registered will dated 2023',
+        'nomineeName': 'Alex Doe',
+        'nomineeRelationship': 'Son',
+        'legalHeirs': ['Alex Doe', 'Sarah Doe'],
+        'taxId': 'PTAX-2022-9988',
+        'encumbrance': 'Nil / Clear Title',
+        'hasLoan': true,
+        'loanProvider': 'State Bank of India',
+        'outstandingLoan': 2500000.0,
+        'emi': 32000.0,
+        'annualTax': 15000.0,
+        'maintenanceCharges': 4000.0,
+        'rentalIncome': 65000.0,
+        'otherExpenses': 2000.0,
+        'notes': 'Corner plot with east entrance',
+        'reminderNote': 'Property tax payment due',
+        'reminderDate': '2026-03-31T00:00:00.000',
+      };
+
+      final fields = VaultShareFields.forRecord(
+        propertyJson,
+        hasFile: true,
+        fileLabel: 'Attached property photo / document',
+      );
+
+      final keys = fields.map((f) => f.key).toSet();
+
+      // Attached file must be first
+      expect(fields.first.key, VaultShareField.fileKey);
+      expect(fields.first.label, 'Attached property photo / document');
+
+      // Every single filled field must be present
+      expect(keys, containsAll(<String>{
+        VaultShareField.fileKey,
+        'name',
+        'type',
+        'status',
+        'purchaseDate',
+        'purchasePrice',
+        'currentValue',
+        'area',
+        'areaUnit',
+        'country',
+        'state',
+        'city',
+        'address',
+        'pinCode',
+        'mapsUrl',
+        'ownerName',
+        'coOwners',
+        'ownershipPercent',
+        'registrationNumber',
+        'registrationDate',
+        'willDetails',
+        'nomineeName',
+        'nomineeRelationship',
+        'legalHeirs',
+        'taxId',
+        'encumbrance',
+        'hasLoan',
+        'loanProvider',
+        'outstandingLoan',
+        'emi',
+        'annualTax',
+        'maintenanceCharges',
+        'rentalIncome',
+        'otherExpenses',
+        'notes',
+        'reminderNote',
+        'reminderDate',
+      }));
+
+      // Verify formatted preview values
+      final areaUnitField = fields.firstWhere((f) => f.key == 'areaUnit');
+      expect(areaUnitField.preview, 'Square Feet (Sq. Ft.)');
+
+      final coOwnersField = fields.firstWhere((f) => f.key == 'coOwners');
+      expect(coOwnersField.preview, 'Jane Doe (50%)');
+
+      final hasLoanField = fields.firstWhere((f) => f.key == 'hasLoan');
+      expect(hasLoanField.preview, 'Yes');
+
+      // Check that applyMask retains all selected fields
+      final mask = {for (final f in fields) f.key: true};
+      mask['outstandingLoan'] = false; // user unchecks outstanding loan
+
+      final masked = VaultShareFields.applyMask(propertyJson, mask);
+      expect(masked.containsKey('outstandingLoan'), isFalse);
+      expect(masked['purchasePrice'], 8500000.0);
+      expect(masked['address'], 'Plot 42, Jubilee Hills');
+      expect(masked['ownerName'], 'John Doe');
+      expect(masked['legalHeirs'], ['Alex Doe', 'Sarah Doe']);
+    });
+
+    test('unpacked document extractions offer individual fields in checklist', () {
+      final docJson = <String, dynamic>{
+        'name': 'Aadhaar Card',
+        'category': 'Identity',
+        'recordNumber': '123456789012',
+        'number': '123456789012',
+        'dob': '1995-08-15',
+        'gender': 'Male',
+        'fatherName': 'Robert Doe',
+        'address': '123 Main St, Bangalore',
+        'notes': 'Verified in person',
+      };
+
+      final fields = VaultShareFields.forRecord(docJson, hasFile: true);
+      final keys = fields.map((f) => f.key).toSet();
+
+      expect(keys, containsAll(<String>{
+        VaultShareField.fileKey,
+        'name',
+        'category',
+        'recordNumber',
+        'dob',
+        'gender',
+        'fatherName',
+        'address',
+        'notes',
+      }));
+
+      final dobField = fields.firstWhere((f) => f.key == 'dob');
+      expect(dobField.label, 'Date of Birth');
+      expect(dobField.preview, '15/08/1995');
+
+      final fatherField = fields.firstWhere((f) => f.key == 'fatherName');
+      expect(fatherField.label, 'Father\'s Name');
+      expect(fatherField.preview, 'Robert Doe');
+    });
   });
 }

@@ -15,6 +15,7 @@ import '../../services/auth_service.dart';
 import '../../services/family_vault_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/liquid_glass.dart';
@@ -2868,6 +2869,16 @@ class _VaultDocumentDetailSheet extends StatelessWidget {
                               ),
                             ],
                           ),
+                          if (doc.isImage) ...[
+                            const SizedBox(height: 12),
+                            _VaultImagePreview(
+                              doc: doc,
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                onOpenDocument();
+                              },
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: () {
@@ -2965,8 +2976,8 @@ class _VaultDocumentDetailSheet extends StatelessWidget {
                                   Expanded(
                                     flex: 6,
                                     child: Text(
-                                      VaultShareFields.describe(entry.value) ??
-                                          entry.value.toString(),
+                                      _formatDisclosedValue(
+                                          entry.key, entry.value),
                                       textAlign: TextAlign.end,
                                       style: TextStyle(
                                         color: palette.textPrimary,
@@ -3069,6 +3080,122 @@ class _VaultDocumentDetailSheet extends StatelessWidget {
                       ],
                     ),
                   ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDisclosedValue(String key, dynamic value) {
+    if (value == null) return '—';
+    final norm = key.toLowerCase().replaceAll('_', '');
+    if ((norm.contains('price') ||
+            norm.contains('value') ||
+            norm.contains('amount') ||
+            norm.contains('loan') ||
+            norm.contains('emi') ||
+            norm.contains('tax') ||
+            norm.contains('income') ||
+            norm.contains('expense') ||
+            norm.contains('charge')) &&
+        (value is num || (value is String && num.tryParse(value) != null))) {
+      final n = value is num ? value : num.parse(value as String);
+      return rupees(n);
+    }
+    if (norm.contains('percent') || norm.contains('share')) {
+      if (value is num) return '${indianGroup(value)}%';
+    }
+    return VaultShareFields.describe(value) ?? value.toString();
+  }
+}
+
+/// In-sheet preview for image attachments in the vault.
+class _VaultImagePreview extends StatefulWidget {
+  const _VaultImagePreview({required this.doc, required this.onTap});
+
+  final VaultDocument doc;
+  final VoidCallback onTap;
+
+  @override
+  State<_VaultImagePreview> createState() => _VaultImagePreviewState();
+}
+
+class _VaultImagePreviewState extends State<_VaultImagePreview> {
+  String? _url;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final url = await FamilyVaultRepository.instance.documentUrl(widget.doc);
+      if (mounted) {
+        setState(() {
+          _url = url;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(child: InoLoader(size: 20)),
+      );
+    }
+    if (_url == null || _url!.isEmpty) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Image.network(
+              _url!,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox.shrink(),
+            ),
+            Container(
+              margin: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.fullscreen_rounded, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Tap to view photo',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),

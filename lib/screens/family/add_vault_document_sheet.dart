@@ -10,6 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/family_vault_repository.dart';
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/document_extraction.dart';
+import '../../models/property_models.dart';
 import '../../models/vault_share_field.dart';
 import '../../models/wallet_models.dart';
 import '../../repositories/document_repository.dart';
@@ -19,6 +21,7 @@ import '../../services/property_store.dart';
 import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/indian_number_format.dart';
 import '../../widgets/common/ino_loader.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet/wallet_grid.dart' show localizedWalletName;
@@ -74,9 +77,15 @@ class VaultShareItem {
   List<VaultShareField> get shareFields => VaultShareFields.forRecord(
         structuredJson,
         hasFile: hasFile,
-        fileLabel: 'Attached file',
+        fileLabel: _fileLabel,
         filePreview: 'Members can open and download it',
       );
+
+  String get _fileLabel {
+    if (wallet == 'Property Wallet') return 'Attached property photo / document';
+    if (wallet.contains('Identity')) return 'Attached identity document / photo';
+    return 'Attached file / document';
+  }
 
   bool get hasChoices => shareFields.length > 1;
 }
@@ -167,20 +176,169 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
 
   Future<void> _load() async {
     try {
-      final docs = await _docs.listAll(forceRefresh: true);
-
       await Future.wait([
         PropertyStore.instance.ensureLoaded(),
         InvestmentStore.instance.ensureLoaded(),
         CardStore.instance.ensureLoaded(),
       ]);
 
+      final docs = await _docs.listAll(forceRefresh: true);
+
       final items = <VaultShareItem>[];
       final seenIds = <String>{};
 
+      // 1. Process PropertyStore items first so full property fields & photos are preserved
+      for (final p in PropertyStore.instance.items) {
+        seenIds.add(p.id);
+        final photoPath = (p.imagePath != null && p.imagePath!.trim().isNotEmpty)
+            ? p.imagePath!.trim()
+            : null;
+        final firstAttachPath = p.attachments
+            .map((a) => a.path)
+            .firstWhere((path) => path != null && path.trim().isNotEmpty,
+                orElse: () => null);
+        final effectiveFile = photoPath ?? firstAttachPath;
+
+        items.add(
+          VaultShareItem(
+            id: p.id,
+            name: p.name,
+            wallet: 'Property Wallet',
+            category: p.type.label,
+            filePath: effectiveFile,
+            recordNumber: p.registrationNumber,
+            details: [
+              if (p.city != null && p.city!.isNotEmpty) p.city!,
+              if (p.currentValue != null)
+                '₹${indianGroup(p.currentValue!)}'
+              else if (p.purchasePrice != null)
+                '₹${indianGroup(p.purchasePrice!)}',
+            ].join(' · '),
+            icon: Icons.home_work_rounded,
+            accentColor: _colorForWallet('Property Wallet'),
+            structuredJson: p.toJson(),
+          ),
+        );
+      }
+
+      // 2. Process InvestmentStore items
+      for (final i in InvestmentStore.instance.items) {
+        seenIds.add(i.id);
+        final firstAttachPath = i.attachments
+            .map((a) => a.path)
+            .firstWhere((path) => path != null && path.trim().isNotEmpty,
+                orElse: () => null);
+        items.add(
+          VaultShareItem(
+            id: i.id,
+            name: i.name,
+            wallet: 'Investment Wallet',
+            category: i.type.name,
+            filePath: firstAttachPath,
+            recordNumber: i.accountNumber,
+            details: [
+              if (i.institution != null && i.institution!.isNotEmpty)
+                i.institution!,
+              if (i.currentValue != null)
+                '₹${indianGroup(i.currentValue!)}'
+              else if (i.investedAmount != null)
+                '₹${indianGroup(i.investedAmount!)}',
+            ].join(' · '),
+            icon: Icons.trending_up_rounded,
+            accentColor: _colorForWallet('Investment Wallet'),
+            structuredJson: i.toJson(),
+          ),
+        );
+      }
+
+      // 3. Process CardStore items
+      for (final c in CardStore.instance.items) {
+        seenIds.add(c.id);
+        items.add(
+          VaultShareItem(
+            id: c.id,
+            name: c.bank,
+            wallet: 'Banking Wallet',
+            category: c.kind.name,
+            details: [
+              c.network.name.toUpperCase(),
+              '•••• ${c.last4}',
+            ].join(' · '),
+            icon: Icons.credit_card_rounded,
+            accentColor: _colorForWallet('Banking Wallet'),
+            structuredJson: c.toJson(),
+          ),
+        );
+      }
+
+      // 4. Process docs from DocumentRepository
       for (final d in docs) {
+        if (seenIds.contains(d.id)) {
+          // If already added from specialized store but lacked a file path and d has one, update it
+          if (d.filePath != null && d.filePath!.trim().isNotEmpty) {
+            final idx = items.indexWhere((it) => it.id == d.id);
+            if (idx != -1 && !items[idx].hasFile) {
+              items[idx] = VaultShareItem(
+                id: items[idx].id,
+                name: items[idx].name,
+                wallet: items[idx].wallet,
+                category: items[idx].category,
+                filePath: d.filePath,
+                recordNumber: items[idx].recordNumber,
+                details: items[idx].details,
+                icon: items[idx].icon,
+                accentColor: items[idx].accentColor,
+                structuredJson: items[idx].structuredJson,
+                sizeBytes: items[idx].sizeBytes,
+                contentType: items[idx].contentType,
+              );
+            }
+          }
+          continue;
+        }
+
         seenIds.add(d.id);
         final walletName = d.wallet.isNotEmpty ? d.wallet : 'Document Wallet';
+
+        // Build rich structured json for this document
+        final json = <String, dynamic>{
+          'name': d.name,
+          if (d.category != null && d.category!.isNotEmpty)
+            'category': d.category,
+          if (d.recordNumber != null && d.recordNumber!.isNotEmpty)
+            'recordNumber': d.recordNumber,
+          if (d.doctorName != null && d.doctorName!.isNotEmpty)
+            'doctorName': d.doctorName,
+          if (d.status.isNotEmpty && d.status != 'active')
+            'status': d.status,
+          if (d.expiresAt != null)
+            'expiresAt': d.expiresAt!.toIso8601String(),
+          if (d.tags.isNotEmpty)
+            'tags': d.tags,
+        };
+
+        // Unpack OCR extracted fields if present in notes
+        String? displayDetails;
+        if (d.notes != null && d.notes!.trim().isNotEmpty) {
+          final extraction = DocumentExtraction.decode(d.notes);
+          if (extraction.hasData) {
+            for (final entry in extraction.data.entries) {
+              if (entry.value.trim().isNotEmpty) {
+                json[entry.key] = entry.value.trim();
+              }
+            }
+            displayDetails = extraction.data['dob'] ??
+                extraction.data['number'] ??
+                extraction.data['registrationNumber'] ??
+                extraction.data['policyNumber'];
+          }
+          if (extraction.userNotes.trim().isNotEmpty) {
+            json['notes'] = extraction.userNotes.trim();
+          } else if (!d.notes!.trim().startsWith('{')) {
+            json['notes'] = d.notes!.trim();
+          }
+        }
+
         items.add(
           VaultShareItem(
             id: d.id,
@@ -191,80 +349,13 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
             recordNumber: d.recordNumber,
             details: d.doctorName ??
                 d.recordNumber ??
+                displayDetails ??
                 (d.tags.isNotEmpty ? d.tags.join(', ') : null),
             icon: _iconForWallet(walletName, d.category),
             accentColor: _colorForWallet(walletName),
-            structuredJson: d.toMap(),
+            structuredJson: json,
           ),
         );
-      }
-
-      for (final p in PropertyStore.instance.items) {
-        if (seenIds.add(p.id)) {
-          items.add(
-            VaultShareItem(
-              id: p.id,
-              name: p.name,
-              wallet: 'Property Wallet',
-              category: p.type.name,
-              filePath: p.imagePath,
-              recordNumber: p.registrationNumber,
-              details: [
-                if (p.city != null && p.city!.isNotEmpty) p.city!,
-                if (p.currentValue != null) '₹${p.currentValue}',
-              ].join(' · '),
-              icon: Icons.home_work_rounded,
-              accentColor: _colorForWallet('Property Wallet'),
-              structuredJson: p.toJson(),
-            ),
-          );
-        }
-      }
-
-      for (final i in InvestmentStore.instance.items) {
-        if (seenIds.add(i.id)) {
-          items.add(
-            VaultShareItem(
-              id: i.id,
-              name: i.name,
-              wallet: 'Investment Wallet',
-              category: i.type.name,
-              filePath: i.attachments
-                  .map((a) => a.path)
-                  .firstWhere((p) => p != null && p.isNotEmpty,
-                      orElse: () => null),
-              recordNumber: i.accountNumber,
-              details: [
-                if (i.institution != null && i.institution!.isNotEmpty)
-                  i.institution!,
-                if (i.currentValue != null) '₹${i.currentValue}',
-              ].join(' · '),
-              icon: Icons.trending_up_rounded,
-              accentColor: _colorForWallet('Investment Wallet'),
-              structuredJson: i.toJson(),
-            ),
-          );
-        }
-      }
-
-      for (final c in CardStore.instance.items) {
-        if (seenIds.add(c.id)) {
-          items.add(
-            VaultShareItem(
-              id: c.id,
-              name: c.bank,
-              wallet: 'Banking Wallet',
-              category: c.kind.name,
-              details: [
-                c.network.name.toUpperCase(),
-                '•••• ${c.last4}',
-              ].join(' · '),
-              icon: Icons.credit_card_rounded,
-              accentColor: _colorForWallet('Banking Wallet'),
-              structuredJson: c.toJson(),
-            ),
-          );
-        }
       }
 
       if (!mounted) return;

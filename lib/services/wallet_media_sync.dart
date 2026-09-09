@@ -40,7 +40,10 @@ class WalletMediaSync {
   /// True when [path] names an object in the bucket rather than a device file.
   static bool isRemote(String? path) {
     final p = path?.trim();
-    return p != null && p.isNotEmpty && _objectPath.hasMatch(p);
+    if (p == null || p.isEmpty) return false;
+    if (p.startsWith('http://') || p.startsWith('https://')) return true;
+    final clean = p.startsWith('documents/') ? p.substring('documents/'.length) : p;
+    return _objectPath.hasMatch(clean);
   }
 
   /// True when [path] is a file that still exists on this device.
