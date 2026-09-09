@@ -104,7 +104,7 @@ class _QrShareScreenState extends State<QrShareScreen> {
   }
 
   Future<void> _copyLink() async {
-    await SecureClipboard.copy(context, _share.url, label: 'Share Link');
+    await SecureClipboard.copyLink(context, _share.url, label: 'Share Link');
     HapticFeedback.selectionClick();
   }
 

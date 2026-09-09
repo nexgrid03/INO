@@ -114,7 +114,7 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
   }
 
   Future<void> _copyLink() async {
-    await SecureClipboard.copy(context, _share.url, label: 'View Once Link');
+    await SecureClipboard.copyLink(context, _share.url, label: 'View Once Link');
     HapticFeedback.selectionClick();
   }
 

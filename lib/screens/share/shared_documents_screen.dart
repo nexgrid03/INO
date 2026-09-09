@@ -19,35 +19,44 @@ import '../auth/login_screen.dart';
 import '../documents/add_document_screen.dart';
 import '../../widgets/common/ino_loader.dart';
 
-/// Brand tokens from [INO-Share-Web](https://github.com/nexgrid03/INO-Share-Web)
-/// (`tailwind.config.ts` — ino.green + ino.blue). Kept local so the recipient
-/// viewer matches the public Vercel page even when the app theme is Aqua Teal.
+/// Palette for the recipient view, kept local so this screen matches the public
+/// share page at `/s/{token}` rather than the app theme the owner happens to be
+/// running. The slate/amber/rose tokens carry the status states; the aqua block
+/// below carries the live share.
 class _ShareWeb {
-  static const green50 = Color(0xFFECFDF3);
   static const green600 = Color(0xFF039855);
-  static const green700 = Color(0xFF027A48);
-  static const green500 = Color(0xFF12B76A);
   static const blue50 = Color(0xFFF0F9FF);
-  static const blue200 = Color(0xFFBAE6FD);
-  static const blue500 = Color(0xFF0EA5E9);
   static const blue700 = Color(0xFF0369A1);
-  static const slate50 = Color(0xFFF8FAFC);
   static const slate200 = Color(0xFFE2E8F0);
   static const slate400 = Color(0xFF94A3B8);
   static const slate500 = Color(0xFF64748B);
   static const slate700 = Color(0xFF334155);
-  static const slate800 = Color(0xFF1E293B);
   static const slate900 = Color(0xFF0F172A);
   static const amber100 = Color(0xFFFEF3C7);
   static const amber800 = Color(0xFF92400E);
   static const rose100 = Color(0xFFFFE4E6);
   static const rose600 = Color(0xFFE11D48);
 
-  static const brandGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [green600, blue500],
+  // ---- Aqua recipient theme ------------------------------------------------
+  // The recipient view is the one screen a stranger sees, so it carries its own
+  // calm palette: a mint page wash, one saturated teal hero, white cards.
+
+  /// Page wash, top to bottom.
+  static const pageTop = Color(0xFFD7EDEB);
+  static const pageBottom = Color(0xFFEDF7F5);
+
+  /// The hero band - deeper teal at the top-left, lighter toward the bottom.
+  static const heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF0E9490), Color(0xFF3EB9AE)],
   );
+
+  static const teal = Color(0xFF0E9490);
+  static const tealDeep = Color(0xFF0B7A77);
+  static const tealSoft = Color(0xFFDCF0EE);
+  static const tealLine = Color(0xFFBFE3DF);
+  static const tealAction = Color(0xFF16A79F);
 }
 
 /// Recipient-facing viewer for a shared link/QR — styled to match the
@@ -252,39 +261,16 @@ class _SharedDocumentsScreenState extends State<SharedDocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _ShareWeb.slate50,
+      backgroundColor: _ShareWeb.pageBottom,
       body: DecoratedBox(
         decoration: const BoxDecoration(
-          color: _ShareWeb.slate50,
-          gradient: RadialGradient(
-            center: Alignment(-0.9, -1.0),
-            radius: 1.2,
-            colors: [
-              Color(0x1412B76A), // green wash ~8%
-              Colors.transparent,
-            ],
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [_ShareWeb.pageTop, _ShareWeb.pageBottom],
           ),
         ),
-        child: Stack(
-          children: [
-            // Soft blue wash (top-right) matching Share-Web globals.css.
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(1.0, -0.9),
-                    radius: 1.1,
-                    colors: [
-                      Color(0x140EA5E9),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SafeArea(child: _body()),
-          ],
-        ),
+        child: SafeArea(child: _body()),
       ),
     );
   }
@@ -443,6 +429,10 @@ class _PasswordGate extends StatelessWidget {
 // Active share (matches ActiveShare.tsx)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Active share
+// ---------------------------------------------------------------------------
+
 class _ActiveShareBody extends StatelessWidget {
   const _ActiveShareBody({
     required this.share,
@@ -467,67 +457,60 @@ class _ActiveShareBody extends StatelessWidget {
     final count = share.count > 0 ? share.count : docs.length;
     final expires = share.expiresAt;
     final remaining = expires?.difference(DateTime.now());
-    final urgent = remaining != null &&
-        !remaining.isNegative &&
-        remaining.inHours < 1;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
       children: [
-        // Header: logo + Secure share pill
+        // Header: back, INO shield, "Secure share" badge.
         Row(
           children: [
+            _RoundButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: onClose,
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            ),
+            const SizedBox(width: 12),
             const _InoLogoMark(),
             const Spacer(),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
-                color: _ShareWeb.green50,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: _ShareWeb.tealLine),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.shield_rounded,
-                      size: 14, color: _ShareWeb.green700),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.verified_user_outlined,
+                      size: 16, color: _ShareWeb.teal),
+                  const SizedBox(width: 7),
                   Text(
                     l10n.t('secureShare'),
-                    style: TextStyle(
-                      color: _ShareWeb.green700,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    style: const TextStyle(
+                      color: _ShareWeb.teal,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: onClose,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, color: _ShareWeb.slate500),
-            ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
-        // Summary card
+        // Hero + summary as ONE card, so the teal band and the details beneath
+        // it read as a single object rather than two stacked panels.
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _ShareWeb.slate200),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x0F101828),
-                blurRadius: 2,
-                offset: Offset(0, 1),
-              ),
-              BoxShadow(
-                color: Color(0x1A101828),
-                blurRadius: 3,
-                offset: Offset(0, 1),
+                color: Color(0x14004F4D),
+                blurRadius: 20,
+                offset: Offset(0, 8),
               ),
             ],
           ),
@@ -536,11 +519,9 @@ class _ActiveShareBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                decoration: const BoxDecoration(
-                  gradient: _ShareWeb.brandGradient,
-                ),
+                padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
+                decoration:
+                    const BoxDecoration(gradient: _ShareWeb.heroGradient),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -548,17 +529,18 @@ class _ActiveShareBody extends StatelessWidget {
                       l10n.t('documentsSharedWithYou'),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
+                        fontSize: 27,
+                        fontWeight: FontWeight.w800,
+                        height: 1.18,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
                     Text(
                       l10n.t('sharedReviewHint'),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13.5,
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 15,
                         height: 1.35,
                       ),
                     ),
@@ -566,58 +548,66 @@ class _ActiveShareBody extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.description_outlined,
-                        size: 20, color: _ShareWeb.green600),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        count == 1
-                            ? l10n.t('oneDocument')
-                            : l10n
-                                .t('nDocuments')
-                                .replaceAll('{n}', '$count'),
-                        style: const TextStyle(
-                          color: _ShareWeb.slate700,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: _ShareWeb.tealSoft,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.insert_drive_file_outlined,
+                              size: 22, color: _ShareWeb.teal),
                         ),
-                      ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            count == 1
+                                ? l10n.t('oneDocument')
+                                : l10n
+                                    .t('nDocuments')
+                                    .replaceAll('{n}', '$count'),
+                            style: const TextStyle(
+                              color: _ShareWeb.slate900,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (expires != null && remaining != null) ...[
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      const SizedBox(height: 18),
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                l10n.t('expiresInLabel'),
-                                style: const TextStyle(
-                                  color: _ShareWeb.slate500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              _CountdownPill(
-                                label: remaining.isNegative
-                                    ? l10n.t('expired')
-                                    : _shortCountdown(remaining),
-                                urgent: urgent || remaining.isNegative,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
                           Text(
-                            _formatDateTime(expires),
+                            l10n.t('expiresInLabel'),
                             style: const TextStyle(
-                              color: _ShareWeb.slate400,
-                              fontSize: 11,
+                              color: _ShareWeb.slate700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: _CountdownPill(
+                              remaining: remaining,
+                              expiredLabel: l10n.t('expired'),
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _formatDateTime(expires),
+                        style: const TextStyle(
+                          color: _ShareWeb.slate500,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ],
@@ -626,18 +616,18 @@ class _ActiveShareBody extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
-        // Documents section
+        // Documents.
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          padding: const EdgeInsets.only(left: 6, bottom: 12),
           child: Text(
             l10n.t('sharedDocumentsCaption'),
             style: const TextStyle(
-              color: _ShareWeb.slate400,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
+              color: _ShareWeb.slate500,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
             ),
           ),
         ),
@@ -660,36 +650,24 @@ class _ActiveShareBody extends StatelessWidget {
               onDownload: share.viewOnly ? null : () => onDownload(docs[i]),
               onSave: share.viewOnly ? null : () => onSave(docs[i]),
             ),
-            if (i < docs.length - 1) const SizedBox(height: 10),
+            if (i < docs.length - 1) const SizedBox(height: 12),
           ],
 
-        const SizedBox(height: 40),
+        const SizedBox(height: 44),
         Text(
           l10n.t('shareFooterNote'),
           textAlign: TextAlign.center,
           style: const TextStyle(
-            color: _ShareWeb.slate400,
-            fontSize: 12,
-            height: 1.45,
+            color: _ShareWeb.slate500,
+            fontSize: 13.5,
+            height: 1.5,
           ),
         ),
       ],
     );
   }
 
-  static String _shortCountdown(Duration d) {
-    if (d.inDays > 0) {
-      return '${d.inDays}d ${d.inHours % 24}h';
-    }
-    if (d.inHours > 0) {
-      return '${d.inHours}h ${(d.inMinutes % 60).toString().padLeft(2, '0')}m';
-    }
-    if (d.inMinutes > 0) {
-      return '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}s';
-    }
-    return '${math.max(0, d.inSeconds)}s';
-  }
-
+  /// "10 Sept 2026, 12:43 pm" - the shape the public share page prints.
   static String _formatDateTime(DateTime dt) {
     const months = [
       'Jan',
@@ -700,50 +678,161 @@ class _ActiveShareBody extends StatelessWidget {
       'Jun',
       'Jul',
       'Aug',
-      'Sep',
+      'Sept',
       'Oct',
       'Nov',
       'Dec',
     ];
     final local = dt.toLocal();
     final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final ampm = local.hour >= 12 ? 'PM' : 'AM';
+    final ampm = local.hour >= 12 ? 'pm' : 'am';
     final m = local.minute.toString().padLeft(2, '0');
-    return '${months[local.month - 1]} ${local.day}, ${local.year} · $h:$m $ampm';
+    return '${local.day} ${months[local.month - 1]} ${local.year}, $h:$m $ampm';
   }
 }
 
-class _CountdownPill extends StatelessWidget {
-  const _CountdownPill({required this.label, required this.urgent});
+/// A soft circular header control (back).
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
 
-  final String label;
-  final bool urgent;
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: PressableScale(
+        pressedScale: 0.93,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: _ShareWeb.tealLine),
+            ),
+            child: Icon(icon, size: 20, color: _ShareWeb.tealDeep),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The live "23h 59m 25s" pill.
+///
+/// Numbers carry the weight and the units sit back, so the figure that actually
+/// moves is the one the eye lands on. Turns amber under an hour, rose once the
+/// link has lapsed.
+class _CountdownPill extends StatelessWidget {
+  const _CountdownPill({required this.remaining, required this.expiredLabel});
+
+  final Duration remaining;
+  final String expiredLabel;
+
+  /// Coarse-to-fine number/unit pairs. Three segments is as much as the pill
+  /// reads at a glance, so days push seconds off the end.
+  List<List<String>> get _segments {
+    final d = remaining;
+    if (d.inDays > 0) {
+      return [
+        ['${d.inDays}', 'd'],
+        ['${d.inHours % 24}', 'h'],
+        ['${d.inMinutes % 60}', 'm'],
+      ];
+    }
+    if (d.inHours > 0) {
+      return [
+        ['${d.inHours}', 'h'],
+        ['${d.inMinutes % 60}', 'm'],
+        ['${d.inSeconds % 60}', 's'],
+      ];
+    }
+    if (d.inMinutes > 0) {
+      return [
+        ['${d.inMinutes}', 'm'],
+        ['${d.inSeconds % 60}', 's'],
+      ];
+    }
+    return [
+      ['${math.max(0, d.inSeconds)}', 's'],
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expired = remaining.isNegative;
+    final urgent = !expired && remaining.inHours < 1;
+
+    final fg = expired
+        ? _ShareWeb.rose600
+        : urgent
+            ? _ShareWeb.amber800
+            : _ShareWeb.tealDeep;
+    final bg = expired
+        ? _ShareWeb.rose100
+        : urgent
+            ? _ShareWeb.amber100
+            : _ShareWeb.tealSoft;
+
+    final spans = <InlineSpan>[];
+    for (final seg in _segments) {
+      if (spans.isNotEmpty) spans.add(const TextSpan(text: ' '));
+      spans.add(TextSpan(
+        text: seg[0],
+        style: TextStyle(
+          color: fg,
+          fontSize: 15.5,
+          fontWeight: FontWeight.w800,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ));
+      spans.add(TextSpan(
+        text: seg[1],
+        style: TextStyle(
+          color: fg.withValues(alpha: 0.7),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ));
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: urgent ? _ShareWeb.amber100 : _ShareWeb.blue50,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withValues(alpha: 0.22)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.schedule_rounded,
-            size: 14,
-            color: urgent ? _ShareWeb.amber800 : _ShareWeb.blue700,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: urgent ? _ShareWeb.amber800 : _ShareWeb.blue700,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+          Icon(Icons.schedule_rounded, size: 16, color: fg),
+          const SizedBox(width: 7),
+          Flexible(
+            child: expired
+                ? Text(
+                    expiredLabel,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                : Text.rich(
+                    TextSpan(children: spans),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
         ],
       ),
@@ -772,7 +861,7 @@ class _ShareDocRow extends StatelessWidget {
       return 'PDF';
     }
     if (n.endsWith('.png')) return 'PNG';
-    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'JPG';
+    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'JPEG';
     if (n.endsWith('.webp')) return 'WEBP';
     final t = doc.type.trim();
     if (t.isEmpty || t.toLowerCase() == 'document') return 'FILE';
@@ -783,16 +872,15 @@ class _ShareDocRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _ShareWeb.slate200),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F101828),
-            blurRadius: 2,
-            offset: Offset(0, 1),
+            color: Color(0x0F004F4D),
+            blurRadius: 16,
+            offset: Offset(0, 5),
           ),
         ],
       ),
@@ -801,28 +889,24 @@ class _ShareDocRow extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 52,
+                height: 52,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_ShareWeb.green50, _ShareWeb.blue50],
-                  ),
+                  color: _ShareWeb.tealSoft,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
                   _kind,
                   style: const TextStyle(
-                    color: _ShareWeb.green700,
-                    fontSize: 11,
+                    color: _ShareWeb.tealDeep,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,120 +916,124 @@ class _ShareDocRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _ShareWeb.slate800,
-                        fontSize: 14.5,
+                        color: _ShareWeb.slate900,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       _kind,
                       style: const TextStyle(
                         color: _ShareWeb.slate500,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 10),
               if (busy)
-                InoLoader(size: 22, color: _ShareWeb.green600),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14),
+                  child: InoLoader(size: 24, color: _ShareWeb.teal),
+                )
+              else ...[
+                _CircleAction(
+                  icon: Icons.visibility_outlined,
+                  tooltip: l10n.t('view'),
+                  onTap: onView,
+                ),
+                if (onDownload != null) ...[
+                  const SizedBox(width: 10),
+                  _CircleAction(
+                    icon: Icons.file_download_outlined,
+                    tooltip: l10n.t('download'),
+                    filled: true,
+                    onTap: onDownload!,
+                  ),
+                ],
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ActionBtn(
-                  label: l10n.t('view'),
-                  icon: Icons.visibility_outlined,
-                  filled: false,
-                  onTap: busy ? null : onView,
+          // In-app recipients can also file the document into their own vault -
+          // an affordance the public web page has no way to offer.
+          if (onSave != null) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: _ShareWeb.slate200),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: busy ? null : onSave,
+                style: TextButton.styleFrom(
+                  foregroundColor: _ShareWeb.tealDeep,
+                  visualDensity: VisualDensity.compact,
                 ),
-              ),
-              const SizedBox(width: 8),
-              if (onDownload != null)
-                Expanded(
-                  child: _ActionBtn(
-                    label: l10n.t('download'),
-                    icon: Icons.download_rounded,
-                    filled: true,
-                    onTap: busy ? null : onDownload,
+                icon: const Icon(Icons.bookmark_add_outlined, size: 17),
+                label: Text(
+                  l10n.t('saveToInoVault'),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (onSave != null)
-            TextButton(
-              onPressed: busy ? null : onSave,
-            style: TextButton.styleFrom(
-              foregroundColor: _ShareWeb.green700,
-              visualDensity: VisualDensity.compact,
-            ),
-            child: Text(
-              l10n.t('saveToInoVault'),
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ActionBtn extends StatelessWidget {
-  const _ActionBtn({
-    required this.label,
+/// A circular view / download control - outlined for the quiet action, filled
+/// teal for the primary one.
+class _CircleAction extends StatelessWidget {
+  const _CircleAction({
     required this.icon,
-    required this.filled,
+    required this.tooltip,
     required this.onTap,
+    this.filled = false,
   });
 
-  final String label;
   final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
   final bool filled;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      pressedScale: onTap == null ? 1 : 0.97,
-      child: Material(
-        color: filled ? _ShareWeb.green600 : _ShareWeb.blue50,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
+    return Tooltip(
+      message: tooltip,
+      child: PressableScale(
+        pressedScale: 0.93,
+        child: GestureDetector(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          behavior: HitTestBehavior.opaque,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: filled
-                ? null
-                : BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _ShareWeb.blue200),
-                  ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: filled ? Colors.white : _ShareWeb.blue700,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: filled ? Colors.white : _ShareWeb.blue700,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: filled ? _ShareWeb.tealAction : Colors.white,
+              border: filled
+                  ? null
+                  : Border.all(color: _ShareWeb.tealLine, width: 1.4),
+              boxShadow: filled
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x4016A79F),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              size: 21,
+              color: filled ? Colors.white : _ShareWeb.slate700,
             ),
           ),
         ),
@@ -953,10 +1041,6 @@ class _ActionBtn extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Loading / status (matches Loading.tsx + StatusScreen.tsx)
-// ---------------------------------------------------------------------------
 
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
@@ -1146,7 +1230,7 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-/// INO mark matching Share-Web `InoLogo.tsx` (green→blue rounded square).
+/// The INO shield - the mark the public share page leads with.
 class _InoLogoMark extends StatelessWidget {
   const _InoLogoMark({this.large = false});
 
@@ -1154,53 +1238,60 @@ class _InoLogoMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = large ? 40.0 : 32.0;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(size * 0.28),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_ShareWeb.green500, _ShareWeb.blue500],
-            ),
-          ),
-          child: Center(
-            child: Container(
-              width: size * 0.42,
-              height: size * 0.42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: Center(
-                child: Container(
-                  width: size * 0.14,
-                  height: size * 0.14,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+    final w = large ? 46.0 : 38.0;
+    return SizedBox(
+      width: w,
+      height: w * 1.14,
+      child: CustomPaint(
+        painter: const _ShieldPainter(),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: w * 0.10),
+            child: Text(
+              'INO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: w * 0.30,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Text(
-          'INO',
-          style: TextStyle(
-            color: _ShareWeb.slate900,
-            fontSize: large ? 20 : 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
-        ),
-      ],
+      ),
     );
   }
+}
+
+/// Rounded shield silhouette behind [_InoLogoMark].
+class _ShieldPainter extends CustomPainter {
+  const _ShieldPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.18, 0)
+      ..lineTo(w * 0.82, 0)
+      ..quadraticBezierTo(w, 0, w, h * 0.16)
+      ..lineTo(w, h * 0.52)
+      ..quadraticBezierTo(w, h * 0.86, w / 2, h)
+      ..quadraticBezierTo(0, h * 0.86, 0, h * 0.52)
+      ..lineTo(0, h * 0.16)
+      ..quadraticBezierTo(0, 0, w * 0.18, 0)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF17A9A2), Color(0xFF0B7A77)],
+        ).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ShieldPainter oldDelegate) => false;
 }

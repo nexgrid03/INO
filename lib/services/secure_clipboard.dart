@@ -48,6 +48,55 @@ class SecureClipboard with WidgetsBindingObserver {
     );
   }
 
+  /// Copies a share/deep link that is MEANT to leave the app.
+  ///
+  /// Deliberately NOT self-destructing. [copy] wipes the clipboard the moment
+  /// the app is backgrounded, which is precisely when a share link is being
+  /// pasted into WhatsApp or an email - so a link copied with it always pasted
+  /// back empty. A share link is also not a secret worth defending here: it
+  /// carries no credential, and access is enforced server-side by the token's
+  /// expiry and the owner's revoke.
+  static Future<void> copyLink(
+    BuildContext context,
+    String text, {
+    String? label,
+    bool showToast = true,
+  }) async {
+    // Cancel any pending auto-clear from an earlier secure copy and forget the
+    // previous payload, so neither the timer nor the lifecycle observer can
+    // wipe the link we are about to place.
+    instance._clearTimer?.cancel();
+    instance._clearTimer = null;
+    instance._lastCopiedText = null;
+
+    await Clipboard.setData(ClipboardData(text: text));
+    developer.log('copied link to clipboard (${text.length} chars)',
+        name: 'clipboard');
+
+    if (showToast && context.mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label == null ? 'Copied to clipboard' : '$label copied',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Future<void> _copyInternal(
     BuildContext context,
     String text, {
