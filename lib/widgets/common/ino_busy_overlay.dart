@@ -124,33 +124,36 @@ class _BusyScrim extends StatelessWidget {
       // whole point of a blocking wait. `absorbing` (not `IgnorePointer`) so
       // taps don't fall through to the buttons underneath.
       child: AbsorbPointer(
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: palette.isDark ? 0.52 : 0.34),
-          child: Center(
-            child: ValueListenableBuilder<String?>(
-              valueListenable: InoBusyOverlay._message,
-              builder: (context, message, _) {
-                return Container(
-                  constraints: const BoxConstraints(maxWidth: 260),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: message == null ? 28 : 26,
-                  ),
-                  decoration: BoxDecoration(
-                    color: palette.bgElevated,
-                    borderRadius: BorderRadius.circular(AppRadius.large),
-                    border: Border.all(color: palette.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 30,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: InoLoader(size: 72, label: message),
-                );
-              },
+        child: Material(
+          type: MaterialType.transparency,
+          child: ColoredBox(
+            color: Colors.black.withValues(alpha: palette.isDark ? 0.52 : 0.34),
+            child: Center(
+              child: ValueListenableBuilder<String?>(
+                valueListenable: InoBusyOverlay._message,
+                builder: (context, message, _) {
+                  return Container(
+                    constraints: const BoxConstraints(maxWidth: 260),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: message == null ? 28 : 26,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.bgElevated,
+                      borderRadius: BorderRadius.circular(AppRadius.large),
+                      border: Border.all(color: palette.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 30,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: InoLoader(size: 72, label: message),
+                  );
+                },
+              ),
             ),
           ),
         ),

@@ -7,7 +7,6 @@ import '../../l10n/app_localizations.dart';
 import '../../models/reminder_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../navigation/wallet_module_router.dart';
-import '../../services/app_settings.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/notification_center.dart';
 import '../../services/vault_guard.dart';
@@ -162,12 +161,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        _center,
-        AppSettings.instance.hideReadNotifications,
-      ]),
+      listenable: _center,
       builder: (context, _) {
-        final hideRead = AppSettings.instance.hideReadNotifications.value;
         final allItems = _center.notifications;
         final unreadItems = allItems.where((n) => !n.read).toList();
         final readItems = allItems.where((n) => n.read).toList();
@@ -175,21 +170,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return SettingsScaffold(
           title: l10n.t('notifications'),
           actions: [
-            IconButton(
-              icon: Icon(
-                hideRead
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                size: 22,
-                color: hideRead
-                    ? AppColors.primaryGreen
-                    : AppPalette.of(context).textSecondary,
-              ),
-              tooltip: hideRead ? 'Show read notifications' : 'Hide read notifications',
-              onPressed: () {
-                AppSettings.instance.setHideReadNotifications(!hideRead);
-              },
-            ),
             if (_center.unreadCount > 0)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -222,7 +202,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           child: _buildBody(
             context,
             l10n,
-            hideRead: hideRead,
             unreadItems: unreadItems,
             readItems: readItems,
           ),
@@ -234,12 +213,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildBody(
     BuildContext context,
     AppLocalizations l10n, {
-    required bool hideRead,
     required List<AppNotification> unreadItems,
     required List<AppNotification> readItems,
   }) {
     final palette = AppPalette.of(context);
-    final visibleItems = hideRead ? unreadItems : [...unreadItems, ...readItems];
+    final visibleItems = [...unreadItems, ...readItems];
 
     if (visibleItems.isEmpty) {
       return EmptyState(
@@ -261,7 +239,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         children: [
           if (unreadItems.isNotEmpty) ...[
-            if (!hideRead && readItems.isNotEmpty)
+            if (readItems.isNotEmpty)
               _SectionHeader(
                 title: 'UNREAD NOTIFICATIONS',
                 count: unreadItems.length,
@@ -281,7 +259,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ],
           ],
-          if (!hideRead && readItems.isNotEmpty) ...[
+          if (readItems.isNotEmpty) ...[
             const SizedBox(height: 20),
             _SectionHeader(
               title: 'RECENT ACTIVITY',
