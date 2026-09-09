@@ -1212,6 +1212,7 @@ const Map<String, Map<String, String>> _strings = {
     'copyLinkAction': 'Copy Link',
     'shareLinkAction': 'Share Link',
     'downloadQr': 'Download QR',
+    'qrDownloaded': 'QR code downloaded to your device',
     'revokeAccess': 'Revoke Access',
     // Sharing - share configuration
     'couldNotGenerateShare': 'Could not generate the share. Please try again.',
@@ -3445,6 +3446,7 @@ const Map<String, Map<String, String>> _strings = {
     'copyLinkAction': 'लिंक कॉपी करें',
     'shareLinkAction': 'लिंक साझा करें',
     'downloadQr': 'क्यूआर डाउनलोड करें',
+    'qrDownloaded': 'QR कोड आपके डिवाइस में डाउनलोड हो गया',
     'revokeAccess': 'एक्सेस रद्द करें',
     'couldNotGenerateShare':
         'साझाकरण नहीं बन सका। कृपया फिर कोशिश करें।',
@@ -5709,6 +5711,7 @@ const Map<String, Map<String, String>> _strings = {
     'copyLinkAction': 'లింక్ కాపీ చేయి',
     'shareLinkAction': 'లింక్ షేర్ చేయి',
     'downloadQr': 'క్యూఆర్ డౌన్‌లోడ్',
+    'qrDownloaded': 'QR కోడ్ మీ పరికరంలోకి డౌన్‌లోడ్ చేయబడింది',
     'revokeAccess': 'యాక్సెస్ ఉపసంహరించు',
     'couldNotGenerateShare':
         'షేర్‌ను సృష్టించలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.',

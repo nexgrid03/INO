@@ -1,18 +1,24 @@
 package com.ino.app
 
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 // FlutterFragmentActivity (not FlutterActivity) is required by the local_auth
 // plugin - its BiometricPrompt needs a FragmentActivity host.
@@ -20,6 +26,7 @@ class MainActivity : FlutterFragmentActivity() {
     private val channelName = "ino/biometric"
     private val secureChannelName = "ino/secure_screen"
     private val upiChannelName = "ino/upi_apps"
+    private val mediaSaverChannelName = "ino/media_saver"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -93,6 +100,81 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+
+        // Media saver channel to save exported QR codes / images directly to the user's
+        // device gallery / pictures without requiring intrusive runtime permissions.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            mediaSaverChannelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "saveImageToGallery" -> {
+                    val bytes = call.argument<ByteArray>("bytes")
+                    val fileName = call.argument<String>("fileName") ?: "ino_qr_${System.currentTimeMillis()}.png"
+                    val mimeType = call.argument<String>("mimeType") ?: "image/png"
+                    if (bytes == null) {
+                        result.error("INVALID_ARGS", "bytes required", null)
+                        return@setMethodCallHandler
+                    }
+                    Thread {
+                        val saved = saveImageToDevice(bytes, fileName, mimeType)
+                        runOnUiThread {
+                            result.success(saved != null)
+                        }
+                    }.start()
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /// Saves an image byte array directly into the device's public media storage.
+    /// On Android 10+ (API 29+), uses Scoped Storage (MediaStore) which requires
+    /// zero permissions and places the image in Pictures/INO so it appears
+    /// immediately in Google Photos, Gallery apps, and File managers.
+    /// On older Android, writes to Pictures/INO and notifies MediaScannerConnection.
+    private fun saveImageToDevice(
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String = "image/png",
+    ): String? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                    put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/INO")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return null
+                contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(bytes)
+                    stream.flush()
+                }
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+                uri.toString()
+            } else {
+                val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val inoDir = File(picturesDir, "INO").apply { if (!exists()) mkdirs() }
+                val file = File(inoDir, fileName)
+                FileOutputStream(file).use { stream ->
+                    stream.write(bytes)
+                    stream.flush()
+                }
+                MediaScannerConnection.scanFile(
+                    this,
+                    arrayOf(file.absolutePath),
+                    arrayOf(mimeType),
+                    null,
+                )
+                file.absolutePath
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 

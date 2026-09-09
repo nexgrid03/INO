@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -13,6 +12,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/view_once_share.dart';
 import '../../repositories/share_repository.dart' show ShareException;
 import '../../repositories/view_once_repository.dart';
+import '../../services/media_saver_service.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/secure_clipboard.dart';
 import '../../theme/app_dimens.dart';
@@ -133,23 +133,35 @@ class _ViewOnceShareScreenState extends State<ViewOnceShareScreen> {
     if (!mounted || _busy) return;
     final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
-    final origin = shareOrigin(context);
     try {
       final bytes = await _renderQrPng(_share.url);
       if (bytes == null) {
         _toast(l10n.t('couldNotExportQr'), error: true);
         return;
       }
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/ino_view_once_${_share.token}.png');
-      await file.writeAsBytes(bytes);
-      if (!mounted) return;
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'image/png')],
-        subject: l10n.t('viewOnceShareSubject'),
-        text: l10n.t('viewOnceSenderWarning'),
-        sharePositionOrigin: origin,
+      final fileName = 'ino_view_once_${_share.token}.png';
+      final file = await MediaSaverService.instance.saveImage(
+        bytes: bytes,
+        fileName: fileName,
       );
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryGreen,
+            content: Text(l10n.t('qrDownloaded')),
+            action: file != null
+                ? SnackBarAction(
+                    label: l10n.t('open'),
+                    textColor: Colors.white,
+                    onPressed: () => OpenFilex.open(file.path),
+                  )
+                : null,
+          ),
+        );
     } catch (_) {
       _toast(l10n.t('couldNotExportQr'), error: true);
     } finally {

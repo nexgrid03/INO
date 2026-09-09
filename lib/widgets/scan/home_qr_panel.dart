@@ -161,9 +161,7 @@ class _HomeQrPanelState extends State<HomeQrPanel> {
   /// Opens the live QR scanner. A scanned payment (UPI / BharatQR) code offers
   /// the payment apps installed on this device.
   void _scanQr() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-    );
+    Navigator.of(context).push(QrScannerScreen.route());
   }
 
   void _toast(String message) {

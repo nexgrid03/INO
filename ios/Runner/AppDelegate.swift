@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import Photos
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -25,6 +26,7 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setUpSecureScreenChannel(engineBridge.pluginRegistry)
     setUpUpiAppsChannel(engineBridge.pluginRegistry)
+    setUpMediaSaverChannel(engineBridge.pluginRegistry)
   }
 
   // MARK: - Payment apps for scanned UPI QRs
@@ -256,5 +258,49 @@ import UIKit
   private func removePrivacyCover() {
     privacyCover?.removeFromSuperview()
     privacyCover = nil
+  }
+
+  // MARK: - Media saver (saves exported QR codes / images to Photos)
+
+  private func setUpMediaSaverChannel(_ registry: FlutterPluginRegistry) {
+    guard let messenger = registry.registrar(forPlugin: "InoMediaSaver")?.messenger() else {
+      return
+    }
+    let channel = FlutterMethodChannel(name: "ino/media_saver", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "saveImageToGallery":
+        guard let args = call.arguments as? [String: Any],
+              let flutterData = args["bytes"] as? FlutterStandardTypedData else {
+          result(false)
+          return
+        }
+        let data = flutterData.data
+        guard let image = UIImage(data: data) else {
+          result(false)
+          return
+        }
+
+        if #available(iOS 14, *) {
+          PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+              DispatchQueue.main.async { result(false) }
+              return
+            }
+            PHPhotoLibrary.shared().performChanges({
+              let request = PHAssetCreationRequest.forAsset()
+              request.addResource(with: .photo, data: data, options: nil)
+            }) { success, _ in
+              DispatchQueue.main.async { result(success) }
+            }
+          }
+        } else {
+          UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+          result(true)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 }

@@ -13,7 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/payment_qr.dart';
 import '../../services/camera_permission_service.dart';
-import '../../services/screen_security_service.dart';
 import '../../services/secure_clipboard.dart';
 import '../../services/deep_link_service.dart';
 import '../../services/qr_crop_service.dart';
@@ -41,6 +40,31 @@ import '../../widgets/common/ino_loader.dart';
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
 
+  /// Route with a smooth slide transition matching the camera sheet opening/closing
+  /// from the bottom of the screen. Bypasses the default [ZoomPageTransitionsBuilder],
+  /// which forces off-screen saveLayers and alpha blending over the native camera texture.
+  static Route<void> route() {
+    return PageRouteBuilder<void>(
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (_, _, _) => const QrScannerScreen(),
+      transitionsBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+    );
+  }
+
   @override
   State<QrScannerScreen> createState() => _QrScannerScreenState();
 }
@@ -58,6 +82,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   bool _streaming = false;
   bool _torch = false;
+
+  /// True when the user initiated back / pop navigation, immediately dropping
+  /// subsequent camera frames so the pop animation remains completely smooth.
+  bool _isClosing = false;
 
   /// True while a frame is inside ML Kit. Frames that arrive meanwhile are
   /// dropped - queueing them would build an unbounded backlog on a slow device.
@@ -88,7 +116,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void initState() {
     super.initState();
-    ScreenSecurityService.instance.enable();
     WidgetsBinding.instance.addObserver(this);
     _bootstrap();
   }
@@ -98,12 +125,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   @override
   void dispose() {
-    ScreenSecurityService.instance.disable();
     WidgetsBinding.instance.removeObserver(this);
     final controller = _controller;
     _controller = null;
     _streaming = false;
     _handled = true;
+    _isClosing = true;
     _teardownCamera(controller);
     _teardownScanner();
     super.dispose();
@@ -128,14 +155,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   void _onBackInvoked() {
+    if (_isClosing) return;
+    _isClosing = true;
     _handled = true;
-    _streaming = false;
-    final controller = _controller;
-    if (controller != null && controller.value.isStreamingImages) {
-      try {
-        controller.stopImageStream();
-      } catch (_) {}
-    }
   }
 
   @override
@@ -277,7 +299,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   Future<void> _onFrame(CameraImage image) async {
-    if (_handled || _analysing || !mounted) return;
+    if (_handled || _isClosing || _analysing || !mounted) return;
     if (_throttle.elapsedMilliseconds < _kSampleIntervalMs) return;
     _throttle.reset();
 
@@ -292,7 +314,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       final codes = await _scanner.processImage(input);
       _diag('frame ok fmt=${image.format.raw} planes=${image.planes.length} '
           '${image.width}x${image.height} → ${codes.length} code(s)');
-      if (!mounted || _handled) return;
+      if (!mounted || _handled || _isClosing) return;
       for (final code in codes) {
         final raw = code.rawValue;
         if (raw != null && raw.trim().isNotEmpty) {
@@ -373,7 +395,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     // Back from the sheet without leaving the scanner - start looking again so
     // the user can scan the next code without re-entering the screen.
-    if (!mounted) return;
+    if (!mounted || _isClosing) return;
     _handled = false;
     await _startStream();
   }
@@ -391,7 +413,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   /// so an uploaded payment QR reaches the payment-app picker by exactly the
   /// route a scanned one does.
   Future<void> _pickFromGallery() async {
-    if (_picking || _handled) return;
+    if (_picking || _handled || _isClosing) return;
     setState(() => _picking = true);
     // Free the camera while the OS picker is in front of us.
     await _stopStream();
@@ -409,12 +431,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       path = null;
     }
 
-    if (!mounted) return;
+    if (!mounted || _isClosing) return;
 
     if (path == null) {
       // Cancelled the picker — put the scanner back the way it was.
       setState(() => _picking = false);
-      if (_phase == _Phase.ready) await _startStream();
+      if (_phase == _Phase.ready && !_isClosing) await _startStream();
       return;
     }
 
@@ -426,12 +448,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       payload = null;
     }
 
-    if (!mounted) return;
+    if (!mounted || _isClosing) return;
     setState(() => _picking = false);
 
     if (payload == null || payload.isEmpty) {
       _toast(AppLocalizations.of(context).t('qrNotFoundInImage'));
-      if (_phase == _Phase.ready) await _startStream();
+      if (_phase == _Phase.ready && !_isClosing) await _startStream();
       return;
     }
 
@@ -597,7 +619,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {
-        _onBackInvoked();
+        if (didPop) {
+          _onBackInvoked();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,

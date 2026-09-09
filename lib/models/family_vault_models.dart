@@ -316,6 +316,8 @@ class VaultInvitation {
     this.phone,
     this.vaultName,
     this.invitedByName,
+    this.invitedBy,
+    this.inviteeAuthUserId,
     this.createdAt,
     this.expiresAt,
     this.updatedAt,
@@ -330,6 +332,8 @@ class VaultInvitation {
   final String? phone;
   final String? vaultName;
   final String? invitedByName;
+  final String? invitedBy;
+  final String? inviteeAuthUserId;
   final DateTime? createdAt;
   final DateTime? expiresAt;
   final DateTime? updatedAt;
@@ -360,6 +364,8 @@ class VaultInvitation {
         phone: row['phone'] as String?,
         vaultName: row['vault_name'] as String?,
         invitedByName: row['invited_by_name'] as String?,
+        invitedBy: row['invited_by']?.toString(),
+        inviteeAuthUserId: row['invitee_auth_user_id']?.toString(),
         createdAt:
             DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal(),
         expiresAt:

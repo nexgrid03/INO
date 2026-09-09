@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthException, PostgrestException;
+    show AuthException, PostgrestException, Supabase;
 
 import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
@@ -414,7 +414,21 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   Widget _list(AppPalette palette) {
     final l10n = AppLocalizations.of(context);
     final vaults = _store.vaults;
-    final invites = _store.pendingInvites;
+    final myVaultIds = vaults.map((v) => v.vault.id).toSet();
+    String? myUid;
+    try {
+      myUid = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {}
+    final invites = _store.pendingInvites.where((inv) {
+      if (inv.invitedBy != null && inv.invitedBy == myUid) return false;
+      if (inv.inviteeAuthUserId != null &&
+          inv.inviteeAuthUserId!.isNotEmpty &&
+          inv.inviteeAuthUserId != myUid) {
+        return false;
+      }
+      if (myVaultIds.contains(inv.vaultId)) return false;
+      return true;
+    }).toList();
     final incoming = _store.incomingJoinRequests;
     final outgoing = _store.myJoinRequests;
 

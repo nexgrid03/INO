@@ -183,12 +183,26 @@ class FamilyVaultStore extends ChangeNotifier {
   /// can't refresh must not break the app.
   Future<void> refreshPendingInvitations() async {
     if (!_remote) return;
+    final myUid = _uid();
     try {
       final invites =
           await FamilyVaultRepository.instance.myPendingInvitations();
+      final myVaultIds = _vaults.map((v) => v.vault.id).toSet();
       _pendingInvites
         ..clear()
-        ..addAll(invites);
+        ..addAll(invites.where((inv) {
+          // Never show invitations sent by the user themselves
+          if (inv.invitedBy != null && inv.invitedBy == myUid) return false;
+          // Never show invitations targeted to someone else
+          if (inv.inviteeAuthUserId != null &&
+              inv.inviteeAuthUserId!.isNotEmpty &&
+              inv.inviteeAuthUserId != myUid) {
+            return false;
+          }
+          // Never show invitations to vaults the user already owns or belongs to
+          if (myVaultIds.contains(inv.vaultId)) return false;
+          return true;
+        }));
       notifyListeners();
     } catch (e) {
       debugPrint('[FamilyVault] refreshPendingInvitations failed: $e');

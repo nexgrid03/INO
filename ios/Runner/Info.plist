@@ -76,6 +76,8 @@
 	<string>INO uses the camera to scan and capture your documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>INO lets you import documents and images from your photo library.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>INO saves QR code images to your photos.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>INO uses Face ID to unlock your secure document vault.</string>
 	<key>NSMicrophoneUsageDescription</key>

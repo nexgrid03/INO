@@ -425,17 +425,36 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
 
   @override
   Future<List<VaultInvitation>> myPendingInvitations() async {
-    if (_uid == null) return const [];
-    // RLS returns only pending invitations whose email/phone match the caller's
-    // profile — so a simple filtered select is safe and sufficient.
+    final myUid = _uid;
+    if (myUid == null) return const [];
+    // RLS policy "invites: admins or invitee read" permits vault admins to read
+    // all invitations for vaults they manage (for the admin member list), as well
+    // as invitations addressed to the user.
+    // Therefore, we must explicitly exclude invitations sent by the caller (.neq('invited_by', myUid)),
+    // so the inviter never sees their own outgoing invites as "You've been invited".
     final rows = await _client
         .from('vault_invitations')
         .select()
         .eq('status', 'pending')
+        .neq('invited_by', myUid)
         .order('created_at', ascending: false)
         .limit(NetGuard.maxRows)
         .timeout(NetGuard.query);
-    final list = [for (final r in rows) VaultInvitation.fromRow(r)];
+
+    final list = <VaultInvitation>[];
+    for (final r in rows) {
+      // Defensive checks:
+      // 1. Never include an invite sent by the current user
+      if (r['invited_by']?.toString() == myUid) continue;
+
+      // 2. If an invitee auth user id is explicitly targeted, it must match this user
+      final targetAuthId = r['invitee_auth_user_id']?.toString();
+      if (targetAuthId != null && targetAuthId.isNotEmpty && targetAuthId != myUid) {
+        continue;
+      }
+
+      list.add(VaultInvitation.fromRow(r));
+    }
     debugPrint('[FamilyVault] my pending invitations: ${list.length}');
     return list;
   }
