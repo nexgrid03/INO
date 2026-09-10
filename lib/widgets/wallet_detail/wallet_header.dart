@@ -26,6 +26,7 @@ class WalletHeader extends StatelessWidget {
     this.accent,
     this.onManageShares,
     this.onAreaConverter,
+    this.onEditName,
   });
 
   final String title;
@@ -43,6 +44,9 @@ class WalletHeader extends StatelessWidget {
   /// Optional - opens the Property Area Converter (only the Property wallet).
   final VoidCallback? onAreaConverter;
 
+  /// Optional - edit the wallet name (custom wallets only).
+  final VoidCallback? onEditName;
+
   @override
   Widget build(BuildContext context) {
     if (divineGlassEnabled(context)) {
@@ -53,25 +57,39 @@ class WalletHeader extends StatelessWidget {
 
   Widget _launcherHeader(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    Widget? trailing;
-    if (onAreaConverter != null) {
-      trailing = DivineGlassHeaderAction(
-        icon: Icons.straighten_rounded,
-        tooltip: l10n.t('areaConverter'),
-        onTap: onAreaConverter!,
+    final actions = <Widget>[];
+    if (onEditName != null) {
+      actions.add(
+        DivineGlassHeaderAction(
+          icon: Icons.edit_outlined,
+          tooltip: l10n.t('rename'),
+          onTap: onEditName!,
+        ),
       );
-    } else if (onManageShares != null) {
-      trailing = DivineGlassHeaderAction(
-        icon: Icons.qr_code_scanner_rounded,
-        tooltip: l10n.t('sharedLinks'),
-        onTap: onManageShares!,
+    }
+    if (onAreaConverter != null) {
+      actions.add(
+        DivineGlassHeaderAction(
+          icon: Icons.straighten_rounded,
+          tooltip: l10n.t('areaConverter'),
+          onTap: onAreaConverter!,
+        ),
+      );
+    }
+    if (onManageShares != null) {
+      actions.add(
+        DivineGlassHeaderAction(
+          icon: Icons.qr_code_scanner_rounded,
+          tooltip: l10n.t('sharedLinks'),
+          onTap: onManageShares!,
+        ),
       );
     }
     // Full-bleed frosted Top App Bar (Figma Identity Wallet), under status bar.
     return DivineGlassAppBar(
       title: title,
       onBack: onBack,
-      trailing: trailing,
+      actions: actions.isEmpty ? null : actions,
       centerTitle: false,
       includeStatusBar: true,
     );
@@ -97,20 +115,48 @@ class WalletHeader extends StatelessWidget {
           const SizedBox(width: 12),
         ],
         Expanded(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              title,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-                color: palette.textPrimary,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              if (onEditName != null) ...[
+                const SizedBox(width: 8),
+                PressableScale(
+                  pressedScale: 0.88,
+                  child: Tooltip(
+                    message: l10n.t('rename'),
+                    child: InkWell(
+                      onTap: onEditName,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         const SizedBox(width: 8),

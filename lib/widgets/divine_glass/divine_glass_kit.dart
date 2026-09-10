@@ -59,7 +59,15 @@ class DivineGlassAppBar extends StatelessWidget {
     if (trail == null && actions != null && actions.isNotEmpty) {
       trail = actions.length == 1
           ? actions.first
-          : Row(mainAxisSize: MainAxisSize.min, children: actions);
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < actions.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.xs),
+                  actions[i],
+                ],
+              ],
+            );
     }
     return PreferredSize(
       preferredSize: Size.fromHeight(_contentHeight() + top),
@@ -113,7 +121,15 @@ class DivineGlassAppBar extends StatelessWidget {
     if (effectiveTrailing == null && actions != null && actions!.isNotEmpty) {
       effectiveTrailing = actions!.length == 1
           ? actions!.first
-          : Row(mainAxisSize: MainAxisSize.min, children: actions!);
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < actions!.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.xs),
+                  actions![i],
+                ],
+              ],
+            );
     }
 
     // Transparent plate — white Material under frost made every page heading

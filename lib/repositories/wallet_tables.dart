@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/net/net_guard.dart';
+import '../services/wallet_store.dart';
 
 /// Resolves a wallet label ("Property Wallet") to the Postgres table holding
 /// its records ("w_property_wallet").
@@ -116,15 +117,27 @@ class WalletTables {
   /// Tracks tables that have logged their schema audit in debug mode.
   static final Set<String> _loggedTables = {};
 
-  /// "My Pets 🐾" -> "w_my_pets". Mirrors `ino_wallet_slug()` exactly: lowercase,
-  /// runs of non-alphanumerics collapse to `_`, edge underscores dropped, capped
-  /// at 40 characters, then prefixed.
-  static String slugFor(String walletLabel) {
+  /// Default algorithmic slug generator: "My Pets 🐾" -> "w_my_pets".
+  /// Mirrors `ino_wallet_slug()`: lowercase, runs of non-alphanumerics collapse
+  /// to `_`, edge underscores dropped, capped at 40 chars, prefixed with `w_`.
+  static String defaultSlugFor(String walletLabel) {
     final squashed =
         walletLabel.trim().toLowerCase().replaceAll(_nonAlnum, '_');
     final trimmed = squashed.replaceAll(_edgeUnderscores, '');
     final capped = trimmed.length <= 40 ? trimmed : trimmed.substring(0, 40);
     return 'w_$capped';
+  }
+
+  /// Resolves the table slug for [walletLabel]. If the label belongs to a
+  /// custom wallet that has a registered table slug, preserves that slug (so
+  /// renaming a wallet never breaks document associations). Otherwise falls
+  /// back to [defaultSlugFor].
+  static String slugFor(String walletLabel) {
+    final customSlug = CustomWalletStore.instance.slugFor(walletLabel);
+    if (customSlug != null && customSlug.isNotEmpty) {
+      return customSlug;
+    }
+    return defaultSlugFor(walletLabel);
   }
 
   static SupabaseClient get _client => Supabase.instance.client;

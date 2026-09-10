@@ -50,14 +50,21 @@ class CustomWallet {
     required this.name,
     required this.iconKey,
     required this.colorValue,
+    this.slug,
   });
 
   final String name;
   final String iconKey;
   final int colorValue;
+  final String? slug;
 
   IconData get icon => walletIconFor(iconKey);
   Color get color => Color(colorValue);
+
+  /// Resolves the effective table slug for this wallet, ensuring existing
+  /// documents remain attached even after a rename.
+  String get effectiveSlug =>
+      (slug != null && slug!.isNotEmpty) ? slug! : WalletTables.defaultSlugFor(name);
 
   /// Case-insensitive identity, used for de-dup and matching document rows.
   String get id => name.trim().toLowerCase();
@@ -73,13 +80,18 @@ class CustomWallet {
         gradient: [color, Color.lerp(color, Colors.white, 0.32)!],
       );
 
-  Map<String, dynamic> toJson() =>
-      {'name': name, 'icon': iconKey, 'color': colorValue};
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'icon': iconKey,
+        'color': colorValue,
+        if (slug != null) 'slug': slug,
+      };
 
   factory CustomWallet.fromJson(Map<String, dynamic> j) => CustomWallet(
         name: (j['name'] as String).trim(),
         iconKey: j['icon'] as String? ?? _kDefaultIconKey,
         colorValue: (j['color'] as num?)?.toInt() ?? _kDefaultAccent,
+        slug: j['slug'] as String?,
       );
 }
 
@@ -157,14 +169,16 @@ class CustomWalletStore extends ChangeNotifier {
       var changed = false;
       for (final r in rows) {
         final label = (r['label'] as String?)?.trim();
+        final slug = (r['slug'] as String?)?.trim();
         if (label == null || label.isEmpty) continue;
-        if (byName(label) == null) {
+        if (byName(label) == null && (slug == null || bySlug(slug) == null)) {
           _wallets.add(
             CustomWallet(
               name: label,
               iconKey: (r['icon_key'] as String?) ?? _kDefaultIconKey,
               colorValue:
                   (r['color_value'] as num?)?.toInt() ?? _kDefaultAccent,
+              slug: slug,
             ),
           );
           changed = true;
@@ -198,6 +212,16 @@ class CustomWalletStore extends ChangeNotifier {
     return null;
   }
 
+  CustomWallet? bySlug(String slug) {
+    for (final w in _wallets) {
+      if (w.slug == slug) return w;
+    }
+    return null;
+  }
+
+  /// Resolves the table slug for a wallet name, if known.
+  String? slugFor(String name) => byName(name)?.effectiveSlug;
+
   /// True when [name] is one of the user's own wallets (so it can be deleted).
   bool isCustom(String name) => byName(name) != null;
 
@@ -220,15 +244,90 @@ class CustomWalletStore extends ChangeNotifier {
   Future<CustomWallet> add(CustomWallet wallet) async {
     final existing = byName(wallet.name);
     if (existing != null) return existing;
-    await WalletTables.createCustomWallet(
-      wallet.name,
+    String? slug = wallet.slug;
+    try {
+      slug ??= await WalletTables.createCustomWallet(
+        wallet.name,
+        iconKey: wallet.iconKey,
+        colorValue: wallet.colorValue,
+      );
+    } on AssertionError {
+      // Supabase uninitialized (unit tests) -> fallback to default slug
+      slug ??= WalletTables.defaultSlugFor(wallet.name);
+    }
+    final walletWithSlug = CustomWallet(
+      name: wallet.name,
       iconKey: wallet.iconKey,
       colorValue: wallet.colorValue,
+      slug: slug,
     );
-    _wallets.add(wallet);
+    _wallets.add(walletWithSlug);
     notifyListeners();
     await _persist();
-    return wallet;
+    return walletWithSlug;
+  }
+
+  /// Renames an existing custom wallet.
+  ///
+  /// Keeps the wallet's icon, accent colour, table slug, and order in
+  /// the catalogue intact, updating ONLY the display name.
+  Future<CustomWallet> rename(String oldName, String newName) async {
+    final trimmedNew = newName.trim();
+    if (trimmedNew.isEmpty) {
+      throw ArgumentError('Wallet name cannot be empty');
+    }
+    final existing = byName(oldName);
+    if (existing == null) {
+      throw StateError('Wallet "$oldName" not found');
+    }
+    if (existing.name == trimmedNew) {
+      return existing;
+    }
+
+    // Validation: ensure new name does not collide with built-in or another custom wallet
+    final duplicate = byName(trimmedNew);
+    if (duplicate != null && duplicate.id != existing.id) {
+      throw StateError('A wallet named "$trimmedNew" already exists');
+    }
+    for (final builtIn in builtInNames) {
+      if (builtIn.toLowerCase() == trimmedNew.toLowerCase()) {
+        throw StateError('Cannot use built-in wallet name "$trimmedNew"');
+      }
+    }
+
+    final index = _wallets.indexOf(existing);
+    final updated = CustomWallet(
+      name: trimmedNew,
+      iconKey: existing.iconKey,
+      colorValue: existing.colorValue,
+      slug: existing.effectiveSlug,
+    );
+
+    if (index != -1) {
+      _wallets[index] = updated;
+    } else {
+      _wallets.add(updated);
+    }
+
+    notifyListeners();
+    await _persist();
+
+    // Best-effort update to Supabase registry for signed-in user
+    try {
+      final uid = _currentUid();
+      if (uid != null && updated.slug != null) {
+        await Supabase.instance.client
+            .from('wallets')
+            .update({'label': trimmedNew})
+            .eq('slug', updated.slug!)
+            .eq('created_by', uid)
+            .timeout(NetGuard.mutation);
+      }
+    } catch (_) {
+      // Best-effort; local persistence preserves the rename regardless.
+    }
+
+    return updated;
   }
 
   /// Removes a custom wallet by name. Documents filed under it are NOT touched

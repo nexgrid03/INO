@@ -65,6 +65,8 @@ class FakeWalletDetailRepository implements WalletDetailRepository {
   void deleteRecord(String walletName, String recordId) {}
   @override
   void deleteRecordLocal(String walletName, String recordId) {}
+  @override
+  void renameWallet(String oldName, String newName) {}
 }
 
 void main() {

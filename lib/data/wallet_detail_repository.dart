@@ -49,6 +49,9 @@ abstract class WalletDetailRepository {
   /// document is *moved* to another wallet.
   void deleteRecordLocal(String walletName, String recordId);
 
+  /// Re-keys the in-memory cache when a custom wallet is renamed.
+  void renameWallet(String oldName, String newName) {}
+
   static WalletDetailRepository instance = SupabaseWalletDetailRepository();
 }
 
@@ -152,6 +155,14 @@ class SupabaseWalletDetailRepository implements WalletDetailRepository {
   @override
   void deleteRecordLocal(String walletName, String recordId) {
     _cache[walletName]?.removeWhere((r) => r.id == recordId);
+  }
+
+  @override
+  void renameWallet(String oldName, String newName) {
+    final cached = _cache.remove(oldName);
+    if (cached != null) {
+      _cache[newName] = cached;
+    }
   }
 
   // ---- Mapping ------------------------------------------------------------

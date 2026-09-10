@@ -12,6 +12,7 @@ import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/vault_guard.dart';
+import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
@@ -62,6 +63,9 @@ class WalletDetailScreen extends StatefulWidget {
 }
 
 class _WalletDetailScreenState extends State<WalletDetailScreen> {
+  late WalletCategory _currentCategory;
+  WalletCategory get _activeCategory => _currentCategory;
+
   late Future<WalletDetailData> _future;
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
@@ -92,6 +96,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _currentCategory = widget.category;
     ScreenSecurityService.instance.enable();
     // Hydrate the offline library (local read) so the action sheet can show
     // "Save to app" vs "Remove offline copy" correctly on first open.
@@ -105,7 +110,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   WalletDetailData? _lastData;
 
   Future<WalletDetailData> _loadFuture() {
-    return WalletDetailRepository.instance.load(widget.category).then((data) {
+    return WalletDetailRepository.instance.load(_activeCategory).then((data) {
       _records = data.records;
       _lastData = data;
       return data;
@@ -116,6 +121,50 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     setState(() {
       _future = _loadFuture();
     });
+  }
+
+  Future<void> _showEditWalletNameDialog() async {
+    final oldName = _activeCategory.name;
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _EditWalletNameDialog(currentName: oldName),
+    );
+
+    if (newName == null || newName.isEmpty || newName == oldName || !mounted) {
+      return;
+    }
+
+    try {
+      final updated = await CustomWalletStore.instance.rename(oldName, newName);
+      WalletDetailRepository.instance.renameWallet(oldName, updated.name);
+      DocumentRepository.instance.clearCache();
+
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _currentCategory = updated.toCategory();
+        _future = _loadFuture();
+      });
+
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('renamedTo').replaceAll('{name}', updated.name),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.t('somethingWentWrong')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -139,7 +188,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _onFabAction(QuickAction action) async {
     // Scan opens the dedicated Scan & OCR flow, pre-selecting this wallet.
     if (action.label == 'Scan Document') {
-      await launchScanFlow(context, initialWallet: widget.category.name);
+      await launchScanFlow(context, initialWallet: _activeCategory.name);
       if (mounted) _reload();
       return;
     }
@@ -153,7 +202,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
-              AddDocumentScreen(initialWallet: widget.category.name),
+              AddDocumentScreen(initialWallet: _activeCategory.name),
         ),
       );
       if (mounted) _reload();
@@ -162,7 +211,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     // Every other action opens Add Document as a safe default.
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddDocumentScreen(initialWallet: widget.category.name),
+        builder: (_) => AddDocumentScreen(initialWallet: _activeCategory.name),
       ),
     );
     if (mounted) _reload();
@@ -181,9 +230,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   // ---- Derived data --------------------------------------------------------
 
-  bool get _isHealthWallet => widget.category.name == 'Health Wallet';
+  bool get _isHealthWallet => _activeCategory.name == 'Health Wallet';
 
-  bool get _isPropertyWallet => widget.category.name == 'Property Wallet';
+  bool get _isPropertyWallet => _activeCategory.name == 'Property Wallet';
 
   List<QuickAction> get _fabActionsForWallet {
     final scan = QuickAction(
@@ -206,7 +255,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// Category chips: wallet folder labels plus any categories present on records.
   List<String> get _categoryChips {
     final labels = <String>{
-      ...widget.category.contents,
+      ..._activeCategory.contents,
       for (final r in _records)
         if (r.category.trim().isNotEmpty) r.category.trim(),
     };
@@ -312,7 +361,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _toggleFavorite(DocumentRecord r) {
     final updated = r.copyWith(isFavorite: !r.isFavorite);
-    WalletDetailRepository.instance.updateRecord(widget.category.name, updated);
+    WalletDetailRepository.instance.updateRecord(_activeCategory.name, updated);
     setState(() {
       final i = _records.indexWhere((e) => e.id == r.id);
       if (i != -1) {
@@ -324,7 +373,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _archive(DocumentRecord r) {
     final updated = r.copyWith(status: DocumentStatus.archived);
-    WalletDetailRepository.instance.updateRecord(widget.category.name, updated);
+    WalletDetailRepository.instance.updateRecord(_activeCategory.name, updated);
     setState(() {
       final i = _records.indexWhere((e) => e.id == r.id);
       if (i != -1) {
@@ -337,7 +386,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   }
 
   void _delete(DocumentRecord r) {
-    WalletDetailRepository.instance.deleteRecord(widget.category.name, r.id);
+    WalletDetailRepository.instance.deleteRecord(_activeCategory.name, r.id);
     setState(() => _records = _records.where((e) => e.id != r.id).toList());
     _toast(AppLocalizations.of(context)
         .t('deletedName')
@@ -435,7 +484,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<List<DocumentRecord>> _hydrateShareDocs(
     List<DocumentRecord> docs,
   ) async {
-    final wallet = widget.category.name;
+    final wallet = _activeCategory.name;
     final offline = OfflineDocumentStore.instance;
     final byId = <String, Document>{};
 
@@ -519,7 +568,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       await showDocumentQuickView(
         context,
         record: r,
-        accent: widget.category.gradient,
+        accent: _activeCategory.gradient,
         onOpenFull: () => _openViewer(r, isProtected),
         isHealth: isHealth,
       );
@@ -534,8 +583,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       MaterialPageRoute(
         builder: (_) => DocumentViewerScreen(
           record: r,
-          walletName: widget.category.name,
-          accent: widget.category.gradient,
+          walletName: _activeCategory.name,
+          accent: _activeCategory.gradient,
           protected: isProtected,
         ),
       ),
@@ -597,7 +646,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       final saved = await store.save(
         docId: r.id,
         name: r.name,
-        wallet: widget.category.name,
+        wallet: _activeCategory.name,
         objectPath: path,
         category: r.category,
       );
@@ -837,7 +886,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   /// The centre "+" quick menu, shared with the shell. Scans launched from
   /// here stay scoped to this wallet.
   void _onQuickAction(QuickMenuAction action) {
-    openQuickMenuAction(context, action, initialWallet: widget.category.name);
+    openQuickMenuAction(context, action, initialWallet: _activeCategory.name);
   }
 
   // ---- Build ---------------------------------------------------------------
@@ -877,14 +926,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         ? WalletHeader(
                             title: localizedWalletName(
                               AppLocalizations.of(context),
-                              widget.category.name,
+                              _activeCategory.name,
                             ),
-                            icon: widget.category.icon,
+                            icon: _activeCategory.icon,
                             accent: _vaultAccent,
                             onBack: () => Navigator.of(context).maybePop(),
                             onManageShares: _openManageShares,
                             onAreaConverter: _isPropertyWallet
                                 ? _openAreaConverter
+                                : null,
+                            onEditName: CustomWalletStore.instance
+                                    .isCustom(_activeCategory.name)
+                                ? _showEditWalletNameDialog
                                 : null,
                           )
                         : Padding(
@@ -892,14 +945,18 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             child: WalletHeader(
                               title: localizedWalletName(
                                 AppLocalizations.of(context),
-                                widget.category.name,
+                                _activeCategory.name,
                               ),
-                              icon: widget.category.icon,
+                              icon: _activeCategory.icon,
                               accent: _vaultAccent,
                               onBack: () => Navigator.of(context).maybePop(),
                               onManageShares: _openManageShares,
                               onAreaConverter: _isPropertyWallet
                                   ? _openAreaConverter
+                                  : null,
+                              onEditName: CustomWalletStore.instance
+                                      .isCustom(_activeCategory.name)
+                                  ? _showEditWalletNameDialog
                                   : null,
                             ),
                           ),
@@ -1381,3 +1438,135 @@ final List<QuickAction> _detailFabActions = [
     color: Color(0xFF0EA5E9),
   ),
 ];
+
+class _EditWalletNameDialog extends StatefulWidget {
+  const _EditWalletNameDialog({required this.currentName});
+
+  final String currentName;
+
+  @override
+  State<_EditWalletNameDialog> createState() => _EditWalletNameDialogState();
+}
+
+class _EditWalletNameDialogState extends State<_EditWalletNameDialog> {
+  late final TextEditingController _controller;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final l10n = AppLocalizations.of(context);
+    final name = _controller.text.trim();
+
+    if (name.isEmpty) {
+      setState(() => _error = l10n.t('enterWalletName'));
+      return;
+    }
+    if (name.length < 2) {
+      setState(() => _error = l10n.t('nameTooShort'));
+      return;
+    }
+    if (name.toLowerCase() != widget.currentName.toLowerCase() &&
+        CustomWalletStore.instance.exists(name)) {
+      setState(() => _error = l10n.t('walletAlreadyExists'));
+      return;
+    }
+
+    if (name == widget.currentName) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    return AlertDialog(
+      backgroundColor: palette.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.large),
+      ),
+      title: Text(
+        l10n.t('rename'),
+        style: AppText.headline.copyWith(
+          color: palette.textPrimary,
+          fontSize: 18,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            style: TextStyle(color: palette.textPrimary, fontSize: 16),
+            decoration: InputDecoration(
+              labelText: l10n.t('walletName'),
+              hintText: l10n.t('walletNameHint'),
+              errorText: _error,
+              errorMaxLines: 2,
+              filled: true,
+              fillColor: palette.isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.03),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                borderSide: BorderSide(color: palette.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                borderSide: BorderSide(color: palette.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                borderSide: BorderSide(
+                  color: AppColors.primaryGreen,
+                  width: 1.5,
+                ),
+              ),
+            ),
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            l10n.t('cancel'),
+            style: TextStyle(color: palette.textSecondary),
+          ),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: Text(
+            l10n.t('save'),
+            style: TextStyle(
+              color: AppColors.primaryGreen,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
