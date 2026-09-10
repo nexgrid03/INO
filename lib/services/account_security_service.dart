@@ -108,15 +108,116 @@ class AccountSecurityService {
     return updated;
   }
 
-  /// Initiates linking a phone number to the currently signed-in account.
-  Future<void> sendPhoneLinkOtp(String phone) async {
-    final trimmed = phone.trim();
-    if (await AuthService.instance.identifierTaken(trimmed)) {
-      throw const AuthException(
-        'That mobile number is already registered to another INO account.',
-      );
+  /// Canonical E.164 phone normalization for comparison and verification.
+  /// For Indian mobile numbers, normalizes:
+  /// - 10-digit national number: '7702267621' -> '+917702267621'
+  /// - 12-digit number with 91 prefix: '917702267621' -> '+917702267621'
+  /// - Full format with dial code: '+917702267621' -> '+917702267621'
+  /// For other country codes, preserves the '+' and numeric digits.
+  static String canonicalPhone(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+
+    // Handle India (+91)
+    if (trimmed.startsWith('+91')) {
+      var national = digits.substring(2);
+      if (national.startsWith('91') && national.length == 12) {
+        national = national.substring(2);
+      }
+      return '+91$national';
     }
-    await AuthService.instance.linkPhone(trimmed);
+
+    if (digits.startsWith('91') && digits.length == 12) {
+      return '+91${digits.substring(2)}';
+    }
+
+    if (digits.length == 10) {
+      return '+91$digits';
+    }
+
+    if (trimmed.startsWith('+')) {
+      return '+$digits';
+    }
+
+    return digits;
+  }
+
+  static bool _isCurrentUserPhone({
+    required String canonicalTarget,
+    User? user,
+    UserProfile? profile,
+  }) {
+    if (canonicalTarget.isEmpty) return false;
+
+    // Check profile.phone
+    if (profile?.phone != null && profile!.phone!.trim().isNotEmpty) {
+      if (canonicalPhone(profile.phone!) == canonicalTarget) {
+        return true;
+      }
+    }
+
+    // Check user.phone
+    if (user?.phone != null && user!.phone!.trim().isNotEmpty) {
+      if (canonicalPhone(user.phone!) == canonicalTarget) {
+        return true;
+      }
+    }
+
+    // Check user.userMetadata['phone']
+    final metaPhone = user?.userMetadata?['phone'];
+    if (metaPhone is String && metaPhone.trim().isNotEmpty) {
+      if (canonicalPhone(metaPhone) == canonicalTarget) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Initiates linking a phone number to the currently signed-in account.
+  ///
+  /// Rejects only if the normalized phone number is already linked to a
+  /// DIFFERENT INO account. If the matching phone record belongs to the
+  /// CURRENT authenticated account (e.g. contact phone saved during signup
+  /// or profile completion), verification proceeds normally without false
+  /// duplicate errors.
+  Future<void> sendPhoneLinkOtp(
+    String phone, {
+    UserProfile? currentProfile,
+  }) async {
+    final canonical = canonicalPhone(phone);
+    final target = canonical.isNotEmpty ? canonical : phone.trim();
+
+    final user = AuthService.instance.currentUser;
+    var profile = currentProfile;
+    if (profile == null || profile.phone == null || profile.phone!.trim().isEmpty) {
+      if (user != null) {
+        try {
+          profile = (await UserRepository.instance.getCachedProfile(user.id)) ??
+              (await UserRepository.instance.getProfileByAuthId(user.id));
+        } catch (_) {
+          // Best effort fallback
+        }
+      }
+    }
+
+    final isOwnPhone = _isCurrentUserPhone(
+      canonicalTarget: target,
+      user: user,
+      profile: profile,
+    );
+
+    if (!isOwnPhone) {
+      if (await AuthService.instance.identifierTaken(target)) {
+        throw const AuthException(
+          'That mobile number is already registered to another INO account.',
+        );
+      }
+    }
+
+    await AuthService.instance.linkPhone(target);
   }
 
   /// Confirms phone linking OTP and synchronizes the profile table.
@@ -125,8 +226,10 @@ class AccountSecurityService {
     required String token,
     required UserProfile currentProfile,
   }) async {
+    final canonical = canonicalPhone(phone);
+    final target = canonical.isNotEmpty ? canonical : phone.trim();
     final res = await AuthService.instance.verifyPhoneLink(
-      phone: phone.trim(),
+      phone: target,
       token: token.trim(),
     );
     final user = res.user ?? AuthService.instance.currentUser;
@@ -137,7 +240,7 @@ class AccountSecurityService {
     // Update public.users database row with the new verified phone
     final updated = await UserRepository.instance.updateProfile(
       authUserId: user.id,
-      phone: phone.trim(),
+      phone: target,
     );
     return updated;
   }

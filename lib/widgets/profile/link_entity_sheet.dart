@@ -195,7 +195,10 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
       if (_isEmail) {
         await AccountSecurityService.instance.sendEmailLinkOtp(destination);
       } else {
-        await AccountSecurityService.instance.sendPhoneLinkOtp(destination);
+        await AccountSecurityService.instance.sendPhoneLinkOtp(
+          destination,
+          currentProfile: widget.profile,
+        );
       }
 
       if (!mounted) return;
@@ -224,7 +227,10 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
       if (_isEmail) {
         await AccountSecurityService.instance.sendEmailLinkOtp(_targetDestination);
       } else {
-        await AccountSecurityService.instance.sendPhoneLinkOtp(_targetDestination);
+        await AccountSecurityService.instance.sendPhoneLinkOtp(
+          _targetDestination,
+          currentProfile: widget.profile,
+        );
       }
       if (!mounted) return;
       _startCountdown();
