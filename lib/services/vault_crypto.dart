@@ -83,25 +83,39 @@ class VaultCrypto extends ChangeNotifier {
 
   /// Whether this account has already set a vault passphrase.
   ///
-  /// Returns null when it cannot be determined (offline, signed out) - callers
-  /// must treat that as "unknown" and NOT offer to create a new passphrase,
-  /// which would overwrite the existing key record and strand every secret.
+  /// Checks local secure storage and remote Supabase key records.
   Future<bool?> hasPassphrase() async {
-    final uid = _uid;
-    final client = _client;
-    if (uid == null || client == null) return null;
+    final uid = _uid ?? 'local';
     try {
-      final row = await client
-          .from(_table)
-          .select('salt')
-          .eq('auth_user_id', uid)
-          .maybeSingle()
-          .timeout(NetGuard.query);
-      return row != null;
-    } catch (e) {
-      developer.log('hasPassphrase failed: $e', name: 'vault');
-      return null;
+      final localRaw = await _secureStorage.read(key: 'ino_vault_key_$uid');
+      if (localRaw != null && localRaw.isNotEmpty) {
+        return true;
+      }
+      if (uid != 'local') {
+        final fallbackRaw = await _secureStorage.read(key: 'ino_vault_key_local');
+        if (fallbackRaw != null && fallbackRaw.isNotEmpty) {
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    final client = _client;
+    if (_uid != null && client != null) {
+      try {
+        final row = await client
+            .from(_table)
+            .select('salt')
+            .eq('auth_user_id', _uid!)
+            .maybeSingle()
+            .timeout(NetGuard.query);
+        return row != null;
+      } catch (e) {
+        developer.log('hasPassphrase failed: $e', name: 'vault');
+        return null;
+      }
     }
+
+    return false;
   }
 
   Future<SecretKey> _deriveRecoveryKey(String uid) async {
@@ -149,17 +163,22 @@ class VaultCrypto extends ChangeNotifier {
       } catch (_) {}
 
       if (client != null && _uid != null) {
+        final payload = {
+          'auth_user_id': _uid,
+          'salt': base64Encode(salt),
+          'verifier': verifier,
+          'iterations': _iterations,
+          'wrapped_master_key': wrappedMasterKey,
+          'recovery_envelope': recoveryEnvelope,
+        };
         try {
-          await client.from(_table).insert({
-            'auth_user_id': _uid,
-            'salt': base64Encode(salt),
-            'verifier': verifier,
-            'iterations': _iterations,
-            'wrapped_master_key': wrappedMasterKey,
-            'recovery_envelope': recoveryEnvelope,
-          });
+          await client.from(_table).upsert(payload, onConflict: 'auth_user_id');
         } catch (e) {
-          developer.log('createPassphrase remote insert warning: $e', name: 'vault');
+          try {
+            await client.from(_table).insert(payload);
+          } catch (e2) {
+            developer.log('createPassphrase remote insert warning: $e2', name: 'vault');
+          }
         }
       }
 

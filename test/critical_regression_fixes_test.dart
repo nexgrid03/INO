@@ -9,6 +9,7 @@ import 'package:inoapp/models/document.dart';
 import 'package:inoapp/models/document_extraction.dart';
 import 'package:inoapp/services/offline_document_store.dart';
 import 'package:inoapp/services/password_store.dart';
+import 'package:inoapp/services/vault_crypto.dart';
 import 'package:inoapp/utils/identifier_masker.dart';
 
 void main() {
@@ -305,6 +306,27 @@ void main() {
 
       // Must complete safely without calling delete on secure storage
       await expectLater(store.persist(), completes);
+    });
+
+    test('hasPassphrase() returns false initially, and true after createPassphrase()', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      VaultCrypto.instance.lock();
+
+      expect(await VaultCrypto.instance.hasPassphrase(), isFalse);
+
+      final created = await VaultCrypto.instance.createPassphrase('MySecurePasscode123!');
+      expect(created, isTrue);
+
+      // Lock vault (simulate reopening app / returning to vault screen)
+      VaultCrypto.instance.lock();
+      expect(VaultCrypto.instance.isUnlocked, isFalse);
+
+      // Subsequent check must detect the configured passcode so setup is not prompted again
+      expect(await VaultCrypto.instance.hasPassphrase(), isTrue);
+
+      // Unlocking with the correct passcode succeeds
+      expect(await VaultCrypto.instance.unlock('MySecurePasscode123!'), isTrue);
+      expect(VaultCrypto.instance.isUnlocked, isTrue);
     });
   });
 
