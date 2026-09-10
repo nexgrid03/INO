@@ -7,6 +7,7 @@ import '../../services/app_settings.dart';
 import '../../services/family_vault_store.dart';
 import '../../services/guest_mode.dart';
 import '../../services/voice_greeting_service.dart';
+import '../../theme/ino_scroll_behavior.dart';
 import '../../widgets/profile/security_reminder_dialog.dart';
 import '../../widgets/shell/feature_tour.dart';
 import '../../widgets/shell/ino_bottom_nav.dart';
@@ -15,18 +16,20 @@ import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../wallet/wallet_screen.dart';
-import 'placeholder_tab.dart';
 import 'shell_controller.dart';
 
-/// The app shell: an [IndexedStack] of the five primary destinations behind a
-/// custom bottom navigation bar, with the voice mic floating above.
+/// The app shell: a horizontal pager of the primary destinations behind a
+/// custom bottom navigation bar.
 ///
-/// Bottom nav: Home · Wallet · Scan · Reminders · Profile. The nav bar is
-/// always fixed to the bottom and stays visible while content scrolls
-/// beneath it (`extendBody` lets the blur show the page through). The single
-/// floating affordance is the hands-free voice mic at the bottom-right -
-/// tapping it opens the voice sheet and the matched destination navigates
-/// itself.
+/// Bottom nav: Home · Wallet · **+** · Reminders · Profile. The nav bar is
+/// always fixed to the bottom and stays visible while content scrolls beneath
+/// it (`extendBody` lets the page show through).
+///
+/// **Destinations swipe.** Dragging left or right moves between them, with the
+/// content following the finger and snapping to the next tab in bottom-bar
+/// order; tapping a tab glides to it. The centre "+" is a menu, not a page, so
+/// it is not in the swipe set - swiping from Wallet lands on Reminders. See
+/// [_pageOrder].
 class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
@@ -43,8 +46,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell>
-    with SingleTickerProviderStateMixin {
+class _MainShellState extends State<MainShell> {
   int _index = ShellController.tab.value;
 
   /// Held in state so a profile edit (from the Profile tab) propagates to every
@@ -66,19 +68,49 @@ class _MainShellState extends State<MainShell>
   final GlobalKey _alertsTabKey = GlobalKey();
   final GlobalKey _profileTabKey = GlobalKey();
 
-  /// Plays a brief fade each time the destination changes. The [IndexedStack]
-  /// keeps every page alive (no rebuilds, scroll preserved); we only fade the
-  /// freshly-revealed page in — a single opacity layer over the existing
-  /// RepaintBoundary, so the transition costs almost nothing per frame.
-  late final AnimationController _pageAnim = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 220),
-    value: 1,
+  /// The destinations that are actually pages, in swipe order.
+  ///
+  /// Bottom-bar slot 2 is the centre "+" quick menu, not a destination, so it
+  /// is deliberately absent: swiping from Wallet lands on Reminders, and the
+  /// swipe never dead-ends on a page that does not exist.
+  ///
+  /// Guests may only rest on Home (every other tab prompts sign-in), so their
+  /// swipe set is Home alone rather than three pages they would be bounced off
+  /// the moment they arrived.
+  List<int> get _pageOrder =>
+      GuestMode.active ? const [_homeTab] : const [0, 1, 3, 4];
+
+  /// The pager position showing [tab], or Home's if that tab is not swipeable
+  /// in the current auth state.
+  int _pagePosFor(int tab) {
+    final i = _pageOrder.indexOf(tab);
+    return i < 0 ? 0 : i;
+  }
+
+  late final PageController _pager = PageController(
+    initialPage: _pagePosFor(_index),
   );
-  late final Animation<double> _pageFade = CurvedAnimation(
-    parent: _pageAnim,
-    curve: Curves.easeOut,
-  );
+
+  /// While a tap-driven glide is in flight, the destination it is heading for.
+  ///
+  /// A tap on a non-adjacent tab crosses a page we are only passing through,
+  /// and [PageView.onPageChanged] fires for it. Without this gate that
+  /// intermediate page would be applied as if the user had chosen it - flipping
+  /// the nav highlight and firing the tab's arrival work en route.
+  int? _navTarget;
+
+  /// Whether the pager is currently moving - a finger swipe, or a tap-driven
+  /// glide.
+  ///
+  /// Drives [TickerMode] for the pages either side of the current one. Resting
+  /// off-screen destinations must stay frozen (their ambient drifts and
+  /// skeletons would otherwise burn GPU while the user is elsewhere), but a
+  /// page sliding INTO view has to be live, or a still-loading tab arrives with
+  /// a frozen spinner painted on it.
+  ///
+  /// A notifier rather than plain state so a swipe rebuilds four [TickerMode]s
+  /// instead of every destination's widget tree.
+  final ValueNotifier<bool> _pagerMoving = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -128,30 +160,74 @@ class _MainShellState extends State<MainShell>
   @override
   void dispose() {
     ShellController.tab.removeListener(_onTabChanged);
-    _pageAnim.dispose();
+    _pagerMoving.dispose();
+    _pager.dispose();
     super.dispose();
   }
-
-  final Set<int> _visitedTabs = {ShellController.tab.value};
 
   // Driven by the shared controller so pushed routes can switch tabs too.
   void _onTabChanged() {
     final next = ShellController.tab.value;
+    if (!mounted) return;
     // Guests may only rest on Home - every other destination needs an account.
     // Gating HERE (not in _select) catches every path that switches tabs:
     // the nav bar, in-page shortcuts and voice navigation alike.
-    if (mounted && GuestMode.active && next != 0) {
+    if (GuestMode.active && next != _homeTab) {
       ShellController.tab.value = _index; // snap back (no-op re-entry)
       GuestMode.promptSignIn(context);
       return;
     }
-    if (mounted && _index != next) {
-      setState(() {
-        _visitedTabs.add(next);
-        _index = next;
-      });
-      _pageAnim.forward(from: 0);
+    _goToTab(next);
+  }
+
+  /// Glides the pager to [tab].
+  ///
+  /// The nav highlight flips immediately - a tap has to feel answered - while
+  /// the content glides underneath.
+  ///
+  /// For a non-adjacent tap we hop to the neighbouring page first, so the
+  /// animation only ever crosses ONE page. The destinations we would otherwise
+  /// scroll past never get built (no wasted first-build work, no network
+  /// fetches for a tab nobody asked for), and it reads as a clean single-step
+  /// glide rather than a blur through everything in between.
+  void _goToTab(int tab) {
+    final pos = _pageOrder.indexOf(tab);
+    if (pos < 0) return; // not a page (the "+"), or guest-locked
+    if (_index != tab) setState(() => _index = tab);
+    if (!_pager.hasClients) return;
+    final current = _pager.page?.round() ?? _pagePosFor(_index);
+    if (pos == current) return;
+    _navTarget = tab;
+    if ((pos - current).abs() > 1) {
+      _pager.jumpToPage(pos > current ? pos - 1 : pos + 1);
     }
+    _pager
+        .animateToPage(
+          pos,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+        )
+        // Release the gate on arrival, or when a swipe interrupts the glide -
+        // but only if a newer tap has not already claimed a different target.
+        .then((_) {
+          if (mounted && _navTarget == tab) _navTarget = null;
+        });
+  }
+
+  /// A page settled - from a finger swipe, or the tail of a tap-driven glide.
+  void _onPageChanged(int pos) {
+    if (pos < 0 || pos >= _pageOrder.length) return;
+    final tab = _pageOrder[pos];
+    // Mid-glide: ignore the page we are only passing through.
+    if (_navTarget != null) {
+      if (tab != _navTarget) return;
+      _navTarget = null;
+    }
+    if (_index != tab) setState(() => _index = tab);
+    // Keep the shared controller in step, so a route pushed from here reads the
+    // tab the user actually swiped to. Re-entrant by design: this fires
+    // _onTabChanged, which lands on _goToTab and finds nothing left to do.
+    if (ShellController.tab.value != tab) ShellController.tab.value = tab;
   }
 
   /// System back at the shell root: **Home is always one press away, and the
@@ -182,11 +258,8 @@ class _MainShellState extends State<MainShell>
     }
 
     // Any other destination returns to Home; the next press then exits.
-    // Set `_index` first so `_onTabChanged` sees no change and treats this as
-    // an already-applied switch.
-    setState(() => _index = _homeTab);
     ShellController.tab.value = _homeTab;
-    _pageAnim.forward(from: 0);
+    _goToTab(_homeTab);
   }
 
   /// Home's index in the bottom nav — the one destination back always returns
@@ -281,6 +354,37 @@ class _MainShellState extends State<MainShell>
     ];
   }
 
+  /// The screen behind bottom-bar slot [tab].
+  ///
+  /// Only ever called for a slot in [_pageOrder], so the centre "+" (slot 2)
+  /// has no page here. Guests reach only Home, so the guest-facing placeholders
+  /// the old stack carried for the locked tabs are gone with it - the gate in
+  /// [_onTabChanged] is what they actually hit.
+  Widget _pageFor(int tab) {
+    switch (tab) {
+      case 1:
+        return WalletScreen(profile: _profile);
+      case 3:
+        return RemindersScreen(profile: _profile);
+      case 4:
+        return ProfileScreen(
+          profile: _profile,
+          themeMode: widget.themeMode,
+          onToggleTheme: widget.onToggleTheme,
+          onProfileUpdated: (updated) => setState(() => _profile = updated),
+        );
+      case _homeTab:
+      default:
+        return HomeScreen(
+          profile: _profile,
+          themeMode: widget.themeMode,
+          onToggleTheme: widget.onToggleTheme,
+          voiceTourKey: _voiceKey,
+          notificationsTourKey: _notificationsKey,
+        );
+    }
+  }
+
   void _finishTour() {
     setState(() => _tourActive = false);
     AppSettings.instance.setTourSeen(true);
@@ -301,65 +405,10 @@ class _MainShellState extends State<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    // Guests can only rest on Home (every other tab snaps back to a sign-in
-    // prompt), so don't mount the real data screens unauthenticated - an
-    // IndexedStack builds ALL its children, visible or not.
-    final guest = GuestMode.active;
-    final rawPages = [
-      HomeScreen(
-        profile: _profile,
-        themeMode: widget.themeMode,
-        onToggleTheme: widget.onToggleTheme,
-        voiceTourKey: _voiceKey,
-        notificationsTourKey: _notificationsKey,
-      ),
-      if (guest)
-        const PlaceholderTab(
-          titleKey: 'vault',
-          icon: Icons.account_balance_wallet_rounded,
-          messageKey: 'guestVaultMessage',
-        )
-      else
-        WalletScreen(profile: _profile),
-      const PlaceholderTab(
-        titleKey: 'scan',
-        icon: Icons.document_scanner_rounded,
-        messageKey: 'guestScanMessage',
-      ),
-      if (guest)
-        const PlaceholderTab(
-          titleKey: 'alerts',
-          icon: Icons.notifications_rounded,
-          messageKey: 'guestAlertsMessage',
-        )
-      else
-        RemindersScreen(profile: _profile),
-      if (guest)
-        const PlaceholderTab(
-          titleKey: 'profile',
-          icon: Icons.person_rounded,
-          messageKey: 'guestProfileMessage',
-        )
-      else
-        ProfileScreen(
-          profile: _profile,
-          themeMode: widget.themeMode,
-          onToggleTheme: widget.onToggleTheme,
-          onProfileUpdated: (updated) => setState(() => _profile = updated),
-        ),
-    ];
-
-    final pages = [
-      for (var i = 0; i < rawPages.length; i++)
-        _visitedTabs.contains(i)
-            // Pause tickers on hidden tabs — InoBackground / skeletons keep
-            // animating otherwise and burn GPU while the user is elsewhere.
-            ? TickerMode(enabled: i == _index, child: rawPages[i])
-            : const SizedBox.shrink(),
-    ];
+    final order = _pageOrder;
 
     final shell = Scaffold(
-      // Let content (and the nav's blur) sit behind the floating nav bar.
+      // Let content sit behind the floating nav bar.
       extendBody: true,
       // Keep the bottom nav planted at all times: it lives in
       // `bottomNavigationBar` (so it never scrolls with the page), and this
@@ -368,13 +417,48 @@ class _MainShellState extends State<MainShell>
       resizeToAvoidBottomInset: false,
       // The voice assistant now lives as a small icon in each page's top bar
       // (beside the notification bell), so there's no floating mic here anymore.
-      // No transient overlays here: the spoken greeting is muted from
-      // Settings › Preferences › "Startup greeting" (a persistent switch), not
-      // from a pill that appears and disappears while it plays.
-      body: FadeTransition(
-        opacity: _pageFade,
-        child: RepaintBoundary(
-          child: IndexedStack(index: _index, children: pages),
+      //
+      // Swipe left/right to move between destinations: the content follows the
+      // finger and snaps to the next tab in bottom-bar order. The app's shared
+      // bouncing physics gives it the same soft deceleration as every list in
+      // INO, and PageView's own page-snapping rides on top of that.
+      body: NotificationListener<ScrollNotification>(
+        // depth 0 is the pager itself; anything deeper is a page's own list.
+        onNotification: (n) {
+          if (n.depth == 0) {
+            if (n is ScrollStartNotification) {
+              _pagerMoving.value = true;
+            } else if (n is ScrollEndNotification) {
+              _pagerMoving.value = false;
+            }
+          }
+          return false; // observe only - never swallow the notification
+        },
+        child: PageView.builder(
+          controller: _pager,
+          physics: inoScrollPhysics,
+          onPageChanged: _onPageChanged,
+          itemCount: order.length,
+          itemBuilder: (context, pos) {
+            final tab = order[pos];
+            // Built lazily - a destination costs nothing until it is swiped
+            // near - and then kept alive, so going back to it restores its
+            // scroll position and loaded data instead of refetching. That is
+            // the one thing the IndexedStack this replaced did well, and the
+            // one thing a plain PageView would have thrown away.
+            return _KeepAlivePage(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _pagerMoving,
+                // The page is passed through as `child`, so flipping the flag
+                // rebuilds the TickerMode and nothing below it.
+                child: RepaintBoundary(child: _pageFor(tab)),
+                builder: (context, moving, child) => TickerMode(
+                  enabled: tab == _index || moving,
+                  child: child!,
+                ),
+              ),
+            );
+          },
         ),
       ),
       bottomNavigationBar: InoBottomNav(
@@ -412,5 +496,34 @@ class _MainShellState extends State<MainShell>
         ],
       ),
     );
+  }
+}
+
+/// Holds a destination's state once it has been built.
+///
+/// A [PageView] disposes pages that leave its cache extent, which for a tab bar
+/// is exactly wrong: swiping to Reminders and back would rebuild Home from
+/// scratch, losing its scroll position and refetching everything it had already
+/// loaded. Keeping each page alive gives the pager the state retention of the
+/// IndexedStack it replaced, while still building each one lazily on first
+/// arrival.
+class _KeepAlivePage extends StatefulWidget {
+  const _KeepAlivePage({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // required by the mixin
+    return widget.child;
   }
 }

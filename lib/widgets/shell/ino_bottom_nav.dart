@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui show Gradient;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -34,10 +33,10 @@ class NavItem {
 /// [_DockMetrics] rather than baked to one handset.
 ///
 /// Three pieces of motion, and none of them is decoration:
-///  * the active destination is marked by a capsule that **travels** between
-///    slots and **stretches** along the direction of travel while in flight
-///    ([InoNavPillPainter]) - retargeting from wherever it currently is, so a
-///    tap mid-flight redirects it instead of teleporting it;
+///  * the active destination is marked by a soft mountain crest that
+///    **travels** between slots and **flattens** while in flight, rising again
+///    as it lands ([InoNavMountainPainter]) - retargeting from wherever it
+///    currently is, so a tap mid-flight redirects it instead of teleporting it;
 ///  * every item **dips** under a finger and springs back ([_DockTapScale]),
 ///    which is what stops the bar feeling dead in the hand;
 ///  * each side tab keeps its bespoke arrival - a bounce, a lift, a bell
@@ -457,6 +456,17 @@ class _InoBottomNavState extends State<InoBottomNav>
     final m = _DockMetrics.of(context);
     final hasSlot = widget.index != _kScanSlot;
 
+    // Resolved here rather than inside the painter: the Aqua/Sky brand switch
+    // is an InheritedWidget lookup, and a CustomPainter has no context.
+    final crestFill = dark
+        ? AppColors.primaryGreen.withValues(alpha: 0.22)
+        : (InoStyle.isAqua(context)
+              ? AppColors.aquaMist.withValues(alpha: 0.85)
+              : const Color(0xFFE0F2FE));
+    final crestBorder = dark
+        ? AppColors.primaryGreen.withValues(alpha: 0.28)
+        : const Color(0xFFBAE6FD);
+
     // Text scaling is clamped here and ONLY here: a phone set to the largest
     // font would otherwise blow five labels out of a 66px capsule. The rest of
     // the app honours the user's setting in full - this is chrome, and the
@@ -528,7 +538,7 @@ class _InoBottomNavState extends State<InoBottomNav>
                   // the top.
                   fit: StackFit.expand,
                   children: [
-                    // The travelling selection capsule, painted UNDER the items.
+                    // The travelling crest, painted UNDER the items.
                     Positioned.fill(
                       child: IgnorePointer(
                         child: AnimatedOpacity(
@@ -537,12 +547,12 @@ class _InoBottomNavState extends State<InoBottomNav>
                           child: AnimatedBuilder(
                             animation: _pill,
                             builder: (context, _) => CustomPaint(
-                              painter: InoNavPillPainter(
+                              painter: InoNavMountainPainter(
                                 slot: _pillSlot.value,
                                 slotCount: InoBottomNav.tabs.length,
                                 travel: _travel,
-                                dark: dark,
-                                tint: AppColors.primaryGreen,
+                                color: crestFill,
+                                borderColor: crestBorder,
                               ),
                             ),
                           ),
@@ -680,91 +690,119 @@ class _DockMetrics {
   }
 }
 
-/// The capsule that marks the active destination.
+/// The soft mountain crest (WhatsApp style) that marks the active destination.
 ///
-/// Two details do the heavy lifting and neither is decoration:
-///   - it TRAVELS between tabs rather than cutting, and
-///   - it STRETCHES along the direction of travel while in flight, then settles
-///     - the "liquid" in liquid glass.
+/// The shape itself is unchanged - a wide, rounded dome with long flares
+/// blending back into the bar's baseline. What it gained is motion, and neither
+/// half of it is decoration:
 ///
-/// Drawn as a painter rather than a positioned widget so the stretch is a
-/// single cheap repaint per frame with nothing relaying out underneath it.
-class InoNavPillPainter extends CustomPainter {
-  const InoNavPillPainter({
+///   * it **travels** between slots rather than cutting, driven by a fractional
+///     [slot] so a tap mid-flight redirects it instead of teleporting it, and
+///   * its crest **flattens** while in flight and rises again as it lands - the
+///     "liquid under weight" settle. That is what makes a crest read as one
+///     body of liquid flowing across the bar instead of a shape being moved.
+///
+/// Drawn as a painter rather than an [AnimatedPositioned] so the whole thing is
+/// a single cheap repaint per frame, with nothing relaying out underneath it.
+class InoNavMountainPainter extends CustomPainter {
+  const InoNavMountainPainter({
     required this.slot,
     required this.slotCount,
     required this.travel,
-    required this.dark,
-    required this.tint,
+    required this.color,
+    this.borderColor,
   });
 
-  /// Fractional slot index the capsule sits at (2.4 = mid-flight).
+  /// Fractional slot index the crest sits at (2.4 = mid-flight).
   final double slot;
   final int slotCount;
 
-  /// 0 at rest, peaking at 1 mid-flight. Drives the stretch.
+  /// 0 at rest, peaking at 1 mid-flight. Drives the flatten.
   final double travel;
 
-  final bool dark;
+  final Color color;
+  final Color? borderColor;
 
-  /// Brand colour warming the otherwise-neutral capsule.
-  final Color tint;
+  /// Traces the crest into [w] x [h], with the dome peaking at [topY].
+  Path _crest(double w, double h, double topY) {
+    final peakX = w / 2;
+    final bottomY = h;
+    return Path()
+      ..moveTo(0, bottomY)
+      // Left flare: a wide smooth entrance blending from baseline to flank.
+      ..cubicTo(
+        w * 0.30, bottomY,
+        peakX - 32, bottomY * 0.44,
+        peakX - 22, bottomY * 0.24,
+      )
+      // Wide, rounded dome crest.
+      ..cubicTo(
+        peakX - 12, topY,
+        peakX + 12, topY,
+        peakX + 22, bottomY * 0.24,
+      )
+      // Right flare: a wide smooth descent back to the baseline.
+      ..cubicTo(
+        peakX + 32, bottomY * 0.44,
+        w * 0.70, bottomY,
+        w, bottomY,
+      );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final itemWidth = size.width / slotCount;
-    // Proportional inset, not a fixed few px: the dock is sized per device, and
-    // on a short phone's compact bar a constant inset leaves the capsule
-    // tighter than the icon + label it is meant to contain.
-    final insetY = (size.height * 0.10).clamp(4.0, 7.0);
-    final height = size.height - insetY * 2;
-    // Stretch along X, compensate on Y - constant-ish area, the way a blob of
-    // liquid actually behaves when it is flung sideways.
-    final baseWidth = itemWidth - (itemWidth * 0.14).clamp(6.0, 12.0);
-    final width = baseWidth * (1 + 0.20 * travel);
-    final squash = height * (1 - 0.07 * travel);
+    // The band is wider than its slot so the flares have room to blend out
+    // before the neighbouring icons, and capped so a tablet's wide slots don't
+    // stretch the dome into a plateau.
+    final bandWidth = math.min(itemWidth + 38, 110.0);
     final cx = (slot + 0.5) * itemWidth;
-    final cy = size.height / 2;
+    final h = size.height;
 
-    final rect = Rect.fromCenter(
-      center: Offset(cx, cy),
-      width: width,
-      height: squash,
-    );
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(squash / 2));
+    // The crest sinks while travelling and rises back as it settles. Only the
+    // dome moves: the flares stay pinned to the baseline, so the shape stays
+    // seated on the bar instead of detaching from it.
+    final topY = 4.0 + travel * h * 0.16;
 
-    // Body: a soft brand-tinted wash that reads as a second layer of material
-    // sitting ON the dock, not as a painted chip.
-    canvas.drawRRect(
-      rrect,
+    canvas.save();
+    canvas.translate(cx - bandWidth / 2, 0);
+
+    final path = _crest(bandWidth, h, topY);
+    canvas.drawPath(
+      Path.from(path)..close(),
       Paint()
-        ..shader =
-            ui.Gradient.linear(rect.topCenter, rect.bottomCenter, <Color>[
-              tint.withValues(alpha: dark ? 0.26 : 0.14),
-              tint.withValues(alpha: dark ? 0.14 : 0.07),
-            ]),
+        ..style = PaintingStyle.fill
+        // Soft blended fill, so the crest fades into the bar rather than
+        // stopping at a hard edge along its base.
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color, color.withValues(alpha: color.a * 0.75)],
+        ).createShader(Rect.fromLTWH(0, 0, bandWidth, h)),
     );
 
-    // Lit rim - a top-left key light, exactly as on the dock's own edge.
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
-          (dark ? Colors.white : tint).withValues(alpha: dark ? 0.24 : 0.28),
-          (dark ? Colors.white : tint).withValues(alpha: dark ? 0.08 : 0.10),
-        ]),
-    );
+    if (borderColor != null) {
+      // Stroked from the OPEN path: closing it would draw a line straight
+      // across the base, which is the bar's own surface and must stay unmarked.
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8
+          ..color = borderColor!.withValues(alpha: 0.35),
+      );
+    }
+
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(InoNavPillPainter old) =>
+  bool shouldRepaint(InoNavMountainPainter old) =>
       old.slot != slot ||
       old.travel != travel ||
       old.slotCount != slotCount ||
-      old.dark != dark ||
-      old.tint != tint;
+      old.color != color ||
+      old.borderColor != borderColor;
 }
 
 /// The dip a dock item gives under a finger.
