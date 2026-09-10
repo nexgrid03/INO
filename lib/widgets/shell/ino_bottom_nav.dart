@@ -674,18 +674,15 @@ class _DockMetrics {
     final short = size.height < 700;
 
     return _DockMetrics(
-      barHeight: ((short ? 62.0 : 66.0) * s).clamp(58.0, 70.0),
-      sideMargin: (size.width * 0.042).clamp(10.0, 18.0),
+      barHeight: ((short ? 66.0 : 72.0) * s).clamp(64.0, 76.0),
+      sideMargin: (size.width * 0.04).clamp(12.0, 18.0),
       topGap: short ? 4.0 : 6.0,
-      // A gesture pill (~20-34) only needs breathing room. An opaque 3-button
-      // bar (~48) has to be cleared completely, or the system buttons cover the
-      // dock's lower half.
       bottomGap: inset >= 40
           ? inset + 4
           : (inset > 0 ? (inset * 0.55).clamp(8.0, 18.0) : 10.0),
-      iconZone: ((short ? 32.0 : 34.0) * s).clamp(30.0, 36.0),
-      iconSize: (22.0 * s).clamp(19.0, 23.0),
-      labelSize: (10.0 * s).clamp(9.0, 11.0),
+      iconZone: ((short ? 36.0 : 40.0) * s).clamp(34.0, 42.0),
+      iconSize: (23.0 * s).clamp(21.0, 25.0),
+      labelSize: (11.0 * s).clamp(10.0, 12.0),
     );
   }
 }

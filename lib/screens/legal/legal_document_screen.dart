@@ -93,23 +93,27 @@ class LegalDocumentScreen extends StatelessWidget {
         TextSpan(
           text: matchedText,
           style: AppText.body.copyWith(
-            color: AppColors.primaryGreen,
+            color: const Color(0xFF00B4D8),
             decoration: TextDecoration.underline,
+            decorationColor: const Color(0xFF00B4D8),
             fontWeight: FontWeight.w600,
             height: 1.6,
           ),
           recognizer: TapGestureRecognizer()
             ..onTap = () async {
               try {
-                if (await canLaunchUrl(targetUri)) {
-                  await launchUrl(
-                    targetUri,
-                    mode: isEmail
-                        ? LaunchMode.platformDefault
-                        : LaunchMode.externalApplication,
-                  );
+                final launched = await launchUrl(
+                  targetUri,
+                  mode: isEmail
+                      ? LaunchMode.platformDefault
+                      : LaunchMode.externalApplication,
+                );
+                if (!launched) {
+                  await launchUrl(targetUri, mode: LaunchMode.platformDefault);
                 }
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('[LegalScreen] Could not open $targetUri: $e');
+              }
             },
         ),
       );
@@ -123,7 +127,7 @@ class LegalDocumentScreen extends StatelessWidget {
       ));
     }
 
-    return SelectableText.rich(
+    return Text.rich(
       TextSpan(children: spans),
     );
   }
@@ -138,32 +142,77 @@ class LegalDocumentScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xl),
         children: [
-          // "Last updated" pill chip - foam fill, hairline, brand glyph.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: palette.isDark
-                    ? palette.surfaceVariant
-                    : AppColors.tealFoam,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: palette.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                   Icon(Icons.verified_user_rounded,
-                      size: 14, color: AppColors.primaryGreen),
-                  const SizedBox(width: 6),
-                  Text(l10n.t(updated),
+          // "Last updated" pill chip + "Open on Web" action button
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: palette.isDark
+                      ? palette.surfaceVariant
+                      : AppColors.tealFoam,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.verified_user_rounded,
+                        size: 14, color: Color(0xFF00B4D8)),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.t(updated),
                       style: AppText.caption.copyWith(
-                          color: palette.textSecondary,
-                          fontWeight: FontWeight.w600)),
-                ],
+                        color: palette.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              InkWell(
+                onTap: () async {
+                  final uri = Uri.parse('https://ino-privacy-policy.vercel.app');
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
+                  }
+                },
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00B4D8).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(
+                        color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.open_in_new_rounded,
+                          size: 14, color: Color(0xFF00B4D8)),
+                      SizedBox(width: 5),
+                      Text(
+                        'Open on Web',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF00B4D8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           for (final s in sections) ...[

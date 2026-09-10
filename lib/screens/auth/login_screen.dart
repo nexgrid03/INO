@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   CountryCode _signUpCountry = kCountryCodes.first;
-  VerificationChannel _signupChannel = VerificationChannel.phone;
+  VerificationChannel _signupChannel = VerificationChannel.email;
   bool _acceptedTerms = false;
 
   bool _rememberMe = true;
@@ -642,19 +642,6 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Expanded(
                   child: _ChannelCard(
-                    icon: Icons.sms_outlined,
-                    title: 'Mobile OTP',
-                    subtitle: 'Code by SMS',
-                    selected: _signupChannel == VerificationChannel.phone,
-                    onTap: busy
-                        ? null
-                        : () => setState(
-                            () => _signupChannel = VerificationChannel.phone),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _ChannelCard(
                     icon: Icons.mark_email_read_outlined,
                     title: 'Email OTP',
                     subtitle: 'Code by email',
@@ -663,6 +650,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? null
                         : () => setState(
                             () => _signupChannel = VerificationChannel.email),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ChannelCard(
+                    icon: Icons.sms_outlined,
+                    title: 'Mobile OTP',
+                    subtitle: 'Code by SMS',
+                    selected: _signupChannel == VerificationChannel.phone,
+                    onTap: busy
+                        ? null
+                        : () => setState(
+                            () => _signupChannel = VerificationChannel.phone),
                   ),
                 ),
               ],
