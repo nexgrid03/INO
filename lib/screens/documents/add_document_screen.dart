@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../core/perf/image_decode.dart';
 import '../../data/reminder_store.dart';
 import '../../data/wallet_detail_repository.dart';
 import '../../data/wallet_repository.dart' show SupabaseWalletRepository;
@@ -22,6 +24,7 @@ import '../shell/shell_controller.dart';
 
 import '../../services/gallery_import_service.dart';
 import '../../services/pdf_import_service.dart';
+import '../../services/scan_pdf_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_back_button.dart';
@@ -156,6 +159,26 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   String? _tempFileName;
   String? _localFilePath; // real on-device file to upload to Storage
+
+  /// Pages 2..N of a multi-page document, in order.
+  ///
+  /// [_localFilePath] stays page 1, so every single-page path through this
+  /// screen behaves exactly as it did. When this is non-empty the pages are
+  /// assembled into ONE pdf at save time (see [_resolveUploadPath]) - a
+  /// document is one row with one file, and "several photos of one document"
+  /// is a multi-page pdf, not several documents.
+  ///
+  /// Only meaningful for the image and scan sources; a picked pdf is already
+  /// whatever it is.
+  final List<String> _extraPages = [];
+
+  /// Every page in order, page 1 first. Empty when nothing is attached.
+  List<String> get _allPages =>
+      _localFilePath == null ? const [] : [_localFilePath!, ..._extraPages];
+
+  /// Whether the attached source is made of pages we can add to.
+  bool get _isPaged =>
+      _source == _DocSource.image || _source == _DocSource.scan;
   String? _recordNumber; // OCR-extracted document number (Aadhaar / PAN / …)
 
   /// OCR-extracted structured fields (name / dob / gender / …) and the detected
@@ -261,7 +284,6 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     setState(() => _capturing = true);
     try {
-      String? path;
       if (source == _DocSource.scan) {
         // Ask for camera access first (shows the "Allow" prompt), then open the custom in-app ScannerScreen.
         final access = await CameraPermissionService.instance.requestCamera();
@@ -279,7 +301,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           ),
         );
         if (capturedPath == null || !mounted) return;
-        path = capturedPath;
+        // A scan attaches its single capture; further pages are added
+        // afterwards from the page strip, which reopens this same scanner.
+        setState(() {
+          _source = source;
+          _localFilePath = capturedPath;
+          _tempFileName = capturedPath.split(RegExp(r'[\\/]')).last;
+          _extraPages.clear();
+        });
+        return;
       } else {
         // Ask for photo access first (shows the "Allow" prompt), then open the
         // gallery.
@@ -288,17 +318,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           _handleDenied(access, 'photos');
           return;
         }
-        path = await GalleryImportService.instance.pickImage();
+        // Multi-select: several photos of one document (a passport's two
+        // sides, a multi-page statement) are pages of ONE document, not one
+        // document each.
+        final picked = await GalleryImportService.instance.pickImages();
+        if (picked.isEmpty || !mounted) return; // cancelled
+        setState(() {
+          _source = source;
+          _localFilePath = picked.first;
+          _tempFileName = picked.first.split(RegExp(r'[\\/]')).last;
+          _extraPages
+            ..clear()
+            ..addAll(picked.skip(1));
+        });
+        return;
       }
-
-      if (path == null || !mounted) return; // user cancelled
-      final captured = path;
-      // Attach the file only - leave all detail fields blank for the user.
-      setState(() {
-        _source = source;
-        _localFilePath = captured;
-        _tempFileName = captured.split(RegExp(r'[\\/]')).last;
-      });
     } catch (e) {
       if (!mounted) return;
       _toast(
@@ -371,7 +405,100 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       _source = null;
       _tempFileName = null;
       _localFilePath = null;
+      _extraPages.clear();
     });
+  }
+
+  /// Appends more pages to the document already attached, from the same kind of
+  /// source it came from: the scanner keeps scanning, the gallery keeps
+  /// picking. Mixing the two would be a nicer sentence than it is a gesture -
+  /// the source row above is still there to start over.
+  Future<void> _addPages() async {
+    if (_capturing || !_isPaged) return;
+    setState(() => _capturing = true);
+    try {
+      final added = <String>[];
+      if (_source == _DocSource.scan) {
+        final access = await CameraPermissionService.instance.requestCamera();
+        if (access != CameraAccess.granted) {
+          _handleDenied(access, 'camera');
+          return;
+        }
+        if (!mounted) return;
+        final captured = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (context) => ScannerScreen(
+              onClose: () => Navigator.of(context).pop(),
+              onCaptured: (p) => Navigator.of(context).pop(p),
+            ),
+          ),
+        );
+        if (captured != null) added.add(captured);
+      } else {
+        final access = await CameraPermissionService.instance.requestPhotos();
+        if (access != CameraAccess.granted) {
+          _handleDenied(access, 'photos');
+          return;
+        }
+        added.addAll(await GalleryImportService.instance.pickImages());
+      }
+      if (added.isEmpty || !mounted) return;
+      setState(() => _extraPages.addAll(added));
+    } catch (e) {
+      if (!mounted) return;
+      _toast(
+        AppLocalizations.of(context)
+            .t('couldNotOpenSource')
+            .replaceAll('{source}', _source!.localizedTitle(context).toLowerCase())
+            .replaceAll('{e}', '$e'),
+        error: true,
+      );
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
+  }
+
+  /// Drops page [index]. Removing page 1 promotes page 2, so the document is
+  /// never left holding pages with nothing to lead them.
+  void _removePage(int index) {
+    HapticFeedback.selectionClick();
+    final pages = _allPages;
+    if (index < 0 || index >= pages.length) return;
+    if (pages.length == 1) {
+      _removeFile();
+      return;
+    }
+    setState(() {
+      final next = [...pages]..removeAt(index);
+      _localFilePath = next.first;
+      _tempFileName = next.first.split(RegExp(r'[\\/]')).last;
+      _extraPages
+        ..clear()
+        ..addAll(next.skip(1));
+    });
+  }
+
+  /// The single file this document uploads as.
+  ///
+  /// One page uploads as itself - unchanged from before multi-page existed. Two
+  /// or more are assembled into one pdf, which is what makes them a document
+  /// rather than a pile of images: the row carries one file, the viewer pages
+  /// through it, and sharing sends one attachment.
+  Future<String?> _resolveUploadPath() async {
+    final pages = _allPages;
+    if (pages.length < 2) return _localFilePath;
+    try {
+      return await ScanPdfService.instance.buildPdf(pages);
+    } catch (e) {
+      // Assembly failing must not cost the user the save. Fall back to page 1,
+      // exactly as the scan flow does — a document with its first page beats a
+      // save that silently died holding four.
+      developer.log(
+        'PDF assembly failed, saving first page only: $e',
+        name: 'documents',
+      );
+      return pages.first;
+    }
   }
 
   Future<void> _pickExpiry() async {
@@ -466,8 +593,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       // 1) Upload the actual file to Storage (if we have one), getting back its
       //    location to store on the row.
       String? filePath;
-      if (_localFilePath != null) {
-        final localFile = File(_localFilePath!);
+      // Several pages become one pdf here, so the quota check below measures
+      // what is actually going to Storage rather than just the first page.
+      final uploadPath = await _resolveUploadPath();
+      if (uploadPath != null) {
+        final localFile = File(uploadPath);
         if (await localFile.exists()) {
           final uploadSize = await localFile.length();
           final usage = await StorageStatsService.instance.getCached();
@@ -479,8 +609,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             return;
           }
         }
-        filePath =
-            await DocumentRepository.instance.uploadFile(_localFilePath!);
+        filePath = await DocumentRepository.instance.uploadFile(uploadPath);
       }
 
       DateTime? finalExpiry = _expiry;
@@ -524,11 +653,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           id: doc.id,
           name: doc.name,
           category: doc.category ?? 'Other',
-          icon: switch (_source) {
-            _DocSource.image => Icons.image_rounded,
-            _DocSource.pdf => Icons.picture_as_pdf_rounded,
-            _ => Icons.description_rounded,
-          },
+          // A multi-page attachment ships as a pdf whatever it was captured
+          // from, so the row's glyph has to say so.
+          icon: _allPages.length > 1
+              ? Icons.picture_as_pdf_rounded
+              : switch (_source) {
+                  _DocSource.image => Icons.image_rounded,
+                  _DocSource.pdf => Icons.picture_as_pdf_rounded,
+                  _ => Icons.description_rounded,
+                },
           uploadedAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           status: DocumentStatus.active,
@@ -759,6 +892,18 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                         child: _EmptyState(busy: _capturing),
                       )
                     else ...[
+                      if (_isPaged) ...[
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 40),
+                          child: _PageStrip(
+                            pages: _allPages,
+                            busy: _capturing,
+                            onAdd: _addPages,
+                            onRemove: _removePage,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                       FadeSlideIn(
                         delay: const Duration(milliseconds: 60),
                         child: _DetailsForm(
@@ -1873,6 +2018,266 @@ class _SaveBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The pages attached to the document being created.
+///
+/// A document is one row with one file, so several photos of one thing — a
+/// passport's two sides, a four-page statement — have to arrive as pages rather
+/// than as four separate documents the user then has to keep together by
+/// naming them carefully. This is where that set is visible and editable before
+/// it is assembled.
+///
+/// Shown only for the image and scan sources; a picked pdf is already whatever
+/// it is.
+class _PageStrip extends StatelessWidget {
+  const _PageStrip({
+    required this.pages,
+    required this.busy,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<String> pages;
+  final bool busy;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final multi = pages.length > 1;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                multi
+                    ? Icons.collections_rounded
+                    : Icons.insert_drive_file_rounded,
+                size: 16,
+                color: AppColors.primaryGreen,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.t('pageCount').replaceAll('{n}', '${pages.length}'),
+                  style: AppText.label.copyWith(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (multi) ...[
+            const SizedBox(height: 3),
+            // Says what is about to happen, so nobody has to guess whether they
+            // just created one document or four.
+            Text(
+              l10n.t('pagesCombined'),
+              style: AppText.caption.copyWith(color: palette.textFaint),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 96,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: pages.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, i) => i == pages.length
+                  ? _AddPageTile(busy: busy, onTap: onAdd)
+                  : _PageThumb(
+                      path: pages[i],
+                      index: i,
+                      onRemove: () => onRemove(i),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageThumb extends StatelessWidget {
+  const _PageThumb({
+    required this.path,
+    required this.index,
+    required this.onRemove,
+  });
+
+  final String path;
+  final int index;
+  final VoidCallback onRemove;
+
+  static const double _size = 72;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return SizedBox(
+      width: _size,
+      height: 96,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            bottom: 20,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: palette.surfaceVariant,
+                  border: Border.all(color: palette.border),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Image.file(
+                  File(path),
+                  fit: BoxFit.cover,
+                  // Bounded decode: these are full-resolution captures, and a
+                  // 72px thumbnail must never pull one in at source size.
+                  cacheWidth: context.decodeWidthFor(_size),
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.broken_image_rounded,
+                    color: palette.textFaint,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Text(
+              '${index + 1}',
+              textAlign: TextAlign.center,
+              style: AppText.caption.copyWith(
+                color: palette.textFaint,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: onRemove,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: AppColors.critical,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddPageTile extends StatelessWidget {
+  const _AddPageTile({required this.busy, required this.onTap});
+
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      width: 72,
+      height: 96,
+      child: GestureDetector(
+        onTap: busy ? null : onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            Expanded(
+              child: DottedAddSurface(
+                busy: busy,
+                color: AppColors.primaryGreen,
+                background: AppColors.primaryGreen.withValues(alpha: 0.06),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.t('addPage'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppText.caption.copyWith(
+                color: AppColors.primaryGreen,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The "add another" target: a tinted, dashed square that reads as an empty
+/// slot waiting to be filled rather than as a button that happens to sit in a
+/// row of thumbnails.
+class DottedAddSurface extends StatelessWidget {
+  const DottedAddSurface({
+    super.key,
+    required this.busy,
+    required this.color,
+    required this.background,
+  });
+
+  final bool busy;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Center(
+        child: busy
+            ? const InoLoader(size: 18)
+            : Icon(Icons.add_rounded, color: color, size: 22),
       ),
     );
   }
