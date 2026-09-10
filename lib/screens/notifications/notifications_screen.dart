@@ -16,6 +16,7 @@ import '../../utils/formatting.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/empty_state.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/pressable_scale.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
 import '../cards/cards_wallet_screen.dart';
 import '../family/family_vault_screen.dart';
@@ -181,32 +182,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           title: l10n.t('notifications'),
           actions: [
             if (_center.unreadCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: TextButton(
-                    onPressed: () async {
-                      await _center.markAllRead();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      minimumSize: const Size(0, 36),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      foregroundColor: AppColors.primaryGreen,
-                    ),
-                    child: Text(
-                      l10n.t('markAllRead'),
-                      style: TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
+              _MarkAllReadPill(
+                label: l10n.t('markAllRead'),
+                onTap: _center.markAllRead,
               ),
           ],
           child: _buildBody(
@@ -495,6 +473,118 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: Container(height: 1, color: palette.border)),
         ],
+      ),
+    );
+  }
+}
+
+/// The "Mark all read" action in the Notifications header.
+///
+/// This used to be a bare [TextButton] tinted `primaryGreen`, sitting on the
+/// screen's teal header — brand text on a brand-tinted backdrop, which left it
+/// barely distinguishable from the gradient behind it. A destructive-ish bulk
+/// action that reads as decoration is one nobody finds.
+///
+/// So it is a filled pill instead, and deliberately in the same visual language
+/// as the bottom dock's "+" gem: brand gradient, a white hairline rim, and a
+/// tight brand glow. That reads as part of INO rather than a generic chip
+/// dropped into the app bar, and white-on-brand clears contrast comfortably
+/// where brand-on-brand never could.
+///
+/// The label is required to stay, so it has to survive translation: the Hindi
+/// and Telugu strings are several times the width of "Mark all read". The pill
+/// takes at most a little under half the screen and scales its contents down
+/// inside that, so the text is always whole and never clipped to an ellipsis.
+class _MarkAllReadPill extends StatelessWidget {
+  const _MarkAllReadPill({required this.label, required this.onTap});
+
+  final String label;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.primaryGreen;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Center(
+        child: PressableScale(
+          pressedScale: 0.94,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.46,
+            ),
+            // Shadow on the OUTER box: the clip below would eat it.
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(19),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.36),
+                    blurRadius: 14,
+                    spreadRadius: -3,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(19),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent, accent.withValues(alpha: 0.84)],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    width: 1.2,
+                  ),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onTap,
+                    splashColor: Colors.white.withValues(alpha: 0.24),
+                    highlightColor: Colors.transparent,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.done_all_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                height: 1.1,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
