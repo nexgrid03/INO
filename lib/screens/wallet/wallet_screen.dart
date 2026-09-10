@@ -10,6 +10,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../../navigation/wallet_module_router.dart';
+import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/common/floating_search_bar.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_options_sheet.dart';
@@ -296,7 +297,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           ),
                           // Clear the floating bottom nav (matches Home).
                           SizedBox(
-                            height: MediaQuery.paddingOf(context).bottom + 110,
+                            height:
+                                InoBottomNav.heightOf(context) + AppSpacing.lg,
                           ),
                         ],
                       ),

@@ -21,6 +21,7 @@ import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
 import '../../services/guest_mode.dart';
+import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/common/ino_svg_icon.dart';
 import '../../widgets/common/liquid_glass.dart';
@@ -501,7 +502,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // Rebuild Home when Profile → App theme changes (classic vs launcher layout).
     final style = InoStyle.of(context);
     // Clear the floating nav — keep tight under My QR (no large empty band).
-    final navClearance = MediaQuery.paddingOf(context).bottom + 56;
+    // The dock's real height (system inset included) plus a little air, so
+    // the last card clears it on every device instead of on one.
+    final navClearance = InoBottomNav.heightOf(context) + AppSpacing.md;
 
     return Scaffold(
       backgroundColor: palette.bg,

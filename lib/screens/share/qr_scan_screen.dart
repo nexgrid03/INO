@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -20,7 +22,8 @@ class QrScanScreen extends StatefulWidget {
   State<QrScanScreen> createState() => _QrScanScreenState();
 }
 
-class _QrScanScreenState extends State<QrScanScreen> {
+class _QrScanScreenState extends State<QrScanScreen>
+    with WidgetsBindingObserver {
   final MobileScannerController _scanner = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: const [BarcodeFormat.qrCode],
@@ -31,8 +34,42 @@ class _QrScanScreenState extends State<QrScanScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Releases the camera whenever the app leaves the foreground, and re-acquires
+  /// it on resume.
+  ///
+  /// Without this the scanner keeps rendering into a texture whose surface the
+  /// platform has already torn down — which is a native crash on Android, not a
+  /// Dart exception, so nothing in the app can catch it. It is also what leaves
+  /// the camera held after a background/foreground round trip, so the next
+  /// screen that wants it fails to open.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_scanner.value.hasCameraPermission) return;
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        return;
+      case AppLifecycleState.resumed:
+        // Only restart if this screen still owns the camera; a resolved scan
+        // has deliberately stopped it.
+        if (_status == _ScanStatus.scanning && !_handling) {
+          unawaited(_scanner.start());
+        }
+      case AppLifecycleState.inactive:
+        unawaited(_scanner.stop());
+    }
+  }
+
+  @override
   void dispose() {
-    _scanner.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_scanner.dispose());
     super.dispose();
   }
 

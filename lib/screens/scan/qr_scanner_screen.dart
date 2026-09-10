@@ -171,9 +171,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         state == AppLifecycleState.paused) {
       // Free the camera while backgrounded (also covers the moment a payment
       // app takes over the foreground).
+      //
+      // Must go through [_teardownCamera], NOT a bare dispose(): this screen is
+      // streaming frames into ML Kit, and tearing CameraX down with frames in
+      // flight blocks the platform main thread during shutdown — the "INO isn't
+      // responding / Lost connection to device" hang, with no Dart or native
+      // exception to point at. Handing off to a UPI app is precisely when this
+      // fires. `scanner_screen.dart` already teardown-guards for the same
+      // reason; this path did not.
       _controller = null;
       _streaming = false;
-      controller?.dispose();
+      _teardownCamera(controller);
     } else if (state == AppLifecycleState.resumed) {
       if (mounted) _bootstrap();
     }
@@ -228,9 +236,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
       final oldController = _controller;
       _controller = null;
-      try {
-        await oldController?.dispose();
-      } catch (_) {}
+      _streaming = false;
+      // Same rule as above: stop the stream before disposing, or a re-bootstrap
+      // (returning from the OS permission dialog, or resuming) hangs on the
+      // previous controller's shutdown.
+      await _teardownCamera(oldController);
 
       final controller = CameraController(
         back,
@@ -246,9 +256,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       await controller.initialize();
       await controller.setFlashMode(FlashMode.off);
       if (!mounted) {
-        try {
-          await controller.dispose();
-        } catch (_) {}
+        await _teardownCamera(controller);
         return;
       }
       _controller = controller;

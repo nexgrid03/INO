@@ -7,6 +7,7 @@ import '../../models/reminder_models.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/shell/ino_bottom_nav.dart';
 import '../../widgets/common/ino_back_button.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -197,7 +198,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       _filterChips(),
       _prioritiesSection(priorities),
       _viewAllRow(),
-      SizedBox(height: MediaQuery.paddingOf(context).bottom + 110),
+      SizedBox(height: InoBottomNav.heightOf(context) + AppSpacing.lg),
     ];
     return Column(
       children: [

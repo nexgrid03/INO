@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../core/perf/image_decode.dart';
 import '../../services/document_crop_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_loader.dart';
@@ -44,18 +45,33 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
     _loadSize();
   }
 
+  /// Reads the capture's pixel dimensions **without decoding it**.
+  ///
+  /// This used to run the bytes through `instantiateImageCodec` +
+  /// `getNextFrame()`, which materialises the whole bitmap — a 50MP phone
+  /// capture is ~200MB of RGBA — purely to read two integers, and then never
+  /// disposed the resulting `ui.Image`, so the allocation leaked for the life
+  /// of the editor. Opening the cropper on a large photo was an OOM kill.
+  ///
+  /// [ui.ImageDescriptor.encoded] parses only the file header, so it costs
+  /// nothing and cannot fail on size.
   Future<void> _loadSize() async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
     try {
-      final bytes = await File(widget.imagePath).readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
+      buffer = await ui.ImmutableBuffer.fromFilePath(widget.imagePath);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final size = Size(
+        descriptor.width.toDouble(),
+        descriptor.height.toDouble(),
+      );
       if (!mounted) return;
-      setState(() => _imageSize = Size(
-            frame.image.width.toDouble(),
-            frame.image.height.toDouble(),
-          ));
+      setState(() => _imageSize = size);
     } catch (_) {
       if (mounted) setState(() => _imageSize = const Size(1, 1.4));
+    } finally {
+      descriptor?.dispose();
+      buffer?.dispose();
     }
   }
 
@@ -152,8 +168,14 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                   children: [
                     Positioned.fromRect(
                       rect: rect,
-                      child: Image.file(File(widget.imagePath),
-                          fit: BoxFit.fill),
+                      child: Image.file(
+                        File(widget.imagePath),
+                        fit: BoxFit.fill,
+                        // Bounded decode — the source is a full-resolution
+                        // camera capture and this only ever paints it into
+                        // `rect`, which is at most the viewport.
+                        cacheWidth: zoomableDecodeCap(context),
+                      ),
                     ),
                     // Dim mask + quadrilateral + grid.
                     Positioned.fill(

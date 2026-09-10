@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 
 import '../../data/family_vault_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/perf/image_decode.dart';
 import '../../models/family_vault_models.dart';
 import '../../models/vault_share_field.dart';
 import '../../services/auth_service.dart';
@@ -3173,6 +3174,10 @@ class _VaultImagePreviewState extends State<_VaultImagePreview> {
               height: 180,
               width: double.infinity,
               fit: BoxFit.cover,
+              // 180px of chrome must not pull a full-resolution photo into the
+              // image cache — that is what evicts every other thumbnail and,
+              // on a big enough source, OOMs the process.
+              cacheHeight: context.decodeWidthFor(180),
               errorBuilder: (context, error, stackTrace) =>
                   const SizedBox.shrink(),
             ),

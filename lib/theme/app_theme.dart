@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'ino_page_transitions.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'theme_style.dart';
@@ -732,16 +734,20 @@ class AppTheme {
       scaffoldBackgroundColor: palette.bg,
       canvasColor: palette.bg,
       splashFactory: InkRipple.splashFactory,
-      // Cupertino slide everywhere — FadeForwards paints a solid underlay
-      // while the new page is still at opacity 0, which read as a grey flash
-      // before cards settled on their real colours (especially on web).
+      // A slide with parallax everywhere, and Cupertino on iOS so the edge
+      // swipe-back gesture still exists. Deliberately NOT FadeForwards, which
+      // paints a solid underlay while the new page is still at opacity 0 — that
+      // read as a grey flash before cards settled on their real colours
+      // (especially on web) — and no longer Zoom, whose two scaled full-screen
+      // layers landed on the same frame that first builds the incoming page.
+      // See [InoSlidePageTransitionsBuilder].
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-          TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
-          TargetPlatform.macOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+          TargetPlatform.android: InoSlidePageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: InoSlidePageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: InoSlidePageTransitionsBuilder(),
         },
       ),
       appBarTheme: AppBarTheme(

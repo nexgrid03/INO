@@ -1,10 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui show Gradient;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -26,11 +26,27 @@ class NavItem {
   String label(AppLocalizations l10n) => l10n.t(labelKey);
 }
 
-/// The INO floating bottom navigation bar - a premium, minimal white pill.
+/// The INO floating bottom navigation dock - an opaque capsule that hovers over
+/// the page, lifted by a brand glow, a cool ambient shadow and a tight contact
+/// edge.
 ///
-/// Five slots: Home · Vault · **+** · Alerts · Profile. The four side tabs
-/// each carry a bespoke micro-interaction (a bounce, a lift, a bell wiggle, a
-/// fade+scale) plus a smoothly sliding active-indicator dot.
+/// Five slots: Home · Vault · **+** · Alerts · Profile, sized per device by
+/// [_DockMetrics] rather than baked to one handset.
+///
+/// Three pieces of motion, and none of them is decoration:
+///  * the active destination is marked by a capsule that **travels** between
+///    slots and **stretches** along the direction of travel while in flight
+///    ([InoNavPillPainter]) - retargeting from wherever it currently is, so a
+///    tap mid-flight redirects it instead of teleporting it;
+///  * every item **dips** under a finger and springs back ([_DockTapScale]),
+///    which is what stops the bar feeling dead in the hand;
+///  * each side tab keeps its bespoke arrival - a bounce, a lift, a bell
+///    wiggle, a fade+scale - layered on the glyph only, never on the layout.
+///
+/// The surface is deliberately **opaque, not blurred**. A [BackdropFilter] on a
+/// bar that is pinned above a scrolling list costs a full backdrop pass on
+/// every frame of every scroll, which is the most expensive thing this widget
+/// could possibly do; the capsule and the shadows carry the depth instead.
 ///
 /// The centre "+" carries the quick menu:
 ///  • **Tap** - fans out the user's picked features (up to 5, customisable via
@@ -79,7 +95,11 @@ class InoBottomNav extends StatefulWidget {
       Icons.account_balance_wallet_rounded,
       Icons.account_balance_wallet_outlined,
     ),
-    NavItem('scan', Icons.document_scanner_rounded, Icons.document_scanner_rounded),
+    NavItem(
+      'scan',
+      Icons.document_scanner_rounded,
+      Icons.document_scanner_rounded,
+    ),
     NavItem(
       'alerts',
       Icons.notifications_rounded,
@@ -88,8 +108,27 @@ class InoBottomNav extends StatefulWidget {
     NavItem('profile', Icons.person_rounded, Icons.person_outline_rounded),
   ];
 
+  /// The dock's full height on this device, system inset included.
+  ///
+  /// The Scaffold sets `extendBody: true` so page content scrolls *behind* the
+  /// dock. That means every scrollable owes its last item this much bottom
+  /// padding, or the final row sits under the bar and cannot be read or tapped.
+  ///
+  /// Screens used to hard-code that clearance — 56 on Home, 108 on one wallet,
+  /// 110 on two others — none of which matched the dock on any particular
+  /// device, and all of which went stale the moment its geometry changed. Ask
+  /// the dock instead: it is the only thing that knows.
+  ///
+  /// Add your own breathing room on top; this is the bar, not the gap above it.
+  static double heightOf(BuildContext context) {
+    final m = _DockMetrics.of(context);
+    return m.topGap + m.barHeight + m.bottomGap;
+  }
+
   /// Global notifier indicating whether the FAB quick menu is currently open.
-  static final ValueNotifier<bool> isMenuOpenNotifier = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> isMenuOpenNotifier = ValueNotifier<bool>(
+    false,
+  );
 
   /// Helper getter to check if the FAB quick menu is currently open.
   static bool get isMenuOpen {
@@ -105,7 +144,8 @@ class InoBottomNav extends StatefulWidget {
   /// Closes the active FAB menu if open. Returns `true` if a menu was closed.
   static bool closeActiveMenu() {
     final state = _activeState;
-    if (state != null && (state._open || state._wheelOpen || isMenuOpenNotifier.value)) {
+    if (state != null &&
+        (state._open || state._wheelOpen || isMenuOpenNotifier.value)) {
       debugPrint('[FAB Menu] Executing closeActiveMenu() on active nav state.');
       state._closeMenu();
       state._onHoldCancel();
@@ -120,7 +160,7 @@ class InoBottomNav extends StatefulWidget {
 }
 
 class _InoBottomNavState extends State<InoBottomNav>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// Drives the "+" morph (+ ⇄ ×) and the open/close of BOTH overlays (the
   /// tap fan-out and the hold-wheel) - they never coexist, so one controller
   /// keeps every piece of motion on the same clock.
@@ -143,6 +183,20 @@ class _InoBottomNavState extends State<InoBottomNav>
   bool get _open => _entry != null;
   bool get _wheelOpen => _wheelEntry != null;
 
+  /// Drives the selection capsule as it travels between destinations.
+  ///
+  /// Separate from [_menu] on purpose: the pill must be able to fly while the
+  /// "+" is mid-morph, and the two have very different settle curves.
+  late final AnimationController _pill = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  );
+
+  /// Fractional slot the capsule currently occupies (2.4 = mid-flight).
+  late Animation<double> _pillSlot = AlwaysStoppedAnimation<double>(
+    widget.index.toDouble(),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -150,13 +204,50 @@ class _InoBottomNavState extends State<InoBottomNav>
   }
 
   @override
+  void didUpdateWidget(covariant InoBottomNav old) {
+    super.didUpdateWidget(old);
+    if (old.index == widget.index) return;
+    // The centre "+" is never a resting destination, so it owns no slot —
+    // leave the capsule parked and let its opacity fade it out instead of
+    // sliding it somewhere the user never navigated to.
+    if (widget.index == _kScanSlot) return;
+    // Retarget from the CURRENT animated position, not the old index, so a tap
+    // mid-flight redirects the capsule smoothly instead of teleporting it.
+    _pillSlot =
+        Tween<double>(
+          begin: _pillSlot.value,
+          end: widget.index.toDouble(),
+        ).animate(
+          CurvedAnimation(
+            parent: _pill,
+            // Long, soft tail — a selection *settling*, not a mechanical ease.
+            curve: const Cubic(0.22, 1.0, 0.32, 1.0),
+          ),
+        );
+    _pill.forward(from: 0);
+  }
+
+  /// 0 at rest, peaking at 1 mid-flight — drives the capsule's liquid stretch.
+  double get _travel {
+    if (!_pill.isAnimating) return 0;
+    final t = _pill.value;
+    return 4 * t * (1 - t);
+  }
+
+  @override
   void dispose() {
     if (InoBottomNav._activeState == this) {
       InoBottomNav._activeState = null;
     }
+    // Null the handles as they are removed: an in-flight _closeMenu() /
+    // _onHoldCancel() resumes after this and would otherwise call remove() a
+    // second time on an entry that is no longer in any Overlay.
     _entry?.remove();
+    _entry = null;
     _wheelEntry?.remove();
+    _wheelEntry = null;
     _highlight.dispose();
+    _pill.dispose();
     _menu.dispose();
     super.dispose();
   }
@@ -170,8 +261,10 @@ class _InoBottomNavState extends State<InoBottomNav>
         Overlay.of(context).context.findRenderObject() as RenderBox?;
     _overlayBox = overlayBox;
     if (box != null && overlayBox != null) {
-      return box.localToGlobal(box.size.center(Offset.zero),
-          ancestor: overlayBox);
+      return box.localToGlobal(
+        box.size.center(Offset.zero),
+        ancestor: overlayBox,
+      );
     }
     final size = MediaQuery.sizeOf(context);
     return Offset(size.width / 2, size.height - 60);
@@ -275,7 +368,9 @@ class _InoBottomNavState extends State<InoBottomNav>
     );
     Overlay.of(context).insert(_wheelEntry!);
     InoBottomNav.isMenuOpenNotifier.value = true;
-    debugPrint('[FAB Menu] FAB hold-wheel opened (current tab: ${widget.index})');
+    debugPrint(
+      '[FAB Menu] FAB hold-wheel opened (current tab: ${widget.index})',
+    );
     setState(() {}); // morph + → ×
     _menu.forward(from: 0);
     _trackPointer(details.globalPosition);
@@ -294,7 +389,9 @@ class _InoBottomNavState extends State<InoBottomNav>
     if (action != null) HapticFeedback.mediumImpact();
 
     InoBottomNav.isMenuOpenNotifier.value = false;
-    debugPrint('[FAB Menu] FAB hold-wheel closed (current tab: ${widget.index})');
+    debugPrint(
+      '[FAB Menu] FAB hold-wheel closed (current tab: ${widget.index})',
+    );
     await _menu.reverse();
     _wheelEntry?.remove();
     _wheelEntry = null;
@@ -307,7 +404,9 @@ class _InoBottomNavState extends State<InoBottomNav>
   void _onHoldCancel() {
     if (!_wheelOpen) return;
     InoBottomNav.isMenuOpenNotifier.value = false;
-    debugPrint('[FAB Menu] FAB hold-wheel cancelled (current tab: ${widget.index})');
+    debugPrint(
+      '[FAB Menu] FAB hold-wheel cancelled (current tab: ${widget.index})',
+    );
     _menu.reverse().whenComplete(() {
       _wheelEntry?.remove();
       _wheelEntry = null;
@@ -355,86 +454,122 @@ class _InoBottomNavState extends State<InoBottomNav>
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final dark = palette.isDark;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        // Dark: solid-enough base so icons stay readable over scrolling content
-        // (Flutter web has no BackdropFilter). Light keeps the airy glass look.
-        child: Material(
-          color: dark
-              ? palette.surface.withValues(alpha: 0.95)
-              : Colors.white.withValues(alpha: 0.96),
-          elevation: 4,
-          shadowColor: Colors.black.withValues(alpha: dark ? 0.4 : 0.08),
-          borderRadius: BorderRadius.circular(28),
-          clipBehavior: Clip.antiAlias,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: dark ? palette.border : AppColors.tealPale.withValues(alpha: 0.6),
-                width: 1.0,
-              ),
-            ),
-            child: SizedBox(
-              height: context.horizontalCardHeight(66),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Mountain-shaped curved bump behind the active tab (WhatsApp style).
-                    if (widget.index != 2)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              final slot = constraints.maxWidth /
-                                  InoBottomNav.tabs.length;
-                              final mountainWidth = math.min(slot + 38, 110.0);
-                              final mountainColor = dark
-                                  ? AppColors.primaryGreen.withValues(alpha: 0.22)
-                                  : (InoStyle.isAqua(context)
-                                      ? AppColors.aquaMist.withValues(alpha: 0.85)
-                                      : const Color(0xFFE0F2FE));
-                              final mountainBorder = dark
-                                  ? AppColors.primaryGreen.withValues(alpha: 0.28)
-                                  : const Color(0xFFBAE6FD);
+    final m = _DockMetrics.of(context);
+    final hasSlot = widget.index != _kScanSlot;
 
-                              return Stack(
-                                children: [
-                                  AnimatedPositioned(
-                                    key: const ValueKey('mountain_indicator'),
-                                    duration:
-                                        const Duration(milliseconds: 250),
-                                    curve: Curves.easeInOutCubic,
-                                    left: slot * widget.index +
-                                        (slot - mountainWidth) / 2,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: mountainWidth,
-                                    child: CustomPaint(
-                                      painter: MountainShapePainter(
-                                        color: mountainColor,
-                                        borderColor: mountainBorder,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
+    // Text scaling is clamped here and ONLY here: a phone set to the largest
+    // font would otherwise blow five labels out of a 66px capsule. The rest of
+    // the app honours the user's setting in full - this is chrome, and the
+    // icons carry the meaning.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.2,
+      // The dock repaints on every pill frame; the boundary keeps that off the
+      // page scrolling behind it.
+      child: RepaintBoundary(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            m.sideMargin,
+            m.topGap,
+            m.sideMargin,
+            m.bottomGap,
+          ),
+          // Golden rule: the shadows live on the OUTER box. The clip on the
+          // Container below would eat them.
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(m.radius),
+              boxShadow: [
+                // Wide, faint brand glow - the premium lift.
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.16),
+                  blurRadius: 40,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 14),
+                ),
+                // Cool ambient elevation, deepened in dark so the dock still
+                // lifts off the charcoal canvas.
+                BoxShadow(
+                  color: const Color(
+                    0xFF0B1220,
+                  ).withValues(alpha: dark ? 0.44 : 0.20),
+                  blurRadius: 28,
+                  spreadRadius: -10,
+                  offset: const Offset(0, 12),
+                ),
+                // Tight contact edge that cuts the shape out of the background.
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.30 : 0.12),
+                  blurRadius: 8,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            // Opaque surface rather than a translucent blur: it reads cleaner
+            // over scrolling content, and it costs no BackdropFilter pass -
+            // which is the single most expensive thing a bar pinned above a
+            // scrolling list can do, on every frame of every scroll.
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: dark ? palette.surface : Colors.white,
+                borderRadius: BorderRadius.circular(m.radius),
+                border: Border.all(
+                  color: dark
+                      ? palette.border
+                      : AppColors.primaryGreen.withValues(alpha: 0.10),
+                ),
+              ),
+              child: SizedBox(
+                height: m.barHeight,
+                child: Stack(
+                  // expand, so the item Row is handed the full bar height and
+                  // its columns centre against the capsule instead of hugging
+                  // the top.
+                  fit: StackFit.expand,
+                  children: [
+                    // The travelling selection capsule, painted UNDER the items.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: hasSlot ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 220),
+                          child: AnimatedBuilder(
+                            animation: _pill,
+                            builder: (context, _) => CustomPaint(
+                              painter: InoNavPillPainter(
+                                slot: _pillSlot.value,
+                                slotCount: InoBottomNav.tabs.length,
+                                travel: _travel,
+                                dark: dark,
+                                tint: AppColors.primaryGreen,
+                              ),
+                            ),
                           ),
                         ),
                       ),
+                    ),
                     Row(
                       children: [
                         for (var i = 0; i < InoBottomNav.tabs.length; i++)
                           Expanded(
-                            child: i == 2
-                                ? Center(
+                            child: i == _kScanSlot
+                                // Two keys, both needed. [_scanKey] on a
+                                // wrapper is how _buttonCenter() finds where to
+                                // anchor the quick menu; it used to sit on the
+                                // button itself and lose to `quickAddKey`
+                                // whenever the shell passed one — which is
+                                // always — so the fan-out and the hold-wheel
+                                // silently fell back to a guessed
+                                // bottom-of-screen centre instead of the "+".
+                                ? KeyedSubtree(
+                                    key: _scanKey,
                                     child: _ScanButton(
-                                      key: widget.quickAddKey ?? _scanKey,
+                                      key: widget.quickAddKey,
+                                      metrics: m,
+                                      label: InoBottomNav.tabs[i].label(
+                                        AppLocalizations.of(context),
+                                      ),
                                       progress: _menu,
                                       onTap: _toggleMenu,
                                       onHoldStart: _onHoldStart,
@@ -447,6 +582,7 @@ class _InoBottomNavState extends State<InoBottomNav>
                                     key: _tabKeyFor(i),
                                     item: InoBottomNav.tabs[i],
                                     kind: _kindFor(i),
+                                    metrics: m,
                                     selected: widget.index == i,
                                     onTap: () => widget.onSelect(i),
                                   ),
@@ -464,112 +600,256 @@ class _InoBottomNavState extends State<InoBottomNav>
   }
 
   static _TabKind _kindFor(int i) => switch (i) {
-        0 => _TabKind.home,
-        1 => _TabKind.wallet,
-        3 => _TabKind.notifications,
-        _ => _TabKind.profile,
-      };
+    0 => _TabKind.home,
+    1 => _TabKind.wallet,
+    3 => _TabKind.notifications,
+    _ => _TabKind.profile,
+  };
 
   Key? _tabKeyFor(int i) => switch (i) {
-        0 => widget.homeTabKey,
-        1 => widget.vaultTabKey,
-        2 => widget.quickAddKey,
-        3 => widget.alertsTabKey,
-        4 => widget.profileTabKey,
-        _ => null,
-      };
+    0 => widget.homeTabKey,
+    1 => widget.vaultTabKey,
+    2 => widget.quickAddKey,
+    3 => widget.alertsTabKey,
+    4 => widget.profileTabKey,
+    _ => null,
+  };
 }
 
-/// Custom painter that draws a soft mountain-like curved bump (WhatsApp style).
-class MountainShapePainter extends CustomPainter {
-  const MountainShapePainter({
-    required this.color,
-    this.borderColor,
+/// The row slot the centre "+" occupies. It is never a resting destination.
+const int _kScanSlot = 2;
+
+/// Dock geometry, resolved per device instead of baked to one handset.
+///
+/// Two things break a bottom bar on hardware other than the one it was drawn
+/// on: a fixed bar height plus a fixed margin stacked on the *whole* system
+/// inset eats a chunk of a short screen, and fixed-size labels inside fixed
+/// fifths clip on narrow ones (the Hindi and Telugu strings are the first to
+/// go). Everything here scales off the real viewport, and the gap under the
+/// bar distinguishes a gesture pill from an opaque 3-button nav bar -
+/// mistaking the two is what makes a dock look sliced in half.
+class _DockMetrics {
+  const _DockMetrics({
+    required this.barHeight,
+    required this.sideMargin,
+    required this.topGap,
+    required this.bottomGap,
+    required this.iconZone,
+    required this.iconSize,
+    required this.labelSize,
   });
 
-  final Color color;
-  final Color? borderColor;
+  final double barHeight;
+  final double sideMargin;
+  final double topGap;
+  final double bottomGap;
+
+  /// Fixed icon band every item shares - the flat icons and the "+" gem alike -
+  /// so every label sits on one baseline.
+  final double iconZone;
+  final double iconSize;
+  final double labelSize;
+
+  /// The dock is a capsule, so the radius is simply half the height.
+  double get radius => barHeight / 2;
+
+  factory _DockMetrics.of(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final size = mq.size;
+    final inset = mq.padding.bottom;
+    // 390 = the iPhone 14 / Pixel 8 class this was drawn on. 360dp Galaxy
+    // A-series and 320dp compacts scale down; big phones barely move.
+    final s = (size.width / 390).clamp(0.84, 1.05);
+    // Short screens lose the most to a tall dock, so they get the compact bar.
+    final short = size.height < 700;
+
+    return _DockMetrics(
+      barHeight: ((short ? 62.0 : 66.0) * s).clamp(58.0, 70.0),
+      sideMargin: (size.width * 0.042).clamp(10.0, 18.0),
+      topGap: short ? 4.0 : 6.0,
+      // A gesture pill (~20-34) only needs breathing room. An opaque 3-button
+      // bar (~48) has to be cleared completely, or the system buttons cover the
+      // dock's lower half.
+      bottomGap: inset >= 40
+          ? inset + 4
+          : (inset > 0 ? (inset * 0.55).clamp(8.0, 18.0) : 10.0),
+      iconZone: ((short ? 32.0 : 34.0) * s).clamp(30.0, 36.0),
+      iconSize: (22.0 * s).clamp(19.0, 23.0),
+      labelSize: (10.0 * s).clamp(9.0, 11.0),
+    );
+  }
+}
+
+/// The capsule that marks the active destination.
+///
+/// Two details do the heavy lifting and neither is decoration:
+///   - it TRAVELS between tabs rather than cutting, and
+///   - it STRETCHES along the direction of travel while in flight, then settles
+///     - the "liquid" in liquid glass.
+///
+/// Drawn as a painter rather than a positioned widget so the stretch is a
+/// single cheap repaint per frame with nothing relaying out underneath it.
+class InoNavPillPainter extends CustomPainter {
+  const InoNavPillPainter({
+    required this.slot,
+    required this.slotCount,
+    required this.travel,
+    required this.dark,
+    required this.tint,
+  });
+
+  /// Fractional slot index the capsule sits at (2.4 = mid-flight).
+  final double slot;
+  final int slotCount;
+
+  /// 0 at rest, peaking at 1 mid-flight. Drives the stretch.
+  final double travel;
+
+  final bool dark;
+
+  /// Brand colour warming the otherwise-neutral capsule.
+  final Color tint;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final peakX = w / 2;
-    const topY = 4.0;
-    final bottomY = h;
+    final itemWidth = size.width / slotCount;
+    // Proportional inset, not a fixed few px: the dock is sized per device, and
+    // on a short phone's compact bar a constant inset leaves the capsule
+    // tighter than the icon + label it is meant to contain.
+    final insetY = (size.height * 0.10).clamp(4.0, 7.0);
+    final height = size.height - insetY * 2;
+    // Stretch along X, compensate on Y - constant-ish area, the way a blob of
+    // liquid actually behaves when it is flung sideways.
+    final baseWidth = itemWidth - (itemWidth * 0.14).clamp(6.0, 12.0);
+    final width = baseWidth * (1 + 0.20 * travel);
+    final squash = height * (1 - 0.07 * travel);
+    final cx = (slot + 0.5) * itemWidth;
+    final cy = size.height / 2;
 
-    final path = Path();
-    path.moveTo(0, bottomY);
+    final rect = Rect.fromCenter(
+      center: Offset(cx, cy),
+      width: width,
+      height: squash,
+    );
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(squash / 2));
 
-    // Left flare: wide smooth horizontal entrance blending from baseline to flank
-    path.cubicTo(
-      w * 0.30, bottomY,
-      peakX - 32, bottomY * 0.44,
-      peakX - 22, bottomY * 0.24,
+    // Body: a soft brand-tinted wash that reads as a second layer of material
+    // sitting ON the dock, not as a painted chip.
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..shader =
+            ui.Gradient.linear(rect.topCenter, rect.bottomCenter, <Color>[
+              tint.withValues(alpha: dark ? 0.26 : 0.14),
+              tint.withValues(alpha: dark ? 0.14 : 0.07),
+            ]),
     );
 
-    // Wide, rounded dome crest (WhatsApp style)
-    path.cubicTo(
-      peakX - 12, topY,
-      peakX + 12, topY,
-      peakX + 22, bottomY * 0.24,
-    );
-
-    // Right flare: wide smooth descent blending back to baseline
-    path.cubicTo(
-      peakX + 32, bottomY * 0.44,
-      w * 0.70, bottomY,
-      w, bottomY,
-    );
-
-    path.close();
-
-    // Soft blended fill gradient
-    final gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        color,
-        color.withValues(alpha: color.a * 0.75),
-      ],
-    );
-
-    final fillPaint = Paint()
-      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, w, h))
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path, fillPaint);
-
-    if (borderColor != null) {
-      final borderPaint = Paint()
-        ..color = borderColor!.withValues(alpha: 0.35)
+    // Lit rim - a top-left key light, exactly as on the dock's own edge.
+    canvas.drawRRect(
+      rrect,
+      Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8;
-
-      final strokePath = Path();
-      strokePath.moveTo(0, bottomY);
-      strokePath.cubicTo(
-        w * 0.30, bottomY,
-        peakX - 32, bottomY * 0.44,
-        peakX - 22, bottomY * 0.24,
-      );
-      strokePath.cubicTo(
-        peakX - 12, topY,
-        peakX + 12, topY,
-        peakX + 22, bottomY * 0.24,
-      );
-      strokePath.cubicTo(
-        peakX + 32, bottomY * 0.44,
-        w * 0.70, bottomY,
-        w, bottomY,
-      );
-      canvas.drawPath(strokePath, borderPaint);
-    }
+        ..strokeWidth = 1
+        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
+          (dark ? Colors.white : tint).withValues(alpha: dark ? 0.24 : 0.28),
+          (dark ? Colors.white : tint).withValues(alpha: dark ? 0.08 : 0.10),
+        ]),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant MountainShapePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.borderColor != borderColor;
+  bool shouldRepaint(InoNavPillPainter old) =>
+      old.slot != slot ||
+      old.travel != travel ||
+      old.slotCount != slotCount ||
+      old.dark != dark ||
+      old.tint != tint;
+}
+
+/// The dip a dock item gives under a finger.
+///
+/// Tab items compress slightly on touch-down and spring back on release;
+/// without it the bar looks right in a screenshot and feels dead in the hand.
+/// [HitTestBehavior.opaque] so the whole column is the target, not just the
+/// glyph.
+class _DockTapScale extends StatefulWidget {
+  const _DockTapScale({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_DockTapScale> createState() => _DockTapScaleState();
+}
+
+class _DockTapScaleState extends State<_DockTapScale> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down != v && mounted) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _set(true),
+      onTapUp: (_) => _set(false),
+      onTapCancel: () => _set(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.90 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// A dock label that shrinks rather than clips.
+///
+/// One fifth of a 320dp screen is ~57px, and the Hindi/Telugu strings do not
+/// fit that at full size - an ellipsis there is exactly the half-cut text
+/// narrow devices used to show. Scaling down inside the slot keeps every label
+/// whole and centred at any width.
+class _DockLabel extends StatelessWidget {
+  const _DockLabel({
+    required this.label,
+    required this.color,
+    required this.metrics,
+    required this.selected,
+  });
+
+  final String label;
+  final Color color;
+  final _DockMetrics metrics;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Keeps neighbouring labels from touching once they scale up to the slot.
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: metrics.labelSize,
+            height: 1.15,
+            letterSpacing: -0.1,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The bespoke micro-interaction each side tab plays when it becomes active.
@@ -582,12 +862,14 @@ class _TabButton extends StatefulWidget {
     super.key,
     required this.item,
     required this.kind,
+    required this.metrics,
     required this.selected,
     required this.onTap,
   });
 
   final NavItem item;
   final _TabKind kind;
+  final _DockMetrics metrics;
   final bool selected;
   final VoidCallback onTap;
 
@@ -618,72 +900,71 @@ class _TabButtonState extends State<_TabButton>
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      child: SizedBox(
-        height: 56,
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _c,
-            builder: (context, _) {
-              final t = _c.value;
-              final icon = TweenAnimationBuilder<double>(
-                tween: Tween(end: widget.selected ? 1.0 : 0.0),
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOut,
-                builder: (context, sel, _) {
-                  final idle = palette.isDark
-                      ? palette.textPrimary.withValues(alpha: 0.55)
-                      : palette.textSecondary;
-                  return Icon(
-                    widget.selected
-                        ? widget.item.active
-                        : widget.item.inactive,
-                    size: 24,
-                    color: Color.lerp(idle, AppColors.primaryGreen, sel),
-                  );
-                },
-              );
+    final m = widget.metrics;
 
-              final content = Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  icon,
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.item.label(l10n),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight:
-                          widget.selected ? FontWeight.w700 : FontWeight.w500,
-                      color: widget.selected
-                          ? AppColors.primaryGreen
-                          : (palette.isDark
-                              ? palette.textPrimary.withValues(alpha: 0.6)
-                              : palette.textSecondary),
+    final idle = palette.isDark
+        ? palette.textPrimary.withValues(alpha: 0.62)
+        : palette.textSecondary;
+    final color = widget.selected ? AppColors.primaryGreen : idle;
+
+    return _DockTapScale(
+      onTap: widget.onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // One shared icon zone (sized per device) so every item - the "+"
+          // gem included - hangs off the same baseline and the labels never
+          // drift. Icon and label together sit INSIDE the selection capsule at
+          // every size this resolves to.
+          SizedBox(
+            height: m.iconZone,
+            child: Center(
+              // The signature motion rides on top of the steady state, so it
+              // only ever animates the glyph - never the layout.
+              child: AnimatedBuilder(
+                animation: _c,
+                builder: (context, child) => _decorate(child!, _c.value),
+                child: AnimatedScale(
+                  scale: widget.selected ? 1.08 : 1.0,
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutBack,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: widget.selected ? 1.0 : 0.0),
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOut,
+                    builder: (context, sel, _) => Icon(
+                      widget.selected
+                          ? widget.item.active
+                          : widget.item.inactive,
+                      size: m.iconSize,
+                      color: Color.lerp(idle, AppColors.primaryGreen, sel),
                     ),
                   ),
-                ],
-              );
-
-              return _decorate(content, t);
-            },
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 2),
+          _DockLabel(
+            label: widget.item.label(l10n),
+            color: color,
+            metrics: m,
+            selected: widget.selected,
+          ),
+        ],
       ),
     );
   }
 
-  /// Applies the shared "pop" (1 → 1.15 → 1) plus this tab's signature motion.
-  /// [t] runs 0→1 once on selection; every term is zero at both ends.
+  /// Applies the shared "pop" (1 -> 1.15 -> 1) plus this tab's signature
+  /// motion. [t] runs 0->1 once on selection; every term is zero at both ends,
+  /// so the glyph always lands exactly where the static layout put it.
   Widget _decorate(Widget child, double t) {
-    // Bell-shaped 0→1→0 envelope for the there-and-back pop.
+    if (t == 0 || t == 1) return child;
+    // Bell-shaped 0->1->0 envelope for the there-and-back pop.
     final env = math.sin(t * math.pi);
-    final pop = 1 + env * 0.15; // 1 → 1.15 → 1
+    final pop = 1 + env * 0.15;
 
     switch (widget.kind) {
       case _TabKind.home:
@@ -715,13 +996,19 @@ class _TabButtonState extends State<_TabButton>
   }
 }
 
-/// The centre "+" button: a filled primary circle with a soft shadow that
-/// compresses on press and rotates 45° (+ → ×) as either quick-menu overlay
-/// opens. Tap toggles the fan-out; press-and-hold drives the wheel via the
-/// four long-press callbacks.
+/// The centre "+": a CONTAINED brand gem - a gradient circle that fills the
+/// shared icon zone, so it sits flush with the flat icons on every device
+/// instead of being raised above the bar. Label and baseline match the other
+/// items exactly.
+///
+/// It compresses on press and rotates 0 -> 135 degrees (+ becomes x) as either
+/// quick-menu overlay opens. Tap toggles the fan-out; press-and-hold drives the
+/// wheel via the four long-press callbacks.
 class _ScanButton extends StatefulWidget {
   const _ScanButton({
     super.key,
+    required this.metrics,
+    required this.label,
     required this.progress,
     required this.onTap,
     required this.onHoldStart,
@@ -730,6 +1017,8 @@ class _ScanButton extends StatefulWidget {
     required this.onHoldCancel,
   });
 
+  final _DockMetrics metrics;
+  final String label;
   final Animation<double> progress;
   final VoidCallback onTap;
   final void Function(LongPressStartDetails) onHoldStart;
@@ -750,62 +1039,93 @@ class _ScanButtonState extends State<_ScanButton> {
 
   @override
   Widget build(BuildContext context) {
+    final m = widget.metrics;
+    final palette = AppPalette.of(context);
+    // The gem fills the shared icon zone exactly, so it stays flush with the
+    // flat icons at every size instead of out-growing the capsule.
+    final gem = m.iconZone;
+
     return GestureDetector(
-      // The hold-wheel gesture. The InkWell below owns plain taps; the arena
-      // hands the pointer here once the long-press deadline passes.
+      behavior: HitTestBehavior.opaque,
+      // The hold-wheel gesture. The tap handlers below own plain taps; the
+      // arena hands the pointer here once the long-press deadline passes.
       onLongPressStart: widget.onHoldStart,
       onLongPressMoveUpdate: widget.onHoldMove,
       onLongPressEnd: widget.onHoldEnd,
       onLongPressCancel: widget.onHoldCancel,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) => _setPressed(false),
+      onTapCancel: () => _setPressed(false),
+      onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1, // Step 1 - slight compress
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: Container(
-          width: 54,
-          height: 54,
-          decoration: BoxDecoration(
-            color: AppColors.primaryGreen,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.42),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            // Single tap source: the InkWell drives the ripple, the
-            // press-compress (via onHighlightChanged) and the tap - so the
-            // menu toggles once.
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              splashColor: Colors.white.withValues(alpha: 0.28), // ripple
-              highlightColor: Colors.transparent,
-              onHighlightChanged: _setPressed,
-              onTap: widget.onTap,
-              child: AnimatedBuilder(
-                animation: widget.progress,
-                builder: (context, _) {
-                  final v = widget.progress.value;
-                  // A single "+" that rotates 0° → 135° so it reads as an "×"
-                  // once a quick menu is open.
-                  return Transform.rotate(
-                    angle: v * (3 * math.pi / 4),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: Colors.white,
-                      size: 26,
+        // Deeper than a flat tab's dip: this is the dock's primary action.
+        scale: _pressed ? 0.88 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: m.iconZone,
+              child: Center(
+                child: Container(
+                  width: gem,
+                  height: gem,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primaryGreen,
+                        AppColors.primaryGreen.withValues(alpha: 0.82),
+                      ],
                     ),
-                  );
-                },
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      width: 1.2,
+                    ),
+                    // Tight brand glow, kept inside the bar so the gem never
+                    // reads as "popping above" the dock.
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.38),
+                        blurRadius: 12,
+                        spreadRadius: -2,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: widget.progress,
+                      builder: (context, child) => Transform.rotate(
+                        // A single "+" that rotates 0 -> 135 degrees so it
+                        // reads as an "x" once a quick menu is open.
+                        angle: widget.progress.value * (3 * math.pi / 4),
+                        child: child,
+                      ),
+                      child: Icon(
+                        Icons.add_rounded,
+                        color: Colors.white,
+                        size: m.iconSize,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 2),
+            _DockLabel(
+              label: widget.label,
+              color: palette.isDark
+                  ? palette.textPrimary.withValues(alpha: 0.62)
+                  : palette.textSecondary,
+              metrics: m,
+              selected: false,
+            ),
+          ],
         ),
       ),
     );
@@ -850,47 +1170,47 @@ class _ScanMenu extends StatelessWidget {
       },
       child: AnimatedBuilder(
         animation: animation,
-      builder: (context, _) {
-        final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
-        final angles = _InoBottomNavState.arcAngles(actions.length);
-        // Wrap in a transparent Material so the action labels inherit a proper
-        // text style - without a Material ancestor an overlay's Text renders
-        // with Flutter's debug yellow underline.
-        return Material(
-          type: MaterialType.transparency,
-          child: Stack(
-            children: [
-              // Dimmed + blurred backdrop (both fade in with the menu).
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onDismiss,
-                  child: BackdropFilter(
-                    // Bucketed + cached: building a fresh ImageFilter here made the
-                    // engine recompile the blur shader on every frame of the
-                    // menu animation.
-                    filter: sharedBlurFilter(7 * v),
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.15 * v),
+        builder: (context, _) {
+          final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+          final angles = _InoBottomNavState.arcAngles(actions.length);
+          // Wrap in a transparent Material so the action labels inherit a proper
+          // text style - without a Material ancestor an overlay's Text renders
+          // with Flutter's debug yellow underline.
+          return Material(
+            type: MaterialType.transparency,
+            child: Stack(
+              children: [
+                // Dimmed + blurred backdrop (both fade in with the menu).
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onDismiss,
+                    child: BackdropFilter(
+                      // Bucketed + cached: building a fresh ImageFilter here made the
+                      // engine recompile the blur shader on every frame of the
+                      // menu animation.
+                      filter: sharedBlurFilter(7 * v),
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.15 * v),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              for (var i = 0; i < actions.length; i++)
-                _positioned(
-                  context,
-                  actions[i],
-                  _InoBottomNavState._onArc(angles[i], _kMenuRadius),
-                  i,
-                ),
-              // The small Edit chip, floating above the arc's crown.
-              _editChip(context),
-            ],
-          ),
-        );
-      },
-    ),
-  );
+                for (var i = 0; i < actions.length; i++)
+                  _positioned(
+                    context,
+                    actions[i],
+                    _InoBottomNavState._onArc(angles[i], _kMenuRadius),
+                    i,
+                  ),
+                // The small Edit chip, floating above the arc's crown.
+                _editChip(context),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _positioned(
@@ -955,8 +1275,10 @@ class _ScanMenu extends StatelessWidget {
               onTap: onEdit,
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: palette.isDark ? palette.bgElevated : Colors.white,
                   borderRadius: BorderRadius.circular(999),
@@ -965,8 +1287,9 @@ class _ScanMenu extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black
-                          .withValues(alpha: palette.isDark ? 0.4 : 0.10),
+                      color: Colors.black.withValues(
+                        alpha: palette.isDark ? 0.4 : 0.10,
+                      ),
                       blurRadius: 12,
                       offset: const Offset(0, 5),
                     ),
@@ -975,8 +1298,11 @@ class _ScanMenu extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.tune_rounded,
-                        size: 15, color: AppColors.primaryGreen),
+                    Icon(
+                      Icons.tune_rounded,
+                      size: 15,
+                      color: AppColors.primaryGreen,
+                    ),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
@@ -1079,9 +1405,7 @@ class _MenuButtonState extends State<_MenuButton> {
                 height: 1.1,
                 shadows: palette.isDark
                     ? null
-                    : const [
-                        Shadow(color: Colors.white, blurRadius: 6),
-                      ],
+                    : const [Shadow(color: Colors.white, blurRadius: 6)],
               ),
             ),
           ],
@@ -1124,44 +1448,46 @@ class _QuickWheel extends StatelessWidget {
       },
       child: AnimatedBuilder(
         animation: animation,
-      builder: (context, _) {
-        final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
-        final angles = _InoBottomNavState.arcAngles(actions.length);
-        return Material(
-          type: MaterialType.transparency,
-          child: IgnorePointer(
-            // The wheel never takes pointers - the long-press that opened it
-            // keeps them until release.
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: v,
-                    child: BackdropFilter(
-                      filter: sharedBlurFilter(7.0),
-                      child: ColoredBox(
-                        color: Colors.black.withValues(alpha: 0.18),
+        builder: (context, _) {
+          final v = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+          final angles = _InoBottomNavState.arcAngles(actions.length);
+          return Material(
+            type: MaterialType.transparency,
+            child: IgnorePointer(
+              // The wheel never takes pointers - the long-press that opened it
+              // keeps them until release.
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: v,
+                      child: BackdropFilter(
+                        filter: sharedBlurFilter(7.0),
+                        child: ColoredBox(
+                          color: Colors.black.withValues(alpha: 0.18),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Hint, tucked under the wheel's crown item.
-                _hint(context, v),
-                for (var i = 0; i < actions.length; i++)
-                  _slot(
-                    context,
-                    actions[i],
-                    _InoBottomNavState._onArc(
-                        angles[i], _InoBottomNavState._wheelRadius),
-                    i,
-                  ),
-              ],
+                  // Hint, tucked under the wheel's crown item.
+                  _hint(context, v),
+                  for (var i = 0; i < actions.length; i++)
+                    _slot(
+                      context,
+                      actions[i],
+                      _InoBottomNavState._onArc(
+                        angles[i],
+                        _InoBottomNavState._wheelRadius,
+                      ),
+                      i,
+                    ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    ),
-  );
+          );
+        },
+      ),
+    );
   }
 
   Widget _hint(BuildContext context, double v) {
@@ -1248,18 +1574,20 @@ class _QuickWheel extends StatelessWidget {
                         color: hot
                             ? AppColors.primaryGreen
                             : (palette.isDark
-                                ? palette.bgElevated
-                                : Color.alphaBlend(
-                                    AppColors.primaryGreen
-                                        .withValues(alpha: 0.06),
-                                    Colors.white,
-                                  )),
+                                  ? palette.bgElevated
+                                  : Color.alphaBlend(
+                                      AppColors.primaryGreen.withValues(
+                                        alpha: 0.06,
+                                      ),
+                                      Colors.white,
+                                    )),
                         shape: BoxShape.circle,
                         border: hot
                             ? null
                             : Border.all(
-                                color: AppColors.primaryGreen
-                                    .withValues(alpha: 0.22),
+                                color: AppColors.primaryGreen.withValues(
+                                  alpha: 0.22,
+                                ),
                                 width: 1.4,
                               ),
                         boxShadow: [
@@ -1267,7 +1595,8 @@ class _QuickWheel extends StatelessWidget {
                             color: hot
                                 ? AppColors.primaryGreen.withValues(alpha: 0.45)
                                 : Colors.black.withValues(
-                                    alpha: palette.isDark ? 0.4 : 0.10),
+                                    alpha: palette.isDark ? 0.4 : 0.10,
+                                  ),
                             blurRadius: hot ? 20 : 16,
                             offset: const Offset(0, 6),
                           ),

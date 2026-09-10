@@ -1062,7 +1062,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   Positioned(
                     right: 16,
                     // Clear the floating InoBottomNav pill + centre + bump.
-                    bottom: MediaQuery.paddingOf(context).bottom + 108,
+                    bottom: InoBottomNav.heightOf(context) + AppSpacing.lg,
                     child: ExpandableFab(
                       actions: _fabActionsForWallet,
                       onAction: _onFabAction,

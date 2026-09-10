@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../core/perf/image_decode.dart';
 import '../../services/image_enhancer.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -573,6 +574,11 @@ class _CapturePreview extends StatelessWidget {
                         File(imagePath!),
                         key: ValueKey(imagePath),
                         fit: BoxFit.contain,
+                        // The capture is a full-resolution camera photo. Decoded
+                        // as-is it is tens of MB of RGBA per page (and past the
+                        // GPU texture cap it paints nothing) — bound it to the
+                        // viewport, which is all this preview ever shows.
+                        cacheWidth: zoomableDecodeCap(context),
                         errorBuilder: (_, _, _) => const _PlaceholderPage(),
                       )
                     else

@@ -120,10 +120,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         break;
 
       case NotificationCategory.asset:
+        // Both lookups can miss (a renamed or removed built-in), and a bare
+        // firstWhere throws StateError rather than returning null — which
+        // turned "tap an asset alert" into a dead tap with a swallowed error.
         final category =
             SupabaseWalletRepository.categoryFor('Banking Wallet') ??
                 SupabaseWalletRepository.builtIns
-                    .firstWhere((c) => c.name == 'Banking Wallet');
+                    .where((c) => c.name == 'Banking Wallet')
+                    .firstOrNull;
+        if (category == null) {
+          // Nothing specific to open — fall back to the Vault tab.
+          ShellController.tab.value = 1;
+          Navigator.of(context).popUntil((r) => r.isFirst);
+          break;
+        }
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => CardsWalletScreen(category: category),

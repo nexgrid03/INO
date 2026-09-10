@@ -42,9 +42,7 @@ Future<void> main() async {
   // Flutter needs this before any async work runs before runApp().
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Tune Flutter image cache to prevent eviction thrashing when scrolling media lists
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 150 << 20; // 150 MB
-  PaintingBinding.instance.imageCache.maximumSize = 300;
+  _sizeImageCache();
 
   // Global error handler: catch uncaught exceptions in release so the app
   // never dies silently, and route them through the app's snackbar so the
@@ -108,6 +106,33 @@ Future<void> main() async {
   });
 
   runApp(const InoApp());
+}
+
+/// Sizes Flutter's image cache to **this device's screen**, not to a flat
+/// constant.
+///
+/// Decoded images live in native memory, so the cache budget competes directly
+/// with everything else the process needs — and Android kills the process
+/// outright when that runs out, with no Dart exception to catch. A fixed
+/// 150 MB (what this used to be, half again over Flutter's own default) is
+/// larger than the whole heap a budget phone will hand out, so on those devices
+/// the cache alone was enough to get the app killed mid-scroll.
+///
+/// Eight full-screen images is a generous working set for a list of bounded
+/// thumbnails — every decode in the app is capped to at most the viewport (see
+/// `core/perf/image_decode.dart`) — and the clamp keeps a tablet from claiming
+/// a fortune while still giving a small phone room to scroll without
+/// re-decoding.
+void _sizeImageCache() {
+  final view = PlatformDispatcher.instance.implicitView;
+  // 1080x2400 — a mainstream phone — is the fallback when there is no view yet.
+  final Size pixels = view?.physicalSize ?? const Size(1080, 2400);
+  final int fullScreenBytes = (pixels.width * pixels.height * 4).round();
+  final int budget = (fullScreenBytes * 8).clamp(48 << 20, 96 << 20).toInt();
+
+  PaintingBinding.instance.imageCache
+    ..maximumSizeBytes = budget
+    ..maximumSize = 200;
 }
 
 class InoApp extends StatefulWidget {

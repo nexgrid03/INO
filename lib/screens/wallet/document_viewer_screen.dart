@@ -1446,7 +1446,15 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                     },
                     errorBuilder: (context, error, stack) {
                       if (_file != null && _file!.existsSync()) {
-                        return Image.file(_file!, fit: BoxFit.contain);
+                        // Bounded decode, same as the primary path: a raw
+                        // Image.file here would decode a 50MP camera photo at
+                        // full size — ~200MB of RGBA, which is an OOM kill on
+                        // most phones, and past the GPU texture cap it paints
+                        // nothing at all.
+                        return Image(
+                          image: zoomableFileImage(context, _file!),
+                          fit: BoxFit.contain,
+                        );
                       }
                       // Auto-recover once (expired / transient), then surface a
                       // real, classified error.
