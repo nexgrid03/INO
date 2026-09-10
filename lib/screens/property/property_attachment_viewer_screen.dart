@@ -5,6 +5,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/property_models.dart';
+import '../../models/wallet_detail_models.dart';
+import '../../services/document_pdf_service.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/property_store.dart';
 import '../../services/screen_security_service.dart';
@@ -17,6 +19,7 @@ import '../../widgets/common/ino_loader.dart';
 import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../share/share_settings_screen.dart';
 
 /// Full-screen viewer for property documents and attachments.
 ///
@@ -110,15 +113,125 @@ class _PropertyAttachmentViewerScreenState
     }
   }
 
-  Future<void> _shareFile() async {
+  DocumentRecord _toDocumentRecord() {
+    final l10n = AppLocalizations.of(context);
+    final now = _attachment.addedAt ?? DateTime.now();
+    return DocumentRecord(
+      id: _attachment.linkedDocumentId ?? _attachment.id,
+      name: _attachment.name,
+      category: _attachment.kind.localizedLabel(l10n),
+      icon: _attachment.isImage
+          ? Icons.image_rounded
+          : Icons.description_rounded,
+      uploadedAt: now,
+      updatedAt: now,
+      status: DocumentStatus.active,
+      filePath: _attachment.path,
+      notes: null,
+      tags: const [],
+      isFavorite: false,
+    );
+  }
+
+  void _shareFile() {
     final path = _attachment.path;
     if (path == null || path.isEmpty) {
       showModuleToast(context, 'No file available to share', error: true);
       return;
     }
 
-    // The attachment may live in the bucket rather than on this device; resolve
-    // downloads it (once, cached) so the share sheet gets real bytes either way.
+    final l10n = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    final record = _toDocumentRecord();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.qr_code_2_rounded,
+                    color: Color(0xFF0284C7)),
+                title: Text(l10n.t('shareViaQr').isNotEmpty
+                    ? l10n.t('shareViaQr')
+                    : 'Share via QR'),
+                subtitle: const Text('Generate a secure time-limited QR code'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ShareSettingsScreen(documents: [record]),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf_rounded,
+                    color: Color(0xFFEF4444)),
+                title: Text(l10n.t('shareAsPdf').isNotEmpty
+                    ? l10n.t('shareAsPdf')
+                    : 'Share as PDF'),
+                subtitle: const Text('Export original quality PDF to any app'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final origin = shareOrigin(context);
+                  showModuleToast(
+                    context,
+                    l10n.t('preparingPdf').isNotEmpty
+                        ? l10n.t('preparingPdf')
+                        : 'Preparing PDF...',
+                  );
+                  final success =
+                      await DocumentPdfService.instance.shareDocumentAsPdf(
+                    record,
+                    sharePositionOrigin: origin,
+                  );
+                  if (!success && mounted) {
+                    showModuleToast(context, 'Unable to share as PDF',
+                        error: true);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_rounded,
+                    color: Color(0xFF10B981)),
+                title: const Text('Share Original File'),
+                subtitle: const Text('Share file directly via system apps'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _shareRawFile();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareRawFile() async {
+    final path = _attachment.path;
+    if (path == null || path.isEmpty) {
+      showModuleToast(context, 'No file available to share', error: true);
+      return;
+    }
+
     final file = await WalletMediaSync.instance.resolve(path);
     if (!mounted) return;
     if (file == null) {

@@ -15,6 +15,7 @@ import '../../services/vault_guard.dart';
 import '../../services/wallet_store.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/share_origin.dart';
 import '../../widgets/common/ino_background.dart';
 import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
@@ -41,6 +42,7 @@ import '../share/manage_shares_screen.dart';
 import '../share/share_settings_screen.dart';
 import '../shell/shell_controller.dart';
 import 'document_viewer_screen.dart';
+import '../../services/document_pdf_service.dart';
 import '../../widgets/common/ino_busy_overlay.dart';
 
 /// The reusable Wallet Detail screen - a premium *document manager*, not a
@@ -439,6 +441,53 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
 
   void _shareSingle(DocumentRecord r) => _startShare([r]);
 
+  Future<void> _shareSingleAsPdf(DocumentRecord r) async {
+    Navigator.of(context).pop();
+    final l10n = AppLocalizations.of(context);
+    final origin = shareOrigin(context);
+    try {
+      final success = await InoBusyOverlay.run(
+        context,
+        () => DocumentPdfService.instance.shareDocumentAsPdf(
+          r,
+          sharePositionOrigin: origin,
+        ),
+        message: l10n.t('preparingPdf'),
+      );
+      if (!success && mounted) {
+        _toast(l10n.t('couldNotShareDocument'));
+      }
+    } catch (_) {
+      if (mounted) {
+        _toast(l10n.t('couldNotShareDocument'));
+      }
+    }
+  }
+
+  Future<void> _shareSelectedAsPdf() async {
+    final docs = _records.where((r) => _selectedIds.contains(r.id)).toList();
+    if (docs.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    final origin = shareOrigin(context);
+    try {
+      final success = await InoBusyOverlay.run(
+        context,
+        () => DocumentPdfService.instance.shareMultipleDocumentsAsPdf(
+          docs,
+          sharePositionOrigin: origin,
+        ),
+        message: l10n.t('preparingPdf'),
+      );
+      if (!success && mounted) {
+        _toast(l10n.t('couldNotShareDocument'));
+      }
+    } catch (_) {
+      if (mounted) {
+        _toast(l10n.t('couldNotShareDocument'));
+      }
+    }
+  }
+
   /// Opens the Secure Share portal for [docs].
   ///
   /// Always navigates to [ShareSettingsScreen] (the portal). File paths are
@@ -779,6 +828,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 () => _shareSingle(r),
               ),
               _action(
+                Icons.picture_as_pdf_rounded,
+                l10n.t('shareAsPdf'),
+                () => _shareSingleAsPdf(r),
+              ),
+              _action(
                 DocumentProtectionStore.instance.isProtected(r.id)
                     ? Icons.lock_open_rounded
                     : Icons.lock_rounded,
@@ -1001,6 +1055,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       count: _selectedIds.length,
                       onCancel: _exitSelection,
                       onShare: _shareSelected,
+                      onSharePdf: _shareSelectedAsPdf,
                     ),
                   )
                 else
@@ -1310,11 +1365,13 @@ class _SelectionBar extends StatelessWidget {
     required this.count,
     required this.onCancel,
     required this.onShare,
+    required this.onSharePdf,
   });
 
   final int count;
   final VoidCallback onCancel;
   final VoidCallback onShare;
+  final VoidCallback onSharePdf;
 
   @override
   Widget build(BuildContext context) {
@@ -1353,6 +1410,48 @@ class _SelectionBar extends StatelessWidget {
               PressableScale(
                 child: Container(
                   decoration: BoxDecoration(
+                    color: palette.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: enabled ? onSharePdf : null,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.picture_as_pdf_rounded,
+                              color: enabled ? AppColors.primaryGreen : palette.textFaint,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              l10n.t('shareAsPdf'),
+                              style: TextStyle(
+                                color: enabled ? palette.textPrimary : palette.textFaint,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PressableScale(
+                child: Container(
+                  decoration: BoxDecoration(
                     gradient: AppColors.brandGradient,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     boxShadow: enabled
@@ -1380,8 +1479,8 @@ class _SelectionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
+                          horizontal: 16,
+                          vertical: 11,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1389,15 +1488,15 @@ class _SelectionBar extends StatelessWidget {
                             const Icon(
                               Icons.qr_code_2_rounded,
                               color: Colors.white,
-                              size: 20,
+                              size: 19,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               l10n.t('shareViaQr'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 14,
+                                fontSize: 13,
                               ),
                             ),
                           ],

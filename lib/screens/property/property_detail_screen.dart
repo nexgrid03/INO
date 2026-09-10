@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/perf/image_decode.dart';
@@ -28,7 +27,9 @@ import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/property/property_document_picker.dart';
 import '../../widgets/wallet_modules/module_kit.dart';
+import '../../services/document_pdf_service.dart';
 import '../reminders/all_reminders_screen.dart';
+import '../share/share_settings_screen.dart';
 import '../wallet/document_viewer_screen.dart';
 import 'property_attachment_viewer_screen.dart';
 import 'property_form_screen.dart';
@@ -97,6 +98,24 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     }
   }
 
+  DocumentRecord _docRecordForAttachment(PropertyAttachment a) {
+    final l10n = AppLocalizations.of(context);
+    final now = a.addedAt ?? DateTime.now();
+    return DocumentRecord(
+      id: a.linkedDocumentId ?? a.id,
+      name: a.name,
+      category: a.kind.localizedLabel(l10n),
+      icon: a.isImage ? Icons.image_rounded : Icons.description_rounded,
+      uploadedAt: now,
+      updatedAt: now,
+      status: DocumentStatus.active,
+      filePath: a.path,
+      notes: null,
+      tags: const [],
+      isFavorite: false,
+    );
+  }
+
   Future<void> _openAttachment(Property p, PropertyAttachment a) async {
     final l10n = AppLocalizations.of(context);
     final isProtected = a.isBiometricProtected ||
@@ -111,43 +130,52 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       if (!unlocked || !mounted) return;
     }
 
+    DocumentRecord? record;
     if (a.linkedDocumentId != null) {
       try {
-        final docs = await DocumentRepository.instance.listAll();
-        final doc = docs.firstWhere((d) => d.id == a.linkedDocumentId);
-        final record = DocumentRecord(
-          id: doc.id,
-          name: doc.name,
-          category: doc.category ?? 'Property',
-          icon: Icons.description_rounded,
-          uploadedAt: doc.createdAt,
-          updatedAt: doc.updatedAt,
-          status: DocumentStatus.active,
-          filePath: doc.filePath,
-          notes: doc.notes,
-          doctorName: doc.doctorName,
-          expiresAt: doc.expiresAt,
-          recordNumber: doc.recordNumber,
-          tags: doc.tags,
-          isFavorite: doc.isFavorite,
+        final doc = await DocumentRepository.instance.getById(
+          a.linkedDocumentId!,
+          wallet: 'Property Wallet',
         );
-
-        if (!mounted) return;
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => DocumentViewerScreen(
-              record: record,
-              walletName: doc.wallet,
-              accent: [
-                AppColors.primaryGreen,
-                AppColors.skyBrandSecondary,
-              ],
-              protected: isProtected,
-            ),
-          ),
-        );
-        return;
+        if (doc != null) {
+          record = DocumentRecord(
+            id: doc.id,
+            name: doc.name,
+            category: doc.category ?? a.kind.localizedLabel(l10n),
+            icon: a.isImage ? Icons.image_rounded : Icons.description_rounded,
+            uploadedAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+            status: DocumentStatus.active,
+            filePath: doc.filePath ?? a.path,
+            notes: doc.notes,
+            doctorName: doc.doctorName,
+            expiresAt: doc.expiresAt,
+            recordNumber: doc.recordNumber,
+            tags: doc.tags,
+            isFavorite: doc.isFavorite,
+          );
+        }
       } catch (_) {}
+    }
+
+    record ??= _docRecordForAttachment(a);
+
+    if (record.filePath != null && record.filePath!.isNotEmpty) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DocumentViewerScreen(
+            record: record!,
+            walletName: 'Property Wallet',
+            accent: [
+              AppColors.primaryGreen,
+              AppColors.skyBrandSecondary,
+            ],
+            protected: isProtected,
+          ),
+        ),
+      );
+      return;
     }
 
     if (!mounted) return;
@@ -170,86 +198,116 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
     await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.large),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.large),
+            ),
           ),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.border,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ListTile(
-                leading: Icon(a.kind.icon, color: AppColors.primaryGreen),
-                title: Text(a.name,
-                    style: AppText.title.copyWith(color: palette.textPrimary)),
-                subtitle: Text(a.kind.localizedLabel(l10n),
-                    style:
-                        AppText.caption.copyWith(color: palette.textSecondary)),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.visibility_rounded,
-                    color: Color(0xFF0891B2)),
-                title: const Text('Open / View Document'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _openAttachment(p, a);
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  isProtected
-                      ? Icons.lock_open_rounded
-                      : Icons.fingerprint_rounded,
-                  color:
-                      isProtected ? AppColors.warning : AppColors.primaryGreen,
-                ),
-                title: Text(isProtected
-                    ? 'Remove Biometric Lock'
-                    : 'Protect with Biometrics'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _toggleProtection(p, a);
-                },
-              ),
-              if (a.path != null && a.path!.isNotEmpty)
+                const SizedBox(height: AppSpacing.xs),
                 ListTile(
-                  leading: const Icon(Icons.share_rounded,
-                      color: Color(0xFF0284C7)),
-                  title: const Text('Share Document'),
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(a.kind.icon, color: AppColors.primaryGreen),
+                  title: Text(a.name,
+                      style: AppText.title.copyWith(color: palette.textPrimary)),
+                  subtitle: Text(a.kind.localizedLabel(l10n),
+                      style:
+                          AppText.caption.copyWith(color: palette.textSecondary)),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: const Icon(Icons.visibility_rounded,
+                      color: Color(0xFF0891B2)),
+                  title: const Text('Open / View Document'),
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    _shareAttachment(a);
+                    _openAttachment(p, a);
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.critical),
-                title: const Text('Remove Document',
-                    style: TextStyle(color: AppColors.critical)),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _deleteAttachment(p, a);
-                },
-              ),
-            ],
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(
+                    isProtected
+                        ? Icons.lock_open_rounded
+                        : Icons.fingerprint_rounded,
+                    color:
+                        isProtected ? AppColors.warning : AppColors.primaryGreen,
+                  ),
+                  title: Text(isProtected
+                      ? 'Remove Biometric Lock'
+                      : 'Protect with Biometrics'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _toggleProtection(p, a);
+                  },
+                ),
+                if (a.path != null && a.path!.isNotEmpty) ...[
+                  ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    leading: const Icon(Icons.qr_code_2_rounded,
+                        color: Color(0xFF0284C7)),
+                    title: Text(l10n.t('shareViaQr').isNotEmpty
+                        ? l10n.t('shareViaQr')
+                        : 'Share via QR'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _shareAttachmentViaQr(a);
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    leading: const Icon(Icons.picture_as_pdf_rounded,
+                        color: Color(0xFFEF4444)),
+                    title: Text(l10n.t('shareAsPdf').isNotEmpty
+                        ? l10n.t('shareAsPdf')
+                        : 'Share as PDF'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _shareAttachmentAsPdf(a);
+                    },
+                  ),
+                ],
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: const Icon(Icons.delete_outline_rounded,
+                      color: AppColors.critical),
+                  title: const Text('Remove Document',
+                      style: TextStyle(color: AppColors.critical)),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _deleteAttachment(p, a);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -291,29 +349,35 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     }
   }
 
-  Future<void> _shareAttachment(PropertyAttachment a) async {
-    if (a.path == null) return;
-    try {
-      // Resolve first: a stored attachment is an object in the bucket, and
-      // handing its object path to the OS share sheet shares nothing.
-      final file = await WalletMediaSync.instance.resolve(a.path);
-      if (file == null) {
-        if (mounted) {
-          showModuleToast(context, 'Unable to share document', error: true);
-        }
-        return;
-      }
-      if (!mounted) return;
-      final origin = shareOrigin(context);
-      await Share.shareXFiles(
-        [XFile(file.path, name: a.name)],
-        text: a.name,
-        sharePositionOrigin: origin,
-      );
-    } catch (_) {
-      if (mounted) {
-        showModuleToast(context, 'Unable to share document', error: true);
-      }
+  Future<void> _shareAttachmentViaQr(PropertyAttachment a) async {
+    final record = _docRecordForAttachment(a);
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareSettingsScreen(documents: [record]),
+      ),
+    );
+  }
+
+  Future<void> _shareAttachmentAsPdf(PropertyAttachment a) async {
+    final l10n = AppLocalizations.of(context);
+    final record = _docRecordForAttachment(a);
+    final origin = shareOrigin(context);
+
+    showModuleToast(
+      context,
+      l10n.t('preparingPdf').isNotEmpty
+          ? l10n.t('preparingPdf')
+          : 'Preparing PDF...',
+    );
+
+    final success = await DocumentPdfService.instance.shareDocumentAsPdf(
+      record,
+      sharePositionOrigin: origin,
+    );
+
+    if (!success && mounted) {
+      showModuleToast(context, 'Unable to share as PDF', error: true);
     }
   }
 

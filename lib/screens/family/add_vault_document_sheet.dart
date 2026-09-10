@@ -978,6 +978,20 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
           Switch.adaptive(
             value: _visibleToFamily,
             activeTrackColor: AppColors.primaryGreen,
+            activeThumbColor: Colors.white,
+            inactiveTrackColor: palette.isDark
+                ? const Color(0xFF334155)
+                : const Color(0xFFCBD5E1),
+            inactiveThumbColor: palette.isDark
+                ? const Color(0xFFE2E8F0)
+                : Colors.white,
+            trackOutlineColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? Colors.transparent
+                  : (palette.isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFF94A3B8)),
+            ),
             onChanged: _uploading
                 ? null
                 : (v) => setState(() => _visibleToFamily = v),
@@ -1647,6 +1661,20 @@ class _FieldTile extends StatelessWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       activeTrackColor: AppColors.primaryGreen,
+      activeThumbColor: Colors.white,
+      inactiveTrackColor: palette.isDark
+          ? const Color(0xFF334155)
+          : const Color(0xFFCBD5E1),
+      inactiveThumbColor: palette.isDark
+          ? const Color(0xFFE2E8F0)
+          : Colors.white,
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : (palette.isDark
+                ? const Color(0xFF475569)
+                : const Color(0xFF94A3B8)),
+      ),
       value: value,
       onChanged: onChanged,
       title: Row(
@@ -1675,15 +1703,60 @@ class _FieldTile extends StatelessWidget {
         ],
       ),
       subtitle: field.preview == null
-          ? null
-          : Text(
-              field.preview!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(
-                color: value ? palette.textSecondary : palette.textFaint,
-                fontSize: 11.5,
-                decoration: value ? null : TextDecoration.lineThrough,
+          ? (!value
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Hidden from family',
+                    style: AppText.caption.copyWith(
+                      color: AppColors.warning,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )
+              : null)
+          : Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      field.preview!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: value
+                            ? palette.textSecondary
+                            : palette.textSecondary.withValues(alpha: 0.8),
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                  if (!value) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.4),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Text(
+                        'Hidden',
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
     );

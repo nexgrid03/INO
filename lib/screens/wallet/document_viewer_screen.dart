@@ -20,6 +20,7 @@ import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/auth_service.dart';
 import '../../services/document_file_service.dart';
+import '../../services/document_pdf_service.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/offline_document_store.dart';
 import '../../services/screen_security_service.dart';
@@ -538,6 +539,28 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (mounted) {
         _snack(AppLocalizations.of(context).t('couldNotShareDocument'),
             error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final l10n = AppLocalizations.of(context);
+    final origin = shareOrigin(context);
+    try {
+      final ok = await DocumentPdfService.instance.shareDocumentAsPdf(
+        _record,
+        sharePositionOrigin: origin,
+      );
+      if (!ok && mounted) {
+        _snack(l10n.t('couldNotShareDocument'), error: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        _snack(l10n.t('couldNotShareDocument'), error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1228,6 +1251,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         switch (value) {
           case 'offline':
             _toggleOffline();
+          case 'sharePdf':
+            _sharePdf();
           case 'rename':
             _rename();
           case 'move':
@@ -1251,6 +1276,16 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               l10n.t(OfflineDocumentStore.instance.isSaved(_record.id)
                   ? 'removeOfflineCopy'
                   : 'saveToAppOffline'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'sharePdf',
+            child: Row(
+              children: [
+                Icon(Icons.picture_as_pdf_rounded, size: 18, color: AppColors.primaryGreen),
+                const SizedBox(width: 10),
+                Text(l10n.t('shareAsPdf')),
+              ],
             ),
           ),
           PopupMenuItem(value: 'rename', child: Text(l10n.t('rename'))),
