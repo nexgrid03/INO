@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/responsive/responsive_extensions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_style.dart';
@@ -29,8 +30,9 @@ class NavItem {
 /// the page, lifted by a brand glow, a cool ambient shadow and a tight contact
 /// edge.
 ///
-/// Five slots: Home · Vault · **+** · Alerts · Profile, sized per device by
-/// [_DockMetrics] rather than baked to one handset.
+/// Five slots: Home · Vault · **+** · Alerts · Profile. Its dimensions all
+/// live in [_DockMetrics], so [heightOf] can tell the screens scrolling beneath
+/// it exactly how much room to leave.
 ///
 /// Three pieces of motion, and none of them is decoration:
 ///  * the active destination is marked by a soft mountain crest that
@@ -577,9 +579,6 @@ class _InoBottomNavState extends State<InoBottomNav>
                                     child: _ScanButton(
                                       key: widget.quickAddKey,
                                       metrics: m,
-                                      label: InoBottomNav.tabs[i].label(
-                                        AppLocalizations.of(context),
-                                      ),
                                       progress: _menu,
                                       onTap: _toggleMenu,
                                       onHoldStart: _onHoldStart,
@@ -629,15 +628,21 @@ class _InoBottomNavState extends State<InoBottomNav>
 /// The row slot the centre "+" occupies. It is never a resting destination.
 const int _kScanSlot = 2;
 
-/// Dock geometry, resolved per device instead of baked to one handset.
+/// The dock's dimensions.
 ///
-/// Two things break a bottom bar on hardware other than the one it was drawn
-/// on: a fixed bar height plus a fixed margin stacked on the *whole* system
-/// inset eats a chunk of a short screen, and fixed-size labels inside fixed
-/// fifths clip on narrow ones (the Hindi and Telugu strings are the first to
-/// go). Everything here scales off the real viewport, and the gap under the
-/// bar distinguishes a gesture pill from an opaque 3-button nav bar -
-/// mistaking the two is what makes a dock look sliced in half.
+/// These are the bar's original sizes, restored verbatim - the height curve,
+/// the 16px side margins, the 24px icons, the 10.5pt labels and the 54px "+".
+/// A previous pass scaled all of them off the viewport width, which shrank the
+/// whole dock (the "+" most visibly, from 54px to ~31px on a 360dp phone) on
+/// exactly the compact handsets it was meant to help.
+///
+/// The one term that still varies is [barHeight], which goes through the app's
+/// own carousel-height curve - that already accounts for screen width AND the
+/// user's text scale, and it is what the bar always used.
+///
+/// Gathered in one place rather than scattered through the build so
+/// [InoBottomNav.heightOf] can answer what the dock actually occupies, and the
+/// screens that scroll underneath it can pad by that instead of guessing.
 class _DockMetrics {
   const _DockMetrics({
     required this.barHeight,
@@ -647,6 +652,7 @@ class _DockMetrics {
     required this.iconZone,
     required this.iconSize,
     required this.labelSize,
+    required this.gemSize,
   });
 
   final double barHeight;
@@ -654,37 +660,33 @@ class _DockMetrics {
   final double topGap;
   final double bottomGap;
 
-  /// Fixed icon band every item shares - the flat icons and the "+" gem alike -
-  /// so every label sits on one baseline.
+  /// The icon band the flat tabs share, so every label sits on one baseline.
+  /// Slightly taller than the glyph itself, leaving headroom for the active
+  /// tab's 1.08 scale to play without clipping.
   final double iconZone;
   final double iconSize;
   final double labelSize;
 
+  /// Diameter of the centre "+" gem. It is centred in the bar on its own rather
+  /// than hanging off [iconZone] - at this size it is taller than the flat
+  /// icons' band, which is exactly what makes it read as the primary action.
+  final double gemSize;
+
   /// The dock is a capsule, so the radius is simply half the height.
   double get radius => barHeight / 2;
 
-  factory _DockMetrics.of(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final size = mq.size;
-    final inset = mq.padding.bottom;
-    // 390 = the iPhone 14 / Pixel 8 class this was drawn on. 360dp Galaxy
-    // A-series and 320dp compacts scale down; big phones barely move.
-    final s = (size.width / 390).clamp(0.84, 1.05);
-    // Short screens lose the most to a tall dock, so they get the compact bar.
-    final short = size.height < 700;
-
-    return _DockMetrics(
-      barHeight: ((short ? 66.0 : 72.0) * s).clamp(64.0, 76.0),
-      sideMargin: (size.width * 0.04).clamp(12.0, 18.0),
-      topGap: short ? 4.0 : 6.0,
-      bottomGap: inset >= 40
-          ? inset + 4
-          : (inset > 0 ? (inset * 0.55).clamp(8.0, 18.0) : 10.0),
-      iconZone: ((short ? 36.0 : 40.0) * s).clamp(34.0, 42.0),
-      iconSize: (23.0 * s).clamp(21.0, 25.0),
-      labelSize: (11.0 * s).clamp(10.0, 12.0),
-    );
-  }
+  factory _DockMetrics.of(BuildContext context) => _DockMetrics(
+        barHeight: context.horizontalCardHeight(66),
+        sideMargin: 16,
+        topGap: 0,
+        // The SafeArea + 12px bottom padding the bar used to be wrapped in,
+        // expressed directly so [InoBottomNav.heightOf] can see it.
+        bottomGap: MediaQuery.paddingOf(context).bottom + 12,
+        iconZone: 28,
+        iconSize: 24,
+        labelSize: 10.5,
+        gemSize: 54,
+      );
 }
 
 /// The soft mountain crest (WhatsApp style) that marks the active destination.
@@ -1031,10 +1033,11 @@ class _TabButtonState extends State<_TabButton>
   }
 }
 
-/// The centre "+": a CONTAINED brand gem - a gradient circle that fills the
-/// shared icon zone, so it sits flush with the flat icons on every device
-/// instead of being raised above the bar. Label and baseline match the other
-/// items exactly.
+/// The centre "+": a 54px brand gem, centred in the bar on its own baseline.
+///
+/// Deliberately larger than the flat icons and label-less - that is what makes
+/// it read as the dock's primary action rather than a fifth destination, and it
+/// is the size the bar has always used.
 ///
 /// It compresses on press and rotates 0 -> 135 degrees (+ becomes x) as either
 /// quick-menu overlay opens. Tap toggles the fan-out; press-and-hold drives the
@@ -1043,7 +1046,6 @@ class _ScanButton extends StatefulWidget {
   const _ScanButton({
     super.key,
     required this.metrics,
-    required this.label,
     required this.progress,
     required this.onTap,
     required this.onHoldStart,
@@ -1053,7 +1055,6 @@ class _ScanButton extends StatefulWidget {
   });
 
   final _DockMetrics metrics;
-  final String label;
   final Animation<double> progress;
   final VoidCallback onTap;
   final void Function(LongPressStartDetails) onHoldStart;
@@ -1074,11 +1075,7 @@ class _ScanButtonState extends State<_ScanButton> {
 
   @override
   Widget build(BuildContext context) {
-    final m = widget.metrics;
-    final palette = AppPalette.of(context);
-    // The gem fills the shared icon zone exactly, so it stays flush with the
-    // flat icons at every size instead of out-growing the capsule.
-    final gem = m.iconZone;
+    final gem = widget.metrics.gemSize;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1092,75 +1089,54 @@ class _ScanButtonState extends State<_ScanButton> {
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
       onTap: widget.onTap,
-      child: AnimatedScale(
-        // Deeper than a flat tab's dip: this is the dock's primary action.
-        scale: _pressed ? 0.88 : 1.0,
-        duration: const Duration(milliseconds: 130),
-        curve: Curves.easeOutCubic,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: m.iconZone,
-              child: Center(
-                child: Container(
-                  width: gem,
-                  height: gem,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.primaryGreen,
-                        AppColors.primaryGreen.withValues(alpha: 0.82),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.45),
-                      width: 1.2,
-                    ),
-                    // Tight brand glow, kept inside the bar so the gem never
-                    // reads as "popping above" the dock.
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.38),
-                        blurRadius: 12,
-                        spreadRadius: -2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: widget.progress,
-                      builder: (context, child) => Transform.rotate(
-                        // A single "+" that rotates 0 -> 135 degrees so it
-                        // reads as an "x" once a quick menu is open.
-                        angle: widget.progress.value * (3 * math.pi / 4),
-                        child: child,
-                      ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: m.iconSize,
-                      ),
-                    ),
-                  ),
+      child: Center(
+        child: AnimatedScale(
+          // Deeper than a flat tab's dip: this is the dock's primary action.
+          scale: _pressed ? 0.90 : 1.0,
+          duration: const Duration(milliseconds: 130),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            width: gem,
+            height: gem,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primaryGreen,
+                  AppColors.primaryGreen.withValues(alpha: 0.82),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.45),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.42),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(
+              child: AnimatedBuilder(
+                animation: widget.progress,
+                builder: (context, child) => Transform.rotate(
+                  // A single "+" that rotates 0 -> 135 degrees so it reads as
+                  // an "x" once a quick menu is open.
+                  angle: widget.progress.value * (3 * math.pi / 4),
+                  child: child,
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 26,
                 ),
               ),
             ),
-            const SizedBox(height: 2),
-            _DockLabel(
-              label: widget.label,
-              color: palette.isDark
-                  ? palette.textPrimary.withValues(alpha: 0.62)
-                  : palette.textSecondary,
-              metrics: m,
-              selected: false,
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -87,6 +87,13 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       initialTime: _time ??
           TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
       helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
+      // Open on keyboard entry, NOT the dial. The Material dial snaps the
+      // minute hand to the nearest 5 when the finger lifts, so a dial-first
+      // picker literally cannot express 10:26 - which is why reminders could
+      // only ever be set on multiples of five. Input mode takes any minute, and
+      // the toggle in the corner still hands over to the dial for anyone who
+      // prefers to spin it.
+      initialEntryMode: TimePickerEntryMode.input,
     );
     if (picked == null || !mounted) return;
     setState(() {

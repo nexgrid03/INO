@@ -13,9 +13,9 @@ import '../../services/vault_guard.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
-import '../../widgets/divine_glass/divine_glass.dart';
 import '../../widgets/home/empty_state.dart';
 import '../../widgets/profile/settings_scaffold.dart';
+import '../../widgets/pressable_scale.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
 import '../cards/cards_wallet_screen.dart';
 import '../family/family_vault_screen.dart';
@@ -181,32 +181,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           title: l10n.t('notifications'),
           actions: [
             if (_center.unreadCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: TextButton(
-                    onPressed: () async {
-                      await _center.markAllRead();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      minimumSize: const Size(0, 36),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      foregroundColor: AppColors.primaryGreen,
-                    ),
-                    child: Text(
-                      l10n.t('markAllRead'),
-                      style: TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
+              _MarkAllReadPill(
+                label: l10n.t('markAllRead'),
+                onTap: _center.markAllRead,
               ),
           ],
           child: _buildBody(
@@ -249,72 +226,104 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         children: [
           if (unreadItems.isNotEmpty) ...[
-            if (readItems.isNotEmpty)
-              _SectionHeader(
-                title: 'UNREAD NOTIFICATIONS',
-                count: unreadItems.length,
-                color: AppColors.primaryGreen,
-              ),
-            for (final n in unreadItems) ...[
-              const SizedBox(height: 8),
-              Dismissible(
-                key: ValueKey(n.id),
-                direction: DismissDirection.endToStart,
-                background: _dismissBg(),
-                onDismissed: (_) => _center.dismiss(n.id),
-                child: _NotificationTile(
-                  notification: n,
-                  onTap: () => _handleNotificationTap(n),
-                ),
-              ),
-            ],
+            _SectionHeader(
+              title: l10n.t('unread'),
+              count: unreadItems.length,
+              accent: AppColors.primaryGreen,
+            ),
+            for (final n in unreadItems) _dismissible(l10n, n),
           ],
           if (readItems.isNotEmpty) ...[
-            const SizedBox(height: 20),
+            SizedBox(height: unreadItems.isEmpty ? 0 : AppSpacing.lg),
             _SectionHeader(
-              title: 'RECENT ACTIVITY',
+              title: l10n.t('recentActivity'),
               count: readItems.length,
-              color: palette.textFaint,
+              accent: palette.textFaint,
             ),
-            for (final n in readItems) ...[
-              const SizedBox(height: 8),
-              Dismissible(
-                key: ValueKey(n.id),
-                direction: DismissDirection.endToStart,
-                background: _dismissBg(),
-                onDismissed: (_) => _center.dismiss(n.id),
-                child: _NotificationTile(
-                  notification: n,
-                  onTap: () => _handleNotificationTap(n),
-                ),
-              ),
-            ],
+            for (final n in readItems) _dismissible(l10n, n),
           ],
         ],
       ),
     );
   }
 
-  Widget _dismissBg() => Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        decoration: BoxDecoration(
-          color: AppColors.critical.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(AppRadius.card),
+  Widget _dismissible(AppLocalizations l10n, AppNotification n) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Dismissible(
+          key: ValueKey(n.id),
+          direction: DismissDirection.endToStart,
+          background: _dismissBg(l10n),
+          onDismissed: (_) => _center.dismiss(n.id),
+          child: _NotificationTile(
+            notification: n,
+            onTap: () => _handleNotificationTap(n),
+          ),
         ),
-        child: const Icon(
-          Icons.delete_outline_rounded,
-          color: AppColors.critical,
+      );
+
+  /// What shows behind a card as it is swiped away.
+  ///
+  /// A bare icon on a faint wash read as an accident rather than an action, so
+  /// this states the outcome: a tinted panel matching the card's own shape,
+  /// with the word for it beside the glyph.
+  Widget _dismissBg(AppLocalizations l10n) => Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 22),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              AppColors.critical.withValues(alpha: 0.08),
+              AppColors.critical.withValues(alpha: 0.24),
+            ],
+          ),
+          border: Border.all(
+            color: AppColors.critical.withValues(alpha: 0.28),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.critical,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l10n.t('delete'),
+              style: const TextStyle(
+                color: AppColors.critical,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
       );
 }
 
+/// One notification.
+///
+/// The old card was a frosted pane over the screen's teal aurora, which left
+/// the copy sitting on a moving, similarly-toned backdrop: legible in a mockup,
+/// washed out on a phone. So the card carries its own opaque ground now, and
+/// the theme shows through around it rather than behind the text.
+///
+/// Unread state is carried by three things at once, because one is easy to
+/// miss: a colour rail down the leading edge, a brighter icon, and a brand dot
+/// in the trailing corner. Read cards drop all three and mute their icon, so
+/// the two states are separable at a glance rather than by hunting for a dot.
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification, required this.onTap});
 
   final AppNotification notification;
   final VoidCallback onTap;
 
+  /// Glyph and accent per category — the colour the rail and icon share, so
+  /// each card reads as one accent rather than two competing ones.
   ({IconData icon, Color color}) get _style {
     switch (notification.category) {
       case NotificationCategory.reminder:
@@ -343,158 +352,405 @@ class _NotificationTile extends StatelessWidget {
     final palette = AppPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final style = _style;
-    final glass = divineGlassEnabled(context);
+    final dark = palette.isDark;
+    final unread = !notification.read;
 
-    final body = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
+    // A read card recedes: same layout, less ink. Applied as one alpha on the
+    // accent rather than a second set of colours to keep in step.
+    final accent = unread ? style.color : style.color.withValues(alpha: 0.45);
+    final radius = BorderRadius.circular(AppRadius.card);
+
+    // The card's own ground stays NEUTRAL, and the category colour is confined
+    // to the rail and the gem. Tinting the whole card by category turned the
+    // list into a pastel rainbow — pink security cards, cream reminders — which
+    // is a different app's palette, not INO's. Unread instead takes the
+    // faintest brand wash, so the page reads teal the way every other screen
+    // does and the accents stay accents.
+    final base = dark ? palette.surface : Colors.white;
+    // Unread sits solid and forward; read is let through to the aurora behind
+    // it so it settles back. Doing it with alpha on the fill rather than an
+    // [Opacity] around the card keeps it to one paint instead of a saveLayer
+    // per row down a scrolling list.
+    final surface = unread
+        ? Color.alphaBlend(
+            AppColors.primaryGreen.withValues(alpha: dark ? 0.07 : 0.03),
+            base,
+          )
+        : base.withValues(alpha: dark ? 0.55 : 0.62);
+
+    return Semantics(
+      button: true,
+      selected: unread,
+      child: DecoratedBox(
+        // Shadow on the OUTER box: the clip below would eat it.
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: unread
+                  ? AppColors.primaryGreen.withValues(alpha: dark ? 0.22 : 0.14)
+                  : Colors.black.withValues(alpha: dark ? 0.22 : 0.05),
+              blurRadius: unread ? 18 : 10,
+              spreadRadius: -4,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: style.color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
+            color: surface,
+            borderRadius: radius,
             border: Border.all(
-              color: style.color.withValues(alpha: 0.22),
+              color: unread
+                  ? AppColors.primaryGreen.withValues(alpha: dark ? 0.30 : 0.18)
+                  : palette.border,
             ),
           ),
-          alignment: Alignment.center,
-          child: Icon(style.icon, color: style.color, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      notification.resolveTitle(l10n),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subtitle.copyWith(
-                        color: palette.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              splashColor: style.color.withValues(alpha: 0.10),
+              highlightColor: style.color.withValues(alpha: 0.05),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // The unread rail. Read cards keep the same 4px so both
+                    // states share one text baseline down the list.
+                    SizedBox(
+                      width: 4,
+                      child: unread
+                          ? DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    style.color,
+                                    style.color.withValues(alpha: 0.45),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                  if (!notification.read) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGreen,
-                        shape: BoxShape.circle,
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(13, 14, 14, 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CategoryGem(
+                              icon: style.icon,
+                              color: accent,
+                              vivid: unread,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    notification.resolveTitle(l10n),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.subtitle.copyWith(
+                                      color: palette.textPrimary,
+                                      fontWeight:
+                                          unread ? FontWeight.w800 : FontWeight.w600,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    notification.resolveBody(l10n),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.body.copyWith(
+                                      color: palette.textSecondary,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Time and unread dot share one trailing stack, so
+                            // the card's right edge stays a single column
+                            // however many lines the title runs to.
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formatRelativeDate(l10n, notification.at),
+                                  style: AppText.caption.copyWith(
+                                    color: palette.textFaint,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (unread) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: 9,
+                                    height: 9,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryGreen,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.primaryGreen
+                                              .withValues(alpha: 0.45),
+                                          blurRadius: 6,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                notification.resolveBody(l10n),
-                style: AppText.body.copyWith(
-                  color: palette.textSecondary,
-                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                formatRelativeDate(l10n, notification.at),
-                style: AppText.caption.copyWith(color: palette.textFaint),
-              ),
-            ],
+            ),
           ),
         ),
-      ],
-    );
-
-    final card = glass
-        ? AdaptiveGlassCard(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            radius: AppRadius.card,
-            child: body,
-          )
-        : Material(
-            color: notification.read
-                ? palette.surface
-                : Color.alphaBlend(
-                    style.color.withValues(alpha: 0.05),
-                    palette.surface,
-                  ),
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            clipBehavior: Clip.antiAlias,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: palette.border),
-              ),
-              padding: const EdgeInsets.all(14),
-              child: body,
-            ),
-          );
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: card,
       ),
     );
   }
 }
 
+/// The rounded category glyph.
+///
+/// [vivid] is the unread treatment: a stronger fill, a defined rim and a soft
+/// halo. Read notifications get the same shape at a fraction of the ink, which
+/// is what lets the eye skip them.
+class _CategoryGem extends StatelessWidget {
+  const _CategoryGem({
+    required this.icon,
+    required this.color,
+    required this.vivid,
+  });
+
+  final IconData icon;
+  final Color color;
+  final bool vivid;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: vivid ? 0.26 : 0.12),
+            color.withValues(alpha: vivid ? 0.13 : 0.06),
+          ],
+        ),
+        border: Border.all(
+          color: color.withValues(alpha: vivid ? 0.38 : 0.18),
+        ),
+        boxShadow: vivid
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.20),
+                  blurRadius: 10,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+}
+
+/// A list section's title.
+///
+/// The hairline rule this used to stretch across the row read as clutter over
+/// the screen's aurora, so the label carries itself: an accent dot, the title,
+/// and the count in a tinted chip.
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
     required this.count,
-    required this.color,
+    required this.accent,
   });
 
   final String title;
   final int count;
-  final Color color;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
       child: Row(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 9),
+          // Shrinks rather than clips: the Hindi and Telugu section titles are
+          // considerably longer than the English ones.
+          Flexible(
+            child: Text(
+              title.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: accent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 9),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: accent.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
             ),
             child: Text(
               '$count',
               style: TextStyle(
-                color: color,
+                color: accent,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
+                height: 1.2,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Container(height: 1, color: palette.border)),
         ],
+      ),
+    );
+  }
+}
+
+/// The "Mark all read" action in the Notifications header.
+///
+/// This used to be a bare [TextButton] tinted `primaryGreen`, sitting on the
+/// screen's teal header — brand text on a brand-tinted backdrop, which left it
+/// barely distinguishable from the gradient behind it. A destructive-ish bulk
+/// action that reads as decoration is one nobody finds.
+///
+/// So it is a filled pill instead, and deliberately in the same visual language
+/// as the bottom dock's "+" gem: brand gradient, a white hairline rim, and a
+/// tight brand glow. That reads as part of INO rather than a generic chip
+/// dropped into the app bar, and white-on-brand clears contrast comfortably
+/// where brand-on-brand never could.
+///
+/// The label is required to stay, so it has to survive translation: the Hindi
+/// and Telugu strings are several times the width of "Mark all read". The pill
+/// takes at most a little under half the screen and scales its contents down
+/// inside that, so the text is always whole and never clipped to an ellipsis.
+class _MarkAllReadPill extends StatelessWidget {
+  const _MarkAllReadPill({required this.label, required this.onTap});
+
+  final String label;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.primaryGreen;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Center(
+        child: PressableScale(
+          pressedScale: 0.94,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.46,
+            ),
+            // Shadow on the OUTER box: the clip below would eat it.
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(19),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.36),
+                    blurRadius: 14,
+                    spreadRadius: -3,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(19),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent, accent.withValues(alpha: 0.84)],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    width: 1.2,
+                  ),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onTap,
+                    splashColor: Colors.white.withValues(alpha: 0.24),
+                    highlightColor: Colors.transparent,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.done_all_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                height: 1.1,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

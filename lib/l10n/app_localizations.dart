@@ -285,6 +285,7 @@ const Map<String, Map<String, String>> _strings = {
     'viewMarkets': 'View markets',
     'markets': 'Markets',
     'recentActivity': 'Recent Activity',
+    'unread': 'Unread',
     'recentActivitySubtitle': 'Your latest updates',
     'viewAll': 'View all',
     'totalNetWorth': 'Total Net Worth',
@@ -624,6 +625,9 @@ const Map<String, Map<String, String>> _strings = {
     'chooseSourceHint': 'Choose a document source above to get started.',
     'readyToSave': 'Ready to save',
     'remove': 'Remove',
+    'addPage': 'Add page',
+    'pageCount': '{n} pages',
+    'pagesCombined': 'These pages are saved as one document.',
     'protectWithBiometrics': 'Protect with Biometrics',
     'protectBiometricsSubtitle':
         'Require fingerprint or Face ID to open this document.',
@@ -1576,7 +1580,7 @@ const Map<String, Map<String, String>> _strings = {
         'Screenshots and screen recording are blocked while this document is '
             'open.',
     'viewOnceProtectionOther':
-        'iOS cannot block screenshots — no app can. The one-time link is the '
+        'Screenshots are not blocked here. The one-time link is the '
             'protection: it expires permanently the moment you open it.',
     'viewOnceCaptureTitle': 'Screen recording detected',
     'viewOnceCaptureBody':
@@ -1588,7 +1592,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO can display images in-app. This file needs your device’s viewer.',
     'openInSystemViewer': 'Open in system viewer',
     'viewOnceExternalWarning':
-        'Opening outside INO means screenshot protection no longer applies. '
+        'Opening outside INO means none of its protections apply. '
             'The file is deleted from this device as soon as you return.',
     'viewOnceCloseTitle': 'Close this document?',
     'viewOnceCloseBody':
@@ -2551,6 +2555,7 @@ const Map<String, Map<String, String>> _strings = {
     'viewMarkets': 'बाज़ार देखें',
     'markets': 'बाज़ार',
     'recentActivity': 'हाल की गतिविधि',
+    'unread': 'अपठित',
     'recentActivitySubtitle': 'आपके नवीनतम अपडेट',
     'viewAll': 'सभी देखें',
     'totalNetWorth': 'कुल निवल संपत्ति',
@@ -2876,6 +2881,9 @@ const Map<String, Map<String, String>> _strings = {
     'chooseSourceHint': 'आरंभ करने के लिए ऊपर एक दस्तावेज़ स्रोत चुनें।',
     'readyToSave': 'सहेजने के लिए तैयार',
     'remove': 'हटाएँ',
+    'addPage': 'पेज जोड़ें',
+    'pageCount': '{n} पेज',
+    'pagesCombined': 'ये पेज एक ही दस्तावेज़ के रूप में सहेजे जाएँगे।',
     'protectWithBiometrics': 'बायोमेट्रिक्स से सुरक्षित करें',
     'protectBiometricsSubtitle': 'इस दस्तावेज़ को खोलने के लिए फिंगरप्रिंट या Face ID आवश्यक करें।',
     'hintAddDocName': 'उदा. आधार कार्ड',
@@ -3780,7 +3788,7 @@ const Map<String, Map<String, String>> _strings = {
     'viewOnceProtectionAndroid':
         'यह दस्तावेज़ खुला रहने तक स्क्रीनशॉट और स्क्रीन रिकॉर्डिंग अवरुद्ध हैं।',
     'viewOnceProtectionOther':
-        'iOS स्क्रीनशॉट नहीं रोक सकता — कोई ऐप नहीं रोक सकता। सुरक्षा एक-बार '
+        'यहाँ स्क्रीनशॉट अवरुद्ध नहीं हैं। सुरक्षा एक-बार '
             'लिंक ही है: खोलते ही यह हमेशा के लिए समाप्त हो जाता है।',
     'viewOnceCaptureTitle': 'स्क्रीन रिकॉर्डिंग का पता चला',
     'viewOnceCaptureBody':
@@ -3792,7 +3800,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO ऐप में चित्र दिखा सकता है। इस फ़ाइल के लिए आपके डिवाइस का व्यूअर चाहिए।',
     'openInSystemViewer': 'सिस्टम व्यूअर में खोलें',
     'viewOnceExternalWarning':
-        'INO के बाहर खोलने पर स्क्रीनशॉट सुरक्षा लागू नहीं होती। लौटते ही '
+        'INO के बाहर खोलने पर इसकी कोई सुरक्षा लागू नहीं होती। लौटते ही '
             'फ़ाइल इस डिवाइस से हटा दी जाती है।',
     'viewOnceCloseTitle': 'यह दस्तावेज़ बंद करें?',
     'viewOnceCloseBody':
@@ -4811,6 +4819,7 @@ const Map<String, Map<String, String>> _strings = {
     'viewMarkets': 'మార్కెట్‌లు చూడండి',
     'markets': 'మార్కెట్‌లు',
     'recentActivity': 'ఇటీవలి కార్యకలాపం',
+    'unread': 'చదవనివి',
     'recentActivitySubtitle': 'మీ తాజా అప్‌డేట్‌లు',
     'viewAll': 'అన్నీ చూడండి',
     'totalNetWorth': 'మొత్తం నికర విలువ',
@@ -5136,6 +5145,9 @@ const Map<String, Map<String, String>> _strings = {
     'chooseSourceHint': 'ప్రారంభించడానికి పైన ఒక డాక్యుమెంట్ మూలాన్ని ఎంచుకోండి.',
     'readyToSave': 'సేవ్ చేయడానికి సిద్ధం',
     'remove': 'తీసివేయి',
+    'addPage': 'పేజీ జోడించు',
+    'pageCount': '{n} పేజీలు',
+    'pagesCombined': 'ఈ పేజీలు ఒకే పత్రంగా సేవ్ అవుతాయి.',
     'protectWithBiometrics': 'బయోమెట్రిక్స్‌తో రక్షించు',
     'protectBiometricsSubtitle': 'ఈ డాక్యుమెంట్‌ను తెరవడానికి వేలిముద్ర లేదా Face ID అవసరం.',
     'hintAddDocName': 'ఉదా. ఆధార్ కార్డ్',
@@ -6063,7 +6075,7 @@ const Map<String, Map<String, String>> _strings = {
         'ఈ పత్రం తెరిచి ఉన్నంతసేపు స్క్రీన్‌షాట్‌లు మరియు స్క్రీన్ రికార్డింగ్ '
             'నిరోధించబడతాయి.',
     'viewOnceProtectionOther':
-        'iOS స్క్రీన్‌షాట్‌లను ఆపలేదు — ఏ యాప్ కూడా ఆపలేదు. రక్షణ ఒకసారి-చూసే '
+        'ఇక్కడ స్క్రీన్‌షాట్‌లు నిరోధించబడవు. రక్షణ ఒకసారి-చూసే '
             'లింకే: మీరు తెరిచిన క్షణమే అది శాశ్వతంగా ముగుస్తుంది.',
     'viewOnceCaptureTitle': 'స్క్రీన్ రికార్డింగ్ గుర్తించబడింది',
     'viewOnceCaptureBody':
@@ -6075,7 +6087,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO యాప్‌లో చిత్రాలను చూపగలదు. ఈ ఫైల్‌కు మీ పరికర వీక్షకుడు అవసరం.',
     'openInSystemViewer': 'సిస్టమ్ వీక్షకుడిలో తెరువు',
     'viewOnceExternalWarning':
-        'INO వెలుపల తెరిస్తే స్క్రీన్‌షాట్ రక్షణ వర్తించదు. మీరు తిరిగి రాగానే '
+        'INO వెలుపల తెరిస్తే దాని ఏ రక్షణలూ వర్తించవు. మీరు తిరిగి రాగానే '
             'ఫైల్ ఈ పరికరం నుండి తొలగించబడుతుంది.',
     'viewOnceCloseTitle': 'ఈ పత్రాన్ని మూసివేయాలా?',
     'viewOnceCloseBody':
