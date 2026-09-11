@@ -22,7 +22,7 @@ if (hasReleaseSigning) {
 }
 
 android {
-    namespace = "com.ino.app"
+    namespace = "com.nexgrid.ino"
     // Pinned to 36 explicitly: transitive plugins (flutter_plugin_android_lifecycle,
     // file_picker) declare minCompileSdk=36 in their AAR metadata, so the app must
     // compile against SDK 36 or `checkDebugAarMetadata` fails. Flutter 3.44's
@@ -42,7 +42,7 @@ android {
 
     defaultConfig {
         // Production Application ID for INO App
-        applicationId = "com.ino.app"
+        applicationId = "com.nexgrid.ino"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

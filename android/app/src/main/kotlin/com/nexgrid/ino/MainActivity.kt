@@ -1,4 +1,4 @@
-package com.ino.app
+package com.nexgrid.ino
 
 import android.content.ContentValues
 import android.content.Intent

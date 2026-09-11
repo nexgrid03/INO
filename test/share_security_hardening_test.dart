@@ -140,7 +140,7 @@ void main() {
         expect(entry['relation'], contains('delegate_permission/common.handle_all_urls'));
 
         final target = entry['target'] as Map<String, dynamic>;
-        expect(target['package_name'], equals('com.ino.app'));
+        expect(target['package_name'], equals('com.nexgrid.ino'));
         expect(target['namespace'], equals('android_app'));
 
         final certs = target['sha256_cert_fingerprints'] as List<dynamic>;
