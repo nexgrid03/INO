@@ -45,8 +45,9 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
 
-        // Screenshot / screen-recording protection for sensitive screens (the
-        // view-once document viewer). FLAG_SECURE is enforced by the OS: the
+        // Screenshot / screen-recording protection. INO allows screenshots
+        // everywhere except the Family Vault, so the Dart side only calls
+        // "enable" for that screen. FLAG_SECURE is enforced by the OS: the
         // system refuses to screenshot the window, blanks it in screen
         // recordings and in the recents thumbnail, and blocks mirroring to
         // non-secure displays.

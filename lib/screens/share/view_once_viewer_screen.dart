@@ -36,9 +36,12 @@ import '../../widgets/common/ino_loader.dart';
 ///      and held **in memory**, never written to disk.
 ///
 /// Screen-capture protection is on for the entire life of this screen (see
-/// [ScreenSecurityService]): real blocking on Android via `FLAG_SECURE`, and on
-/// iOS the best the platform allows - app-switcher masking plus live
-/// screen-recording and screenshot detection, which hide the document.
+/// [ScreenSecurityService]), but it does NOT block screenshots: INO allows them
+/// everywhere except the Family Vault. What stays on is app-switcher masking
+/// plus live screen-recording and screenshot detection, which hide the document
+/// and mark the view as spent. The real protection here is the one-time token -
+/// a screenshot only ever captures a document the recipient was already
+/// authorised to see once, and the link is dead the moment it opens.
 class ViewOnceViewerScreen extends StatefulWidget {
   const ViewOnceViewerScreen({super.key, required this.token});
 
@@ -81,6 +84,8 @@ class _ViewOnceViewerScreenState extends State<ViewOnceViewerScreen> {
     super.initState();
     // Protection goes on IMMEDIATELY - before any document can appear, and even
     // while the gate is showing (the file name alone is worth protecting).
+    // No `blockScreenshots:` - screenshots stay allowed outside the Family
+    // Vault; this wires up masking and capture detection only.
     ScreenSecurityService.instance.enable();
     ScreenSecurityService.instance.screenshotTaken.addListener(_onScreenshot);
     ScreenSecurityService.instance.captureDetected.addListener(_onCaptureChanged);
@@ -822,7 +827,9 @@ class _ProtectionNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final blocks = ScreenSecurityService.instance.canBlockCapture;
+    // Actual state, not platform capability: this screen no longer sets
+    // FLAG_SECURE, so it must not promise a block that is not in force.
+    final blocks = ScreenSecurityService.instance.isBlockingCapture;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(

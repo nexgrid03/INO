@@ -1580,7 +1580,7 @@ const Map<String, Map<String, String>> _strings = {
         'Screenshots and screen recording are blocked while this document is '
             'open.',
     'viewOnceProtectionOther':
-        'iOS cannot block screenshots — no app can. The one-time link is the '
+        'Screenshots are not blocked here. The one-time link is the '
             'protection: it expires permanently the moment you open it.',
     'viewOnceCaptureTitle': 'Screen recording detected',
     'viewOnceCaptureBody':
@@ -1592,7 +1592,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO can display images in-app. This file needs your device’s viewer.',
     'openInSystemViewer': 'Open in system viewer',
     'viewOnceExternalWarning':
-        'Opening outside INO means screenshot protection no longer applies. '
+        'Opening outside INO means none of its protections apply. '
             'The file is deleted from this device as soon as you return.',
     'viewOnceCloseTitle': 'Close this document?',
     'viewOnceCloseBody':
@@ -3788,7 +3788,7 @@ const Map<String, Map<String, String>> _strings = {
     'viewOnceProtectionAndroid':
         'यह दस्तावेज़ खुला रहने तक स्क्रीनशॉट और स्क्रीन रिकॉर्डिंग अवरुद्ध हैं।',
     'viewOnceProtectionOther':
-        'iOS स्क्रीनशॉट नहीं रोक सकता — कोई ऐप नहीं रोक सकता। सुरक्षा एक-बार '
+        'यहाँ स्क्रीनशॉट अवरुद्ध नहीं हैं। सुरक्षा एक-बार '
             'लिंक ही है: खोलते ही यह हमेशा के लिए समाप्त हो जाता है।',
     'viewOnceCaptureTitle': 'स्क्रीन रिकॉर्डिंग का पता चला',
     'viewOnceCaptureBody':
@@ -3800,7 +3800,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO ऐप में चित्र दिखा सकता है। इस फ़ाइल के लिए आपके डिवाइस का व्यूअर चाहिए।',
     'openInSystemViewer': 'सिस्टम व्यूअर में खोलें',
     'viewOnceExternalWarning':
-        'INO के बाहर खोलने पर स्क्रीनशॉट सुरक्षा लागू नहीं होती। लौटते ही '
+        'INO के बाहर खोलने पर इसकी कोई सुरक्षा लागू नहीं होती। लौटते ही '
             'फ़ाइल इस डिवाइस से हटा दी जाती है।',
     'viewOnceCloseTitle': 'यह दस्तावेज़ बंद करें?',
     'viewOnceCloseBody':
@@ -6075,7 +6075,7 @@ const Map<String, Map<String, String>> _strings = {
         'ఈ పత్రం తెరిచి ఉన్నంతసేపు స్క్రీన్‌షాట్‌లు మరియు స్క్రీన్ రికార్డింగ్ '
             'నిరోధించబడతాయి.',
     'viewOnceProtectionOther':
-        'iOS స్క్రీన్‌షాట్‌లను ఆపలేదు — ఏ యాప్ కూడా ఆపలేదు. రక్షణ ఒకసారి-చూసే '
+        'ఇక్కడ స్క్రీన్‌షాట్‌లు నిరోధించబడవు. రక్షణ ఒకసారి-చూసే '
             'లింకే: మీరు తెరిచిన క్షణమే అది శాశ్వతంగా ముగుస్తుంది.',
     'viewOnceCaptureTitle': 'స్క్రీన్ రికార్డింగ్ గుర్తించబడింది',
     'viewOnceCaptureBody':
@@ -6087,7 +6087,7 @@ const Map<String, Map<String, String>> _strings = {
         'INO యాప్‌లో చిత్రాలను చూపగలదు. ఈ ఫైల్‌కు మీ పరికర వీక్షకుడు అవసరం.',
     'openInSystemViewer': 'సిస్టమ్ వీక్షకుడిలో తెరువు',
     'viewOnceExternalWarning':
-        'INO వెలుపల తెరిస్తే స్క్రీన్‌షాట్ రక్షణ వర్తించదు. మీరు తిరిగి రాగానే '
+        'INO వెలుపల తెరిస్తే దాని ఏ రక్షణలూ వర్తించవు. మీరు తిరిగి రాగానే '
             'ఫైల్ ఈ పరికరం నుండి తొలగించబడుతుంది.',
     'viewOnceCloseTitle': 'ఈ పత్రాన్ని మూసివేయాలా?',
     'viewOnceCloseBody':

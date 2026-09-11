@@ -40,7 +40,9 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
   @override
   void initState() {
     super.initState();
-    ScreenSecurityService.instance.enable();
+    // The one place in INO where screenshots are blocked outright: a family
+    // vault shows documents that belong to other people.
+    ScreenSecurityService.instance.enable(blockScreenshots: true);
     _store.ensureLoaded();
     // Surface any pending invitations / join requests addressed to this user.
     _store.refreshPendingInvitations();
@@ -49,7 +51,7 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
 
   @override
   void dispose() {
-    ScreenSecurityService.instance.disable();
+    ScreenSecurityService.instance.disable(blockScreenshots: true);
     super.dispose();
   }
 

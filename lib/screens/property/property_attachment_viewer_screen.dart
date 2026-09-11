@@ -24,7 +24,9 @@ import '../share/share_settings_screen.dart';
 /// Full-screen viewer for property documents and attachments.
 ///
 /// Features:
-/// - Screen security enabled (screenshot/recording protection)
+/// - Screen security enabled (app-switcher masking and iOS capture
+///   detection). Screenshots are NOT blocked - INO allows them everywhere
+///   except the Family Vault.
 /// - Pinch-to-zoom & pan for images
 /// - System PDF & file launcher via [OpenFilex]
 /// - Biometric protection lock/unlock toggle
