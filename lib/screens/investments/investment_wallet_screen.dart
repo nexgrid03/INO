@@ -421,39 +421,45 @@ class _OverviewTab extends StatelessWidget {
                       ),
                     ),
                     if (ret != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (up ? AppColors.success : AppColors.critical)
-                              .withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              up
-                                  ? Icons.trending_up_rounded
-                                  : Icons.trending_down_rounded,
-                              size: 14,
-                              color: up
-                                  ? AppColors.success
-                                  : AppColors.critical,
+                      Builder(
+                        builder: (context) {
+                          final positiveColor = palette.isDark
+                              ? AppColors.positive
+                              : const Color(0xFF15803D);
+                          final trendColor =
+                              up ? positiveColor : AppColors.critical;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${up ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
-                              style: AppText.label.copyWith(
-                                color: up
-                                    ? AppColors.success
-                                    : AppColors.critical,
-                              ),
+                            decoration: BoxDecoration(
+                              color: trendColor.withValues(alpha: 0.12),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.pill),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  up
+                                      ? Icons.trending_up_rounded
+                                      : Icons.trending_down_rounded,
+                                  size: 14,
+                                  color: trendColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${up ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
+                                  style: AppText.label.copyWith(
+                                    color: trendColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),
@@ -509,7 +515,9 @@ class _OverviewTab extends StatelessWidget {
                             ? Icons.trending_up_rounded
                             : Icons.trending_down_rounded,
                         accent: store.totalProfit >= 0
-                            ? AppColors.success
+                            ? (palette.isDark
+                                ? AppColors.positive
+                                : const Color(0xFF15803D))
                             : AppColors.critical,
                       ),
                     ),
@@ -867,7 +875,9 @@ class _TopHoldingRow extends StatelessWidget {
                   '${investment.isUp ? '+' : '-'}${(ret.abs() * 100).toStringAsFixed(1)}%',
                   style: AppText.caption.copyWith(
                     color: investment.isUp
-                        ? AppColors.success
+                        ? (palette.isDark
+                            ? AppColors.positive
+                            : const Color(0xFF15803D))
                         : AppColors.critical,
                     fontWeight: FontWeight.w700,
                   ),

@@ -44,6 +44,7 @@ class RemindersScreen extends StatefulWidget {
 class _RemindersScreenState extends State<RemindersScreen> {
   final _store = ReminderStore.instance;
   ReminderFilterKind _filter = ReminderFilterKind.all;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -214,23 +215,124 @@ class _RemindersScreenState extends State<RemindersScreen> {
   // ---- Sections ------------------------------------------------------------
 
   /// Calendar-hub date scroller: the days around today as floating pills, with
-  /// category-coloured activity dots pulled from the real reminder store.
-  /// Tapping a day opens the existing calendar screen.
+  /// category-coloured activity dots and dedicated Anniversary highlights.
   Widget _weekStrip() {
+    final activeDay = _selectedDate ?? _store.today;
+    final onActiveDay = _store.onDay(activeDay, ReminderFilterKind.all);
+    final dayAnniversaries = onActiveDay
+        .where((r) => r.category == ReminderCategory.anniversaries)
+        .toList();
+
+    // If no anniversary on active day, find any upcoming in the 7-day window
+    final weekAnniversaries = dayAnniversaries.isNotEmpty
+        ? dayAnniversaries
+        : _store.active
+            .where((r) =>
+                r.category == ReminderCategory.anniversaries &&
+                r.daysFrom(_store.today) >= 0 &&
+                r.daysFrom(_store.today) <= 7)
+            .toList();
+
+    final palette = AppPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: _WeekStrip(
-        today: _store.today,
-        dotsFor: (day) {
-          final colors = <Color>[];
-          for (final r in _store.onDay(day, ReminderFilterKind.all)) {
-            final c = r.category.color;
-            if (!colors.contains(c)) colors.add(c);
-            if (colors.length == 3) break;
-          }
-          return colors;
-        },
-        onDayTap: _openCalendar,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              0,
+              AppSpacing.screen,
+              AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.t('calendar'),
+                  style: AppText.title.copyWith(
+                    color: palette.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _openCalendar,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Text(
+                        'Full Calendar',
+                        style: AppText.caption.copyWith(
+                          color: palette.isDark
+                              ? AppColors.primaryGreen
+                              : const Color(0xFF0D5E5E),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        size: 15,
+                        color: palette.isDark
+                            ? AppColors.primaryGreen
+                            : const Color(0xFF0D5E5E),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _WeekStrip(
+            today: _store.today,
+            selectedDay: activeDay,
+            onSelectDay: (day) {
+              setState(() {
+                _selectedDate = (_selectedDate != null &&
+                        _selectedDate!.year == day.year &&
+                        _selectedDate!.month == day.month &&
+                        _selectedDate!.day == day.day)
+                    ? null
+                    : day;
+              });
+            },
+            dotsFor: (day) {
+              final colors = <Color>[];
+              for (final r in _store.onDay(day, ReminderFilterKind.all)) {
+                final c = r.category.color;
+                if (!colors.contains(c)) colors.add(c);
+                if (colors.length == 3) break;
+              }
+              return colors;
+            },
+            hasAnniversaryFor: (day) => _store
+                .onDay(day, ReminderFilterKind.all)
+                .any((r) => r.category == ReminderCategory.anniversaries),
+          ),
+          if (weekAnniversaries.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+              child: Column(
+                children: [
+                  for (final ann in weekAnniversaries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: _AnniversaryCalendarCard(
+                        reminder: ann,
+                        today: _store.today,
+                        onTap: () => showReminderDetail(context, ann),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -343,8 +445,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         l10n.t('viewAll'),
                         maxLines: 1,
                         style: AppText.label.copyWith(
-                          color: AppColors.primaryGreen,
+                          color: AppPalette.of(context).isDark
+                              ? AppColors.primaryGreen
+                              : const Color(0xFF0D5E5E),
                           fontSize: 13,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -510,19 +615,21 @@ class _CaughtUpNote extends StatelessWidget {
 
 /// Horizontal date scroller from the calendar-hub design: the days around
 /// today rendered as floating pills - day-of-week over the day number, with
-/// up to three category-coloured activity dots per day. Today wears the brand
-/// gradient + glow; days fade with distance. Tapping any pill opens the
-/// calendar screen.
+/// category-coloured activity dots and special anniversary indicators.
 class _WeekStrip extends StatelessWidget {
   const _WeekStrip({
     required this.today,
     required this.dotsFor,
-    required this.onDayTap,
+    required this.onSelectDay,
+    required this.selectedDay,
+    required this.hasAnniversaryFor,
   });
 
   final DateTime today;
   final List<Color> Function(DateTime day) dotsFor;
-  final VoidCallback onDayTap;
+  final ValueChanged<DateTime> onSelectDay;
+  final DateTime selectedDay;
+  final bool Function(DateTime day) hasAnniversaryFor;
 
   static const List<String> _dow = [
     'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', //
@@ -532,20 +639,32 @@ class _WeekStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = [for (var i = -2; i <= 6; i++) today.add(Duration(days: i))];
     return SizedBox(
-      height: context.horizontalCardHeight(72),
+      height: context.horizontalCardHeight(74),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
         itemCount: days.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) => _DayPill(
-          day: days[index],
-          isToday: index == 2,
-          distance: (index - 2).abs(),
-          dowLabel: _dow[days[index].weekday - 1],
-          dots: dotsFor(days[index]),
-          onTap: onDayTap,
-        ),
+        itemBuilder: (context, index) {
+          final day = days[index];
+          final isToday = day.year == today.year &&
+              day.month == today.month &&
+              day.day == today.day;
+          final isSelected = day.year == selectedDay.year &&
+              day.month == selectedDay.month &&
+              day.day == selectedDay.day;
+
+          return _DayPill(
+            day: day,
+            isToday: isToday,
+            isSelected: isSelected,
+            hasAnniversary: hasAnniversaryFor(day),
+            distance: (index - 2).abs(),
+            dowLabel: _dow[day.weekday - 1],
+            dots: dotsFor(day),
+            onTap: () => onSelectDay(day),
+          );
+        },
       ),
     );
   }
@@ -555,6 +674,8 @@ class _DayPill extends StatelessWidget {
   const _DayPill({
     required this.day,
     required this.isToday,
+    required this.isSelected,
+    required this.hasAnniversary,
     required this.distance,
     required this.dowLabel,
     required this.dots,
@@ -563,6 +684,8 @@ class _DayPill extends StatelessWidget {
 
   final DateTime day;
   final bool isToday;
+  final bool isSelected;
+  final bool hasAnniversary;
   final int distance;
   final String dowLabel;
   final List<Color> dots;
@@ -571,61 +694,109 @@ class _DayPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final pill = Container(
-      width: 58,
-      decoration: BoxDecoration(
-        gradient: isToday ? AppColors.brandGradient : null,
-        color: isToday ? null : palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.search),
-        border: isToday ? null : Border.all(color: palette.border),
-        boxShadow: isToday
-            ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.35)
-            : null,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            dowLabel,
-            style: AppText.label.copyWith(
-              fontSize: 10,
-              letterSpacing: 0.8,
-              color: isToday
-                  ? Colors.white.withValues(alpha: 0.9)
-                  : palette.textFaint,
-            ),
+    final borderColor = isSelected && !isToday
+        ? AppColors.primaryGreen
+        : hasAnniversary
+            ? const Color(0xFF7C6CF0).withValues(alpha: 0.6)
+            : palette.border;
+
+    final pill = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 58,
+          decoration: BoxDecoration(
+            gradient: isToday ? AppColors.brandGradient : null,
+            color: isToday
+                ? null
+                : isSelected
+                    ? AppColors.primaryGreen.withValues(alpha: 0.12)
+                    : palette.surface,
+            borderRadius: BorderRadius.circular(AppRadius.search),
+            border: isToday ? null : Border.all(color: borderColor, width: isSelected ? 1.8 : 1.0),
+            boxShadow: isToday
+                ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.35)
+                : null,
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${day.day}',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              color: isToday ? Colors.white : palette.textPrimary,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                dowLabel,
+                style: AppText.label.copyWith(
+                  fontSize: 10,
+                  letterSpacing: 0.8,
+                  color: isToday
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : isSelected
+                          ? AppColors.primaryGreen
+                          : palette.textFaint,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${day.day}',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                  color: isToday
+                      ? Colors.white
+                      : isSelected
+                          ? AppColors.primaryGreen
+                          : palette.textPrimary,
+                ),
+              ),
+              SizedBox(
+                height: 8,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < dots.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 3),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: isToday ? Colors.white : dots[i],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-          SizedBox(
-            height: 8,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < dots.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 3),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: isToday ? Colors.white : dots[i],
-                      shape: BoxShape.circle,
-                    ),
+        ),
+        if (hasAnniversary)
+          Positioned(
+            top: -2,
+            right: -2,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C6CF0), Color(0xFFF472B6)],
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x337C6CF0),
+                    blurRadius: 4,
                   ),
                 ],
-              ],
+              ),
+              child: const Icon(
+                Icons.workspace_premium_rounded,
+                size: 8,
+                color: Colors.white,
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
 
     return PressableScale(
@@ -633,12 +804,146 @@ class _DayPill extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: isToday ? pill : Opacity(opacity: _fade, child: pill),
+        child: isToday || isSelected ? pill : Opacity(opacity: _fade, child: pill),
       ),
     );
   }
 
   double get _fade => (1.0 - 0.12 * distance).clamp(0.5, 1.0).toDouble();
+}
+
+/// Highlight card showing Anniversary and life milestones with the top calendar.
+class _AnniversaryCalendarCard extends StatelessWidget {
+  const _AnniversaryCalendarCard({
+    required this.reminder,
+    required this.today,
+    required this.onTap,
+  });
+
+  final Reminder reminder;
+  final DateTime today;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final isDueToday = reminder.daysFrom(today) == 0;
+    final due = reminder.dueLabel(today);
+
+    return PressableScale(
+      pressedScale: 0.98,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF7C6CF0).withValues(alpha: 0.12),
+                const Color(0xFFF472B6).withValues(alpha: 0.06),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.button),
+            border: Border.all(
+              color: const Color(0xFF7C6CF0).withValues(alpha: 0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C6CF0).withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C6CF0), Color(0xFFF472B6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x407C6CF0),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7C6CF0).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'ANNIVERSARY',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: const Color(0xFF7C6CF0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          due,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDueToday
+                                ? const Color(0xFFE11D48)
+                                : palette.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      reminder.title,
+                      style: AppText.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: const Color(0xFF7C6CF0),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ViewAllButton extends StatelessWidget {

@@ -152,17 +152,22 @@ class ReminderStore extends ChangeNotifier {
   Set<int> markedDaysIn(DateTime month, ReminderFilterKind filter) => _active
       .where((r) =>
           filter.matches(r) &&
-          r.date.year == month.year &&
-          r.date.month == month.month)
+          (r.category == ReminderCategory.anniversaries ||
+              r.category == ReminderCategory.birthdays
+              ? r.date.month == month.month
+              : (r.date.year == month.year && r.date.month == month.month)))
       .map((r) => r.date.day)
       .toSet();
 
   List<Reminder> onDay(DateTime day, ReminderFilterKind filter) => _active
       .where((r) =>
           filter.matches(r) &&
-          r.date.year == day.year &&
-          r.date.month == day.month &&
-          r.date.day == day.day)
+          (r.category == ReminderCategory.anniversaries ||
+              r.category == ReminderCategory.birthdays
+              ? (r.date.month == day.month && r.date.day == day.day)
+              : (r.date.year == day.year &&
+                  r.date.month == day.month &&
+                  r.date.day == day.day)))
       .toList();
 
   // ---- Mutations ------------------------------------------------------------

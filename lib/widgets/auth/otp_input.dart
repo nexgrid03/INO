@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 
-/// A row of individual OTP entry boxes (6 by default).
+/// A row of individual OTP entry boxes (6 by default) with native OS autofill
+/// and smart clipboard autofill support for Email and Mobile OTPs.
 ///
-/// Behaves the way users expect from banking apps:
-///   • auto-advances to the next box as digits are typed,
-///   • backspace on an empty box steps back and clears the previous digit,
-///   • pasting a full code (e.g. from an SMS autofill) distributes across boxes,
-///   • the focused box lifts with a brand glow.
-///
-/// Reports the current value via [onChanged] and fires [onCompleted] once every
-/// box is filled - keeping the parent screen purely about verification logic.
+/// Features:
+///   • Native Android / iOS SMS & Email one-time code autofill ([AutofillHints.oneTimeCode]).
+///   • Automatic clipboard detection when switching back from Email/SMS apps.
+///   • Instant multi-digit distribution when pasted or autofilled.
+///   • Auto-advances focus to the next box as digits are typed.
+///   • Backspace on an empty box clears and steps back to previous box.
+///   • Reports value via [onChanged] and fires [onCompleted] when all boxes are filled.
 class OtpInput extends StatefulWidget {
   const OtpInput({
     super.key,
@@ -20,31 +21,47 @@ class OtpInput extends StatefulWidget {
     this.onChanged,
     this.onCompleted,
     this.enabled = true,
+    this.showClipboardPrompt = true,
   });
 
   final int length;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onCompleted;
   final bool enabled;
+  final bool showClipboardPrompt;
 
   @override
   State<OtpInput> createState() => _OtpInputState();
 }
 
-class _OtpInputState extends State<OtpInput> {
+class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _nodes;
+  String? _clipboardOtp;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controllers =
         List.generate(widget.length, (_) => TextEditingController());
     _nodes = List.generate(widget.length, (_) => FocusNode());
+
+    // Check clipboard on initial load
+    _checkClipboard();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // User may have copied OTP from email or SMS notification and switched back
+      _checkClipboard();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final c in _controllers) {
       c.dispose();
     }
@@ -52,6 +69,22 @@ class _OtpInputState extends State<OtpInput> {
       n.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _checkClipboard() async {
+    if (!widget.enabled || !widget.showClipboardPrompt) return;
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim() ?? '';
+      final digits = text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length == widget.length && digits != _value) {
+        if (mounted) {
+          setState(() => _clipboardOtp = digits);
+        }
+      }
+    } catch (_) {
+      // Ignore clipboard access exceptions
+    }
   }
 
   String get _value => _controllers.map((c) => c.text).join();
@@ -84,8 +117,26 @@ class _OtpInputState extends State<OtpInput> {
     }
     final filled = digits.length.clamp(0, widget.length);
     final focusIndex = (filled - 1).clamp(0, widget.length - 1);
-    _nodes[focusIndex].requestFocus();
+    if (focusIndex >= 0 && focusIndex < _nodes.length) {
+      _nodes[focusIndex].requestFocus();
+    }
+    setState(() => _clipboardOtp = null);
     _emit();
+  }
+
+  void _pasteFromClipboard() async {
+    HapticFeedback.mediumImpact();
+    if (_clipboardOtp != null) {
+      _distribute(_clipboardOtp!);
+      return;
+    }
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim() ?? '';
+      if (text.isNotEmpty) {
+        _distribute(text);
+      }
+    } catch (_) {}
   }
 
   KeyEventResult _onKey(int index, KeyEvent event) {
@@ -103,39 +154,78 @@ class _OtpInputState extends State<OtpInput> {
 
   @override
   Widget build(BuildContext context) {
-    // Six fixed 48px boxes plus five 10px gaps need 338px, which is more than a
-    // narrow phone leaves after page padding - that is the RenderFlex overflow
-    // on the right. Size the boxes from the width actually available instead:
-    // capped at 48 so wide screens look unchanged, shrinking below that rather
-    // than overflowing. The 28px floor keeps a digit legible; six of those plus
-    // the gaps fit in 218px, narrower than any real device.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const gap = 10.0;
-        final available = constraints.maxWidth;
-        final box = available.isFinite
-            ? (((available - gap * (widget.length - 1)) / widget.length)
-                .clamp(28.0, 48.0))
-            : 48.0;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var index = 0; index < widget.length; index++) ...[
-              if (index > 0) const SizedBox(width: gap),
-              SizedBox(
-                width: box,
-                child: _OtpBox(
-                  controller: _controllers[index],
-                  node: _nodes[index],
-                  enabled: widget.enabled,
-                  onChanged: (v) => _onChanged(index, v),
-                  onKey: (event) => _onKey(index, event),
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AutofillGroup(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 10.0;
+              final available = constraints.maxWidth;
+              final box = available.isFinite
+                  ? (((available - gap * (widget.length - 1)) / widget.length)
+                      .clamp(28.0, 48.0))
+                  : 48.0;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var index = 0; index < widget.length; index++) ...[
+                    if (index > 0) const SizedBox(width: gap),
+                    SizedBox(
+                      width: box,
+                      child: _OtpBox(
+                        controller: _controllers[index],
+                        node: _nodes[index],
+                        enabled: widget.enabled,
+                        onChanged: (v) => _onChanged(index, v),
+                        onKey: (event) => _onKey(index, event),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+
+        // Smart Clipboard Autofill Suggestion Pill
+        if (_clipboardOtp != null && widget.enabled) ...[
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _pasteFromClipboard,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.35),
                 ),
               ),
-            ],
-          ],
-        );
-      },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.content_paste_rounded,
+                    size: 14,
+                    color: AppColors.primaryGreen,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Autofill from clipboard: $_clipboardOtp',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -184,7 +274,9 @@ class _OtpBoxState extends State<_OtpBox> {
         border: Border.all(
           color: _focused
               ? AppColors.primaryGreen
-              : (filled ? AppColors.primaryGreen.withValues(alpha: 0.7) : AppColors.tealPale),
+              : (filled
+                  ? AppColors.primaryGreen.withValues(alpha: 0.7)
+                  : AppColors.tealPale),
           width: _focused ? 1.8 : 1.2,
         ),
       ),
@@ -198,8 +290,9 @@ class _OtpBoxState extends State<_OtpBox> {
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
           cursorColor: AppColors.primaryGreen,
-          // Allow a longer buffer so a full pasted code reaches onChanged.
-          maxLength: 6,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          // Allow full multi-digit buffer so pasted/autofilled codes reach onChanged.
+          maxLength: 8,
           showCursor: true,
           style: TextStyle(
             color: AppColors.primaryGreen,
@@ -241,6 +334,6 @@ class _OtpBoxState extends State<_OtpBox> {
     );
   }
 
-  // A value is treated as "pasted" when several digits arrive at once.
-  bool _looksPasted(String v) => v.length >= 4;
+  // A value is treated as "pasted / autofilled" when several digits arrive at once.
+  bool _looksPasted(String v) => v.length >= 2;
 }

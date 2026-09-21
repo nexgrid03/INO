@@ -8,7 +8,6 @@ import '../screens/family/family_vault_screen.dart';
 import '../screens/networth/net_worth_analytics_screen.dart';
 import '../screens/notes/notes_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
-import '../screens/profile/about_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/profile/two_factor_screen.dart';
@@ -384,16 +383,6 @@ final List<VoiceCommand> kVoiceCommands = [
       'help', 'help center', 'support', 'faq', 'contact support',
     ],
     navigate: () => VoiceNav.push((_) => const HelpCenterScreen()),
-  ),
-  VoiceCommand(
-    id: 'about',
-    spokenLabel: 'About INO',
-    route: '/about',
-    icon: Icons.info_outline_rounded,
-    phrases: [
-      'about', 'about ino', 'about app', 'version', 'app info',
-    ],
-    navigate: () => VoiceNav.push((_) => const AboutScreen()),
   ),
 
   // ── Primary tabs (broad words last, so specifics win) ─────────────────────

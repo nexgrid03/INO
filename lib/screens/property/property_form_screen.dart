@@ -18,6 +18,7 @@ import '../../services/wallet_media_sync.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_background.dart';
+import '../../widgets/common/ino_time_picker.dart';
 import '../../widgets/common/save_consent_sheet.dart';
 import '../../widgets/common/wallet_media_image.dart';
 import '../../widgets/dashboard/fade_slide_in.dart';
@@ -287,18 +288,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   Future<void> _pickReminderTime() async {
     final now = TimeOfDay.now();
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showInoTimePicker(
+      context,
       initialTime: _reminderTime ??
           TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
-      helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
-      // Open on keyboard entry, NOT the dial. The Material dial snaps the
-      // minute hand to the nearest 5 when the finger lifts, so a dial-first
-      // picker literally cannot express 10:26 - which is why reminders could
-      // only ever be set on multiples of five. Input mode takes any minute, and
-      // the toggle in the corner still hands over to the dial for anyone who
-      // prefers to spin it.
-      initialEntryMode: TimePickerEntryMode.input,
+      title: AppLocalizations.of(context).t('pickTime'),
     );
     if (picked != null) {
       setState(() => _reminderTime = picked);

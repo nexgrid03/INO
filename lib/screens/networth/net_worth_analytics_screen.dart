@@ -112,9 +112,19 @@ class _NetWorthAnalyticsScreenState extends State<NetWorthAnalyticsScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                '${data.isUp ? '+' : ''}${formatInr(data.growthAmount)} ${l10n.t('thisMonth')}',
+                data.growthAmount == 0
+                    ? '${formatInr(0)} ${l10n.t('thisMonth')}'
+                    : '${data.growthAmount > 0 ? '+' : '-'}${formatInr(data.growthAmount.abs())} ${l10n.t('thisMonth')}',
                 style: AppText.caption.copyWith(
-                  color: data.isUp ? AppColors.positive : AppColors.negative,
+                  color: data.growthAmount == 0
+                      ? palette.textSecondary
+                      : (data.growthAmount > 0
+                          ? (palette.isDark
+                              ? const Color(0xFF4ADE80)
+                              : const Color(0xFF15803D))
+                          : (palette.isDark
+                              ? const Color(0xFFF87171)
+                              : const Color(0xFFDC2626))),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -246,26 +256,52 @@ class _GrowthPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final up = percent >= 0;
-    final color = up ? AppColors.positive : AppColors.negative;
+    final palette = AppPalette.of(context);
+    final isZero = percent.abs() < 0.05;
+    final up = percent > 0;
+    final Color color = isZero
+        ? palette.textPrimary
+        : (up
+            ? (palette.isDark
+                ? const Color(0xFF4ADE80)
+                : const Color(0xFF15803D))
+            : (palette.isDark
+                ? const Color(0xFFF87171)
+                : const Color(0xFFDC2626)));
+    final Color bg = isZero
+        ? (palette.isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : palette.surfaceVariant.withValues(alpha: 0.9))
+        : color.withValues(alpha: palette.isDark ? 0.22 : 0.12);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: bg,
         borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: isZero ? palette.border : color.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            isZero
+                ? Icons.remove_rounded
+                : (up
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded),
             size: 13,
-            color: color,
+            color: isZero ? palette.textSecondary : color,
           ),
-          const SizedBox(width: 2),
+          const SizedBox(width: 3),
           Text(
-            '${percent.abs().toStringAsFixed(1)}%',
-            style: AppText.label.copyWith(color: color),
+            '${isZero ? '' : (up ? '+' : '-')}${percent.abs().toStringAsFixed(1)}%',
+            style: AppText.label.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -287,8 +323,23 @@ class _TrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final up = percent >= 0;
-    final color = up ? AppColors.positive : AppColors.negative;
+    final isZero = percent.abs() < 0.05;
+    final up = percent > 0;
+    final Color color = isZero
+        ? palette.textPrimary
+        : (up
+            ? (palette.isDark
+                ? const Color(0xFF4ADE80)
+                : const Color(0xFF15803D))
+            : (palette.isDark
+                ? const Color(0xFFF87171)
+                : const Color(0xFFDC2626)));
+    final Color iconBg = isZero
+        ? (palette.isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : palette.surfaceVariant.withValues(alpha: 0.9))
+        : color.withValues(alpha: palette.isDark ? 0.22 : 0.12);
+
     return AdaptiveGlassCard(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       radius: AppRadius.card,
@@ -299,18 +350,26 @@ class _TrendCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: iconBg,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isZero ? palette.border : color.withValues(alpha: 0.3),
+              ),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(
+              icon,
+              color: isZero ? palette.textSecondary : color,
+              size: 18,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
-            '${up ? '+' : ''}${percent.toStringAsFixed(1)}%',
+            '${isZero ? '' : (up ? '+' : '')}${percent.toStringAsFixed(1)}%',
             style: AppText.headline.copyWith(
               color: color,
               fontSize: 20,
+              fontWeight: FontWeight.w800,
               height: 1.1,
             ),
           ),

@@ -1191,7 +1191,9 @@ class _ValuationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final up = (appreciation ?? 0) >= 0;
-    final color = up ? AppColors.success : AppColors.critical;
+    final positiveColor =
+        palette.isDark ? AppColors.positive : const Color(0xFF15803D);
+    final color = up ? positiveColor : AppColors.critical;
     // The bar shows the purchase price as a share of the current value, so a
     // gain leaves visible headroom. Capped at 1 for a loss.
     final ratio = (property.purchasePrice == null ||
@@ -1203,7 +1205,7 @@ class _ValuationCard extends StatelessWidget {
     return ModuleSection(
       title: l10n.t('valuation'),
       icon: Icons.trending_up_rounded,
-      accent: up ? AppColors.success : AppColors.critical,
+      accent: color,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,

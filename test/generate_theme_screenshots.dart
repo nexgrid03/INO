@@ -8,31 +8,18 @@ import 'package:inoapp/core/responsive/responsive.dart';
 import 'package:inoapp/models/user_profile.dart';
 import 'package:inoapp/models/wallet_models.dart';
 import 'package:inoapp/screens/home/home_screen.dart';
-import 'package:inoapp/screens/onboarding/onboarding_screen.dart';
 import 'package:inoapp/screens/property_finance/property_finance_tools_screen.dart';
-import 'package:inoapp/screens/reminders/reminders_screen.dart';
 import 'package:inoapp/screens/wallet/wallet_detail_screen.dart';
 import 'package:inoapp/screens/wallet/wallet_screen.dart';
 import 'package:inoapp/theme/app_theme.dart';
-import 'package:inoapp/theme/theme_controller.dart';
 import 'package:inoapp/theme/theme_style.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Renders each Play Store screen at exactly 1080x1920 (9:16) and writes it to
-/// test/screenshots/.
-///
-/// Deliberately NOT named *_test.dart: this is a capture tool, not a test, so
-/// `flutter test` skips it. Run it explicitly with:
-///   flutter test test/playstore_screenshots.dart --update-goldens
 void main() {
   setUpAll(() async {
-    GoogleFonts.config.allowRuntimeFetching = false;
+    GoogleFonts.config.allowRuntimeFetching = true;
 
-    // Widget tests draw every glyph as a filled box unless a real typeface is
-    // registered under the exact family the theme asks for. AppTheme uses
-    // GoogleFonts.manrope(), whose family strings are "Manrope_<variant>", and
-    // Manrope is not bundled in assets - so borrow Segoe UI under those names.
     Future<void> register(String family, String path) async {
       final file = File(path);
       if (!file.existsSync()) return;
@@ -45,6 +32,7 @@ void main() {
     const regular = r'C:\Windows\Fonts\segoeui.ttf';
     const bold = r'C:\Windows\Fonts\segoeuib.ttf';
     const light = r'C:\Windows\Fonts\segoeuil.ttf';
+    const semibold = r'C:\Windows\Fonts\seguisb.ttf';
 
     final names = [
       'Manrope',
@@ -78,17 +66,14 @@ void main() {
       await register('PlusJakartaSans_$w', bold);
     }
 
-    // The engine's test-bundled icon font is older than the SDK's, so newer
-    // Material icons come out as empty boxes. Load the real one.
+    // Material icons
     final root = Platform.environment['FLUTTER_ROOT'] ??
         File(Platform.resolvedExecutable).parent.parent.parent.parent.parent.path;
     final iconFile = File('$root/bin/cache/artifacts/material_fonts/materialicons-regular.otf');
     if (iconFile.existsSync()) {
       await register('MaterialIcons', iconFile.path);
     }
-  });
 
-  setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     try {
       await Supabase.initialize(
@@ -96,22 +81,14 @@ void main() {
         anonKey: 'test-anon-key',
         debug: false,
       );
-    } catch (_) {
-      // Already initialised, or unavailable - no worse off than before.
-    }
-  });
-
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-    ThemeController.style.value = ThemeStyle.aqua;
-    AppColors.applyStyle(ThemeStyle.aqua);
+    } catch (_) {}
   });
 
   final profile = UserProfile(
     id: '1',
     authUserId: 'a',
-    fullName: 'Guest User',
-    email: 'guest@inoapp.com',
+    fullName: 'Tanishq Sharma',
+    email: 'tanishq@example.com',
     preferredLanguage: 'en',
     biometricEnabled: false,
     createdAt: DateTime(2026, 1, 1),
@@ -127,22 +104,22 @@ void main() {
     gradient: [Color(0xFF00A86B), Color(0xFF38BDF8)],
   );
 
-  Widget wrap(Widget child) => MaterialApp(
+  Widget wrapTheme(Widget child, {required ThemeStyle style, required ThemeData theme}) =>
+      MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightFor(ThemeStyle.aqua),
+        theme: theme,
         home: InoStyleScope(
-          style: ThemeStyle.aqua,
+          style: style,
           child: InoResponsiveInit(child: child),
         ),
       );
 
-  /// One phone frame: 1080x1920 physical == exactly 9:16, which is what the
-  /// Play Console accepts.
-  Future<void> shoot(
+  Future<void> capture(
     WidgetTester tester,
     String name,
     Widget screen, {
-    Future<void> Function(WidgetTester)? after,
+    ThemeStyle style = ThemeStyle.launcher,
+    ThemeData? theme,
   }) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 3.0;
@@ -151,20 +128,14 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(wrap(screen));
-    // Never pumpAndSettle: several screens own perpetual ambient loops. Pump a
-    // generous run of frames instead so async loads and entrances finish.
+    await tester.pumpWidget(wrapTheme(screen, style: style, theme: theme ?? AppTheme.light));
     for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 400));
     }
-    // Fake-time pumps do not advance real I/O, so screens waiting on a network
-    // round-trip stay on their spinner. Give the real event loop a moment.
-    await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 3)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 400));
     }
-    if (after != null) await after(tester);
-    await tester.pump(const Duration(milliseconds: 400));
 
     expect(tester.takeException(), isNull);
     await expectLater(
@@ -173,30 +144,23 @@ void main() {
     );
   }
 
-  testWidgets('01 home', (t) => shoot(t, '01_home', HomeScreen(profile: profile)));
+  // Sky Blue / Launcher Style
+  testWidgets('launcher home',
+      (t) => capture(t, 'launcher_01_home', HomeScreen(profile: profile), style: ThemeStyle.launcher));
+  testWidgets('launcher wallets',
+      (t) => capture(t, 'launcher_02_wallets', WalletScreen(profile: profile), style: ThemeStyle.launcher));
+  testWidgets('launcher identity',
+      (t) => capture(t, 'launcher_03_identity', const WalletDetailScreen(category: identityWallet), style: ThemeStyle.launcher));
+  testWidgets('launcher finance',
+      (t) => capture(t, 'launcher_04_finance', const PropertyFinanceToolsScreen(), style: ThemeStyle.launcher));
 
-  testWidgets('02 wallets',
-      (t) => shoot(t, '02_wallets', WalletScreen(profile: profile)));
-
-  testWidgets('03 identity wallet',
-      (t) => shoot(t, '03_identity_wallet',
-          const WalletDetailScreen(category: identityWallet)));
-
-  testWidgets('04 reminders',
-      (t) => shoot(t, '04_reminders', RemindersScreen(profile: profile)));
-
-  testWidgets('05 finance tools',
-      (t) => shoot(t, '05_finance_tools', const PropertyFinanceToolsScreen()));
-
-  testWidgets('06 onboarding QR', (t) async {
-    await shoot(t, '06_onboarding_qr', const OnboardingScreen(),
-        after: (tester) async {
-      // Swipe to the third slide - the QR / share one.
-      for (var i = 0; i < 2; i++) {
-        await tester.drag(find.byType(PageView), const Offset(-400, 0));
-        await tester.pump(const Duration(milliseconds: 600));
-      }
-      await tester.pump(const Duration(milliseconds: 600));
-    });
-  });
+  // Dark Theme
+  testWidgets('dark home',
+      (t) => capture(t, 'dark_01_home', HomeScreen(profile: profile), style: ThemeStyle.aqua, theme: AppTheme.dark));
+  testWidgets('dark wallets',
+      (t) => capture(t, 'dark_02_wallets', WalletScreen(profile: profile), style: ThemeStyle.aqua, theme: AppTheme.dark));
+  testWidgets('dark identity',
+      (t) => capture(t, 'dark_03_identity', const WalletDetailScreen(category: identityWallet), style: ThemeStyle.aqua, theme: AppTheme.dark));
+  testWidgets('dark finance',
+      (t) => capture(t, 'dark_04_finance', const PropertyFinanceToolsScreen(), style: ThemeStyle.aqua, theme: AppTheme.dark));
 }

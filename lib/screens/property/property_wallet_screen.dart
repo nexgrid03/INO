@@ -369,7 +369,9 @@ class _PortfolioCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final up = (appreciation ?? 0) >= 0;
-    final trendColor = up ? AppColors.success : AppColors.critical;
+    final positiveColor =
+        palette.isDark ? AppColors.positive : const Color(0xFF15803D);
+    final trendColor = up ? positiveColor : AppColors.critical;
     return AdaptiveGlassCard(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       radius: AppRadius.large,
@@ -460,7 +462,11 @@ class _PortfolioCard extends StatelessWidget {
                         ? moneyWords(monthlyRent, currency)
                         : '—',
                     icon: Icons.payments_rounded,
-                    color: AppColors.success,
+                    color: monthlyRent > 0
+                        ? (palette.isDark
+                            ? AppColors.positive
+                            : const Color(0xFF15803D))
+                        : palette.textFaint,
                   ),
                 ),
                 _Divider(palette: palette),
@@ -732,10 +738,12 @@ class PropertyCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: AppText.caption.copyWith(
                                 color: appreciation >= 0
-                                    ? AppColors.success
+                                    ? (palette.isDark
+                                        ? AppColors.positive
+                                        : const Color(0xFF15803D))
                                     : AppColors.critical,
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -826,22 +834,31 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppPalette.of(context).isDark;
     final color = status.color;
+    final displayColor =
+        (!isDark && status == PropertyStatus.owned)
+            ? const Color(0xFF0F766E)
+            : color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: displayColor.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(color: displayColor.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status.icon, size: 11, color: color),
+          Icon(status.icon, size: 11, color: displayColor),
           const SizedBox(width: 4),
           Text(
             status.localizedLabel(AppLocalizations.of(context)),
-            style: AppText.label.copyWith(color: color, fontSize: 10.5),
+            style: AppText.label.copyWith(
+              color: displayColor,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

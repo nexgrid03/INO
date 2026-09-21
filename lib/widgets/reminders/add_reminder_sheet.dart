@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../common/ino_options_sheet.dart';
 import '../pressable_scale.dart';
 import '../common/ino_loader.dart';
+import '../common/ino_time_picker.dart';
 
 /// Opens the "New Reminder" bottom sheet. Returns the created [Reminder] (also
 /// already added to the [ReminderStore]) or null if dismissed.
@@ -82,18 +83,11 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
 
   Future<void> _pickTime() async {
     final now = TimeOfDay.now();
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showInoTimePicker(
+      context,
       initialTime: _time ??
           TimeOfDay(hour: (now.hour + 1) % 24, minute: 0),
-      helpText: AppLocalizations.of(context).t('pickTime').toUpperCase(),
-      // Open on keyboard entry, NOT the dial. The Material dial snaps the
-      // minute hand to the nearest 5 when the finger lifts, so a dial-first
-      // picker literally cannot express 10:26 - which is why reminders could
-      // only ever be set on multiples of five. Input mode takes any minute, and
-      // the toggle in the corner still hands over to the dial for anyone who
-      // prefers to spin it.
-      initialEntryMode: TimePickerEntryMode.input,
+      title: AppLocalizations.of(context).t('pickTime'),
     );
     if (picked == null || !mounted) return;
     setState(() {

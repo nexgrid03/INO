@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:share_plus/share_plus.dart';
 
@@ -44,7 +45,6 @@ import '../language/language_selection_screen.dart';
 import '../legal/legal_document_screen.dart';
 import '../../services/account_security_service.dart';
 import '../../widgets/profile/link_entity_sheet.dart';
-import 'about_screen.dart';
 import 'contact_support_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
@@ -1117,11 +1117,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () =>
                 _push(ContactSupportScreen(supportEmail: _supportEmail)),
           ),
-          SettingsRow(
-            icon: Icons.info_outline_rounded,
-            title: l10n.t('aboutIno'),
-            onTap: () => _push(const AboutScreen()),
-          ),
         ],
       ),
       SettingsGroup(
@@ -1163,6 +1158,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ],
       ),
+      _SettingsFooter(palette: palette),
     ];
 
     return Scaffold(
@@ -1669,6 +1665,250 @@ class _SheetButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SettingsFooter extends StatelessWidget {
+  const _SettingsFooter({required this.palette});
+
+  final AppPalette palette;
+
+  Future<void> _launchEmail() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'nexgrid03@gmail.com',
+      queryParameters: {'subject': 'INO App Inquiry / Development Query'},
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  void _showNexgridInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          side: BorderSide(color: palette.border),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: AppColors.brandGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.code_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nexgrid',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: palette.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'For app development queries:',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: palette.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _launchEmail();
+              },
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.mail_outline_rounded,
+                      size: 16,
+                      color: AppColors.primaryGreen,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'nexgrid03@gmail.com',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        _launchEmail();
+                      },
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Center(
+                          child: Text(
+                            'Contact Us',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // App Logo Shield Badge
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.circular(13),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.28),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.shield_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Powered by Nexgrid (Hyperlink)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Powered by ',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textSecondary,
+                ),
+              ),
+              InkWell(
+                onTap: () => _showNexgridInfo(context),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'Nexgrid',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryGreen,
+                      decoration: TextDecoration.underline,
+                      decorationColor:
+                          AppColors.primaryGreen.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Copyright notice
+          Text(
+            '© 2026 INO. All rights reserved.',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: palette.textFaint,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }

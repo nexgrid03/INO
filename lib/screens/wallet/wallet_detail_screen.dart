@@ -1383,7 +1383,7 @@ class _SelectionBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.large),
@@ -1394,19 +1394,26 @@ class _SelectionBar extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onCancel,
-                icon: Icon(Icons.close_rounded, color: palette.textPrimary),
+                icon: Icon(Icons.close_rounded, color: palette.textPrimary, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 tooltip: l10n.t('cancel'),
               ),
-              Expanded(
+              const SizedBox(width: 4),
+              Flexible(
                 child: Text(
                   l10n.t('selectedCount').replaceAll('{n}', '$count'),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: palette.textPrimary,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               PressableScale(
                 child: Container(
                   decoration: BoxDecoration(
@@ -1421,8 +1428,8 @@ class _SelectionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
+                          horizontal: 10,
+                          vertical: 8,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1430,15 +1437,15 @@ class _SelectionBar extends StatelessWidget {
                             Icon(
                               Icons.picture_as_pdf_rounded,
                               color: enabled ? AppColors.primaryGreen : palette.textFaint,
-                              size: 19,
+                              size: 16,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
                             Text(
-                              l10n.t('shareAsPdf'),
+                              'PDF',
                               style: TextStyle(
                                 color: enabled ? palette.textPrimary : palette.textFaint,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 13,
+                                fontSize: 12.5,
                               ),
                             ),
                           ],
@@ -1448,7 +1455,7 @@ class _SelectionBar extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               PressableScale(
                 child: Container(
                   decoration: BoxDecoration(
@@ -1460,8 +1467,8 @@ class _SelectionBar extends StatelessWidget {
                               color: AppColors.primaryGreen.withValues(
                                 alpha: 0.32,
                               ),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ]
                         : null,
@@ -1479,8 +1486,8 @@ class _SelectionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 11,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1488,15 +1495,15 @@ class _SelectionBar extends StatelessWidget {
                             const Icon(
                               Icons.qr_code_2_rounded,
                               color: Colors.white,
-                              size: 19,
+                              size: 16,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
                             Text(
                               l10n.t('shareViaQr'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 13,
+                                fontSize: 12.5,
                               ),
                             ),
                           ],

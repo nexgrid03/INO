@@ -107,6 +107,12 @@ android {
             )
         }
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 kotlin {

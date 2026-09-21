@@ -166,43 +166,66 @@ class _AssetsScreenState extends State<AssetsScreen> {
                                   ),
                                   // Real month-over-month trend from the
                                   // same NetWorthService read model.
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryGreen.withValues(
-                                        alpha: 0.10,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.pill,
-                                      ),
-                                      border: Border.all(
-                                        color: AppColors.tealPale,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          growthPercent >= 0
-                                              ? Icons.trending_up_rounded
-                                              : Icons.trending_down_rounded,
-                                          size: 14,
-                                          color: AppColors.primaryGreen,
+                                  Builder(
+                                    builder: (context) {
+                                      final isZero = growthPercent.abs() < 0.05;
+                                      final up = growthPercent > 0;
+                                      final Color color = isZero
+                                          ? palette.textPrimary
+                                          : (up
+                                              ? (palette.isDark
+                                                  ? const Color(0xFF4ADE80)
+                                                  : const Color(0xFF15803D))
+                                              : (palette.isDark
+                                                  ? const Color(0xFFF87171)
+                                                  : const Color(0xFFDC2626)));
+                                      final Color bg = isZero
+                                          ? (palette.isDark
+                                              ? Colors.white.withValues(alpha: 0.08)
+                                              : palette.surfaceVariant.withValues(alpha: 0.9))
+                                          : color.withValues(alpha: palette.isDark ? 0.22 : 0.12);
+
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
                                         ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            color: AppColors.primaryGreen,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
+                                        decoration: BoxDecoration(
+                                          color: bg,
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.pill,
+                                          ),
+                                          border: Border.all(
+                                            color: isZero
+                                                ? palette.border
+                                                : color.withValues(alpha: 0.3),
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isZero
+                                                  ? Icons.remove_rounded
+                                                  : (up
+                                                      ? Icons.trending_up_rounded
+                                                      : Icons.trending_down_rounded),
+                                              size: 14,
+                                              color: isZero ? palette.textSecondary : color,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${isZero ? '' : (up ? '+' : '-')}${growthPercent.abs().toStringAsFixed(1)}%',
+                                              style: TextStyle(
+                                                color: color,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
