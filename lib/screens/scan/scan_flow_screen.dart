@@ -18,12 +18,15 @@ import '../../widgets/common/ino_loader.dart';
 
 /// The outcome handed back to whoever launched the scan flow.
 class ScanFlowResult {
-  const ScanFlowResult({this.imagePath, this.ocr, this.wallet});
+  const ScanFlowResult({this.imagePath, this.pages, this.ocr, this.wallet});
 
   /// Local path of the captured/imported file, so the caller can upload the
   /// actual file (null when the flow produced no file). A multi-page scan
   /// yields a single assembled PDF here; a single page yields the JPEG.
   final String? imagePath;
+
+  /// The raw page image paths for multi-page captures.
+  final List<String>? pages;
 
   /// The confirmed OCR extraction, used to auto-fill Add Document (null when OCR
   /// produced nothing usable and the user chose to enter details manually).
@@ -219,7 +222,7 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       if (!mounted) return;
       setState(() => _building = false);
     }
-    _exit(ScanFlowResult(imagePath: filePath, ocr: confirmed, wallet: wallet));
+    _exit(ScanFlowResult(imagePath: filePath, pages: _pages, ocr: confirmed, wallet: wallet));
   }
 
   @override
@@ -260,15 +263,37 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           onClose: _recapture,
           onRetake: _recapture,
           onAddPage: () async {
-            if (_usedMlKit && DocumentScannerService.instance.isSupported) {
-              final morePages = await DocumentScannerService.instance.scanPages(
-                pageLimit: 10,
-              );
-              if (morePages != null && morePages.isNotEmpty && mounted) {
-                setState(() {
-                  _pages = [...?_pages, ...morePages];
-                  _capturePath = morePages.last;
-                });
+            if (DocumentScannerService.instance.isSupported) {
+              try {
+                final morePages = await DocumentScannerService.instance.scanPages(
+                  pageLimit: 10,
+                  allowGalleryImport: true,
+                );
+                if (morePages != null && morePages.isNotEmpty && mounted) {
+                  setState(() {
+                    _usedMlKit = true;
+                    _pages = [...?_pages, ...morePages];
+                    _capturePath = morePages.last;
+                  });
+                }
+              } catch (e) {
+                if (DocumentScannerService.isUserCancelled(e)) return;
+                developer.log('Native scanner failed on add page: $e', name: 'scan');
+                if (!mounted) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => ScannerScreen(
+                      onClose: () => Navigator.of(ctx).pop(),
+                      onCaptured: (newPage) {
+                        Navigator.of(ctx).pop();
+                        setState(() {
+                          _pages = [...?_pages, newPage];
+                          _capturePath = newPage;
+                        });
+                      },
+                    ),
+                  ),
+                );
               }
             } else {
               Navigator.of(context).push(
@@ -423,6 +448,7 @@ Future<void> launchScanFlow(
         // scan was launched from.
         initialWallet: result.wallet ?? initialWallet,
         initialFilePath: result.imagePath,
+        initialPages: result.pages,
         prefill: result.ocr,
       ),
     ),

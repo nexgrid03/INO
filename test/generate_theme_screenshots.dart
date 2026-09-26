@@ -32,7 +32,6 @@ void main() {
     const regular = r'C:\Windows\Fonts\segoeui.ttf';
     const bold = r'C:\Windows\Fonts\segoeuib.ttf';
     const light = r'C:\Windows\Fonts\segoeuil.ttf';
-    const semibold = r'C:\Windows\Fonts\seguisb.ttf';
 
     final names = [
       'Manrope',
@@ -78,7 +77,8 @@ void main() {
     try {
       await Supabase.initialize(
         url: 'https://example.supabase.co',
-        anonKey: 'test-anon-key',
+        publishableKey: 'test-anon-key',
+        
         debug: false,
       );
     } catch (_) {}

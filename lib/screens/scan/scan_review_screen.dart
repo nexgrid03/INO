@@ -77,10 +77,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   String? _workingPath;
 
   /// Multi-page sources (geometry final - ML Kit already cropped/rectified).
-  late final List<String> _pages =
-      (widget.pages != null && widget.pages!.isNotEmpty)
-          ? List<String>.from(widget.pages!)
-          : [if (widget.imagePath != null) widget.imagePath!];
+  List<String> _pages = [];
 
   bool get _isMulti => _pages.length > 1;
 
@@ -100,7 +97,32 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   @override
   void initState() {
     super.initState();
+    _pages = (widget.pages != null && widget.pages!.isNotEmpty)
+        ? List<String>.from(widget.pages!)
+        : [if (widget.imagePath != null) widget.imagePath!];
     _workingPath = widget.imagePath ?? (_pages.isNotEmpty ? _pages.first : null);
+  }
+
+  @override
+  void didUpdateWidget(ScanReviewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pages != oldWidget.pages || widget.imagePath != oldWidget.imagePath) {
+      final newPages = (widget.pages != null && widget.pages!.isNotEmpty)
+          ? List<String>.from(widget.pages!)
+          : [if (widget.imagePath != null) widget.imagePath!];
+      setState(() {
+        _pages = newPages;
+        _workingPath = widget.imagePath ?? (_pages.isNotEmpty ? _pages.first : null);
+        if (_pages.isNotEmpty) {
+          _previewIndex = _pages.length - 1;
+        }
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pages.length > 1 && _pageController.hasClients) {
+          _pageController.jumpToPage(_pages.length - 1);
+        }
+      });
+    }
   }
 
   @override
@@ -412,30 +434,33 @@ class _ModeSelector extends StatelessWidget {
                           horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: m == mode
-                            ? AppColors.primaryGreen.withValues(alpha: 0.18)
-                            : AppColors.tealFoam.withValues(alpha: 0.5),
+                            ? AppColors.primaryGreen
+                            : AppColors.tealFoam,
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                         border: Border.all(
                           color: m == mode
                               ? AppColors.primaryGreen
-                              : AppColors.tealPale.withValues(alpha: 0.4),
+                              : AppColors.tealPale,
                           width: m == mode ? 1.5 : 1,
                         ),
+                        boxShadow: m == mode
+                            ? AppShadows.glow(AppColors.primaryGreen, opacity: 0.28)
+                            : null,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (m == mode) ...[
-                            Icon(Icons.check_rounded,
-                                size: 14, color: AppColors.primaryGreen),
+                            const Icon(Icons.check_rounded,
+                                size: 14, color: Colors.white),
                             const SizedBox(width: 4),
                           ],
                           Text(
                             l10n.t(m.labelKey),
                             style: AppText.caption.copyWith(
                               color: m == mode
-                                  ? AppColors.primaryGreen
-                                  : AppColors.textMuted,
+                                  ? Colors.white
+                                  : AppPalette.light.textPrimary,
                               fontWeight: m == mode
                                   ? FontWeight.w700
                                   : FontWeight.w600,
@@ -757,7 +782,7 @@ class _Tool extends StatelessWidget {
             const SizedBox(height: 7),
             Text(label,
                 style: AppText.caption.copyWith(
-                    color: AppColors.textMuted,
+                    color: AppPalette.light.textPrimary,
                     fontWeight: FontWeight.w600)),
           ],
         ),

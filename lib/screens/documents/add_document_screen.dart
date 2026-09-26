@@ -17,6 +17,7 @@ import '../../repositories/document_repository.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/document_scanner_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/storage_stats_service.dart';
@@ -129,6 +130,7 @@ class AddDocumentScreen extends StatefulWidget {
     this.initialWallet,
     this.prefill,
     this.initialFilePath,
+    this.initialPages,
   });
 
   /// Pre-selects a wallet when opened from a specific wallet's detail screen.
@@ -140,6 +142,9 @@ class AddDocumentScreen extends StatefulWidget {
 
   /// Local path of the captured/imported image, uploaded to Storage on save.
   final String? initialFilePath;
+
+  /// Ordered paths of captured pages for multi-page documents.
+  final List<String>? initialPages;
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -179,7 +184,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   /// Whether the attached source is made of pages we can add to.
   bool get _isPaged =>
-      _source == _DocSource.image || _source == _DocSource.scan;
+      (_source == _DocSource.image || _source == _DocSource.scan) &&
+      !(_localFilePath?.toLowerCase().endsWith('.pdf') ?? false);
   String? _recordNumber; // OCR-extracted document number (Aadhaar / PAN / …)
 
   /// OCR-extracted structured fields (name / dob / gender / …) and the detected
@@ -196,7 +202,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   void initState() {
     super.initState();
     ScreenSecurityService.instance.enable();
-    _localFilePath = widget.initialFilePath;
+    if (widget.initialPages != null && widget.initialPages!.isNotEmpty) {
+      _localFilePath = widget.initialPages!.first;
+      _extraPages.addAll(widget.initialPages!.skip(1));
+    } else {
+      _localFilePath = widget.initialFilePath;
+    }
     // Pre-select a wallet passed in by the launcher (e.g. from a wallet page).
     if (widget.initialWallet != null &&
         _wallets.any((w) => w.$1 == widget.initialWallet)) {
@@ -286,7 +297,31 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     setState(() => _capturing = true);
     try {
       if (source == _DocSource.scan) {
-        // Ask for camera access first (shows the "Allow" prompt), then open the custom in-app ScannerScreen.
+        if (DocumentScannerService.instance.isSupported) {
+          try {
+            final pages = await DocumentScannerService.instance.scanPages(
+              pageLimit: 20,
+              allowGalleryImport: true,
+            );
+            if (pages == null || pages.isEmpty || !mounted) return;
+            setState(() {
+              _source = source;
+              _localFilePath = pages.first;
+              _tempFileName = pages.first.split(RegExp(r'[\\/]')).last;
+              _extraPages
+                ..clear()
+                ..addAll(pages.skip(1));
+            });
+            return;
+          } catch (e) {
+            if (DocumentScannerService.isUserCancelled(e)) return;
+            developer.log(
+              'Native document scanner failed, falling back to camera: $e',
+              name: 'documents',
+            );
+          }
+        }
+        // Ask for camera access first (shows the "Allow" prompt), then open the fallback in-app ScannerScreen.
         final access = await CameraPermissionService.instance.requestCamera();
         if (access != CameraAccess.granted) {
           _handleDenied(access, 'camera');
@@ -420,21 +455,40 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     try {
       final added = <String>[];
       if (_source == _DocSource.scan) {
-        final access = await CameraPermissionService.instance.requestCamera();
-        if (access != CameraAccess.granted) {
-          _handleDenied(access, 'camera');
-          return;
+        if (DocumentScannerService.instance.isSupported) {
+          try {
+            final pages = await DocumentScannerService.instance.scanPages(
+              pageLimit: 10,
+              allowGalleryImport: true,
+            );
+            if (pages != null && pages.isNotEmpty) {
+              added.addAll(pages);
+            }
+          } catch (e) {
+            if (DocumentScannerService.isUserCancelled(e)) return;
+            developer.log(
+              'Native document scanner failed on add page: $e',
+              name: 'documents',
+            );
+          }
         }
-        if (!mounted) return;
-        final captured = await Navigator.of(context).push<String>(
-          MaterialPageRoute(
-            builder: (context) => ScannerScreen(
-              onClose: () => Navigator.of(context).pop(),
-              onCaptured: (p) => Navigator.of(context).pop(p),
+        if (added.isEmpty && (!DocumentScannerService.instance.isSupported)) {
+          final access = await CameraPermissionService.instance.requestCamera();
+          if (access != CameraAccess.granted) {
+            _handleDenied(access, 'camera');
+            return;
+          }
+          if (!mounted) return;
+          final captured = await Navigator.of(context).push<String>(
+            MaterialPageRoute(
+              builder: (context) => ScannerScreen(
+                onClose: () => Navigator.of(context).pop(),
+                onCaptured: (p) => Navigator.of(context).pop(p),
+              ),
             ),
-          ),
-        );
-        if (captured != null) added.add(captured);
+          );
+          if (captured != null) added.add(captured);
+        }
       } else {
         final access = await CameraPermissionService.instance.requestPhotos();
         if (access != CameraAccess.granted) {
