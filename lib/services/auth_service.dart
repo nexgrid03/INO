@@ -385,10 +385,41 @@ class AuthService {
         .timeout(NetGuard.auth);
   }
 
+  /// Pulls the server's `message` out of a raw Auth response body.
+  ///
+  /// gotrue-dart puts the entire HTTP body into [AuthException.message] for
+  /// status 500 and above. That is why the login screen was showing
+  /// `{"code":"unexpected_failure","message":"Error sending magic link email"}`.
+  static String _authErrorText(AuthException error) {
+    final raw = error.message.trim();
+    if (!raw.startsWith('{')) return error.message;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        final message = decoded['message'] ?? decoded['msg'];
+        final code = decoded['code'] ?? decoded['error_code'] ?? error.code;
+        if (message is String && message.trim().isNotEmpty) {
+          final text = message.trim();
+          if (code is String &&
+              code.isNotEmpty &&
+              !text.toLowerCase().contains(code.toLowerCase())) {
+            return '$code $text';
+          }
+          return text;
+        }
+        if (code is String && code.isNotEmpty) return code;
+      }
+    } catch (_) {
+      // Not JSON. Fall through and treat the original text as the message.
+    }
+    return error.message;
+  }
+
   /// Helper to convert authentication / Supabase errors into human-readable friendly messages.
   static String formatAuthError(Object error) {
     if (error is AuthException) {
-      final msg = error.message.toLowerCase();
+      final parsed = _authErrorText(error);
+      final msg = parsed.toLowerCase();
       if (msg.contains('invalid') && (msg.contains('token') || msg.contains('otp') || msg.contains('code'))) {
         return 'The verification code entered is incorrect. Please check and try again.';
       }
@@ -397,6 +428,20 @@ class AuthService {
       }
       if (msg.contains('rate limit') || msg.contains('too many requests') || msg.contains('over_email_send_rate_limit')) {
         return 'Too many attempts. Please wait a moment before requesting another code.';
+      }
+      // Supabase names every Auth email send "magic link" internally, including
+      // the 6-digit email OTP from signInWithOtp. This status means the mailer
+      // rejected the send. It is not a switch from OTP to link login.
+      if (msg.contains('error sending magic link') ||
+          msg.contains('error sending confirmation email') ||
+          msg.contains('error sending recovery email')) {
+        return "We couldn't send the verification code. Email delivery is unavailable right now. Please wait a moment and try again, or sign in with your mobile number.";
+      }
+      if (msg.contains('unexpected_failure')) {
+        return 'An unexpected error occurred. Please try again.';
+      }
+      if (parsed.trim().startsWith('{') || parsed.trim().startsWith('[')) {
+        return 'An unexpected error occurred. Please try again.';
       }
       if (msg.contains('user not found') ||
           msg.contains('signups not allowed') ||
@@ -411,7 +456,7 @@ class AuthService {
       if (msg.contains('network') || msg.contains('connection')) {
         return 'Unable to connect. Please check your internet connection and try again.';
       }
-      return error.message;
+      return parsed;
     }
     if (error is TimeoutException) {
       return 'The connection timed out. Please check your internet connection and try again.';
