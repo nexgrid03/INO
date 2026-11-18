@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -504,12 +506,18 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  /// Clockwise quarter turns from sensor space to the upright frame the user
-  /// sees - and that the captured still is stored in.
+  /// Clockwise quarter turns from the live buffer to the upright frame the
+  /// user sees, and that the captured still is stored in.
+  ///
+  /// Android keeps the sensor turn. iOS frames already match the preview.
   int get _sensorQuarterTurns {
     final controller = _controller;
     if (controller == null) return 1;
-    return (controller.description.sensorOrientation ~/ 90) % 4;
+    return outlineQuarterTurns(
+      streamMatchesPreview:
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+      sensorOrientation: controller.description.sensorOrientation,
+    );
   }
 
   Future<void> _galleryPressed() async {

@@ -78,6 +78,53 @@ CameraImage _documentFrame(Rect doc) => _quadFrame(
       [doc.topLeft, doc.topRight, doc.bottomRight, doc.bottomLeft],
     );
 
+/// Same page as [_documentFrame], stored as iOS BGRA with a null pixel stride.
+CameraImage _bgraFrame(Rect doc) {
+  final yuv = _documentFrame(doc);
+  final y = yuv.planes.first.bytes;
+  final bytes = Uint8List(_w * _h * 4);
+  for (int i = 0; i < y.length; i++) {
+    final luma = y[i];
+    bytes[i * 4] = luma;
+    bytes[i * 4 + 1] = luma;
+    bytes[i * 4 + 2] = luma;
+    bytes[i * 4 + 3] = 255;
+  }
+  return CameraImage.fromPlatformInterface(
+    CameraImageData(
+      format: const CameraImageFormat(ImageFormatGroup.bgra8888, raw: 1111970369),
+      width: _w,
+      height: _h,
+      planes: <CameraImagePlane>[
+        CameraImagePlane(bytes: bytes, bytesPerRow: _w * 4),
+      ],
+    ),
+  );
+}
+
+/// Same page as [_documentFrame], with the row padding iOS adds to a Y plane
+/// and a null bytes-per-pixel (the iOS camera plugin never sends one).
+CameraImage _paddedYuvFrame(Rect doc) {
+  const pad = 16;
+  final yuv = _documentFrame(doc);
+  final src = yuv.planes.first.bytes;
+  final stride = _w + pad;
+  final bytes = Uint8List(stride * _h);
+  for (int y = 0; y < _h; y++) {
+    bytes.setRange(y * stride, y * stride + _w, src, y * _w);
+  }
+  return CameraImage.fromPlatformInterface(
+    CameraImageData(
+      format: const CameraImageFormat(ImageFormatGroup.yuv420, raw: 875704438),
+      width: _w,
+      height: _h,
+      planes: <CameraImagePlane>[
+        CameraImagePlane(bytes: bytes, bytesPerRow: stride),
+      ],
+    ),
+  );
+}
+
 /// Distance from [p] to the nearest of [corners], in normalised units.
 double _nearestCorner(Offset p, List<Offset> corners) =>
     corners.map((c) => (c - p).distance).reduce(math.min);
@@ -163,6 +210,22 @@ void main() {
       expect(left, isNotNull);
       expect(right, isNotNull);
       expect(left!.center.dx, lessThan(right!.center.dx - 0.3));
+    });
+
+    test('iOS BGRA and padded YUV frames trace the same page', () {
+      const doc = Rect.fromLTRB(0.25, 0.30, 0.75, 0.72);
+      final yuv = LiveDocumentDetector().analyze(_documentFrame(doc));
+      final bgra = LiveDocumentDetector().analyze(_bgraFrame(doc));
+      final padded = LiveDocumentDetector().analyze(_paddedYuvFrame(doc));
+
+      expect(yuv.corners, hasLength(4));
+      expect(bgra.corners, hasLength(4));
+      expect(padded.corners, hasLength(4));
+      expect(bgra.confidence, greaterThan(0.5));
+      for (var i = 0; i < 4; i++) {
+        expect((bgra.corners![i] - yuv.corners![i]).distance, lessThan(0.08));
+        expect((padded.corners![i] - yuv.corners![i]).distance, lessThan(0.08));
+      }
     });
 
     test('reports steadiness only once the frame stops changing', () {
@@ -269,6 +332,30 @@ void main() {
           expect((mapped[i] - mapped[j]).distance, greaterThan(1));
         }
       }
+    });
+
+    test('iOS buffers that already match the preview are not rotated again',
+        () {
+      expect(
+        outlineQuarterTurns(streamMatchesPreview: true, sensorOrientation: 90),
+        0,
+      );
+      expect(
+        outlineQuarterTurns(streamMatchesPreview: false, sensorOrientation: 90),
+        1,
+      );
+      const card = Offset(0.2, 0.3);
+      expect(
+        rotateSensorPoint(
+          card,
+          quarterTurns: outlineQuarterTurns(
+            streamMatchesPreview: true,
+            sensorOrientation: 90,
+          ),
+          mirror: false,
+        ),
+        card,
+      );
     });
 
     test('rotateSensorPoint is the transform projection is built on', () {
