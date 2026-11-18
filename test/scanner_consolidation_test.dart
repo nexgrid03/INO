@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/data/scan_repository.dart';
 import 'package:inoapp/l10n/app_localizations.dart';
 import 'package:inoapp/screens/scan/scan_flow_screen.dart';
-import 'package:inoapp/screens/scan/scan_review_screen.dart';
 import 'package:inoapp/screens/scan/scanner_screen.dart';
 import 'package:inoapp/services/document_crop_service.dart';
 import 'package:inoapp/services/document_scanner_service.dart';
@@ -36,31 +35,23 @@ void main() {
       expect(find.byType(ScannerScreen), findsOneWidget);
     });
 
-    testWidgets('Proof 2: ScanReviewScreen includes "+ Add Page" button for multi-page scanning', (tester) async {
-      bool addPageTapped = false;
+    testWidgets('Proof 2: Scan flow does not present Review Capture / Extract Text', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [AppLocalizations.delegate],
-          home: Scaffold(
-            body: ScanReviewScreen(
-              imagePath: null,
-              onRetake: () {},
-              onAddPage: () => addPageTapped = true,
-              onContinue: (_) {},
-              onClose: () {},
-            ),
+          home: const Scaffold(
+            body: ScanFlowScreen(),
           ),
         ),
       );
 
-      await tester.pumpAndSettle();
-      expect(find.text('Add Page'), findsOneWidget);
-
-      await tester.tap(find.text('Add Page'));
       await tester.pump();
-      expect(addPageTapped, isTrue);
+      expect(find.text('Review Capture'), findsNothing);
+      expect(find.text('Extract Text'), findsNothing);
+      expect(find.text('Add Page'), findsNothing);
+      expect(find.byType(ScannerScreen), findsOneWidget);
     });
 
     test('Proof 3: LiveDocumentDetector accurately isolates document aspects and rejects non-documents', () {

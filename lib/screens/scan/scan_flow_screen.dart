@@ -11,7 +11,6 @@ import '../../theme/app_theme.dart';
 import '../documents/add_document_screen.dart';
 import 'ocr_processing_screen.dart';
 import 'ocr_result_screen.dart';
-import 'scan_review_screen.dart';
 import 'scan_wallet_screen.dart';
 import 'scanner_screen.dart';
 import '../../widgets/common/ino_loader.dart';
@@ -37,10 +36,9 @@ class ScanFlowResult {
   final String? wallet;
 }
 
-enum _Stage { mlkit, scanner, review, processing, result, wallet }
+enum _Stage { mlkit, scanner, processing, result, wallet }
 
-/// Orchestrates the Scan flow: capture → review → OCR → confirm → wallet →
-/// continue.
+/// Orchestrates the Scan flow: capture → OCR → confirm → wallet → continue.
 ///
 /// **Capture is WhatsApp-style by default**: on Android the flow opens Google
 /// ML Kit's native document scanner ([DocumentScannerService]) - live document
@@ -49,9 +47,9 @@ enum _Stage { mlkit, scanner, review, processing, result, wallet }
 /// the fallback when the native scanner is unavailable (iOS / no Play
 /// services / a scanner failure).
 ///
-/// Multi-page scans are reviewed as a carousel (copy modes apply to every
-/// page), OCR runs on the FIRST page, and the pages are assembled into a
-/// single PDF that Add Document saves to the vault.
+/// Multi-page scans keep every captured page. OCR runs on the FIRST page, and
+/// the pages are assembled into a single PDF that Add Document saves to the
+/// vault. The intermediate Review Capture screen is not part of this flow.
 ///
 /// After the details are confirmed the flow asks **which wallet** the document
 /// belongs in ([ScanWalletScreen]) - unless [initialWallet] already answers it
@@ -120,7 +118,7 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
         _usedMlKit = true;
         _pages = pages;
         _capturePath = pages.first;
-        _stage = _Stage.review;
+        _stage = _Stage.processing;
       });
     } catch (e) {
       if (DocumentScannerService.isUserCancelled(e)) {
@@ -139,8 +137,8 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
     }
   }
 
-  /// Retake / review-back: return to whichever capture surface produced the
-  /// current pages.
+  /// Retake / back from a post-capture step: return to whichever capture
+  /// surface produced the current pages.
   void _recapture() {
     _pages = null;
     _capturePath = null;
@@ -158,15 +156,15 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
       case _Stage.mlkit:
       case _Stage.scanner:
         _exit(null);
-      case _Stage.review:
-        _recapture();
       case _Stage.processing:
-        _go(_Stage.review);
       case _Stage.wallet:
-        _go(_Stage.review);
+        // The capture-review page is gone. Back returns to the scanner that
+        // produced these pages rather than re-entering OCR (that screen
+        // auto-advances, so sending it back here would loop).
+        _recapture();
       case _Stage.result:
         if (widget.initialWallet != null) {
-          _go(_Stage.review);
+          _recapture();
         } else {
           _go(_Stage.wallet);
         }
@@ -253,77 +251,6 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
             _usedMlKit = false;
             _capturePath = path;
             _pages = [path];
-            _go(_Stage.review);
-          },
-        );
-      case _Stage.review:
-        return ScanReviewScreen(
-          imagePath: _capturePath,
-          pages: _pages,
-          onClose: _recapture,
-          onRetake: _recapture,
-          onAddPage: () async {
-            if (DocumentScannerService.instance.isSupported) {
-              try {
-                final morePages = await DocumentScannerService.instance.scanPages(
-                  pageLimit: 10,
-                  allowGalleryImport: true,
-                );
-                if (morePages != null && morePages.isNotEmpty && mounted) {
-                  setState(() {
-                    _usedMlKit = true;
-                    _pages = [...?_pages, ...morePages];
-                    _capturePath = morePages.last;
-                  });
-                }
-              } catch (e) {
-                if (DocumentScannerService.isUserCancelled(e)) return;
-                developer.log('Native scanner failed on add page: $e', name: 'scan');
-                if (!mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (ctx) => ScannerScreen(
-                      onClose: () => Navigator.of(ctx).pop(),
-                      onCaptured: (newPage) {
-                        Navigator.of(ctx).pop();
-                        setState(() {
-                          _pages = [...?_pages, newPage];
-                          _capturePath = newPage;
-                        });
-                      },
-                    ),
-                  ),
-                );
-              }
-            } else {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (ctx) => ScannerScreen(
-                    onClose: () => Navigator.of(ctx).pop(),
-                    onCaptured: (newPage) {
-                      Navigator.of(ctx).pop();
-                      setState(() {
-                        _pages = [...?_pages, newPage];
-                        _capturePath = newPage;
-                      });
-                    },
-                  ),
-                ),
-              );
-            }
-          },
-          onContinue: (editedPath) {
-            // Use the edited image (crop / rotate / copy mode) for OCR + save.
-            if (editedPath != null) {
-              _capturePath = editedPath;
-              _pages = [editedPath];
-            }
-            _go(_Stage.processing);
-          },
-          onContinueAll: (processedPages) {
-            // Copy mode applied to every page; OCR reads the first page.
-            _pages = processedPages;
-            _capturePath = processedPages.first;
             _go(_Stage.processing);
           },
         );
@@ -353,14 +280,14 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
         return OcrResultScreen(
           result: _ocr ?? _manualFallback,
           destinationWallet: widget.initialWallet ?? (_ocr ?? _manualFallback).suggestedWallet,
-          onClose: () => widget.initialWallet != null ? _go(_Stage.review) : _go(_Stage.wallet),
+          onClose: () => widget.initialWallet != null ? _recapture() : _go(_Stage.wallet),
           onRetake: _recapture,
           onContinue: _detailsConfirmed,
         );
       case _Stage.wallet:
         return ScanWalletScreen(
           suggestedWallet: (_ocr ?? _manualFallback).suggestedWallet,
-          onBack: () => _go(_Stage.review),
+          onBack: _recapture,
           onSelected: _walletChosen,
         );
     }
