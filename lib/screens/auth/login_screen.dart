@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../l10n/app_localizations.dart';
@@ -6,7 +7,9 @@ import '../../main.dart';
 import '../../models/country_code.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
+import '../../services/account_security_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/signup_identity_flow.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
@@ -39,6 +42,192 @@ enum VerificationChannel {
         VerificationChannel.email => 'Email',
         VerificationChannel.phone => 'Mobile number',
       };
+}
+
+/// Second-identifier OTP with no path back to signup. Sign out is the exit.
+class PendingSecondVerificationScreen extends StatefulWidget {
+  const PendingSecondVerificationScreen({super.key});
+
+  @override
+  State<PendingSecondVerificationScreen> createState() =>
+      _PendingSecondVerificationScreenState();
+}
+
+class _PendingSecondVerificationScreenState
+    extends State<PendingSecondVerificationScreen> {
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_openOtp());
+    });
+  }
+
+  DualSignupCoordinator _flow() {
+    return DualSignupCoordinator(
+      identifierTaken: AuthService.instance.identifierTaken,
+      linkPhone: AuthService.instance.linkPhone,
+      linkEmail: AuthService.instance.linkEmail,
+      verifyPhoneUserId: (phone, code) async {
+        final res = await AuthService.instance.verifyPhoneLink(
+          phone: phone,
+          token: code,
+        );
+        return res.user?.id;
+      },
+      verifyEmailUserId: (email, code) async {
+        final res = await AuthService.instance.verifyEmailLink(
+          email: email,
+          token: code,
+        );
+        return res.user?.id;
+      },
+      createProfile: ({
+        required String authUserId,
+        required String fullName,
+        required String email,
+        required String phone,
+      }) {
+        return _LoginScreenState._createSignupProfile(
+          authUserId: authUserId,
+          name: fullName,
+          email: email,
+          phone: phone,
+        );
+      },
+    );
+  }
+
+  Future<void> _openOtp() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null || !mounted) {
+      await signOutPendingSignup(context);
+      return;
+    }
+    final meta = user.userMetadata ?? {};
+    final email = ((meta['email'] as String?) ?? user.email ?? '').trim();
+    final rawPhone = ((meta['phone'] as String?) ?? user.phone ?? '').trim();
+    final phone = DualSignupCoordinator.phoneTarget(rawPhone);
+    final name =
+        (meta['full_name'] as String?) ?? (meta['name'] as String?) ?? '';
+    final emailConfirmed = user.emailConfirmedAt != null;
+    final phoneConfirmed = user.phoneConfirmedAt != null;
+    final usablePhone = phone.isEmpty ? rawPhone : phone;
+    if (!secondFactorStillNeeded(
+      emailConfirmed: emailConfirmed,
+      phoneConfirmed: phoneConfirmed,
+      email: email,
+      phone: usablePhone,
+    )) {
+      if (!mounted) return;
+      setState(() => _error =
+          'This sign-in is already verified. Sign out, then log in again.');
+      return;
+    }
+    final firstWasEmail = emailConfirmed && !phoneConfirmed;
+    final flow = _flow();
+    final SecondLinkStart started;
+    try {
+      started = await flow.beginSecond(
+        firstWasEmail: firstWasEmail,
+        email: email,
+        phone: usablePhone,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = AuthService.formatAuthError(e));
+      return;
+    }
+    if (!mounted) return;
+    if (started.blocked || started.target == null) {
+      setState(() => _error =
+          'That email or mobile number is already on another INO account. '
+          'Sign out and log in with that account.');
+      return;
+    }
+    final target = started.target!;
+    UserProfile? created;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: firstWasEmail
+              ? 'Verify Your Mobile Number'
+              : 'Verify Your Email',
+          destination: target,
+          showBack: false,
+          onSignOut: signOutPendingSignup,
+          onResend: () => flow.resend(
+            firstWasEmail: firstWasEmail,
+            target: target,
+          ),
+          onVerify: (code) async {
+            final ok = await flow.confirmSecond(
+              expectedUserId: user.id,
+              firstWasEmail: firstWasEmail,
+              target: target,
+              code: code,
+              fullName: name,
+              email: email,
+              phone: usablePhone,
+            );
+            if (!ok) {
+              throw const AuthException(
+                'This verification does not match your INO account.',
+              );
+            }
+            created =
+                await UserRepository.instance.getProfileByAuthId(user.id);
+            if (created == null) {
+              throw const AuthException(
+                "We couldn't save your profile. Your sign-in is saved. Please try again.",
+              );
+            }
+            return true;
+          },
+          onVerified: (otpCtx) {
+            final ready = created;
+            if (ready != null) goToShell(otpCtx, ready);
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AuthScaffold(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_error == null) const CircularProgressIndicator(),
+            if (_error != null) ...[
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => signOutPendingSignup(context),
+                child: const Text('Sign out'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> signOutPendingSignup(BuildContext context) async {
+  try {
+    await AuthService.instance.signOut();
+  } catch (_) {}
+  if (!context.mounted) return;
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    (route) => false,
+  );
 }
 
 /// Redesigned INO Authentication Screen: Supports seamless switching between
@@ -140,6 +329,28 @@ class _LoginScreenState extends State<LoginScreen> {
       ..showSnackBar(snackBar);
   }
 
+  static const String _profileSaveFailed =
+      "We couldn't save your profile. Your sign-in is saved. Please try again.";
+  static const String _profileOwnedByOtherAccount =
+      'That email or mobile number is already on another INO account. '
+      'Sign out and log in with that account.';
+
+  /// Consent audit is recorded after the profile exists. Signup metadata
+  /// already contains accepted_terms, so a failed audit insert must not
+  /// discard the profile or the session. One retry, then a log.
+  static Future<void> _recordSignupConsent() async {
+    try {
+      await AuthService.instance.recordTermsConsent(
+        version: '1.0',
+        attest18Plus: true,
+      );
+    } catch (_) {
+      // The profile and the accepted_terms metadata are already in place.
+      // recordTermsConsent performs its own checked retry.
+      logAuthEvent('terms consent not confirmed');
+    }
+  }
+
   // --- New User: Send OTP & Create Account ----------------------------------
 
   Future<void> _handleNewUserSignup() async {
@@ -152,7 +363,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final nationalPhone = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final fullPhone = '${_signUpCountry.dialCode}$nationalPhone';
+    final rawPhone = '${_signUpCountry.dialCode}$nationalPhone';
+    final canonical = AccountSecurityService.canonicalPhone(rawPhone);
+    final fullPhone = canonical.isEmpty ? rawPhone : canonical;
 
     if (name.isEmpty) {
       _showMessage('Please enter your full name.');
@@ -219,12 +432,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Signup verification: one code, to whichever channel the user chose.
-  ///
-  /// That channel becomes the account's login credential. The other identifier
-  /// is written to the profile as contact detail and is deliberately NOT a way
-  /// in - nobody proved ownership of it, so accepting it later would hand the
-  /// account to whoever claimed that address or number.
+  /// Signup verification: the chosen channel creates the Auth user. The other
+  /// identifier is then linked and confirmed on that same user. The profile
+  /// is created only after both are confirmed.
   void _goToNewUserOtpScreen({
     required String name,
     required String email,
@@ -240,7 +450,7 @@ class _LoginScreenState extends State<LoginScreen> {
       'accepted_terms': true,
       'attestation_18_plus': true,
     };
-    UserProfile? profile;
+    String? authUserId;
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -258,45 +468,176 @@ class _LoginScreenState extends State<LoginScreen> {
                     .verifyPhoneOtp(phone: phone, token: code);
             final user = res.user;
             if (user == null) return false;
-
-            await AuthService.instance.recordTermsConsent(
-              version: '1.0',
-              attest18Plus: true,
-            );
-
-            try {
-              profile = await UserRepository.instance.createProfile(
-                authUserId: user.id,
-                fullName: name,
-                email: email,
-                phone: phone,
-              );
-            } catch (_) {
-              // A database trigger may already have written the row.
-              profile =
-                  await UserRepository.instance.getProfileByAuthId(user.id);
-            }
+            authUserId = user.id;
             return true;
           },
           onVerified: (ctx) {
-            final created = profile;
-            if (created != null) {
-              goToShell(ctx, created);
-            } else {
-              final user = AuthService.instance.currentUser;
-              if (user != null) {
-                routeAfterAuth(
-                  authUserId: user.id,
-                  fullName: name,
-                  email: email,
-                  phone: phone,
-                );
-              }
-            }
+            final id = authUserId;
+            if (id == null) return;
+            unawaited(_startSecondIdentifier(
+              ctx,
+              authUserId: id,
+              firstWasEmail: isEmail,
+              name: name,
+              email: email,
+              phone: phone,
+            ));
           },
         ),
       ),
     );
+  }
+
+  DualSignupCoordinator _signupCoordinator() {
+    return DualSignupCoordinator(
+      identifierTaken: AuthService.instance.identifierTaken,
+      linkPhone: AuthService.instance.linkPhone,
+      linkEmail: AuthService.instance.linkEmail,
+      verifyPhoneUserId: (phone, code) async {
+        final res = await AuthService.instance.verifyPhoneLink(
+          phone: phone,
+          token: code,
+        );
+        return res.user?.id;
+      },
+      verifyEmailUserId: (email, code) async {
+        final res = await AuthService.instance.verifyEmailLink(
+          email: email,
+          token: code,
+        );
+        return res.user?.id;
+      },
+      createProfile: ({
+        required String authUserId,
+        required String fullName,
+        required String email,
+        required String phone,
+      }) async {
+        await _LoginScreenState._createSignupProfile(
+          authUserId: authUserId,
+          name: fullName,
+          email: email,
+          phone: phone,
+        );
+      },
+    );
+  }
+
+  Future<void> _startSecondIdentifier(
+    BuildContext ctx, {
+    required String authUserId,
+    required bool firstWasEmail,
+    required String name,
+    required String email,
+    required String phone,
+  }) async {
+    final flow = _signupCoordinator();
+    final SecondLinkStart started;
+    try {
+      started = await flow.beginSecond(
+        firstWasEmail: firstWasEmail,
+        email: email,
+        phone: phone,
+      );
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
+      return;
+    }
+    if (started.blocked || started.target == null) {
+      _showMessage(_profileOwnedByOtherAccount);
+      return;
+    }
+    final target = started.target!;
+    if (!ctx.mounted) return;
+    UserProfile? created;
+    Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          title: firstWasEmail
+              ? 'Verify Your Mobile Number'
+              : 'Verify Your Email',
+          destination: target,
+          onResend: () => flow.resend(
+            firstWasEmail: firstWasEmail,
+            target: target,
+          ),
+          showBack: false,
+          onSignOut: signOutPendingSignup,
+          onVerify: (code) async {
+            final ok = await flow.confirmSecond(
+              expectedUserId: authUserId,
+              firstWasEmail: firstWasEmail,
+              target: target,
+              code: code,
+              fullName: name,
+              email: email,
+              phone: phone,
+            );
+            if (!ok) {
+              throw const AuthException(
+                'This verification does not match your INO account.',
+              );
+            }
+            created = await UserRepository.instance.getProfileByAuthId(
+              authUserId,
+            );
+            if (created == null) {
+              throw const AuthException(
+                "We couldn't save your profile. Your sign-in is saved. Please try again.",
+              );
+            }
+            return true;
+          },
+          onVerified: (otpCtx) {
+            final ready = created;
+            if (ready != null) goToShell(otpCtx, ready);
+          },
+        ),
+      ),
+    );
+  }
+
+  // --- Existing User: Send OTP & Sign In -------------------------------------
+
+  static Future<void> _createSignupProfile({
+    required String authUserId,
+    required String name,
+    required String email,
+    required String phone,
+  }) async {
+    UserProfile? profile;
+    var readFailed = false;
+    try {
+      profile = await UserRepository.instance.getProfileByAuthId(authUserId);
+    } catch (_) {
+      readFailed = true;
+      logAuthEvent('signup profile read failed');
+    }
+    if (readFailed) {
+      throw const AuthException(_profileSaveFailed);
+    }
+    if (profile != null) return;
+    try {
+      await UserRepository.instance.createProfile(
+        authUserId: authUserId,
+        fullName: name,
+        email: email,
+        phone: phone,
+      );
+    } on PostgrestException catch (e) {
+      logAuthEvent('signup profile insert failed', code: e.code);
+      if (isUsersUniqueViolation(e)) {
+        final existing =
+            await UserRepository.instance.getProfileByAuthId(authUserId);
+        if (existing != null) return;
+        throw const AuthException(
+          'That email or mobile number is already on another INO account. '
+          'Sign out and log in with that account.',
+        );
+      }
+      throw const AuthException(_profileSaveFailed);
+    }
+    await _recordSignupConsent();
   }
 
   // --- Existing User: Send OTP & Sign In -------------------------------------

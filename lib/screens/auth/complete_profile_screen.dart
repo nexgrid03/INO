@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../repositories/user_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/signup_identity_flow.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_primary_button.dart';
 import '../../widgets/auth/auth_scaffold.dart';
@@ -30,12 +29,17 @@ class CompleteProfileScreen extends StatefulWidget {
     required this.email,
     this.phone,
     this.existingProfile,
+    this.notice,
   });
 
   final String authUserId;
   final String fullName;
   final String email;
   final String? phone;
+
+  /// Shown once when signup reached this screen because the profile row
+  /// could not be saved. Never a raw database error.
+  final String? notice;
 
   /// The already-created (but incomplete) profile row, if any. Null for a
   /// brand-new user whose row hasn't been inserted yet.
@@ -55,6 +59,37 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   );
 
   bool _busy = false;
+  bool _phoneLocked = false;
+
+  static const String _saveFailed =
+      "We couldn't save your profile. Your sign-in is saved. Please try again.";
+  static const String _ownedByOtherAccount =
+      'That email or mobile number is already on another INO account. '
+      'Sign out and log in with that account.';
+
+  @override
+  void initState() {
+    super.initState();
+    final notice = widget.notice;
+    if (notice != null && notice.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showMessage(notice);
+      });
+    }
+    if (widget.existingProfile != null) {
+      _phoneLocked = true;
+      final stored = widget.existingProfile!.phone ?? '';
+      if (stored.isNotEmpty) _phoneController.text = stored;
+    }
+    final user = AuthService.instance.currentUser;
+    if (widget.existingProfile == null &&
+        user?.phoneConfirmedAt != null &&
+        (user?.phone ?? '').isNotEmpty) {
+      _phoneLocked = true;
+      _phoneController.text =
+          DualSignupCoordinator.phoneTarget(user!.phone!);
+    }
+  }
 
   @override
   void dispose() {
@@ -82,41 +117,94 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final l10n = AppLocalizations.of(context);
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
+    final current = AuthService.instance.currentUser;
+    if (widget.existingProfile == null && current != null) {
+      final meta = current.userMetadata ?? {};
+      final email =
+          ((meta['email'] as String?) ?? current.email ?? widget.email).trim();
+      final rawPhone =
+          ((meta['phone'] as String?) ?? current.phone ?? phone).trim();
+      final canonical = DualSignupCoordinator.phoneTarget(rawPhone);
+      if (secondFactorStillNeeded(
+        emailConfirmed: current.emailConfirmedAt != null,
+        phoneConfirmed: current.phoneConfirmedAt != null,
+        email: email,
+        phone: canonical.isEmpty ? rawPhone : canonical,
+      )) {
+        _showMessage(
+          'Verify your email and mobile number before saving your profile.',
+        );
+        return;
+      }
+    }
 
     setState(() => _busy = true);
     try {
-      developer.log(
-        'CompleteProfile save (new=${widget.existingProfile == null}) '
-        'for ${widget.authUserId}',
-        name: 'auth',
+      logAuthEvent(
+        widget.existingProfile == null
+            ? 'complete profile insert'
+            : 'complete profile update',
       );
       UserProfile profile;
-      if (widget.existingProfile == null) {
-        // Row doesn't exist yet - create it complete, with the phone included.
-        profile = await UserRepository.instance.createProfile(
-          authUserId: widget.authUserId,
-          fullName: name,
-          email: widget.email,
-          phone: phone,
-        );
-      } else {
-        // Row exists but was missing details - fill them in.
+      final confirmedPhone = current?.phoneConfirmedAt != null
+          ? DualSignupCoordinator.phoneTarget(current?.phone ?? '')
+          : null;
+      final confirmedEmail = current?.emailConfirmedAt != null
+          ? (current?.email ?? '').trim()
+          : null;
+      if (widget.existingProfile == null &&
+          confirmedPhone != null &&
+          confirmedPhone.isNotEmpty &&
+          profilePhoneToSave(
+                confirmedPhone: confirmedPhone,
+                typedPhone: phone,
+              ) ==
+              null) {
+        _showMessage('The verified mobile number cannot be changed here.');
+        return;
+      }
+      if (widget.existingProfile != null) {
         profile = await UserRepository.instance.updateProfile(
           authUserId: widget.authUserId,
           fullName: name,
-          phone: phone,
+        );
+      } else {
+        final savePhone = (confirmedPhone != null && confirmedPhone.isNotEmpty)
+            ? confirmedPhone
+            : DualSignupCoordinator.phoneTarget(phone);
+        final saveEmail = (confirmedEmail != null && confirmedEmail.isNotEmpty)
+            ? confirmedEmail
+            : widget.email;
+        profile = await UserRepository.instance.createProfile(
+          authUserId: widget.authUserId,
+          fullName: name,
+          email: saveEmail,
+          phone: savePhone,
         );
       }
-      developer.log('CompleteProfile saved → Home (${profile.id})',
-          name: 'auth');
+      logAuthEvent('complete profile saved');
       if (!mounted) return;
       goToShell(context, profile);
     } on PostgrestException catch (e) {
-      developer.log('CompleteProfile PostgrestException: ${e.message}',
-          name: 'auth', error: e);
-      _showMessage(e.message);
-    } catch (e) {
-      developer.log('CompleteProfile error: $e', name: 'auth', error: e);
+      logAuthEvent('complete profile save failed', code: e.code);
+      if (isUsersUniqueViolation(e)) {
+        try {
+          final existing = await UserRepository.instance
+              .getProfileByAuthId(widget.authUserId);
+          if (existing != null) {
+            if (!mounted) return;
+            goToShell(context, existing);
+            return;
+          }
+        } catch (_) {
+          logAuthEvent('complete profile reread failed');
+        }
+        _showMessage(_ownedByOtherAccount);
+      } else {
+        _showMessage(_saveFailed);
+      }
+    } catch (_) {
+      logAuthEvent('complete profile save failed');
       _showMessage(l10n.t('saveDetailsError'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -199,6 +287,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
+                    enabled: !_phoneLocked,
                     autofillHints: const [AutofillHints.telephoneNumber],
                     validator: validate.phone,
                     onSubmitted: (_) => _save(),

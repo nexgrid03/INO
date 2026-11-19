@@ -16,6 +16,6 @@ comment on column public.vault_keys.recovery_envelope is
   'Vault Master Key (VMK) wrapped with user-verified account recovery key for OTP resets.';
 
 -- Allow owners to update their own key row upon passphrase reset / rotation
-drop policy if exists vault_keys: owner updates own on public.vault_keys;
-create policy vault_keys: owner updates own on public.vault_keys
+drop policy if exists "vault_keys: owner updates own" on public.vault_keys;
+create policy "vault_keys: owner updates own" on public.vault_keys
   for update using (auth_user_id = auth.uid()) with check (auth_user_id = auth.uid());
