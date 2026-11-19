@@ -92,7 +92,9 @@ class VaultCrypto extends ChangeNotifier {
         return true;
       }
       if (uid != 'local') {
-        final fallbackRaw = await _secureStorage.read(key: 'ino_vault_key_local');
+        final fallbackRaw = await _secureStorage.read(
+          key: 'ino_vault_key_local',
+        );
         if (fallbackRaw != null && fallbackRaw.isNotEmpty) {
           return true;
         }
@@ -143,13 +145,22 @@ class VaultCrypto extends ChangeNotifier {
 
       final masterKeyBytes = _randomBytes(32);
       final masterKey = SecretKey(masterKeyBytes);
-      final wrappedMasterKey = await _seal(base64Encode(masterKeyBytes), passphraseKey);
+      final wrappedMasterKey = await _seal(
+        base64Encode(masterKeyBytes),
+        passphraseKey,
+      );
 
       final recoveryKey = await _deriveRecoveryKey(uid);
-      final recoveryEnvelope = await _seal(base64Encode(masterKeyBytes), recoveryKey);
+      final recoveryEnvelope = await _seal(
+        base64Encode(masterKeyBytes),
+        recoveryKey,
+      );
 
       try {
-        await _secureStorage.write(key: 'ino_vault_recovery_$uid', value: recoveryEnvelope);
+        await _secureStorage.write(
+          key: 'ino_vault_recovery_$uid',
+          value: recoveryEnvelope,
+        );
         await _secureStorage.write(
           key: 'ino_vault_key_$uid',
           value: jsonEncode({
@@ -177,14 +188,20 @@ class VaultCrypto extends ChangeNotifier {
           try {
             await client.from(_table).insert(payload);
           } catch (e2) {
-            developer.log('createPassphrase remote insert warning: $e2', name: 'vault');
+            developer.log(
+              'createPassphrase remote insert warning: $e2',
+              name: 'vault',
+            );
           }
         }
       }
 
       _key = masterKey;
       notifyListeners();
-      developer.log('vault passphrase created with envelope key', name: 'vault');
+      developer.log(
+        'vault passphrase created with envelope key',
+        name: 'vault',
+      );
       return true;
     } catch (e) {
       developer.log('createPassphrase failed: $e', name: 'vault');
@@ -221,7 +238,11 @@ class VaultCrypto extends ChangeNotifier {
 
       final salt = base64Decode(row['salt'] as String);
       final iterations = (row['iterations'] as num?)?.toInt() ?? _iterations;
-      final passphraseKey = await _deriveKey(passphrase, salt, iterations: iterations);
+      final passphraseKey = await _deriveKey(
+        passphrase,
+        salt,
+        iterations: iterations,
+      );
 
       final opened = await _open(row['verifier'] as String, passphraseKey);
       if (opened != _verifierPlaintext) return false;
@@ -234,16 +255,28 @@ class VaultCrypto extends ChangeNotifier {
 
         try {
           final recoveryKey = await _deriveRecoveryKey(uid);
-          final recoveryEnvelope = await _seal(base64Encode(masterKeyBytes), recoveryKey);
-          await _secureStorage.write(key: 'ino_vault_recovery_$uid', value: recoveryEnvelope);
+          final recoveryEnvelope = await _seal(
+            base64Encode(masterKeyBytes),
+            recoveryKey,
+          );
+          await _secureStorage.write(
+            key: 'ino_vault_recovery_$uid',
+            value: recoveryEnvelope,
+          );
         } catch (_) {}
       } else {
         _key = passphraseKey;
         try {
           final keyBytes = await passphraseKey.extractBytes();
           final recoveryKey = await _deriveRecoveryKey(uid);
-          final recoveryEnvelope = await _seal(base64Encode(keyBytes), recoveryKey);
-          await _secureStorage.write(key: 'ino_vault_recovery_$uid', value: recoveryEnvelope);
+          final recoveryEnvelope = await _seal(
+            base64Encode(keyBytes),
+            recoveryKey,
+          );
+          await _secureStorage.write(
+            key: 'ino_vault_recovery_$uid',
+            value: recoveryEnvelope,
+          );
         } catch (_) {}
       }
 
@@ -272,7 +305,9 @@ class VaultCrypto extends ChangeNotifier {
         envelope = await _secureStorage.read(key: 'ino_vault_recovery_$uid');
       } catch (_) {}
 
-      if ((envelope == null || envelope.isEmpty) && client != null && _uid != null) {
+      if ((envelope == null || envelope.isEmpty) &&
+          client != null &&
+          _uid != null) {
         try {
           final row = await client
               .from(_table)
@@ -295,24 +330,31 @@ class VaultCrypto extends ChangeNotifier {
       }
 
       restoredKey ??= _key;
+      // A missing envelope and a locked vault do not yield the original master
+      // key. Deriving one from the new passphrase would orphan every secret
+      // already sealed with the real key, so stop before any metadata is built
+      // or stored.
+      if (restoredKey == null) return false;
 
       final newSalt = _randomBytes(32);
       final newPassphraseKey = await _deriveKey(newPassphrase, newSalt);
       final newVerifier = await _seal(_verifierPlaintext, newPassphraseKey);
+      final masterBytes = await restoredKey.extractBytes();
 
-      List<int> masterBytes;
-      if (restoredKey != null) {
-        masterBytes = await restoredKey.extractBytes();
-      } else {
-        masterBytes = await newPassphraseKey.extractBytes();
-        restoredKey = SecretKey(masterBytes);
-      }
-
-      final newWrappedMasterKey = await _seal(base64Encode(masterBytes), newPassphraseKey);
-      final newRecoveryEnvelope = await _seal(base64Encode(masterBytes), recoveryKey);
+      final newWrappedMasterKey = await _seal(
+        base64Encode(masterBytes),
+        newPassphraseKey,
+      );
+      final newRecoveryEnvelope = await _seal(
+        base64Encode(masterBytes),
+        recoveryKey,
+      );
 
       try {
-        await _secureStorage.write(key: 'ino_vault_recovery_$uid', value: newRecoveryEnvelope);
+        await _secureStorage.write(
+          key: 'ino_vault_recovery_$uid',
+          value: newRecoveryEnvelope,
+        );
         await _secureStorage.write(
           key: 'ino_vault_key_$uid',
           value: jsonEncode({
@@ -336,11 +378,21 @@ class VaultCrypto extends ChangeNotifier {
         };
 
         try {
-          await client.from(_table).upsert(updatePayload).timeout(NetGuard.mutation);
+          await client
+              .from(_table)
+              .upsert(updatePayload)
+              .timeout(NetGuard.mutation);
         } catch (_) {
           try {
-            await client.from(_table).delete().eq('auth_user_id', _uid!).timeout(NetGuard.mutation);
-            await client.from(_table).insert(updatePayload).timeout(NetGuard.mutation);
+            await client
+                .from(_table)
+                .delete()
+                .eq('auth_user_id', _uid!)
+                .timeout(NetGuard.mutation);
+            await client
+                .from(_table)
+                .insert(updatePayload)
+                .timeout(NetGuard.mutation);
           } catch (e) {
             developer.log('recover remote upsert warning: $e', name: 'vault');
           }
@@ -356,7 +408,10 @@ class VaultCrypto extends ChangeNotifier {
         await PasswordStore.instance.resealForNewKey();
       }
 
-      developer.log('vault passphrase recovered & reset successfully', name: 'vault');
+      developer.log(
+        'vault passphrase recovered & reset successfully',
+        name: 'vault',
+      );
       return true;
     } catch (e) {
       developer.log('recoverAndResetPassphrase failed: $e', name: 'vault');
@@ -406,8 +461,11 @@ class VaultCrypto extends ChangeNotifier {
   // Internals
   // ---------------------------------------------------------------------------
 
-  Future<SecretKey> _deriveKey(String passphrase, List<int> salt,
-      {int? iterations}) {
+  Future<SecretKey> _deriveKey(
+    String passphrase,
+    List<int> salt, {
+    int? iterations,
+  }) {
     final kdf = iterations == null || iterations == _iterations
         ? _pbkdf2
         : Pbkdf2(
