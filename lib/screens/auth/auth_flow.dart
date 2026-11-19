@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../main.dart';
 import '../../models/user_profile.dart';
@@ -16,6 +17,11 @@ import '../shell/main_shell.dart';
 import 'complete_profile_screen.dart';
 import 'google_terms_consent_screen.dart';
 import 'mfa_challenge_screen.dart';
+
+/// Postgres `unique_violation`. `public.users` enforces this on
+/// `auth_user_id` and on email.
+bool isUsersUniqueViolation(Object error) =>
+    error is PostgrestException && error.code == '23505';
 
 /// Guards against two callers (e.g. the sign-in future and a retry) both
 /// routing at once and pushing the shell twice.
@@ -40,6 +46,7 @@ Future<void> routeAfterAuth({
   required String email,
   String? phone,
   bool mfaSatisfied = false,
+  String? profileNotice,
 }) async {
   if (_routingAfterAuth) {
     developer.log('routeAfterAuth ignored - already routing', name: 'auth');
@@ -89,6 +96,7 @@ Future<void> routeAfterAuth({
                   email: email,
                   phone: phone,
                   mfaSatisfied: true,
+                  profileNotice: profileNotice,
                 ),
               );
             },
@@ -132,6 +140,7 @@ Future<void> routeAfterAuth({
             email: existing?.email ?? email,
             phone: effectivePhone,
             existingProfile: existing,
+            notice: profileNotice,
           ),
         ),
         (route) => false,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
@@ -99,7 +100,10 @@ class UserRepository {
         .eq('auth_user_id', authUserId)
         .maybeSingle() // returns null instead of throwing when no row
         .timeout(NetGuard.query);
-    if (row == null) return null;
+    if (row == null) {
+      await forgetCachedProfile(authUserId);
+      return null;
+    }
     final profile = UserProfile.fromMap(row);
     await _cacheProfile(profile);
     return profile;
@@ -111,7 +115,9 @@ class UserRepository {
   // signed-in user whose network is down can still boot into their shell (and
   // reach features that are deliberately offline, like Offline documents).
 
-  static const String _cachePrefix = 'ino_profile_cache';
+  @visibleForTesting
+  static const String profileCachePrefix = 'ino_profile_cache';
+  static const String _cachePrefix = profileCachePrefix;
   UserProfile? _inMemoryProfile;
 
   /// Clears the in-memory profile cache on sign-out / account switch.
@@ -130,6 +136,17 @@ class UserRepository {
           await prefs.remove(key);
         }
       }
+    } catch (_) {}
+  }
+
+  /// Drops only this account's snapshot. Other accounts' disk entries stay.
+  Future<void> forgetCachedProfile(String authUserId) async {
+    if (_inMemoryProfile?.authUserId == authUserId) {
+      _inMemoryProfile = null;
+    }
+    try {
+      final prefs = await SharedPrefsCache.instance.prefsAsync;
+      await prefs.remove('${_cachePrefix}_$authUserId');
     } catch (_) {}
   }
 
@@ -157,6 +174,10 @@ class UserRepository {
       final raw = prefs.getString('${_cachePrefix}_$authUserId');
       if (raw == null) return null;
       final profile = UserProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+      if (profile.authUserId != authUserId) {
+        await forgetCachedProfile(authUserId);
+        return null;
+      }
       _inMemoryProfile = profile;
       return profile;
     } catch (_) {

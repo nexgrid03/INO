@@ -16,14 +16,33 @@ import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../theme/theme_style.dart';
 import '../../services/auth_service.dart';
+import '../auth/complete_profile_screen.dart';
 import '../auth/google_terms_consent_screen.dart';
 import '../auth/login_screen.dart';
+import '../../services/signup_identity_flow.dart';
 import '../auth/mfa_challenge_screen.dart';
 import '../documents/offline_documents_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../shell/main_shell.dart';
 import '../../services/two_factor_service.dart';
 import '../../services/vault_guard.dart';
+
+/// Where a signed-in launch goes when the profile read has finished.
+///
+/// A thrown lookup is [SignedInProfileRoute.retry], never Complete Profile.
+/// A query that succeeds with no row is [SignedInProfileRoute.finishProfile].
+enum SignedInProfileRoute { proceed, finishProfile, retry }
+
+SignedInProfileRoute signedInProfileRoute({
+  required bool hasSession,
+  required bool hasProfile,
+  required bool lookupFailed,
+  required bool confirmedMissing,
+}) {
+  if (!hasSession || hasProfile) return SignedInProfileRoute.proceed;
+  if (lookupFailed || !confirmedMissing) return SignedInProfileRoute.retry;
+  return SignedInProfileRoute.finishProfile;
+}
 
 /// Splash — oversized clay shield settles, shine sweeps, then I → N → O.
 ///
@@ -56,6 +75,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   bool _navigated = false;
   bool _exiting = false;
+  bool _profileLookupFailed = false;
+  bool _profileConfirmedMissing = false;
+  bool _showProfileRetry = false;
+  bool _resumeSecondFactor = false;
 
   /// Flat silhouette used as the clay-3D mask (same shape as before).
   static const _shieldMask = 'assets/splash/splash_shield_blank.png';
@@ -179,6 +202,46 @@ class _SplashScreenState extends State<SplashScreen>
   ///
   /// Never throws. Anything that fails here degrades to the old behaviour:
   /// the destination screen loads it itself.
+  Future<void> _retryProfileLookup() async {
+    setState(() => _showProfileRetry = false);
+    _profileLookupFailed = false;
+    _profileConfirmedMissing = false;
+    _resumeSecondFactor = false;
+    _profile = null;
+    _startup = _prepare();
+    try {
+      await _startup;
+    } catch (_) {}
+    if (!mounted) return;
+    _exiting = false;
+    _navigated = false;
+    await _beginExit();
+  }
+
+  void _openFinishProfile() {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      _goToGuestShellFade();
+      return;
+    }
+    final user = session.user;
+    final meta = user.userMetadata ?? {};
+    final name =
+        (meta['full_name'] as String?) ?? (meta['name'] as String?) ?? '';
+    final email = (user.email != null && user.email!.isNotEmpty)
+        ? user.email!
+        : (meta['email'] as String?) ?? '';
+    final phone = (user.phone != null && user.phone!.isNotEmpty)
+        ? user.phone
+        : meta['phone'] as String?;
+    _replace(CompleteProfileScreen(
+      authUserId: user.id,
+      fullName: name,
+      email: email,
+      phone: phone,
+    ));
+  }
+
   Future<void> _prepare() async {
     // Kicked off first so the asset decodes and the document fetch overlap the
     // profile round-trip below rather than queueing behind it. Swallowing
@@ -190,26 +253,54 @@ class _SplashScreenState extends State<SplashScreen>
         .warmUp(context: context)
         .catchError((Object _) {});
 
+    _profileLookupFailed = false;
+    _profileConfirmedMissing = false;
+    _resumeSecondFactor = false;
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
-        var profile = await UserRepository.instance.getCachedProfile(
+        final cached = await UserRepository.instance.getCachedProfile(
           session.user.id,
         );
-        if (profile == null) {
-          profile = await UserRepository.instance.getProfileByAuthId(
+        try {
+          final fresh = await UserRepository.instance.getProfileByAuthId(
             session.user.id,
           );
-        } else {
-          // Cached profile is good enough to open with; refresh behind it.
-          unawaited(
-            UserRepository.instance.getProfileByAuthId(session.user.id),
-          );
+          // A successful empty read is the only signal that the row is
+          // missing. The repository drops that account's cache in that case,
+          // so a stale snapshot cannot open the shell.
+          if (fresh == null) {
+            _profile = null;
+            final user = session.user;
+            final meta = user.userMetadata ?? {};
+            final email =
+                ((meta['email'] as String?) ?? user.email ?? '').trim();
+            final rawPhone =
+                ((meta['phone'] as String?) ?? user.phone ?? '').trim();
+            final phone = DualSignupCoordinator.phoneTarget(rawPhone);
+            _resumeSecondFactor = secondFactorStillNeeded(
+              emailConfirmed: user.emailConfirmedAt != null,
+              phoneConfirmed: user.phoneConfirmedAt != null,
+              email: email,
+              phone: phone.isEmpty ? rawPhone : phone,
+            );
+            if (!_resumeSecondFactor) _profileConfirmedMissing = true;
+          } else {
+            _profile = fresh;
+          }
+        } catch (_) {
+          if (cached != null) {
+            _profile = cached;
+            logAuthEvent('splash profile refresh failed; cache kept');
+          } else {
+            rethrow;
+          }
         }
-        _profile = profile;
       }
     } catch (_) {
-      // Fall through — never block cold start on network.
+      _profileLookupFailed = true;
+      _profileConfirmedMissing = false;
+      logAuthEvent('splash profile lookup failed');
     }
 
     await warm;
@@ -226,6 +317,12 @@ class _SplashScreenState extends State<SplashScreen>
     await (_startup ?? Future<void>.value())
         .timeout(AppPreload.splashBudget, onTimeout: () {});
     if (!mounted) return;
+
+    if (_profileLookupFailed) {
+      _exiting = false;
+      setState(() => _showProfileRetry = true);
+      return;
+    }
 
     await _exit.forward();
     if (!mounted) return;
@@ -245,6 +342,31 @@ class _SplashScreenState extends State<SplashScreen>
       hasSession = Supabase.instance.client.auth.currentSession != null;
     } catch (_) {
       hasSession = false;
+    }
+
+    if (hasSession &&
+        _resumeSecondFactor &&
+        profile == null &&
+        !_profileLookupFailed) {
+      _replace(const PendingSecondVerificationScreen());
+      return;
+    }
+
+    final signedInRoute = signedInProfileRoute(
+      hasSession: hasSession,
+      hasProfile: profile != null,
+      lookupFailed: _profileLookupFailed,
+      confirmedMissing: _profileConfirmedMissing,
+    );
+    if (signedInRoute == SignedInProfileRoute.finishProfile) {
+      _openFinishProfile();
+      return;
+    }
+    if (signedInRoute == SignedInProfileRoute.retry) {
+      _exiting = false;
+      _navigated = false;
+      if (mounted) setState(() => _showProfileRetry = true);
+      return;
     }
 
     // SECURITY FIX: Never open offline library if user is signed out, no valid session exists, or terms not accepted.
@@ -397,6 +519,36 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       backgroundColor: palette.bg,
+      bottomNavigationBar: _showProfileRetry
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "We couldn't load your profile. Your sign-in is saved. "
+                      'Check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _retryProfileLookup,
+                        child: const Text('Try again'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: DecoratedBox(
         decoration: BoxDecoration(
           color: flat && !palette.isDark ? palette.bg : null,
