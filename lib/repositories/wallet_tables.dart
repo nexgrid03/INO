@@ -106,6 +106,11 @@ class WalletTables {
       'tags', 'notes', 'is_favorite', 'expires_at', 'file_path', 'created_at',
       'updated_at', 'source_document_id', 'share_id', 'consent',
     },
+    'w_custom_documents': {
+      'id', 'auth_user_id', 'wallet', 'name', 'category', 'record_number', 'status',
+      'tags', 'notes', 'is_favorite', 'expires_at', 'file_path', 'created_at',
+      'updated_at', 'custom_fields', 'consent',
+    },
   };
 
   /// In-memory column cache mapping table slug -> discovered column names.
@@ -128,16 +133,16 @@ class WalletTables {
     return 'w_$capped';
   }
 
-  /// Resolves the table slug for [walletLabel]. If the label belongs to a
-  /// custom wallet that has a registered table slug, preserves that slug (so
-  /// renaming a wallet never breaks document associations). Otherwise falls
-  /// back to [defaultSlugFor].
+  /// Resolves the table slug for [walletLabel]. Built-in wallets resolve to their
+  /// dedicated tables (e.g. `w_property_wallet`), while all user-created custom
+  /// wallets resolve to the single unified table `w_custom_documents`.
   static String slugFor(String walletLabel) {
-    final customSlug = CustomWalletStore.instance.slugFor(walletLabel);
-    if (customSlug != null && customSlug.isNotEmpty) {
-      return customSlug;
+    final defaultSlug = defaultSlugFor(walletLabel);
+    if (_builtinTableColumns.containsKey(defaultSlug) && defaultSlug != 'w_custom_documents') {
+      return defaultSlug;
     }
-    return defaultSlugFor(walletLabel);
+    // All custom wallets store their documents in the single unified custom documents table
+    return 'w_custom_documents';
   }
 
   static SupabaseClient get _client => Supabase.instance.client;

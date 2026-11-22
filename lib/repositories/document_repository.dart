@@ -416,6 +416,10 @@ class DocumentRepository {
     final fromTable = _tableFor(fromWallet);
     final toTable = _tableFor(toWallet);
     if (fromTable == toTable) {
+      if (fromTable == 'w_custom_documents' && fromWallet != toWallet) {
+        await update(id, {'wallet': toWallet}, wallet: fromWallet);
+        _bump();
+      }
       return;
     }
 
@@ -443,6 +447,9 @@ class DocumentRepository {
       // A move is not a new save - carry the original row's consent forward if available.
       'consent': row['consent'] ?? false,
     };
+    if (toTable == 'w_custom_documents') {
+      movePayload['wallet'] = toWallet;
+    }
 
     await _executeWithSchemaResilience<void>(
       table: toTable,
@@ -502,6 +509,9 @@ class DocumentRepository {
     if (targetTable == 'w_health_wallet') {
       insertData['doctor_name'] = doctorName;
     }
+    if (targetTable == 'w_custom_documents') {
+      insertData['wallet'] = wallet;
+    }
 
     final row = await _executeWithSchemaResilience<Map<String, dynamic>>(
       table: targetTable,
@@ -543,15 +553,22 @@ class DocumentRepository {
 
     final future = () async {
       try {
+        final targetTable = _tableFor(wallet);
         final rows = await fetchAllPaged(
-          (from, to) => _client
-              .from(_tableFor(wallet))
-              .select()
-              .eq('auth_user_id', userId)
-              .order('created_at', ascending: false)
-              .order('id', ascending: false)
-              .range(from, to)
-              .timeout(_queryTimeout),
+          (from, to) {
+            var query = _client
+                .from(targetTable)
+                .select()
+                .eq('auth_user_id', userId);
+            if (targetTable == 'w_custom_documents') {
+              query = query.eq('wallet', wallet);
+            }
+            return query
+                .order('created_at', ascending: false)
+                .order('id', ascending: false)
+                .range(from, to)
+                .timeout(_queryTimeout);
+          },
           label: 'listForWallet($wallet)',
         );
         final list = [for (final r in rows) Document.fromMap(r, wallet: wallet)];

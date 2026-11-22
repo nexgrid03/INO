@@ -14,10 +14,12 @@ import '../../models/reminder_models.dart';
 import '../../models/scan_models.dart';
 import '../../models/wallet_detail_models.dart';
 import '../../repositories/document_repository.dart';
+import '../../services/app_settings.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
 import '../../services/document_scanner_service.dart';
+import '../../services/push_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/storage_stats_service.dart';
@@ -556,6 +558,16 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     }
   }
 
+  Future<void> _ensureNotificationPermissions() async {
+    try {
+      if (AppSettings.instance.notifications.value) {
+        await PushService.instance.requestPermission();
+        await PushService.instance.registerToken();
+      }
+      await ReminderScheduler.instance.ensureExactPermission();
+    } catch (_) {}
+  }
+
   Future<void> _pickExpiry() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -567,9 +579,16 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     if (picked != null) {
       setState(() {
         _expiry = picked;
-        _expiryTime ??= const TimeOfDay(hour: 9, minute: 0);
       });
+      unawaited(_ensureNotificationPermissions());
     }
+  }
+
+  void _clearExpiry() {
+    setState(() {
+      _expiry = null;
+      _expiryTime = null;
+    });
   }
 
   Future<void> _pickExpiryTime() async {
@@ -582,7 +601,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     );
     if (picked != null) {
       setState(() => _expiryTime = picked);
+      unawaited(_ensureNotificationPermissions());
     }
+  }
+
+  void _clearExpiryTime() {
+    setState(() => _expiryTime = null);
   }
 
   Future<void> _save() async {
@@ -661,14 +685,35 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       }
 
       DateTime? finalExpiry = _expiry;
-      if (finalExpiry != null && _expiryTime != null) {
-        finalExpiry = DateTime(
-          finalExpiry.year,
-          finalExpiry.month,
-          finalExpiry.day,
-          _expiryTime!.hour,
-          _expiryTime!.minute,
-        );
+      if (finalExpiry != null) {
+        if (_expiryTime != null) {
+          finalExpiry = DateTime(
+            finalExpiry.year,
+            finalExpiry.month,
+            finalExpiry.day,
+            _expiryTime!.hour,
+            _expiryTime!.minute,
+          );
+        } else {
+          // If no expiry time set, alert fires on the date they set.
+          final now = DateTime.now();
+          final isToday = finalExpiry.year == now.year &&
+              finalExpiry.month == now.month &&
+              finalExpiry.day == now.day;
+          if (isToday && now.hour >= 9) {
+            // If date is today and 9 AM has passed, notify 1 minute out today
+            finalExpiry = now.add(const Duration(minutes: 1));
+          } else {
+            // Default morning time on the selected date
+            finalExpiry = DateTime(
+              finalExpiry.year,
+              finalExpiry.month,
+              finalExpiry.day,
+              9,
+              0,
+            );
+          }
+        }
       }
 
       // 2) Persist to Supabase (the `documents` table). RLS ties the row to the
@@ -724,32 +769,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       );
 
       // If the document has an expiry date, also create a reminder for it so it
-      // shows up on the Reminders page (persisted to Supabase).
+      // shows up on the Reminders page (persisted to Supabase and scheduled locally).
       if (_expiry != null) {
         final e = finalExpiry ?? _expiry!;
+        await _ensureNotificationPermissions();
         try {
-          await ReminderScheduler.instance.ensureExactPermission();
-        } catch (_) {}
-        unawaited(ReminderStore.instance.add(
-          Reminder(
-            id: 'doc-${doc.id}',
-            title: name,
-            subtitle: '$_wallet · Expiry',
-            category: _reminderCategoryForWallet(_wallet!),
-            priority: ReminderPriority.important,
-            date: e,
-          ),
-        ).catchError((Object err) {
-          debugPrint('expiry reminder not saved: $err');
-          return Reminder(
-            id: 'doc-${doc.id}',
-            title: name,
-            subtitle: '',
-            category: ReminderCategory.custom,
-            priority: ReminderPriority.normal,
-            date: e,
+          await ReminderStore.instance.add(
+            Reminder(
+              id: 'doc-${doc.id}',
+              title: name,
+              subtitle: '$_wallet · Expiry',
+              category: _reminderCategoryForWallet(_wallet!),
+              priority: ReminderPriority.important,
+              date: e,
+            ),
           );
-        }));
+        } catch (err) {
+          debugPrint('expiry reminder not saved: $err');
+        }
       }
 
       if (!mounted) return;
@@ -975,7 +1012,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           onPickCategory: _chooseCategory,
                           onCategoryChanged: (v) => setState(() => _category = v),
                           onPickExpiry: _pickExpiry,
+                          onClearExpiry: _clearExpiry,
                           onPickExpiryTime: _pickExpiryTime,
+                          onClearExpiryTime: _clearExpiryTime,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -1478,7 +1517,9 @@ class _DetailsForm extends StatelessWidget {
     required this.onPickCategory,
     required this.onCategoryChanged,
     required this.onPickExpiry,
+    required this.onClearExpiry,
     required this.onPickExpiryTime,
+    required this.onClearExpiryTime,
   });
 
   final GlobalKey<FormState> formKey;
@@ -1497,7 +1538,9 @@ class _DetailsForm extends StatelessWidget {
   final VoidCallback onPickCategory;
   final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onPickExpiry;
+  final VoidCallback onClearExpiry;
   final VoidCallback onPickExpiryTime;
+  final VoidCallback onClearExpiryTime;
 
   String _fmt(AppLocalizations l10n, DateTime d) =>
       '${d.day} ${l10n.monthShort(d.month)} ${d.year}';
@@ -1636,6 +1679,7 @@ class _DetailsForm extends StatelessWidget {
                     leading: Icons.event_rounded,
                     trailing: Icons.calendar_today_rounded,
                     onTap: onPickExpiry,
+                    onClear: expiry == null ? null : onClearExpiry,
                   ),
                 ),
                 if (expiry != null) ...[
@@ -1645,13 +1689,14 @@ class _DetailsForm extends StatelessWidget {
                     optional: true,
                     child: _Selector(
                       value: expiryTime == null
-                          ? l10n.t('pickTime')
+                          ? null
                           : reminderTimeLabel(DateTime(
                               2000, 1, 1, expiryTime!.hour, expiryTime!.minute)),
-                      placeholder: l10n.t('pickTime'),
+                      placeholder: 'No time set (alert on date at 9:00 AM)',
                       leading: Icons.access_time_rounded,
                       trailing: Icons.schedule_rounded,
                       onTap: onPickExpiryTime,
+                      onClear: expiryTime == null ? null : onClearExpiryTime,
                     ),
                   ),
                 ],
@@ -1740,6 +1785,7 @@ class _Selector extends StatelessWidget {
     required this.leading,
     required this.onTap,
     this.trailing = Icons.keyboard_arrow_down_rounded,
+    this.onClear,
   });
 
   final String? value;
@@ -1747,6 +1793,7 @@ class _Selector extends StatelessWidget {
   final IconData leading;
   final IconData trailing;
   final VoidCallback onTap;
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -1781,7 +1828,17 @@ class _Selector extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(trailing, size: 20, color: palette.textSecondary),
+                if (hasValue && onClear != null)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onClear,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(Icons.close_rounded, size: 18, color: palette.textSecondary),
+                    ),
+                  )
+                else
+                  Icon(trailing, size: 20, color: palette.textSecondary),
               ],
             ),
           ),

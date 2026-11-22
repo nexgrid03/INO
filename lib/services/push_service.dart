@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/reminder_store.dart';
@@ -88,12 +89,18 @@ class PushService {
       channelId,
       'Reminders',
       channelDescription: 'Alerts for documents, renewals and due dates.',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       visibility: NotificationVisibility.private,
-      icon: '@drawable/ic_notification',
+      icon: 'ic_notification',
+      playSound: true,
+      enableVibration: true,
     ),
-    iOS: DarwinNotificationDetails(),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
   );
 
   GlobalKey<NavigatorState>? _navigatorKey;
@@ -134,6 +141,7 @@ class PushService {
       FirebaseMessaging.onBackgroundMessage(inoFirebaseBackgroundHandler);
 
       _listenForSignIn();
+      unawaited(_checkExistingPermissionAndInitToken());
 
       // Foreground messages: Android hands them to Dart instead of the tray.
       _foregroundSub = FirebaseMessaging.onMessage
@@ -163,7 +171,7 @@ class PushService {
 
   /// Creates the Android channel and wires the local-notification tap handler.
   Future<void> _initLocalNotifications() async {
-    const androidInit = AndroidInitializationSettings('@drawable/ic_notification');
+    const androidInit = AndroidInitializationSettings('ic_notification');
     // `requestAlertPermission: false` - the iOS prompt is raised once by
     // [requestPermission] via firebase_messaging instead, so the user is not
     // asked twice by two different plugins.
@@ -195,7 +203,9 @@ class PushService {
       channelId,
       'Reminders',
       description: 'Alerts for documents, renewals and due dates.',
-      importance: Importance.high,
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
     );
     // Security alerts get `max` importance: these are the ones worth
     // interrupting for, and a channel's importance is fixed at creation.
@@ -218,36 +228,53 @@ class PushService {
   /// Returns `true` if permission is granted.
   Future<bool> requestPermission() async {
     try {
-      final settings = await FirebaseMessaging.instance.requestPermission();
-      developer.log(
-        'permission → ${settings.authorizationStatus.name}',
-        name: 'push',
-      );
+      bool granted = false;
 
-      final isAuthorized =
-          settings.authorizationStatus == AuthorizationStatus.authorized ||
-              settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (!kIsWeb && Platform.isAndroid) {
+        // Native Android 13+ runtime permission prompt
+        final status = await Permission.notification.request();
+        granted = status.isGranted || status.isLimited;
+        if (!granted) {
+          final android = _local.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+          granted = await android?.requestNotificationsPermission() ?? false;
+        }
+      } else {
+        final settings = await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        granted =
+            settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
+      }
 
-      if (isAuthorized) {
-        if (!AppSettings.instance.notifications.value) {
-          developer.log(
-            'requestPermission: notifications setting is disabled; skipping token registration and consent record',
-            name: 'push',
-          );
-          return false;
-        }
-        if (!kIsWeb && Platform.isIOS) {
-          await FirebaseMessaging.instance
-              .setForegroundNotificationPresentationOptions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
-        }
-        await _initToken();
+      developer.log('notification permission granted: $granted', name: 'push');
+
+      if (!AppSettings.instance.notifications.value) {
+        developer.log(
+          'requestPermission: notifications setting is disabled; skipping consent record',
+          name: 'push',
+        );
+        return false;
+      }
+
+      if (!kIsWeb && Platform.isIOS) {
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+
+      // Always initialize and register the device token
+      await _initToken();
+      if (granted) {
         await AuthService.instance.recordPushNotificationConsent();
       }
-      return isAuthorized;
+      return granted;
     } catch (e) {
       developer.log('requestPermission error: $e', name: 'push');
       return false;
@@ -295,8 +322,9 @@ class PushService {
     _authSub ??= Supabase.instance.client.auth.onAuthStateChange.listen(
       (state) {
         if (state.event == AuthChangeEvent.signedIn ||
-            state.event == AuthChangeEvent.initialSession) {
-          unawaited(registerToken());
+            state.event == AuthChangeEvent.initialSession ||
+            state.event == AuthChangeEvent.tokenRefreshed) {
+          unawaited(_checkExistingPermissionAndInitToken());
         }
         // Only a REAL sign-in raises the security alert. `initialSession` fires
         // on every cold start with a restored session — alerting on that would
@@ -311,13 +339,33 @@ class PushService {
     );
   }
 
+  /// Automatically fetches and registers the FCM token so the device is reachable by the server push.
+  Future<void> _checkExistingPermissionAndInitToken() async {
+    if (!AppSettings.instance.notifications.value) return;
+    try {
+      await _initToken();
+    } catch (e) {
+      developer.log('checkExistingPermission error: $e', name: 'push');
+    }
+  }
+
   /// Upserts this device's token against the signed-in user.
   ///
   /// Safe to call at any time: a no-op when signed out or when the token isn't
   /// available yet, and it re-runs on the next sign-in.
   Future<void> registerToken() async {
+    if (_token == null) {
+      try {
+        _token = await FirebaseMessaging.instance.getToken();
+      } catch (e) {
+        developer.log('fetch FCM token failed in registerToken: $e', name: 'push');
+      }
+    }
     final token = _token;
-    if (token == null) return;
+    if (token == null) {
+      developer.log('register skipped: no token', name: 'push');
+      return;
+    }
 
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) {
@@ -332,9 +380,18 @@ class PushService {
       });
       developer.log('token registered for user=$uid', name: 'push');
     } catch (e) {
-      // Offline, or the table/migration isn't deployed yet. Push simply stays
-      // dormant until the next successful registration.
-      developer.log('register failed: $e', name: 'push');
+      developer.log('rpc failed, trying direct upsert: $e', name: 'push');
+      try {
+        await Supabase.instance.client.from('device_tokens').upsert({
+          'token': token,
+          'auth_user_id': uid,
+          'platform': _platformName,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+        developer.log('token registered via direct upsert for user=$uid', name: 'push');
+      } catch (directErr) {
+        developer.log('direct upsert failed: $directErr', name: 'push');
+      }
     }
   }
 
@@ -416,6 +473,25 @@ class PushService {
       notificationDetails: reminderDetails,
       payload: jsonEncode(data),
     );
+  }
+
+  /// Immediately presents a reminder notification on this device.
+  Future<void> showReminderNow(Reminder r) async {
+    try {
+      await localReady;
+      final when = reminderDateTimeLabel(r.date);
+      final body = r.subtitle.isEmpty ? when : '$when · ${r.subtitle}';
+      await _local.show(
+        id: reminderNotificationId({'reminder_id': r.id}, r.id),
+        title: r.title,
+        body: body,
+        notificationDetails: reminderDetails,
+        payload: jsonEncode({'reminder_id': r.id}),
+      );
+      developer.log('showReminderNow displayed ${r.id}', name: 'push');
+    } catch (e) {
+      developer.log('showReminderNow error: $e', name: 'push');
+    }
   }
 
   /// Re-hydrates reminders and the in-app notification feed so the bell badge
@@ -596,7 +672,7 @@ Future<void> inoFirebaseBackgroundHandler(RemoteMessage message) async {
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@drawable/ic_notification'),
+        android: AndroidInitializationSettings('ic_notification'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,

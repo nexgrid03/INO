@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +8,7 @@ import '../../models/user_profile.dart';
 import '../../services/app_settings.dart';
 import '../../services/family_vault_store.dart';
 import '../../services/guest_mode.dart';
+import '../../services/push_service.dart';
 import '../../services/voice_greeting_service.dart';
 import '../../theme/ino_scroll_behavior.dart';
 import '../../widgets/profile/security_reminder_dialog.dart';
@@ -125,6 +128,7 @@ class _MainShellState extends State<MainShell> {
       // Guests get no spoken greeting - there's no one to greet yet, and the
       // first-run tour is about to take the stage.
       if (!GuestMode.active) {
+        unawaited(PushService.instance.registerToken());
         VoiceGreetingService.instance.greetOnce(userName: _profile.fullName);
       }
       // One-time feature tour: nav destinations + the voice assistant. Shown
