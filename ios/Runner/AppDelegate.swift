@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Photos
+import VisionKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -27,6 +28,7 @@ import Photos
     setUpSecureScreenChannel(engineBridge.pluginRegistry)
     setUpUpiAppsChannel(engineBridge.pluginRegistry)
     setUpMediaSaverChannel(engineBridge.pluginRegistry)
+    setUpDocumentScannerChannel(engineBridge.pluginRegistry)
   }
 
   // MARK: - Payment apps for scanned UPI QRs
@@ -301,6 +303,132 @@ import Photos
       default:
         result(FlutterMethodNotImplemented)
       }
+    }
+  }
+
+  // MARK: - Native Document Scanner (VisionKit)
+  //
+  // Apple's system document scanner (VNDocumentCameraViewController). Provides
+  // live ML-based boundary detection, edge snapping, perspective correction,
+  // auto-capture and multi-page scanning on iOS - exactly matching Google ML Kit's
+  // document scanner on Android.
+
+  private var activeDocumentScannerSession: Any?
+
+  private func setUpDocumentScannerChannel(_ registry: FlutterPluginRegistry) {
+    guard let messenger = registry.registrar(forPlugin: "InoDocumentScanner")?.messenger() else {
+      return
+    }
+    let channel = FlutterMethodChannel(name: "ino/document_scanner", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterError(code: "UNAVAILABLE", message: "AppDelegate deallocated", details: nil))
+        return
+      }
+      switch call.method {
+      case "isSupported":
+        if #available(iOS 13.0, *) {
+          result(VNDocumentCameraViewController.isSupported)
+        } else {
+          result(false)
+        }
+      case "scanPages":
+        if #available(iOS 13.0, *) {
+          guard VNDocumentCameraViewController.isSupported else {
+            result(FlutterError(code: "UNSUPPORTED", message: "VisionKit document scanner not supported on this device", details: nil))
+            return
+          }
+          guard let presenter = Self.topViewController(base: self.window?.rootViewController) else {
+            result(FlutterError(code: "NO_VIEW_CONTROLLER", message: "No view controller to present scanner", details: nil))
+            return
+          }
+          let scanner = VNDocumentCameraViewController()
+          let session = InoDocumentScannerSession(scanner: scanner, result: result) { [weak self] in
+            self?.activeDocumentScannerSession = nil
+          }
+          self.activeDocumentScannerSession = session
+          scanner.delegate = session
+          presenter.present(scanner, animated: true)
+        } else {
+          result(FlutterError(code: "UNSUPPORTED", message: "iOS 13.0+ required for VisionKit", details: nil))
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func topViewController(base: UIViewController?) -> UIViewController? {
+    if let nav = base as? UINavigationController {
+      return topViewController(base: nav.visibleViewController)
+    }
+    if let tab = base as? UITabBarController {
+      return topViewController(base: tab.selectedViewController)
+    }
+    if let presented = base?.presentedViewController {
+      return topViewController(base: presented)
+    }
+    return base
+  }
+}
+
+@available(iOS 13.0, *)
+private class InoDocumentScannerSession: NSObject, VNDocumentCameraViewControllerDelegate {
+  private let scanner: VNDocumentCameraViewController
+  private var resultCallback: FlutterResult?
+  private let onComplete: () -> Void
+
+  init(scanner: VNDocumentCameraViewController, result: @escaping FlutterResult, onComplete: @escaping () -> Void) {
+    self.scanner = scanner
+    self.resultCallback = result
+    self.onComplete = onComplete
+    super.init()
+  }
+
+  func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
+    controller.dismiss(animated: true) { [weak self] in
+      guard let self = self, let result = self.resultCallback else { return }
+      self.resultCallback = nil
+      defer { self.onComplete() }
+
+      DispatchQueue.global(qos: .userInitiated).async {
+        var paths: [String] = []
+        let tempDir = FileManager.default.temporaryDirectory
+        for i in 0..<scan.pageCount {
+          let image = scan.imageOfPage(at: i)
+          if let data = image.jpegData(compressionQuality: 0.92) {
+            let fileName = "ino_scan_\(UUID().uuidString).jpg"
+            let fileURL = tempDir.appendingPathComponent(fileName)
+            do {
+              try data.write(to: fileURL)
+              paths.append(fileURL.path)
+            } catch {
+              // Ignore single write error and continue with remaining pages
+            }
+          }
+        }
+        DispatchQueue.main.async {
+          result(paths)
+        }
+      }
+    }
+  }
+
+  func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
+    controller.dismiss(animated: true) { [weak self] in
+      guard let self = self, let result = self.resultCallback else { return }
+      self.resultCallback = nil
+      self.onComplete()
+      result(FlutterError(code: "CANCELLED", message: "User cancelled document scanner", details: nil))
+    }
+  }
+
+  func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
+    controller.dismiss(animated: true) { [weak self] in
+      guard let self = self, let result = self.resultCallback else { return }
+      self.resultCallback = nil
+      self.onComplete()
+      result(FlutterError(code: "SCAN_FAILED", message: error.localizedDescription, details: nil))
     }
   }
 }
