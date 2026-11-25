@@ -71,7 +71,7 @@ supabase functions deploy send-reminder-push
 Test it immediately, before wiring the cron — create a reminder due one minute from now, wait for that minute, then:
 
 ```bash
-curl -X POST "https://<project-ref>.supabase.co/functions/v1/send-reminder-push" \
+curl -X POST "https://ilfzppryyojoponkomrw.supabase.co/functions/v1/send-reminder-push" \
      -H "Authorization: Bearer <service-role-key>"
 ```
 
@@ -87,12 +87,13 @@ re-notify on the day at 09:00):
 
 ```sql
 select cron.unschedule('reminder-push');   -- ignore "could not find" if never created
+select cron.unschedule('reminder-push-due'); -- remove existing/broken schedule
 select cron.schedule(
   'reminder-push-due',
   '* * * * *',                        -- every minute
   $$
   select net.http_post(
-    url     := 'https://<project-ref>.supabase.co/functions/v1/send-reminder-push',
+    url     := 'https://ilfzppryyojoponkomrw.supabase.co/functions/v1/send-reminder-push',
     headers := '{"Authorization": "Bearer <service-role-key>", "Content-Type": "application/json"}'::jsonb
   );
   $$

@@ -314,6 +314,23 @@ Offset? projectDocumentPoint({
   );
 }
 
+/// Quarter-turns that take a detected point from the live camera buffer into
+/// the upright image the preview and the captured still share.
+///
+/// Android buffers stay in sensor orientation, so this is
+/// [sensorOrientation] / 90 (1 for the usual back camera). iOS
+/// `AVCaptureConnection.videoOrientation` already rotates both the image
+/// stream and the photo, and [CameraPreview] does not rotate the iOS texture,
+/// so applying the sensor turn again draws the border sideways and crops the
+/// wrong quad. [streamMatchesPreview] is that iOS case.
+int outlineQuarterTurns({
+  required bool streamMatchesPreview,
+  required int sensorOrientation,
+}) {
+  if (streamMatchesPreview) return 0;
+  return (sensorOrientation ~/ 90) % 4;
+}
+
 /// Turns a point normalised to the raw sensor frame into one normalised to the
 /// *upright* frame the user actually sees - [quarterTurns] clockwise, then a
 /// horizontal flip for a mirrored front camera.

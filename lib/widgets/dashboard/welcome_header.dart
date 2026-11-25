@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../core/perf/image_decode.dart';
@@ -63,11 +65,55 @@ class WelcomeHeader extends StatefulWidget {
 }
 
 class _WelcomeHeaderState extends State<WelcomeHeader>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
   )..forward();
+
+  /// iOS does not rebuild the shell when the app returns from the background,
+  /// so a greeting computed in [build] stays on the hour it was first painted.
+  /// Android already rebuilds on resume; this observer is registered only on
+  /// iOS so that path is unchanged. The stamp skips a rebuild when the
+  /// morning / afternoon / evening / night line and the date would not change.
+  bool get _refreshGreetingOnResume =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  int? _visibleGreetingStamp;
+  bool _observingResume = false;
+
+  int _greetingStamp(DateTime now) {
+    if (widget.launcherStyle) return 0;
+    final h = now.hour;
+    final bucket = h < 5
+        ? 0
+        : h < 12
+            ? 1
+            : h < 17
+                ? 2
+                : h < 21
+                    ? 3
+                    : 4;
+    return now.year * 10000 + now.month * 100 + now.day * 10 + bucket;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleGreetingStamp = _greetingStamp(DateTime.now());
+    if (_refreshGreetingOnResume) {
+      _observingResume = true;
+      WidgetsBinding.instance.addObserver(this);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final next = _greetingStamp(DateTime.now());
+    if (next == _visibleGreetingStamp) return;
+    setState(() => _visibleGreetingStamp = next);
+  }
 
   String get _firstName => widget.fullName.trim().isEmpty
       ? 'there'
@@ -109,6 +155,10 @@ class _WelcomeHeaderState extends State<WelcomeHeader>
 
   @override
   void dispose() {
+    if (_observingResume) {
+      _observingResume = false;
+      WidgetsBinding.instance.removeObserver(this);
+    }
     _pulse.dispose();
     super.dispose();
   }

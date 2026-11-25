@@ -17,6 +17,43 @@ import 'biometric_service.dart';
 import 'push_service.dart';
 import 'session_reset.dart';
 
+/// Logs an auth operation without the exception text. Database messages can
+/// repeat an email address or phone number.
+String authEventLine(String operation, {String? code}) {
+  final safeCode = code != null && RegExp(r'^[A-Za-z0-9_]{1,16}$').hasMatch(code)
+      ? code
+      : null;
+  return safeCode == null ? operation : '$operation code=$safeCode';
+}
+
+void logAuthEvent(String operation, {String? code}) {
+  developer.log(authEventLine(operation, code: code), name: 'auth');
+}
+
+/// Raised when a consent audit row could not be confirmed. The message is
+/// fixed so it cannot carry a database detail.
+class ConsentAuditException implements Exception {
+  const ConsentAuditException();
+  @override
+  String toString() => 'ConsentAuditException';
+}
+
+enum ConsentAuditAction { done, insert, stop }
+
+/// [recorded] is true when this user already has the consent type, false when
+/// the lookup succeeded and found nothing, and null when the lookup failed.
+/// At most two inserts are attempted.
+ConsentAuditAction consentAuditAction({
+  required bool? recorded,
+  required int insertsAttempted,
+}) {
+  if (recorded == true) return ConsentAuditAction.done;
+  if (recorded == null || insertsAttempted >= 2) {
+    return ConsentAuditAction.stop;
+  }
+  return ConsentAuditAction.insert;
+}
+
 /// Single place that talks to Supabase auth.
 ///
 /// Supports:
@@ -72,6 +109,9 @@ class AuthService {
   }
 
   /// Records terms acceptance in user metadata and the user_consents audit table.
+  ///
+  /// Metadata is written first and is not rolled back if the audit insert
+  /// fails. The audit insert is not required for the profile to exist.
   Future<void> recordTermsConsent({
     String version = '1.0',
     bool attest18Plus = true,
@@ -96,13 +136,70 @@ class AuthService {
       );
     }
 
-    // 2. Ensure audit row is recorded in user_consents table
-    await _client.from('user_consents').insert({
-      'user_id': user.id,
-      'consent_type': 'terms_and_privacy',
-      'version': version,
-      'accepted_at': nowIso,
-    });
+    // 2. Audit row. A lost response must not produce a second row.
+    await _writeConsentAudit(
+      userId: user.id,
+      consentType: 'terms_and_privacy',
+      version: version,
+      acceptedAt: nowIso,
+    );
+  }
+
+  Future<void> _writeConsentAudit({
+    required String userId,
+    required String consentType,
+    required String version,
+    required String acceptedAt,
+  }) async {
+    bool? recorded;
+    try {
+      recorded = await _consentAuditExists(userId, consentType);
+    } catch (_) {
+      logAuthEvent('consent lookup failed');
+      recorded = null;
+    }
+
+    var insertsAttempted = 0;
+    while (true) {
+      switch (consentAuditAction(
+        recorded: recorded,
+        insertsAttempted: insertsAttempted,
+      )) {
+        case ConsentAuditAction.done:
+          return;
+        case ConsentAuditAction.stop:
+          throw const ConsentAuditException();
+        case ConsentAuditAction.insert:
+          insertsAttempted++;
+          try {
+            await _client.from('user_consents').insert({
+              'user_id': userId,
+              'consent_type': consentType,
+              'version': version,
+              'accepted_at': acceptedAt,
+            });
+            return;
+          } catch (_) {
+            logAuthEvent('consent insert failed');
+            try {
+              recorded = await _consentAuditExists(userId, consentType);
+            } catch (_) {
+              logAuthEvent('consent lookup failed');
+              recorded = null;
+            }
+          }
+      }
+    }
+  }
+
+  Future<bool> _consentAuditExists(String userId, String consentType) async {
+    final rows = await _client
+        .from('user_consents')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('consent_type', consentType)
+        .limit(1);
+    return rows.isNotEmpty;
   }
 
   /// Records notification consent in the user_consents audit table.
@@ -116,8 +213,8 @@ class AuthService {
         'version': version,
         'accepted_at': DateTime.now().toUtc().toIso8601String(),
       });
-    } catch (e) {
-      developer.log('recordPushNotificationConsent audit log failed: $e', name: 'auth');
+    } catch (_) {
+      logAuthEvent('push consent insert failed');
     }
   }
 
@@ -385,10 +482,41 @@ class AuthService {
         .timeout(NetGuard.auth);
   }
 
+  /// Pulls the server's `message` out of a raw Auth response body.
+  ///
+  /// gotrue-dart puts the entire HTTP body into [AuthException.message] for
+  /// status 500 and above. That is why the login screen was showing
+  /// `{"code":"unexpected_failure","message":"Error sending magic link email"}`.
+  static String _authErrorText(AuthException error) {
+    final raw = error.message.trim();
+    if (!raw.startsWith('{')) return error.message;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        final message = decoded['message'] ?? decoded['msg'];
+        final code = decoded['code'] ?? decoded['error_code'] ?? error.code;
+        if (message is String && message.trim().isNotEmpty) {
+          final text = message.trim();
+          if (code is String &&
+              code.isNotEmpty &&
+              !text.toLowerCase().contains(code.toLowerCase())) {
+            return '$code $text';
+          }
+          return text;
+        }
+        if (code is String && code.isNotEmpty) return code;
+      }
+    } catch (_) {
+      // Not JSON. Fall through and treat the original text as the message.
+    }
+    return error.message;
+  }
+
   /// Helper to convert authentication / Supabase errors into human-readable friendly messages.
   static String formatAuthError(Object error) {
     if (error is AuthException) {
-      final msg = error.message.toLowerCase();
+      final parsed = _authErrorText(error);
+      final msg = parsed.toLowerCase();
       if (msg.contains('invalid') && (msg.contains('token') || msg.contains('otp') || msg.contains('code'))) {
         return 'The verification code entered is incorrect. Please check and try again.';
       }
@@ -397,6 +525,20 @@ class AuthService {
       }
       if (msg.contains('rate limit') || msg.contains('too many requests') || msg.contains('over_email_send_rate_limit')) {
         return 'Too many attempts. Please wait a moment before requesting another code.';
+      }
+      // Supabase names every Auth email send "magic link" internally, including
+      // the 6-digit email OTP from signInWithOtp. This status means the mailer
+      // rejected the send. It is not a switch from OTP to link login.
+      if (msg.contains('error sending magic link') ||
+          msg.contains('error sending confirmation email') ||
+          msg.contains('error sending recovery email')) {
+        return "We couldn't send the verification code. Email delivery is unavailable right now. Please wait a moment and try again, or sign in with your mobile number.";
+      }
+      if (msg.contains('unexpected_failure')) {
+        return 'An unexpected error occurred. Please try again.';
+      }
+      if (parsed.trim().startsWith('{') || parsed.trim().startsWith('[')) {
+        return 'An unexpected error occurred. Please try again.';
       }
       if (msg.contains('user not found') ||
           msg.contains('signups not allowed') ||
@@ -411,7 +553,7 @@ class AuthService {
       if (msg.contains('network') || msg.contains('connection')) {
         return 'Unable to connect. Please check your internet connection and try again.';
       }
-      return error.message;
+      return parsed;
     }
     if (error is TimeoutException) {
       return 'The connection timed out. Please check your internet connection and try again.';

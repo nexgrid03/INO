@@ -108,15 +108,16 @@ commit;
 --   supabase functions deploy send-reminder-push
 --
 -- Then in the SQL editor (pg_cron + pg_net enabled under Database →
--- Extensions). Replace <project-ref> and <service-role-key>:
+-- Extensions). Replace <service-role-key> with your Supabase service_role key:
 --
 --   select cron.unschedule('reminder-push');          -- the old 09:00 daily job (ignore "not found")
+--   select cron.unschedule('reminder-push-due');
 --   select cron.schedule(
 --     'reminder-push-due',
 --     '* * * * *',                                     -- every minute
 --     $$
 --     select net.http_post(
---       url     := 'https://<project-ref>.supabase.co/functions/v1/send-reminder-push',
+--       url     := 'https://ilfzppryyojoponkomrw.supabase.co/functions/v1/send-reminder-push',
 --       headers := '{"Authorization": "Bearer <service-role-key>", "Content-Type": "application/json"}'::jsonb
 --     );
 --     $$

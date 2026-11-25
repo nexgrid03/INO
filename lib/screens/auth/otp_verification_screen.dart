@@ -31,6 +31,8 @@ class OtpVerificationScreen extends StatefulWidget {
     this.title,
     this.length = 6,
     this.resendSeconds = 30,
+    this.showBack = true,
+    this.onSignOut,
   });
 
   /// Where the code was sent (email/number) - shown in the subtitle.
@@ -46,6 +48,12 @@ class OtpVerificationScreen extends StatefulWidget {
   final String? title;
   final int length;
   final int resendSeconds;
+
+  /// When false, system back and the back button cannot return to signup.
+  final bool showBack;
+
+  /// Signs out of a pending second verification without starting a new account.
+  final Future<void> Function(BuildContext context)? onSignOut;
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -159,8 +167,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final isEmail = widget.destination.contains('@');
     final changeLabel = isEmail ? 'Change Email' : 'Change Mobile Number';
 
-    return AuthScaffold(
-      showBack: true,
+    return PopScope(
+      canPop: widget.showBack,
+      child: AuthScaffold(
+      showBack: widget.showBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -200,11 +210,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
+                if (widget.showBack || widget.onChangeDestination != null)
                 TextButton.icon(
                   onPressed: () {
                     if (widget.onChangeDestination != null) {
                       widget.onChangeDestination!();
-                    } else {
+                    } else if (widget.showBack) {
                       Navigator.of(context).pop();
                     }
                   },
@@ -316,6 +327,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ),
           const SizedBox(height: 20),
 
+          if (widget.onSignOut != null)
+            TextButton(
+              onPressed: _busy ? null : () => widget.onSignOut!(context),
+              child: const Text('Sign out'),
+            ),
+
           // Decorative trust badge from the Divine Glass mockup footer.
           FadeSlideIn(
             delay: const Duration(milliseconds: 300),
@@ -324,6 +341,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           const SizedBox(height: 12),
         ],
       ),
+    ),
     );
   }
 }

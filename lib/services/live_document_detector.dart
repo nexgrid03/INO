@@ -126,7 +126,14 @@ class LiveDocumentDetector {
     if (w == 0 || h == 0 || bytes.isEmpty) return DocumentSignal.none;
 
     final int rowStride = plane.bytesPerRow;
-    final int pixStride = plane.bytesPerPixel ?? 1;
+    // Android YUV: one luma byte per pixel (bytesPerPixel is 1). iOS leaves
+    // bytesPerPixel null on the Y plane, which is the same stride of 1.
+    // iOS BGRA is interleaved; sampling byte 0 of each pixel would read only
+    // blue and invent edges that are not on the page.
+    final bool bgra = image.format.group == ImageFormatGroup.bgra8888;
+    final int pixStride = bgra
+        ? (plane.bytesPerPixel ?? 4)
+        : (plane.bytesPerPixel ?? 1);
 
     final int x0 = (w * _regionStart).floor();
     final int x1 = (w * _regionEnd).floor();
@@ -143,8 +150,11 @@ class LiveDocumentDetector {
       for (int gx = 0; gx < _grid; gx++) {
         final int px = x0 + (gx * rw ~/ _grid);
         final int idx = rowBase + px * pixStride;
-        samples[gy * _grid + gx] =
-            (idx >= 0 && idx < bytes.length) ? bytes[idx] : 0;
+        samples[gy * _grid + gx] = bgra
+            ? _bgraLuma(bytes, idx)
+            : (idx >= 0 && idx < bytes.length)
+                ? bytes[idx]
+                : 0;
       }
     }
 
@@ -206,6 +216,16 @@ class LiveDocumentDetector {
       bounds: shape?.bounds,
       corners: shape?.corners,
     );
+  }
+
+  /// Rec. 601 luma from a BGRA pixel starting at [i]. iOS reports this layout
+  /// with a null bytes-per-pixel, so the caller passes a stride of 4.
+  static int _bgraLuma(List<int> bytes, int i) {
+    if (i < 0 || i + 2 >= bytes.length) return 0;
+    final b = bytes[i];
+    final g = bytes[i + 1];
+    final r = bytes[i + 2];
+    return (r * 77 + g * 150 + b * 29) >> 8;
   }
 
   /// The document's outline: an upright bounding box plus the four-corner quad

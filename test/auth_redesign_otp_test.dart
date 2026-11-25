@@ -160,6 +160,17 @@ void main() {
         AuthService.formatAuthError(rateLimitErr),
         contains('Too many attempts'),
       );
+
+      // gotrue-dart surfaces HTTP 500 bodies verbatim. The login screen must
+      // not show that JSON. The message is the mailer's failure to send the
+      // email OTP, which Supabase still labels "magic link".
+      final mailerErr = AuthException(
+        '{"code":"unexpected_failure","message":"Error sending magic link email"}',
+      );
+      final friendly = AuthService.formatAuthError(mailerErr);
+      expect(friendly, contains("couldn't send the verification code"));
+      expect(friendly, isNot(contains('unexpected_failure')));
+      expect(friendly, isNot(contains('{')));
     });
 
     test('GuestMode starts in explore mode for first-time / unauthenticated users', () {

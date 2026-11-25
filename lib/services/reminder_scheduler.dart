@@ -73,34 +73,51 @@ class ReminderScheduler {
     }
   }
 
+  Future<bool> canExact() async {
+    if (!_supported || !Platform.isAndroid) return true;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      return await android?.canScheduleExactNotifications() ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<AndroidScheduleMode> _mode() async {
     if (!Platform.isAndroid) return AndroidScheduleMode.exactAllowWhileIdle;
-    if (!_exactChecked) {
-      try {
-        final android = _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-        _exactAllowed =
-            await android?.canScheduleExactNotifications() ?? false;
-      } catch (_) {
-        _exactAllowed = false;
-      }
-      _exactChecked = true;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final canExact = await android?.canScheduleExactNotifications() ?? true;
+      return canExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+    } catch (_) {
+      return AndroidScheduleMode.exactAllowWhileIdle;
     }
-    return _exactAllowed
-        ? AndroidScheduleMode.exactAllowWhileIdle
-        : AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   /// Arms (or re-arms) the notification for [r]. Past or completed reminders
   /// are skipped; an existing schedule for the same id is replaced.
   Future<void> schedule(Reminder r) async {
     if (!_supported) return;
-    if (!AppSettings.instance.notifications.value ||
-        r.completed ||
-        !r.date.isAfter(DateTime.now())) {
+    if (!AppSettings.instance.notifications.value || r.completed) {
       await cancel(r.id);
       return;
     }
+
+    final now = DateTime.now();
+    if (r.date.isBefore(now)) {
+      // If due within the last 5 minutes, fire immediately instead of dropping!
+      if (now.difference(r.date) <= const Duration(minutes: 5)) {
+        await PushService.instance.showReminderNow(r);
+      } else {
+        await cancel(r.id);
+      }
+      return;
+    }
+
     try {
       await PushService.instance.localReady;
       _ensureTz();

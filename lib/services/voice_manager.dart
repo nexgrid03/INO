@@ -89,19 +89,37 @@ class VoiceManager with WidgetsBindingObserver {
       // being appended. This is also what lets us drop the explicit stop()
       // before speak() (see speak()) - the stop()+speak() pair is a known
       // trigger for the Android engine playing a single utterance twice.
-      await tts.setQueueMode(0);
+      //
+      // Android only. flutter_tts does not implement setQueueMode on iOS;
+      // the call throws MissingPluginException and used to abort this whole
+      // init, so the greeting (and every other utterance) never spoke there.
+      if (!kIsWeb && Platform.isAndroid) {
+        await tts.setQueueMode(0);
+      }
       await tts.setLanguage('en-US');
       await tts.setSpeechRate(0.5); // comfortable, natural pace
       await tts.setVolume(1.0);
       await tts.setPitch(1.0);
       if (!kIsWeb && Platform.isIOS) {
-        // Ambient category = app speech obeys the physical Ring/Silent switch
-        // (the playsInSilentModeIOS:false behaviour) and mixes politely with
-        // other audio instead of interrupting it.
-        await tts.setIosAudioCategory(
-          IosTextToSpeechAudioCategory.ambient,
-          [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
-        );
+        // AVSpeechSynthesizer stays silent unless the shared session is in a
+        // spoken-audio category and then activated. Ambient + mixWithOthers
+        // (the previous setup) follows the ringer switch and, without
+        // voicePrompt, produces no speech. A failure here must not discard
+        // the engine — speak() can still try.
+        try {
+          await tts.setIosAudioCategory(
+            IosTextToSpeechAudioCategory.playback,
+            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+            IosTextToSpeechAudioMode.voicePrompt,
+          );
+          await tts.setSharedInstance(true);
+          // AVSpeechSynthesizer drops the first utterance if it starts in the
+          // same turn the session becomes active. speak() waits on this init,
+          // so the pause happens before the greeting, and only on iOS.
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        } catch (e) {
+          _log('[VOICE] iOS audio session setup failed (non-fatal): $e');
+        }
       }
       _tts = tts;
       if (!_observing) {
