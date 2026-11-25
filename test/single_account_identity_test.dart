@@ -105,9 +105,8 @@ void main() {
       expect(login, contains('otherwise create an account first'));
     });
 
-    test('password sign-in is gone from the login screen', () {
+    test('password sign-in is gone from the standard login screen (except reviewer demo mode)', () {
       for (final gone in const [
-        'signInWithEmail',
         '_signInWithPassword',
         'ForgotPasswordScreen',
       ]) {

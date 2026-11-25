@@ -74,17 +74,6 @@ class AccountSecurityService {
     }
   }
 
-  /// Initiates linking an email to the currently signed-in account.
-  Future<void> sendEmailLinkOtp(String email) async {
-    final trimmed = email.trim();
-    if (await AuthService.instance.identifierTaken(trimmed)) {
-      throw const AuthException(
-        'That email is already registered to another INO account.',
-      );
-    }
-    await AuthService.instance.linkEmail(trimmed);
-  }
-
   /// Confirms email linking OTP and synchronizes the profile table.
   Future<UserProfile> verifyAndSaveEmailLink({
     required String email,
@@ -144,39 +133,103 @@ class AccountSecurityService {
     return digits;
   }
 
+  /// Extracts the trailing significant digits (e.g. last 10 digits) for fuzzy matching
+  static String _phoneSuffix(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 10) {
+      return digits.substring(digits.length - 10);
+    }
+    return digits;
+  }
+
   static bool _isCurrentUserPhone({
     required String canonicalTarget,
     User? user,
     UserProfile? profile,
   }) {
     if (canonicalTarget.isEmpty) return false;
+    final targetSuffix = _phoneSuffix(canonicalTarget);
+
+    bool matches(String? candidate) {
+      if (candidate == null || candidate.trim().isEmpty) return false;
+      if (canonicalPhone(candidate) == canonicalTarget) return true;
+      if (targetSuffix.isNotEmpty && targetSuffix.length >= 7) {
+        final candSuffix = _phoneSuffix(candidate);
+        if (candSuffix == targetSuffix) return true;
+      }
+      return false;
+    }
 
     // Check profile.phone
-    if (profile?.phone != null && profile!.phone!.trim().isNotEmpty) {
-      if (canonicalPhone(profile.phone!) == canonicalTarget) {
-        return true;
-      }
+    if (matches(profile?.phone)) {
+      return true;
     }
 
     // Check user.phone
-    if (user?.phone != null && user!.phone!.trim().isNotEmpty) {
-      if (canonicalPhone(user.phone!) == canonicalTarget) {
-        return true;
-      }
+    if (matches(user?.phone)) {
+      return true;
     }
 
     // Check user.userMetadata['phone']
     final metaPhone = user?.userMetadata?['phone'];
-    if (metaPhone is String && metaPhone.trim().isNotEmpty) {
-      if (canonicalPhone(metaPhone) == canonicalTarget) {
-        return true;
-      }
+    if (metaPhone is String && matches(metaPhone)) {
+      return true;
     }
 
     return false;
   }
 
-  /// Initiates linking a phone number to the currently signed-in account.
+  static bool _isCurrentUserEmail({
+    required String targetEmail,
+    User? user,
+    UserProfile? profile,
+  }) {
+    final target = targetEmail.trim().toLowerCase();
+    if (target.isEmpty) return false;
+
+    if (profile?.email != null && profile!.email.trim().toLowerCase() == target) {
+      return true;
+    }
+    if (user?.email != null && user!.email!.trim().toLowerCase() == target) {
+      return true;
+    }
+    final metaEmail = user?.userMetadata?['email'];
+    if (metaEmail is String && metaEmail.trim().toLowerCase() == target) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Initiates linking an email to the currently signed-in account.
+  Future<void> sendEmailLinkOtp(
+    String email, {
+    UserProfile? currentProfile,
+  }) async {
+    final trimmed = email.trim();
+    final user = AuthService.instance.currentUser;
+    var profile = currentProfile;
+    if (profile == null && user != null) {
+      try {
+        profile = (await UserRepository.instance.getCachedProfile(user.id)) ??
+            (await UserRepository.instance.getProfileByAuthId(user.id));
+      } catch (_) {}
+    }
+
+    final isOwnEmail = _isCurrentUserEmail(
+      targetEmail: trimmed,
+      user: user,
+      profile: profile,
+    );
+
+    if (!isOwnEmail) {
+      if (await AuthService.instance.identifierTaken(trimmed)) {
+        throw const AuthException(
+          'That email is already registered to another INO account.',
+        );
+      }
+    }
+    await AuthService.instance.linkEmail(trimmed);
+  }
   ///
   /// Rejects only if the normalized phone number is already linked to a
   /// DIFFERENT INO account. If the matching phone record belongs to the

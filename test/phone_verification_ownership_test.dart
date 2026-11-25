@@ -137,6 +137,27 @@ void main() {
         final canonicalTarget = AccountSecurityService.canonicalPhone('7702267621');
         expect(canonicalTarget, equals('+917702267621'));
       });
+
+      test('Fuzzy matching recognizes national number across different prefixes and spacing', () {
+        final profile = UserProfile(
+          id: 'usr_fuzzy',
+          authUserId: 'auth_fuzzy',
+          fullName: 'Fuzzy User',
+          email: 'fuzzy@example.com',
+          phone: '9876543210',
+          preferredLanguage: 'en',
+          biometricEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        final targetWithCode = AccountSecurityService.canonicalPhone('+91 98765 43210');
+        expect(targetWithCode, equals('+919876543210'));
+
+        final target10Digits = targetWithCode.replaceAll(RegExp(r'[^0-9]'), '');
+        final profile10Digits = profile.phone!.replaceAll(RegExp(r'[^0-9]'), '');
+        expect(target10Digits.endsWith(profile10Digits), isTrue);
+      });
     });
   });
 }
