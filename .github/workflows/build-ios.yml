@@ -1,0 +1,87 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/build-ios.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Flutter Version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version | tr -d '\r\n ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Verify Flutter Version
+        run: bash tool/verify_flutter_version.sh
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build iOS Application (Unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package into IPA
+        run: |
+          mkdir -p dist/Payload
+          cp -r build/ios/iphoneos/Runner.app dist/Payload/
+          cd dist
+          zip -r "INO-v${{ github.run_number }}.ipa" Payload
+          rm -rf Payload
+          cd ..
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: INO-ios-ipa
+          path: dist/*.ipa
+          retention-days: 30
+
+      - name: Create/update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ipa-latest
+          name: INO iOS IPA (For Sideloadly)
+          body: |
+            Install on your iPhone via USB on Windows:
+
+            1. Download the **INO-v${{ github.run_number }}.ipa** asset below to your Windows PC.
+            2. Connect your iPhone via USB cable.
+            3. Open **Sideloadly**, drag the `.ipa` into it, enter your Apple ID, and click **Start**.
+            4. On your iPhone: Go to **Settings → General → VPN & Device Management** and tap **Trust**.
+            5. Open INO!
+
+            Built from `${{ github.sha }}` (run #${{ github.run_number }}).
+          files: dist/*.ipa
+          make_latest: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
