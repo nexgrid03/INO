@@ -57,11 +57,11 @@ void main() {
 
       final toggleFinder = find.byKey(const ValueKey('reviewer_login_toggle'));
       await tester.ensureVisible(toggleFinder);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Tap App Reviewer Login
       await tester.tap(toggleFinder);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Password field and Reviewer CTA should be visible
       expect(find.byKey(const ValueKey('reviewer_password_field')), findsOneWidget);
@@ -72,7 +72,7 @@ void main() {
       // Tapping back should return to OTP mode
       await tester.ensureVisible(toggleFinder);
       await tester.tap(toggleFinder);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byKey(const ValueKey('reviewer_password_field')), findsNothing);
       expect(find.text('Send OTP'), findsOneWidget);
