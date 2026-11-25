@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/demo_account.dart';
 import '../../l10n/app_localizations.dart';
 import '../../main.dart';
 import '../../models/country_code.dart';
@@ -70,12 +71,18 @@ class _LoginScreenState extends State<LoginScreen> {
   /// appears dynamically for phone numbers and stays hidden for email / empty state.
   bool _isPhoneInput = false;
 
+  // Reviewer / password login state
+  final _passwordController = TextEditingController();
+  bool _isReviewerMode = false;
+  bool _manualReviewerMode = false;
+  bool _obscurePassword = true;
+
   // Sign up controllers
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   CountryCode _signUpCountry = kCountryCodes.first;
-  VerificationChannel _signupChannel = VerificationChannel.email;
+  VerificationChannel _signupChannel = VerificationChannel.phone;
   bool _acceptedTerms = false;
 
   bool _rememberMe = true;
@@ -91,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _signInIdentifierController.removeListener(_onIdentifierChanged);
     _signInIdentifierController.dispose();
+    _passwordController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -106,6 +114,11 @@ class _LoginScreenState extends State<LoginScreen> {
         !RegExp(r'[a-zA-Z]').hasMatch(text);
     if (isPhone != _isPhoneInput) {
       setState(() => _isPhoneInput = isPhone);
+    }
+
+    final isReviewer = isReviewerIdentifier(text);
+    if (!_manualReviewerMode && isReviewer != _isReviewerMode) {
+      setState(() => _isReviewerMode = isReviewer);
     }
   }
 
@@ -411,6 +424,91 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  // --- Reviewer / Password Sign In -------------------------------------------
+
+  Future<void> _handleReviewerSignIn() async {
+    FocusScope.of(context).unfocus();
+
+    final email = _signInIdentifierController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty) {
+      _showMessage('Please enter the reviewer email address.');
+      return;
+    }
+    if (password.isEmpty) {
+      _showMessage('Please enter the reviewer password.');
+      return;
+    }
+
+    setState(() => _busy = true);
+
+    try {
+      final res = await AuthService.instance.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      final user = res.user;
+      if (user == null) {
+        throw const AuthException('Sign in failed: no user returned.');
+      }
+
+      if (!mounted) return;
+
+      // Ensure profile exists in public.users; create if missing
+      UserProfile? profile;
+      try {
+        profile = await UserRepository.instance.getProfileByAuthId(user.id);
+      } catch (_) {}
+
+      if (profile == null) {
+        try {
+          final meta = user.userMetadata ?? {};
+          final fullName = (meta['full_name'] as String?) ??
+              (meta['name'] as String?) ??
+              'Apple Reviewer';
+          final phone =
+              (meta['phone'] as String?) ?? user.phone ?? '+15550100199';
+          profile = await UserRepository.instance.createProfile(
+            authUserId: user.id,
+            fullName: fullName,
+            email: user.email ?? email,
+            phone: phone,
+          );
+        } catch (_) {
+          profile = await UserRepository.instance.getProfileByAuthId(user.id);
+        }
+      }
+
+      // Ensure terms & privacy consent is recorded
+      if (!AuthService.instance.hasAcceptedTerms) {
+        await AuthService.instance.recordTermsConsent(
+          version: '1.0',
+          attest18Plus: true,
+        );
+      }
+
+      if (!mounted) return;
+
+      // Enter the shell through unified post-auth routing
+      if (profile != null) {
+        goToShell(context, profile);
+      } else {
+        await routeAfterAuth(
+          authUserId: user.id,
+          fullName: 'Apple Reviewer',
+          email: user.email ?? email,
+          phone: user.phone ?? '+15550100199',
+        );
+      }
+    } catch (e) {
+      _showMessage(AuthService.formatAuthError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _openTerms() {
@@ -785,7 +883,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildSignInForm(AppPalette palette, AppLocalizations l10n, bool busy) {
     // Show country prefix only when user is typing a phone number; default to clean email input.
-    final showDialCode = _isPhoneInput;
+    final showDialCode = _isPhoneInput && !_isReviewerMode;
 
     return FadeSlideIn(
       delay: const Duration(milliseconds: 160),
@@ -797,12 +895,14 @@ class _LoginScreenState extends State<LoginScreen> {
             AuthTextField(
               key: const ValueKey('login_identifier_field'),
               controller: _signInIdentifierController,
-              label: l10n.t('emailOrMobile'),
-              hint: 'you@example.com',
+              label: _isReviewerMode ? 'Reviewer Email' : l10n.t('emailOrMobile'),
+              hint: _isReviewerMode ? 'reviewer@ino.app' : 'you@example.com',
               icon: showDialCode ? null : Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _handleExistingUserSignIn(),
+              textInputAction:
+                  _isReviewerMode ? TextInputAction.next : TextInputAction.done,
+              onSubmitted: (_) =>
+                  _isReviewerMode ? null : _handleExistingUserSignIn(),
               prefixWidget: showDialCode
                   ? InkWell(
                       onTap: busy ? null : _pickSignInCountry,
@@ -833,10 +933,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     )
                   : null,
             ),
+            if (_isReviewerMode) ...[
+              const SizedBox(height: 14),
+              AuthTextField(
+                key: const ValueKey('reviewer_password_field'),
+                controller: _passwordController,
+                label: 'Password',
+                hint: 'Enter reviewer password',
+                icon: Icons.lock_outline_rounded,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleReviewerSignIn(),
+                suffix: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: palette.textSecondary,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter password' : null,
+              ),
+            ],
             const SizedBox(height: 10),
             Text(
-              'Enter the email or mobile number on your INO account - either '
-              'one opens the same account.',
+              _isReviewerMode
+                  ? 'Sign in using the dedicated Apple App Store Reviewer credentials.'
+                  : 'Enter the email or mobile number on your INO account - either '
+                      'one opens the same account.',
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.4,
@@ -875,9 +1003,49 @@ class _LoginScreenState extends State<LoginScreen> {
 
             const SizedBox(height: 18),
             AuthPrimaryButton(
-              label: 'Send OTP',
+              label: _isReviewerMode ? 'Sign In' : 'Send OTP',
               busy: busy,
-              onPressed: busy ? null : _handleExistingUserSignIn,
+              onPressed: busy
+                  ? null
+                  : (_isReviewerMode
+                      ? _handleReviewerSignIn
+                      : _handleExistingUserSignIn),
+            ),
+
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton.icon(
+                key: const ValueKey('reviewer_login_toggle'),
+                onPressed: busy
+                    ? null
+                    : () {
+                        setState(() {
+                          _manualReviewerMode = !_manualReviewerMode;
+                          _isReviewerMode = _manualReviewerMode;
+                          if (_isReviewerMode &&
+                              _signInIdentifierController.text.trim().isEmpty) {
+                            _signInIdentifierController.text = reviewerEmail;
+                          }
+                        });
+                      },
+                icon: Icon(
+                  _isReviewerMode
+                      ? Icons.arrow_back_rounded
+                      : Icons.verified_user_outlined,
+                  size: 16,
+                  color: palette.textSecondary.withValues(alpha: 0.8),
+                ),
+                label: Text(
+                  _isReviewerMode
+                      ? 'Back to OTP sign-in'
+                      : 'App Reviewer Login',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textSecondary.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -10,13 +11,13 @@ import '../../services/document_crop_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/ino_loader.dart';
 
-/// A document crop editor with four draggable corner handles and live
-/// perspective preview - the Adobe Scan / Microsoft Lens interaction.
+/// A document crop editor with four draggable corner handles, four draggable
+/// edge border lines, and live perspective preview.
 ///
-/// The user drags the corners to the document's edges; on Apply we run a real
-/// perspective correction ([DocumentCropService.rectify]) that maps the
-/// quadrilateral onto a straight rectangle. Returns the cropped file path via
-/// `Navigator.pop`, or null if cancelled.
+/// The user can drag any of the 4 corner handles or any of the 4 border lines
+/// to align with the document's edges; on Apply we run perspective correction
+/// ([DocumentCropService.rectify]) that maps the quadrilateral onto a straight
+/// rectangle. Returns the cropped file path via `Navigator.pop`, or null if cancelled.
 class DocumentCropEditor extends StatefulWidget {
   const DocumentCropEditor({super.key, required this.imagePath});
 
@@ -33,10 +34,10 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
   bool _busy = false;
 
   static List<Offset> _defaultCorners() => const [
-        Offset(0.06, 0.06),
-        Offset(0.94, 0.06),
-        Offset(0.94, 0.94),
-        Offset(0.06, 0.94),
+        Offset(0.06, 0.06), // 0: Top-Left (TL)
+        Offset(0.94, 0.06), // 1: Top-Right (TR)
+        Offset(0.94, 0.94), // 2: Bottom-Right (BR)
+        Offset(0.06, 0.94), // 3: Bottom-Left (BL)
       ];
 
   @override
@@ -45,16 +46,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
     _loadSize();
   }
 
-  /// Reads the capture's pixel dimensions **without decoding it**.
-  ///
-  /// This used to run the bytes through `instantiateImageCodec` +
-  /// `getNextFrame()`, which materialises the whole bitmap — a 50MP phone
-  /// capture is ~200MB of RGBA — purely to read two integers, and then never
-  /// disposed the resulting `ui.Image`, so the allocation leaked for the life
-  /// of the editor. Opening the cropper on a large photo was an OOM kill.
-  ///
-  /// [ui.ImageDescriptor.encoded] parses only the file header, so it costs
-  /// nothing and cannot fail on size.
+  /// Reads the capture's pixel dimensions without materializing the whole bitmap.
   Future<void> _loadSize() async {
     ui.ImmutableBuffer? buffer;
     ui.ImageDescriptor? descriptor;
@@ -140,7 +132,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
         ],
       ),
       body: _imageSize == null
-          ?  Center(
+          ? Center(
               child: InoLoader(color: AppColors.primaryGreen))
           : LayoutBuilder(
               builder: (context, constraints) {
@@ -164,6 +156,83 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                   });
                 }
 
+                void dragEdge(int edgeIndex, Offset delta) {
+                  // edgeIndex 0: Top (corners 0 [TL] and 1 [TR])
+                  // edgeIndex 1: Right (corners 1 [TR] and 2 [BR])
+                  // edgeIndex 2: Bottom (corners 3 [BL] and 2 [BR])
+                  // edgeIndex 3: Left (corners 0 [TL] and 3 [BL])
+                  final (i1, i2) = switch (edgeIndex) {
+                    0 => (0, 1), // Top: TL, TR
+                    1 => (1, 2), // Right: TR, BR
+                    2 => (3, 2), // Bottom: BL, BR
+                    _ => (0, 3), // Left: TL, BL
+                  };
+
+                  final p1 = toDisplay(_corners[i1]);
+                  final p2 = toDisplay(_corners[i2]);
+                  final ex = p2.dx - p1.dx;
+                  final ey = p2.dy - p1.dy;
+                  final len = math.sqrt(ex * ex + ey * ey);
+                  if (len < 1.0) return;
+
+                  // Unit normal perpendicular to the edge in screen space.
+                  final double nx;
+                  final double ny;
+                  if (edgeIndex == 1 || edgeIndex == 3) {
+                    // Vertical edges: normal points rightwards
+                    nx = ey / len;
+                    ny = -ex / len;
+                  } else {
+                    // Horizontal edges: normal points downwards
+                    nx = -ey / len;
+                    ny = ex / len;
+                  }
+
+                  // Project raw screen delta onto the edge normal vector.
+                  final dot = delta.dx * nx + delta.dy * ny;
+                  final moveNormX = (dot * nx) / rect.width;
+                  final moveNormY = (dot * ny) / rect.height;
+
+                  final c1 = _corners[i1];
+                  final c2 = _corners[i2];
+
+                  var n1x = (c1.dx + moveNormX).clamp(0.0, 1.0);
+                  var n1y = (c1.dy + moveNormY).clamp(0.0, 1.0);
+                  var n2x = (c2.dx + moveNormX).clamp(0.0, 1.0);
+                  var n2y = (c2.dy + moveNormY).clamp(0.0, 1.0);
+
+                  // Keep minimum spacing so opposite borders don't cross
+                  const minGap = 0.05;
+                  if (edgeIndex == 0) {
+                    // Top edge
+                    final maxTopY = math.min(_corners[3].dy, _corners[2].dy) - minGap;
+                    n1y = n1y.clamp(0.0, math.max(0.0, maxTopY));
+                    n2y = n2y.clamp(0.0, math.max(0.0, maxTopY));
+                  } else if (edgeIndex == 2) {
+                    // Bottom edge
+                    final minBottomY = math.max(_corners[0].dy, _corners[1].dy) + minGap;
+                    n1y = n1y.clamp(math.min(1.0, minBottomY), 1.0);
+                    n2y = n2y.clamp(math.min(1.0, minBottomY), 1.0);
+                  } else if (edgeIndex == 3) {
+                    // Left edge
+                    final maxLeftX = math.min(_corners[1].dx, _corners[2].dx) - minGap;
+                    n1x = n1x.clamp(0.0, math.max(0.0, maxLeftX));
+                    n2x = n2x.clamp(0.0, math.max(0.0, maxLeftX));
+                  } else if (edgeIndex == 1) {
+                    // Right edge
+                    final minRightX = math.max(_corners[0].dx, _corners[3].dx) + minGap;
+                    n1x = n1x.clamp(math.min(1.0, minRightX), 1.0);
+                    n2x = n2x.clamp(math.min(1.0, minRightX), 1.0);
+                  }
+
+                  setState(() {
+                    final next = [..._corners];
+                    next[i1] = Offset(n1x, n1y);
+                    next[i2] = Offset(n2x, n2y);
+                    _corners = next;
+                  });
+                }
+
                 return Stack(
                   children: [
                     Positioned.fromRect(
@@ -171,9 +240,6 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                       child: Image.file(
                         File(widget.imagePath),
                         fit: BoxFit.fill,
-                        // Bounded decode — the source is a full-resolution
-                        // camera capture and this only ever paints it into
-                        // `rect`, which is at most the viewport.
                         cacheWidth: zoomableDecodeCap(context),
                       ),
                     ),
@@ -185,7 +251,28 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                         ),
                       ),
                     ),
-                    // Draggable corner handles.
+                    // Draggable border lines (Top, Right, Bottom, Left).
+                    _EdgeLine(
+                      p1: toDisplay(_corners[0]),
+                      p2: toDisplay(_corners[1]),
+                      onDrag: (delta) => dragEdge(0, delta),
+                    ),
+                    _EdgeLine(
+                      p1: toDisplay(_corners[1]),
+                      p2: toDisplay(_corners[2]),
+                      onDrag: (delta) => dragEdge(1, delta),
+                    ),
+                    _EdgeLine(
+                      p1: toDisplay(_corners[3]),
+                      p2: toDisplay(_corners[2]),
+                      onDrag: (delta) => dragEdge(2, delta),
+                    ),
+                    _EdgeLine(
+                      p1: toDisplay(_corners[0]),
+                      p2: toDisplay(_corners[3]),
+                      onDrag: (delta) => dragEdge(3, delta),
+                    ),
+                    // Draggable corner handles (rendered on top for priority).
                     for (var i = 0; i < 4; i++)
                       _Handle(
                         center: toDisplay(_corners[i]),
@@ -195,7 +282,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                       Positioned.fill(
                         child: ColoredBox(
                           color: Colors.black54,
-                          child:  Center(
+                          child: Center(
                             child: InoLoader(color: AppColors.primaryGreen),
                           ),
                         ),
@@ -221,7 +308,7 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
                               Colors.white.withValues(alpha: 0.08),
                           side: BorderSide(
                               color:
-                                  AppColors.tealPale.withValues(alpha: 0.45)),
+                                   AppColors.tealPale.withValues(alpha: 0.45)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: const StadiumBorder(),
                         ),
@@ -251,6 +338,86 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
   }
 }
 
+/// A draggable border line connecting two corners, with a visible grip handle pill in
+/// the center and a generous touch breadth along the entire segment.
+class _EdgeLine extends StatefulWidget {
+  const _EdgeLine({
+    required this.p1,
+    required this.p2,
+    required this.onDrag,
+  });
+
+  final Offset p1;
+  final Offset p2;
+  final ValueChanged<Offset> onDrag;
+
+  @override
+  State<_EdgeLine> createState() => _EdgeLineState();
+}
+
+class _EdgeLineState extends State<_EdgeLine> {
+  Offset? _lastPanPos;
+
+  static const double _touchBreadth = 52.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final dx = widget.p2.dx - widget.p1.dx;
+    final dy = widget.p2.dy - widget.p1.dy;
+    final length = math.max(math.sqrt(dx * dx + dy * dy), 32.0);
+    final angle = math.atan2(dy, dx);
+    final mid = Offset((widget.p1.dx + widget.p2.dx) / 2, (widget.p1.dy + widget.p2.dy) / 2);
+
+    return Positioned(
+      left: mid.dx - length / 2,
+      top: mid.dy - _touchBreadth / 2,
+      child: Transform.rotate(
+        angle: angle,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (d) => _lastPanPos = d.globalPosition,
+          onPanUpdate: (d) {
+            if (_lastPanPos == null) {
+              _lastPanPos = d.globalPosition;
+              return;
+            }
+            final screenDelta = d.globalPosition - _lastPanPos!;
+            _lastPanPos = d.globalPosition;
+            widget.onDrag(screenDelta);
+          },
+          onPanEnd: (_) => _lastPanPos = null,
+          onPanCancel: () => _lastPanPos = null,
+          child: Container(
+            width: length,
+            height: _touchBreadth,
+            color: Colors.transparent,
+            alignment: Alignment.center,
+            child: Container(
+              width: 38,
+              height: 7,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: AppColors.primaryGreen,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A single draggable corner handle (a ring with a solid centre and a generous
 /// invisible touch target).
 class _Handle extends StatelessWidget {
@@ -259,7 +426,7 @@ class _Handle extends StatelessWidget {
   final Offset center;
   final ValueChanged<Offset> onDrag;
 
-  static const double _touch = 44;
+  static const double _touch = 48;
 
   @override
   Widget build(BuildContext context) {
@@ -274,8 +441,8 @@ class _Handle extends StatelessWidget {
           height: _touch,
           child: Center(
             child: Container(
-              width: 24,
-              height: 24,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
                 color: AppColors.primaryGreen.withValues(alpha: 0.25),
                 shape: BoxShape.circle,
@@ -283,8 +450,8 @@ class _Handle extends StatelessWidget {
               ),
               child: Center(
                 child: Container(
-                  width: 7,
-                  height: 7,
+                  width: 8,
+                  height: 8,
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,

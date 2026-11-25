@@ -59,7 +59,7 @@ class ImageEnhancer {
   static const int _kMaxDim = 2000;
 
   /// Upscale target (width) for the cropped "enhanced" candidate.
-  static const int _kCandidateTargetWidth = 1600;
+  static const int _kCandidateTargetWidth = 1200;
 
   /// Interpolation used to deskew an OCR candidate.
   ///
@@ -328,10 +328,9 @@ class ImageEnhancer {
     // …but never exceed the memory cap.
     im = _capLongestSide(im, _kMaxDim);
 
-    // 4. Grayscale + contrast + denoise + sharpen.
+    // 4. Grayscale + contrast + denoise/sharpen (without slow blur).
     var out = img.grayscale(im);
     out = img.adjustColor(out, contrast: 1.3, brightness: 1.03);
-    out = img.gaussianBlur(out, radius: 1); // noise reduction
     out = img.convolution(
       out,
       filter: const [0, -1, 0, -1, 5, -1, 0, -1, 0], // unsharp 3×3
@@ -344,7 +343,7 @@ class ImageEnhancer {
     }
 
     final path = _outPath(basePath, binarize ? 'bin' : 'enh');
-    final encoded = img.encodeJpg(out, quality: 90);
+    final encoded = img.encodeJpg(out, quality: 82);
     await File(path).writeAsBytes(encoded);
     return (path, out.width, out.height, encoded.length);
   }

@@ -8,7 +8,7 @@ import '../../models/document.dart';
 import '../../models/property_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
-import '../../services/document_scanner_service.dart';
+import '../../screens/scan/document_crop_editor.dart';
 import '../../services/file_picker_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../theme/app_dimens.dart';
@@ -63,16 +63,15 @@ class _PropertyDocumentPickerSheetState
 
       switch (source) {
         case _PickerSource.scan:
-          // Try ML Kit auto scanner first; fallback to camera
-          String? scanned;
-          try {
-            scanned = await DocumentScannerService.instance.scan();
-          } catch (_) {
-            scanned = null;
-          }
-          scanned ??= await GalleryImportService.instance.captureFromCamera();
-          if (scanned == null) return;
-          localPath = scanned;
+          final captured = await GalleryImportService.instance.captureFromCamera();
+          if (captured == null) return;
+          if (!mounted) return;
+          final cropped = await Navigator.of(context).push<String>(
+            MaterialPageRoute(
+              builder: (_) => DocumentCropEditor(imagePath: captured),
+            ),
+          );
+          localPath = cropped ?? captured;
           originalName = 'Scanned Document';
           break;
 
@@ -226,7 +225,7 @@ class _PropertyDocumentPickerSheetState
                 Expanded(
                   child: _SourceTile(
                     title: l10n.t('scanDocument'),
-                    subtitle: 'Camera / ML Scanner',
+                    subtitle: 'Camera + Manual Crop',
                     icon: Icons.document_scanner_rounded,
                     accent: AppColors.primaryGreen,
                     onTap: _busy ? null : () => _pickSource(_PickerSource.scan),

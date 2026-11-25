@@ -25,3 +25,25 @@ const bool isDemoBuild = bool.fromEnvironment(
   'INO_DEMO_BUILD',
   defaultValue: false,
 );
+
+/// Dedicated Apple App Store Reviewer email configuration.
+/// Can be overridden at build time via `--dart-define=INO_REVIEWER_EMAIL=...`.
+const String reviewerEmail = String.fromEnvironment(
+  'INO_REVIEWER_EMAIL',
+  defaultValue: 'reviewer@ino.app',
+);
+
+/// Whether the identifier matches a known reviewer or demo account.
+/// This allows the app to present email/password authentication to Apple
+/// reviewers and QA testers without disrupting the passwordless OTP flow for
+/// standard users.
+bool isReviewerIdentifier(String input) {
+  final trimmed = input.trim().toLowerCase();
+  if (trimmed.isEmpty) return false;
+  return trimmed == reviewerEmail.toLowerCase() ||
+      trimmed == demoEmail.toLowerCase() ||
+      trimmed == 'apple.review@ino.app' ||
+      trimmed == 'reviewer@ino.app' ||
+      trimmed.startsWith('reviewer@') ||
+      trimmed.startsWith('apple.review@');
+}
