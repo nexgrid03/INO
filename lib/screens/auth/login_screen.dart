@@ -339,7 +339,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length < 6) return null;
-    return (value: '${_signInCountry.dialCode}$digits', isEmail: false);
+    final dialDigits =
+        _signInCountry.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+    var national = digits;
+    if (national.startsWith(dialDigits) && national.length > dialDigits.length) {
+      national = national.substring(dialDigits.length);
+    }
+    return (value: '${_signInCountry.dialCode}$national', isEmail: false);
   }
 
   void _showMessage(String message, {bool isError = true}) {
@@ -501,7 +507,7 @@ class _LoginScreenState extends State<LoginScreen> {
           onVerified: (ctx) {
             final id = authUserId;
             if (id == null) return;
-            unawaited(_startSecondIdentifier(
+            unawaited(_promptSecondIdentifier(
               ctx,
               authUserId: id,
               firstWasEmail: isEmail,
@@ -513,6 +519,147 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _promptSecondIdentifier(
+    BuildContext ctx, {
+    required String authUserId,
+    required bool firstWasEmail,
+    required String name,
+    required String email,
+    required String phone,
+  }) async {
+    final target = firstWasEmail
+        ? DualSignupCoordinator.phoneTarget(phone)
+        : email.trim();
+
+    final shouldVerify = await showModalBottomSheet<bool>(
+      context: ctx,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final palette = AppPalette.of(sheetCtx);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: palette.border),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  firstWasEmail
+                      ? Icons.phone_android_rounded
+                      : Icons.email_outlined,
+                  color: AppColors.primaryGreen,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                firstWasEmail
+                    ? 'Verify Mobile Number'
+                    : 'Verify Email Address',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                firstWasEmail
+                    ? 'Verify $target now to enable sign-in with your mobile number. You can also skip and verify anytime from your profile.'
+                    : 'Verify $target now to enable sign-in with your email. You can also skip and verify anytime from your profile.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: palette.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(sheetCtx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Verify Now',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(sheetCtx).pop(false),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    'Skip for now',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!ctx.mounted) return;
+
+    if (shouldVerify == true) {
+      await _startSecondIdentifier(
+        ctx,
+        authUserId: authUserId,
+        firstWasEmail: firstWasEmail,
+        name: name,
+        email: email,
+        phone: phone,
+      );
+    } else {
+      try {
+        await _createSignupProfile(
+          authUserId: authUserId,
+          name: name,
+          email: email.trim(),
+          phone: DualSignupCoordinator.phoneTarget(phone),
+        );
+        final profile =
+            await UserRepository.instance.getProfileByAuthId(authUserId);
+        if (profile != null && ctx.mounted) {
+          goToShell(ctx, profile);
+        }
+      } catch (e) {
+        _showMessage(AuthService.formatAuthError(e));
+      }
+    }
   }
 
   DualSignupCoordinator _signupCoordinator() {
@@ -699,7 +846,31 @@ class _LoginScreenState extends State<LoginScreen> {
       // The whole point of this pre-flight: an identifier with no account must
       // be told to sign up, NOT handed to signInWithOtp - which, left to its
       // own devices, would happily create a brand new empty account for it.
-      if (!await AuthService.instance.accountExists(id.value)) {
+      var targetValue = id.value;
+      var exists = await AuthService.instance.accountExists(targetValue);
+      if (!exists && !id.isEmail) {
+        final digits = id.value.replaceAll(RegExp(r'[^0-9]'), '');
+        final variants = <String>[];
+        if (digits.length > 10) {
+          variants.add(digits.substring(digits.length - 10));
+          variants.add('+${digits.substring(digits.length - 10)}');
+        }
+        if (!digits.startsWith('91') && digits.length == 10) {
+          variants.add('+91$digits');
+          variants.add('91$digits');
+        }
+        for (final v in variants) {
+          try {
+            if (await AuthService.instance.accountExists(v)) {
+              exists = true;
+              targetValue = v.startsWith('+') ? v : '+91$v';
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (!exists) {
         if (!mounted) return;
         // Most often this is someone who signed up with the OTHER identifier
         // and is reaching for the one they never verified, so say so rather
@@ -717,17 +888,17 @@ class _LoginScreenState extends State<LoginScreen> {
       // account can have been deleted between the two calls.
       if (id.isEmail) {
         await AuthService.instance.sendEmailOtp(
-          id.value,
+          targetValue,
           shouldCreateUser: false,
         );
       } else {
         await AuthService.instance.sendPhoneOtp(
-          id.value,
+          targetValue,
           shouldCreateUser: false,
         );
       }
       if (!mounted) return;
-      _goToExistingUserOtpScreen(destination: id.value, isEmail: id.isEmail);
+      _goToExistingUserOtpScreen(destination: targetValue, isEmail: id.isEmail);
     } catch (e) {
       _showMessage(AuthService.formatAuthError(e));
     } finally {
