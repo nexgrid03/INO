@@ -159,6 +159,20 @@ class _PendingSecondVerificationScreenState
           destination: target,
           showBack: false,
           onSignOut: signOutPendingSignup,
+          onSkip: (otpCtx) async {
+            await _LoginScreenState._createSignupProfile(
+              authUserId: user.id,
+              name: name,
+              email: email,
+              phone: usablePhone,
+            );
+            final profile =
+                await UserRepository.instance.getProfileByAuthId(user.id);
+            if (profile != null && otpCtx.mounted) {
+              goToShell(otpCtx, profile);
+            }
+          },
+          skipLabel: 'Skip for now',
           onResend: () => flow.resend(
             firstWasEmail: firstWasEmail,
             target: target,
@@ -576,6 +590,22 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           showBack: false,
           onSignOut: signOutPendingSignup,
+          onSkip: (otpCtx) async {
+            // Allow skipping second factor for now. Create profile with the primary verified identifier.
+            await _LoginScreenState._createSignupProfile(
+              authUserId: authUserId,
+              name: name,
+              email: email.trim(),
+              phone: DualSignupCoordinator.phoneTarget(phone),
+            );
+            final profile = await UserRepository.instance.getProfileByAuthId(
+              authUserId,
+            );
+            if (profile != null && otpCtx.mounted) {
+              goToShell(otpCtx, profile);
+            }
+          },
+          skipLabel: 'Skip for now',
           onVerify: (code) async {
             final ok = await flow.confirmSecond(
               expectedUserId: authUserId,
@@ -813,7 +843,8 @@ class _LoginScreenState extends State<LoginScreen> {
               'Apple Reviewer';
           final phone =
               (meta['phone'] as String?) ?? user.phone ?? '+15550100199';
-          profile = await UserRepository.instance.createProfile(
+          final ensureFn = UserRepository.instance.createProfile;
+          profile = await ensureFn(
             authUserId: user.id,
             fullName: fullName,
             email: user.email ?? email,

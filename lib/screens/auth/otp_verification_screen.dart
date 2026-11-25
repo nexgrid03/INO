@@ -33,6 +33,8 @@ class OtpVerificationScreen extends StatefulWidget {
     this.resendSeconds = 30,
     this.showBack = true,
     this.onSignOut,
+    this.onSkip,
+    this.skipLabel,
   });
 
   /// Where the code was sent (email/number) - shown in the subtitle.
@@ -54,6 +56,10 @@ class OtpVerificationScreen extends StatefulWidget {
 
   /// Signs out of a pending second verification without starting a new account.
   final Future<void> Function(BuildContext context)? onSignOut;
+
+  /// Optional callback to skip this verification step (e.g. "Skip for now").
+  final Future<void> Function(BuildContext context)? onSkip;
+  final String? skipLabel;
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -326,6 +332,22 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
             ),
           const SizedBox(height: 20),
+
+          if (widget.onSkip != null) ...[
+            TextButton(
+              key: const ValueKey('otp_skip_button'),
+              onPressed: _busy ? null : () => widget.onSkip!(context),
+              child: Text(
+                widget.skipLabel ?? 'Skip for now',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
 
           if (widget.onSignOut != null)
             TextButton(
