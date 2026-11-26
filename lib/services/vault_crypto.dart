@@ -133,6 +133,30 @@ class VaultCrypto extends ChangeNotifier {
     );
   }
 
+  static bool _isMissingRecoveryColumn(Object error) {
+    if (error is! PostgrestException) return false;
+    final msg = error.message.toLowerCase();
+    return error.code == 'PGRST204' ||
+        error.code == '42703' ||
+        msg.contains('wrapped_master_key') ||
+        msg.contains('recovery_envelope');
+  }
+
+  static Future<void> _writeVaultKeyRow(
+    SupabaseClient client,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await client
+          .from(_table)
+          .upsert(payload, onConflict: 'auth_user_id')
+          .timeout(NetGuard.mutation);
+    } on PostgrestException catch (e) {
+      if (_isMissingRecoveryColumn(e)) rethrow;
+      await client.from(_table).insert(payload).timeout(NetGuard.mutation);
+    }
+  }
+
   /// Creates the vault key record for a first-time passphrase with envelope encryption.
   Future<bool> createPassphrase(String passphrase) async {
     if (passphrase.isEmpty) return false;
@@ -156,25 +180,11 @@ class VaultCrypto extends ChangeNotifier {
         recoveryKey,
       );
 
-      try {
-        await _secureStorage.write(
-          key: 'ino_vault_recovery_$uid',
-          value: recoveryEnvelope,
-        );
-        await _secureStorage.write(
-          key: 'ino_vault_key_$uid',
-          value: jsonEncode({
-            'salt': base64Encode(salt),
-            'verifier': verifier,
-            'iterations': _iterations,
-            'wrapped_master_key': wrappedMasterKey,
-            'recovery_envelope': recoveryEnvelope,
-          }),
-        );
-      } catch (_) {}
+      var activeKey = masterKey;
+      var usingLegacyKey = false;
 
       if (client != null && _uid != null) {
-        final payload = {
+        final fullPayload = {
           'auth_user_id': _uid,
           'salt': base64Encode(salt),
           'verifier': verifier,
@@ -183,23 +193,71 @@ class VaultCrypto extends ChangeNotifier {
           'recovery_envelope': recoveryEnvelope,
         };
         try {
-          await client.from(_table).upsert(payload, onConflict: 'auth_user_id');
-        } catch (e) {
-          try {
-            await client.from(_table).insert(payload);
-          } catch (e2) {
-            developer.log(
-              'createPassphrase remote insert warning: $e2',
-              name: 'vault',
-            );
-          }
+          await _writeVaultKeyRow(client, fullPayload);
+        } on PostgrestException catch (e) {
+          if (!_isMissingRecoveryColumn(e)) rethrow;
+          // Remote DB does not have wrapped_master_key/recovery_envelope yet;
+          // save the base vault_keys row and derive _key from passphraseKey
+          // directly so unlock() after reinstall decrypts the same entries.
+          developer.log(
+            'vault_keys missing recovery columns; using base key row',
+            name: 'vault',
+          );
+          final legacyPayload = {
+            'auth_user_id': _uid,
+            'salt': base64Encode(salt),
+            'verifier': verifier,
+            'iterations': _iterations,
+          };
+          await _writeVaultKeyRow(client, legacyPayload);
+          activeKey = passphraseKey;
+          usingLegacyKey = true;
         }
       }
 
-      _key = masterKey;
+      try {
+        if (!usingLegacyKey) {
+          await _secureStorage.write(
+            key: 'ino_vault_recovery_$uid',
+            value: recoveryEnvelope,
+          );
+          await _secureStorage.write(
+            key: 'ino_vault_key_$uid',
+            value: jsonEncode({
+              'salt': base64Encode(salt),
+              'verifier': verifier,
+              'iterations': _iterations,
+              'wrapped_master_key': wrappedMasterKey,
+              'recovery_envelope': recoveryEnvelope,
+            }),
+          );
+        } else {
+          final keyBytes = await passphraseKey.extractBytes();
+          final legacyRecovery = await _seal(
+            base64Encode(keyBytes),
+            recoveryKey,
+          );
+          await _secureStorage.write(
+            key: 'ino_vault_recovery_$uid',
+            value: legacyRecovery,
+          );
+          await _secureStorage.write(
+            key: 'ino_vault_key_$uid',
+            value: jsonEncode({
+              'salt': base64Encode(salt),
+              'verifier': verifier,
+              'iterations': _iterations,
+            }),
+          );
+        }
+      } catch (_) {}
+
+      _key = activeKey;
       notifyListeners();
       developer.log(
-        'vault passphrase created with envelope key',
+        usingLegacyKey
+            ? 'vault passphrase created with base key'
+            : 'vault passphrase created with envelope key',
         name: 'vault',
       );
       return true;
@@ -224,6 +282,17 @@ class VaultCrypto extends ChangeNotifier {
               .eq('auth_user_id', _uid!)
               .maybeSingle()
               .timeout(NetGuard.query);
+        } on PostgrestException catch (e) {
+          if (_isMissingRecoveryColumn(e)) {
+            try {
+              row = await client
+                  .from(_table)
+                  .select('salt, verifier, iterations')
+                  .eq('auth_user_id', _uid!)
+                  .maybeSingle()
+                  .timeout(NetGuard.query);
+            } catch (_) {}
+          }
         } catch (_) {}
       }
 
