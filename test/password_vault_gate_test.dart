@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/l10n/app_localizations.dart';
+import 'package:inoapp/models/wallet_models.dart';
 import 'package:inoapp/screens/passwords/password_form_screen.dart';
+import 'package:inoapp/screens/passwords/password_vault_screen.dart';
 import 'package:inoapp/screens/passwords/vault_passphrase_sheet.dart';
 import 'package:inoapp/services/password_store.dart';
 import 'package:inoapp/services/vault_crypto.dart';
@@ -129,6 +132,34 @@ void main() {
 
     expect(find.text('Forgot passphrase?'), findsNothing);
     expect(find.text('Create Vault'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('leaving PasswordVaultScreen locks VaultCrypto so reentry requires passphrase',
+      (tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    await tester.runAsync(() async {
+      await VaultCrypto.instance.createPassphrase('TestPassphrase123!');
+    });
+    expect(VaultCrypto.instance.isUnlocked, isTrue);
+
+    final category = WalletCategory(
+      name: 'Password Vault',
+      icon: Icons.lock_rounded,
+      contents: const [],
+      metric: '0',
+      metricLabel: 'passwords',
+      gradient: [AppColors.primaryGreen, AppColors.lightBlue],
+    );
+
+    await tester.pumpWidget(wrap(PasswordVaultScreen(category: category)));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Unmount PasswordVaultScreen (simulates navigating back to Wallet Hub).
+    await tester.pumpWidget(wrap(const SizedBox.shrink()));
+    await tester.pump();
+
+    expect(VaultCrypto.instance.isUnlocked, isFalse);
     expect(tester.takeException(), isNull);
   });
 }

@@ -94,6 +94,9 @@ class _PasswordVaultScreenState extends State<PasswordVaultScreen> {
     ScreenSecurityService.instance.disable();
     _store.removeListener(_onChanged);
     _searchController.dispose();
+    // Lock the vault whenever leaving the screen so re-entering always
+    // prompts for the passphrase again, even within the same app session.
+    VaultCrypto.instance.lock();
     super.dispose();
   }
 
