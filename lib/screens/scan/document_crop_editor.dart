@@ -58,11 +58,18 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
   bool _busy = false;
 
   static List<Offset> _defaultCorners() => const [
-        Offset(0.06, 0.06), // 0: Top-Left (TL)
-        Offset(0.94, 0.06), // 1: Top-Right (TR)
-        Offset(0.94, 0.94), // 2: Bottom-Right (BR)
-        Offset(0.06, 0.94), // 3: Bottom-Left (BL)
+        Offset(0.0, 0.0), // 0: Top-Left (TL)
+        Offset(1.0, 0.0), // 1: Top-Right (TR)
+        Offset(1.0, 1.0), // 2: Bottom-Right (BR)
+        Offset(0.0, 1.0), // 3: Bottom-Left (BL)
       ];
+
+  static bool _isFullImage(List<Offset> c) =>
+      c.length == 4 &&
+      c[0] == const Offset(0.0, 0.0) &&
+      c[1] == const Offset(1.0, 0.0) &&
+      c[2] == const Offset(1.0, 1.0) &&
+      c[3] == const Offset(0.0, 1.0);
 
   @override
   void initState() {
@@ -98,6 +105,11 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
 
   Future<void> _apply() async {
     if (_busy) return;
+    if (_isFullImage(_corners)) {
+      HapticFeedback.mediumImpact();
+      Navigator.of(context).pop(widget.imagePath);
+      return;
+    }
     setState(() => _busy = true);
     final cropped =
         await DocumentCropService.rectify(widget.imagePath, _corners);
@@ -117,14 +129,18 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
     Navigator.of(context).pop(cropped);
   }
 
-  /// The rect the image occupies inside [available] when fitted with `contain`.
+  /// The rect the image occupies inside [available] when fitted with `contain`,
+  /// inset slightly so corner handles at (0,0)..(1,1) remain easy to grab.
   Rect _fittedRect(Size available) {
+    const edgePad = 16.0;
+    final maxW = math.max(1.0, available.width - edgePad * 2);
+    final maxH = math.max(1.0, available.height - edgePad * 2);
     final img = _imageSize!;
     final ar = img.width / img.height;
-    var w = available.width;
+    var w = maxW;
     var h = w / ar;
-    if (h > available.height) {
-      h = available.height;
+    if (h > maxH) {
+      h = maxH;
       w = h * ar;
     }
     final dx = (available.width - w) / 2;
@@ -140,17 +156,22 @@ class _DocumentCropEditorState extends State<DocumentCropEditor> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 17,
+        ),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(Icons.close_rounded, color: Colors.white),
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
         ),
-        title: Text(l10n.t('crop'),
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text(l10n.t('crop')),
         actions: [
           IconButton(
             tooltip: l10n.t('reset'),
-            icon: const Icon(Icons.crop_free_rounded),
+            icon: const Icon(Icons.crop_free_rounded, color: Colors.white),
             onPressed: _busy ? null : _reset,
           ),
         ],
