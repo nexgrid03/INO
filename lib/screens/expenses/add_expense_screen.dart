@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
+import '../scan/document_crop_editor.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
 import '../../services/gallery_import_service.dart';
@@ -231,11 +232,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         }
         final path = await GalleryImportService.instance.captureFromCamera();
         if (path != null && mounted) {
+          final cropped = await DocumentCropEditor.openOrKeep(context, path);
+          if (!mounted) return;
           setState(() {
-            _receiptPath = path;
+            _receiptPath = cropped;
             _receiptIsPdf = false;
           });
-          await _runOcr(path);
+          await _runOcr(cropped);
         }
       } else if (choice == 'image') {
         final access = await CameraPermissionService.instance.requestPhotos();
@@ -252,11 +255,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         }
         final path = await GalleryImportService.instance.pickImage();
         if (path != null && mounted) {
+          final cropped = await DocumentCropEditor.openOrKeep(context, path);
+          if (!mounted) return;
           setState(() {
-            _receiptPath = path;
+            _receiptPath = cropped;
             _receiptIsPdf = false;
           });
-          await _runOcr(path);
+          await _runOcr(cropped);
         }
       } else if (choice == 'pdf') {
         final picked = await PdfImportService.instance.pickPdf();

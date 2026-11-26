@@ -64,22 +64,16 @@ class _PropertyDocumentPickerSheetState
       switch (source) {
         case _PickerSource.scan:
           final captured = await GalleryImportService.instance.captureFromCamera();
-          if (captured == null) return;
-          if (!mounted) return;
-          final cropped = await Navigator.of(context).push<String>(
-            MaterialPageRoute(
-              builder: (_) => DocumentCropEditor(imagePath: captured),
-            ),
-          );
-          localPath = cropped ?? captured;
+          if (captured == null || !mounted) return;
+          localPath = await DocumentCropEditor.openOrKeep(context, captured);
           originalName = 'Scanned Document';
           break;
 
         case _PickerSource.gallery:
           final picked = await GalleryImportService.instance.pickImage();
-          if (picked == null) return;
-          localPath = picked;
-          final fileName = picked.split(Platform.pathSeparator).last;
+          if (picked == null || !mounted) return;
+          localPath = await DocumentCropEditor.openOrKeep(context, picked);
+          final fileName = localPath.split(Platform.pathSeparator).last;
           originalName = fileName.isNotEmpty ? fileName : 'Property Image';
           break;
 
@@ -90,6 +84,12 @@ class _PropertyDocumentPickerSheetState
           localPath = file.path;
           originalName = file.name;
           fileSize = file.size;
+          if (localPath != null &&
+              DocumentCropEditor.isCropSupportedImage(localPath)) {
+            if (!mounted) return;
+            localPath = await DocumentCropEditor.openOrKeep(context, localPath);
+            fileSize = null;
+          }
           if (file.extension != null) {
             mimeType = file.extension!.toLowerCase() == 'pdf'
                 ? 'application/pdf'

@@ -35,17 +35,26 @@ class OtpInput extends StatefulWidget {
 }
 
 class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
+  /// Invisible sentinel placed in empty boxes (after index 0) so iOS UIKit
+  /// still receives a deleteBackward / onChanged event when Backspace is
+  /// pressed on the soft keyboard without needing to move the cursor back first.
+  static const String _sentinel = '\u200B';
+
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _nodes;
+  late final List<String> _prevDigits;
   String? _clipboardOtp;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _controllers =
-        List.generate(widget.length, (_) => TextEditingController());
+    _controllers = List.generate(
+      widget.length,
+      (i) => TextEditingController(text: i == 0 ? '' : _sentinel),
+    );
     _nodes = List.generate(widget.length, (_) => FocusNode());
+    _prevDigits = List.filled(widget.length, '');
 
     // Check clipboard on initial load
     _checkClipboard();
@@ -87,7 +96,23 @@ class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
     }
   }
 
-  String get _value => _controllers.map((c) => c.text).join();
+  String get _value => _prevDigits.join();
+
+  void _setBox(int index, String digit) {
+    _prevDigits[index] = digit;
+    final text = digit.isNotEmpty ? digit : (index == 0 ? '' : _sentinel);
+    _controllers[index].value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  void _focusBox(int index) {
+    if (index < 0 || index >= _nodes.length) return;
+    _nodes[index].requestFocus();
+    final len = _controllers[index].text.length;
+    _controllers[index].selection = TextSelection.collapsed(offset: len);
+  }
 
   void _emit() {
     final value = _value;
@@ -98,14 +123,53 @@ class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
   }
 
   void _onChanged(int index, String raw) {
-    // Handle a pasted / autofilled multi-digit string by spreading it out.
-    if (raw.length > 1) {
-      _distribute(raw);
+    final digits = raw.replaceAll(_sentinel, '').replaceAll(RegExp(r'\D'), '');
+
+    if (digits.isEmpty) {
+      final wasDeleted = raw.isEmpty;
+      final hadDigit = _prevDigits[index].isNotEmpty;
+      if (!wasDeleted) {
+        // Non-digit character typed: restore previous box contents.
+        _setBox(index, _prevDigits[index]);
+        return;
+      }
+      if (hadDigit) {
+        // Digit in this box was deleted.
+        _setBox(index, '');
+        _emit();
+        return;
+      }
+      // Empty box had its sentinel deleted via Backspace: clear previous box
+      // and step focus back.
+      _setBox(index, '');
+      if (index > 0) {
+        _setBox(index - 1, '');
+        _focusBox(index - 1);
+        _emit();
+      }
       return;
     }
 
-    if (raw.isNotEmpty && index < widget.length - 1) {
-      _nodes[index + 1].requestFocus();
+    // Multi-digit paste / autofill, or typing a second digit into a filled box.
+    if (digits.length > 1) {
+      final prev = _prevDigits[index];
+      if (prev.isNotEmpty && digits.length == 2) {
+        final nextDigit =
+            digits.startsWith(prev) ? digits.substring(1) : digits.substring(0, 1);
+        _setBox(index, nextDigit);
+        if (index < widget.length - 1) {
+          _focusBox(index + 1);
+        }
+        _emit();
+        return;
+      }
+      _distribute(digits);
+      return;
+    }
+
+    _setBox(index, digits);
+    if (index < widget.length - 1) {
+      _focusBox(index + 1);
     }
     _emit();
   }
@@ -113,12 +177,12 @@ class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
   void _distribute(String value) {
     final digits = value.replaceAll(RegExp(r'\D'), '');
     for (int i = 0; i < widget.length; i++) {
-      _controllers[i].text = i < digits.length ? digits[i] : '';
+      _setBox(i, i < digits.length ? digits[i] : '');
     }
     final filled = digits.length.clamp(0, widget.length);
     final focusIndex = (filled - 1).clamp(0, widget.length - 1);
     if (focusIndex >= 0 && focusIndex < _nodes.length) {
-      _nodes[focusIndex].requestFocus();
+      _focusBox(focusIndex);
     }
     setState(() => _clipboardOtp = null);
     _emit();
@@ -142,10 +206,10 @@ class _OtpInputState extends State<OtpInput> with WidgetsBindingObserver {
   KeyEventResult _onKey(int index, KeyEvent event) {
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
-        _controllers[index].text.isEmpty &&
+        _prevDigits[index].isEmpty &&
         index > 0) {
-      _controllers[index - 1].clear();
-      _nodes[index - 1].requestFocus();
+      _setBox(index - 1, '');
+      _focusBox(index - 1);
       _emit();
       return KeyEventResult.handled;
     }
@@ -252,19 +316,38 @@ class _OtpBox extends StatefulWidget {
 class _OtpBoxState extends State<_OtpBox> {
   bool _focused = false;
 
+  void _handleFocus() {
+    if (!mounted) return;
+    final hasFocus = widget.node.hasFocus;
+    if (hasFocus) {
+      final text = widget.controller.text;
+      // Keep the caret after the invisible sentinel so Backspace on iOS
+      // always deletes it rather than sitting at offset 0.
+      if (text == '\u200B') {
+        widget.controller.selection =
+            TextSelection.collapsed(offset: text.length);
+      }
+    }
+    if (hasFocus != _focused) {
+      setState(() => _focused = hasFocus);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    widget.node.addListener(() {
-      if (widget.node.hasFocus != _focused) {
-        setState(() => _focused = widget.node.hasFocus);
-      }
-    });
+    widget.node.addListener(_handleFocus);
+  }
+
+  @override
+  void dispose() {
+    widget.node.removeListener(_handleFocus);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filled = widget.controller.text.isNotEmpty;
+    final filled = widget.controller.text.replaceAll('\u200B', '').isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       height: 56,
@@ -292,8 +375,15 @@ class _OtpBoxState extends State<_OtpBox> {
           cursorColor: AppColors.primaryGreen,
           autofillHints: const [AutofillHints.oneTimeCode],
           // Allow full multi-digit buffer so pasted/autofilled codes reach onChanged.
-          maxLength: 8,
+          maxLength: 12,
           showCursor: true,
+          onTap: () {
+            final text = widget.controller.text;
+            if (text == '\u200B') {
+              widget.controller.selection =
+                  TextSelection.collapsed(offset: text.length);
+            }
+          },
           style: TextStyle(
             color: AppColors.primaryGreen,
             fontSize: 22,
@@ -309,31 +399,9 @@ class _OtpBoxState extends State<_OtpBox> {
             contentPadding: EdgeInsets.zero,
             isDense: true,
           ),
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: (v) {
-            if (v.length > 1 && _looksPasted(v)) {
-              // A full code was pasted / SMS-autofilled: hand it up whole so
-              // the parent can distribute it across every box.
-              widget.onChanged(v);
-              return;
-            }
-            if (v.length > 1) {
-              // Typing into an already-filled box: keep just the newest digit
-              // and advance.
-              final last = v.substring(v.length - 1);
-              widget.controller.text = last;
-              widget.controller.selection =
-                  const TextSelection.collapsed(offset: 1);
-              widget.onChanged(last);
-              return;
-            }
-            widget.onChanged(v); // 0 (cleared) or 1 digit
-          },
+          onChanged: widget.onChanged,
         ),
       ),
     );
   }
-
-  // A value is treated as "pasted / autofilled" when several digits arrive at once.
-  bool _looksPasted(String v) => v.length >= 2;
 }

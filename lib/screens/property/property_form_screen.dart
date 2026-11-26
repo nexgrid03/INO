@@ -10,6 +10,7 @@ import '../../models/area_unit.dart';
 import '../../models/currency.dart';
 import '../../models/property_models.dart';
 import '../../models/reminder_models.dart';
+import '../scan/document_crop_editor.dart';
 import '../../services/app_settings.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/property_store.dart';
@@ -195,7 +196,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   Future<void> _pickImage() async {
     final path = await GalleryImportService.instance.pickImage();
     if (path == null || !mounted) return;
-    setState(() => _imagePath = path);
+    final cropped = await DocumentCropEditor.openOrKeep(context, path);
+    if (!mounted) return;
+    setState(() => _imagePath = cropped);
   }
 
   Future<void> _pickType() async {

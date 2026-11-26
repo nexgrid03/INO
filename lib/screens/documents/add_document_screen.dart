@@ -23,6 +23,7 @@ import '../../services/push_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../services/screen_security_service.dart';
 import '../../services/storage_stats_service.dart';
+import '../scan/document_crop_editor.dart';
 import '../shell/shell_controller.dart';
 
 import '../../services/gallery_import_service.dart';
@@ -339,12 +340,15 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           ),
         );
         if (capturedPath == null || !mounted) return;
+        final croppedPath =
+            await DocumentCropEditor.openOrKeep(context, capturedPath);
+        if (!mounted) return;
         // A scan attaches its single capture; further pages are added
         // afterwards from the page strip, which reopens this same scanner.
         setState(() {
           _source = source;
-          _localFilePath = capturedPath;
-          _tempFileName = capturedPath.split(RegExp(r'[\\/]')).last;
+          _localFilePath = croppedPath;
+          _tempFileName = croppedPath.split(RegExp(r'[\\/]')).last;
           _extraPages.clear();
         });
         return;
@@ -361,13 +365,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         // document each.
         final picked = await GalleryImportService.instance.pickImages();
         if (picked.isEmpty || !mounted) return; // cancelled
+        final croppedPages = <String>[];
+        for (final path in picked) {
+          if (!mounted) return;
+          croppedPages.add(await DocumentCropEditor.openOrKeep(context, path));
+        }
+        if (!mounted) return;
         setState(() {
           _source = source;
-          _localFilePath = picked.first;
-          _tempFileName = picked.first.split(RegExp(r'[\\/]')).last;
+          _localFilePath = croppedPages.first;
+          _tempFileName = croppedPages.first.split(RegExp(r'[\\/]')).last;
           _extraPages
             ..clear()
-            ..addAll(picked.skip(1));
+            ..addAll(croppedPages.skip(1));
         });
         return;
       }
@@ -489,7 +499,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               ),
             ),
           );
-          if (captured != null) added.add(captured);
+          if (captured != null && mounted) {
+            added.add(await DocumentCropEditor.openOrKeep(context, captured));
+          }
         }
       } else {
         final access = await CameraPermissionService.instance.requestPhotos();
@@ -497,7 +509,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
           _handleDenied(access, 'photos');
           return;
         }
-        added.addAll(await GalleryImportService.instance.pickImages());
+        final picked = await GalleryImportService.instance.pickImages();
+        for (final path in picked) {
+          if (!mounted) return;
+          added.add(await DocumentCropEditor.openOrKeep(context, path));
+        }
       }
       if (added.isEmpty || !mounted) return;
       setState(() => _extraPages.addAll(added));

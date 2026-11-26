@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../scan/document_crop_editor.dart';
 import '../../data/family_vault_repository.dart';
 import '../../data/wallet_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -711,10 +712,14 @@ class _AddVaultDocumentSheetState extends State<_AddVaultDocumentSheet> {
     });
     try {
       final picked = await FilePicker.platform.pickFiles(withData: false);
-      final path = picked?.files.single.path;
+      var path = picked?.files.single.path;
       if (path == null) {
         if (mounted) setState(() => _uploading = false);
         return; // cancelled
+      }
+      if (DocumentCropEditor.isCropSupportedImage(path)) {
+        if (!mounted) return;
+        path = await DocumentCropEditor.openOrKeep(context, path);
       }
 
       final objectPath = await _docs.uploadFile(path);

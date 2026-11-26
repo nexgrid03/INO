@@ -23,6 +23,30 @@ class DocumentCropEditor extends StatefulWidget {
 
   final String imagePath;
 
+  /// Opens [DocumentCropEditor] for [imagePath] and returns the cropped path,
+  /// or falls back to [imagePath] if the user cancels cropping.
+  static Future<String> openOrKeep(
+    BuildContext context,
+    String imagePath,
+  ) async {
+    final cropped = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => DocumentCropEditor(imagePath: imagePath),
+      ),
+    );
+    return cropped ?? imagePath;
+  }
+
+  /// True when [path] is a raster image format supported by the crop editor.
+  static bool isCropSupportedImage(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.bmp');
+  }
+
   @override
   State<DocumentCropEditor> createState() => _DocumentCropEditorState();
 }

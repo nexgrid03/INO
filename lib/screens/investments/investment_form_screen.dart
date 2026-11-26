@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/currency.dart';
 import '../../models/investment_models.dart';
+import '../scan/document_crop_editor.dart';
 import '../../services/app_settings.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/investment_store.dart';
@@ -189,13 +190,15 @@ class _InvestmentFormScreenState extends State<InvestmentFormScreen> {
   Future<void> _attach() async {
     final path = await GalleryImportService.instance.pickImage();
     if (path == null || !mounted) return;
+    final cropped = await DocumentCropEditor.openOrKeep(context, path);
+    if (!mounted) return;
     setState(() {
       _attachments = [
         ..._attachments,
         InvestmentAttachment(
           id: 'inv_att_${DateTime.now().microsecondsSinceEpoch}',
           name: 'Statement ${_attachments.length + 1}',
-          path: path,
+          path: cropped,
         ),
       ];
     });

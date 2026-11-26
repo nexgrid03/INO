@@ -6,6 +6,7 @@ import 'package:inoapp/screens/auth/otp_verification_screen.dart';
 import 'package:inoapp/services/auth_service.dart';
 import 'package:inoapp/services/guest_mode.dart';
 import 'package:inoapp/theme/app_theme.dart';
+import 'package:inoapp/widgets/auth/otp_input.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -179,6 +180,69 @@ void main() {
       expect(profile.id, 'guest');
       expect(profile.fullName, isNotEmpty);
       expect(GuestMode.active, isTrue);
+    });
+
+    testWidgets('OtpInput backspace on empty focused box clears previous digit and moves focus back',
+        (tester) async {
+      useTallView(tester);
+      String latest = '';
+      await tester.pumpWidget(host(Scaffold(
+        body: OtpInput(
+          onChanged: (v) => latest = v,
+        ),
+      )));
+      await tester.pump();
+
+      final fields = find.byType(TextField);
+      expect(fields, findsNWidgets(6));
+
+      // Type '1' into box 0 -> auto-advances focus to box 1 (holding sentinel).
+      await tester.tap(fields.at(0));
+      await tester.pump();
+      await tester.enterText(fields.at(0), '1');
+      await tester.pump();
+      expect(latest, '1');
+
+      // Type '2' into box 1 -> auto-advances focus to box 2 (holding sentinel).
+      await tester.enterText(fields.at(1), '\u200B2');
+      await tester.pump();
+      expect(latest, '12');
+
+      // Simulate iOS soft-keyboard Backspace on empty box 2 (deletes sentinel -> '').
+      final box2 = tester.widget<TextField>(fields.at(2));
+      expect(box2.controller!.text, '\u200B');
+      box2.onChanged!('');
+      await tester.pump();
+
+      // Box 1 should be cleared and focused, latest should be '1'.
+      expect(latest, '1');
+      expect(tester.widget<TextField>(fields.at(1)).focusNode!.hasFocus, isTrue);
+
+      // Press Backspace again on now-empty box 1 -> clears box 0 and focuses box 0.
+      tester.widget<TextField>(fields.at(1)).onChanged!('');
+      await tester.pump();
+      expect(latest, '');
+      expect(tester.widget<TextField>(fields.at(0)).focusNode!.hasFocus, isTrue);
+    });
+
+    testWidgets('OtpInput distributes pasted multi-digit code across all 6 boxes',
+        (tester) async {
+      useTallView(tester);
+      String latest = '';
+      String completed = '';
+      await tester.pumpWidget(host(Scaffold(
+        body: OtpInput(
+          onChanged: (v) => latest = v,
+          onCompleted: (v) => completed = v,
+        ),
+      )));
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField).at(0), '654321');
+      await tester.pump();
+
+      expect(latest, '654321');
+      expect(completed, '654321');
     });
   });
 }

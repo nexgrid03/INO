@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/expense_models.dart';
+import '../scan/document_crop_editor.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/expense_store.dart';
 import '../../services/gallery_import_service.dart';
@@ -101,16 +102,18 @@ class _TaxRecordsScreenState extends State<TaxRecordsScreen> {
           return;
         }
         final path = await GalleryImportService.instance.pickImage();
-        if (path != null) {
+        if (path != null && mounted) {
+          final cropped = await DocumentCropEditor.openOrKeep(context, path);
+          if (!mounted) return;
           // Upload first. tax_documents.file_path syncs to Supabase, so
           // storing the device path filed a tax record whose document only
           // existed on the phone that filed it - and a tax folder you cannot
           // open next April is not a filed document.
-          final stored = await WalletMediaSync.instance.ensureUploaded(path);
+          final stored = await WalletMediaSync.instance.ensureUploaded(cropped);
           _store.addTaxDocument(
             type: type,
-            fileName: path.split(RegExp(r'[\\/]')).last,
-            filePath: stored ?? path,
+            fileName: cropped.split(RegExp(r'[\\/]')).last,
+            filePath: stored ?? cropped,
             isPdf: false,
           );
         }
