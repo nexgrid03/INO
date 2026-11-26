@@ -36,6 +36,21 @@ void main() {
       );
     });
 
+    test('doc share fix SQL handles updates/re-shares & enables vault_documents realtime',
+        () {
+      final fixSql = File(
+              'supabase/migrations/20261126010000_family_vault_doc_share_notif_fix.sql')
+          .readAsStringSync();
+
+      expect(fixSql, contains('after insert or update on public.vault_documents'));
+      expect(fixSql, contains('m.auth_user_id <> new.shared_by'));
+      expect(fixSql, contains("coalesce(new.updated_at, new.created_at)::text"));
+      expect(
+        fixSql,
+        contains('alter publication supabase_realtime add table public.vault_documents'),
+      );
+    });
+
     test('send-push edge function includes outbox_id and supports client drainOnly',
         () {
       final fn = File('supabase/functions/send-push/index.ts').readAsStringSync();

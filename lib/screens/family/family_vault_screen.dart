@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/family_vault_models.dart';
 import '../../services/account_security_service.dart';
 import '../../services/family_vault_store.dart';
+import '../../services/push_service.dart';
 import '../../services/screen_security_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
@@ -47,6 +48,9 @@ class _FamilyVaultScreenState extends State<FamilyVaultScreen> {
     // Surface any pending invitations / join requests addressed to this user.
     _store.refreshPendingInvitations();
     _store.startRealtime();
+    // Ensure OS notification permission & FCM token registration when using
+    // Family Vault so invites and shared-document pushes aren't silenced.
+    Future.microtask(() => PushService.instance.requestPermissionIfNeeded());
   }
 
   @override

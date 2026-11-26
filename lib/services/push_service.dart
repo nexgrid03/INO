@@ -106,7 +106,9 @@ class PushService {
   );
 
   GlobalKey<NavigatorState>? _navigatorKey;
+  GlobalKey<ScaffoldMessengerState>? _messengerKey;
   bool _initialised = false;
+  bool _vaultPermPrompted = false;
   String? _token;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<AuthState>? _authSub;
@@ -115,6 +117,7 @@ class PushService {
   RealtimeChannel? _outboxChannel;
   String? _outboxUid;
   final Set<String> _shownOutboxIds = <String>{};
+  final Set<String> _notifiedDocIds = <String>{};
 
   /// The current FCM registration token, once [init] has run.
   String? get token => _token;
@@ -126,8 +129,12 @@ class PushService {
   /// Initialises Firebase, local notifications and message handlers.
   /// PRIVACY COMPLIANCE: Does NOT raise permission prompt automatically on cold start.
   /// Call once from `main()`, before `runApp`. Idempotent and never throws.
-  Future<void> init(GlobalKey<NavigatorState> navigatorKey) async {
+  Future<void> init(
+    GlobalKey<NavigatorState> navigatorKey, {
+    GlobalKey<ScaffoldMessengerState>? messengerKey,
+  }) async {
     _navigatorKey = navigatorKey;
+    _messengerKey = messengerKey ?? _messengerKey;
     if (_initialised) return;
 
     try {
@@ -287,6 +294,33 @@ class PushService {
     }
   }
 
+  /// Prompts for OS notification permission once per session if notifications
+  /// are enabled in INO settings and OS permission has not been granted yet.
+  Future<void> requestPermissionIfNeeded() async {
+    if (_vaultPermPrompted || !AppSettings.instance.notifications.value) return;
+    _vaultPermPrompted = true;
+    try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final status = await Permission.notification.status;
+        if (status.isGranted || status.isLimited) {
+          await _checkExistingPermissionAndInitToken();
+          return;
+        }
+      } else if (!kIsWeb && Platform.isIOS) {
+        final settings =
+            await FirebaseMessaging.instance.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          await _checkExistingPermissionAndInitToken();
+          return;
+        }
+      }
+      await requestPermission();
+    } catch (e) {
+      developer.log('requestPermissionIfNeeded error: $e', name: 'push');
+    }
+  }
+
   /// Fetches the token and keeps it fresh. FCM rotates tokens (app restore,
   /// data clear, long idle), and a stale token silently stops receiving - so
   /// the refresh stream must be persisted too, not just the first value.
@@ -350,6 +384,9 @@ class PushService {
     );
   }
 
+  /// Re-arms the Realtime listener when resuming from background if needed.
+  void ensureRealtimeActive() => _subscribeOutboxRealtime();
+
   /// Listens to new [notification_outbox] rows for the signed-in user so
   /// Family Vault invites and shared-doc events surface immediately in-app even
   /// before an FCM banner arrives or on devices without FCM permission yet.
@@ -376,6 +413,15 @@ class PushService {
         ),
         callback: (payload) {
           unawaited(_onOutboxInsert(payload.newRecord));
+        },
+      );
+      ch.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'vault_documents',
+        callback: (payload) {
+          if (payload.eventType == PostgresChangeEvent.delete) return;
+          unawaited(_onVaultDocChange(payload.newRecord));
         },
       );
       ch.subscribe();
@@ -407,12 +453,16 @@ class PushService {
       'kind': kind,
       if (outboxId.isNotEmpty) 'outbox_id': outboxId,
     };
+    final vaultDocId = data['vault_doc_id']?.toString() ?? '';
+    if (vaultDocId.isNotEmpty) _notifiedDocIds.add(vaultDocId);
+
     final title = (row['title'] as String?) ?? '';
     final body = (row['body'] as String?) ?? '';
     if (title.isNotEmpty &&
         outboxId.isNotEmpty &&
         _shownOutboxIds.add(outboxId) &&
         AppSettings.instance.notifications.value) {
+      _showInAppVaultBanner(title: title, body: body, data: data);
       try {
         await localReady;
         await _local.show(
@@ -432,6 +482,73 @@ class PushService {
       unawaited(FamilyVaultStore.instance.reload());
     }
     await refreshFeed();
+  }
+
+  Future<void> _onVaultDocChange(Map<String, dynamic> row) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    if (row['shared_by']?.toString() == uid) return;
+    if (row['is_hidden'] == true) return;
+
+    final docId = row['id']?.toString() ?? '';
+    final vaultId = row['vault_id']?.toString() ?? '';
+    final docName = row['name']?.toString().trim() ?? 'a document';
+
+    unawaited(FamilyVaultStore.instance.reload());
+    await refreshFeed();
+
+    // Give notification_outbox Realtime a brief head start so we do not stack
+    // a duplicate banner if the outbox trigger already fired.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (docId.isEmpty ||
+        !_notifiedDocIds.add(docId) ||
+        !AppSettings.instance.notifications.value) {
+      return;
+    }
+
+    final data = <String, dynamic>{
+      'kind': 'vault.document_shared',
+      'vault_id': vaultId,
+      'vault_doc_id': docId,
+      'outbox_id': 'doc:$docId',
+    };
+    const title = 'New Document in Family Vault';
+    final body = 'A family member shared "$docName" in your Family Vault.';
+    _showInAppVaultBanner(title: title, body: body, data: data);
+    try {
+      await localReady;
+      await _local.show(
+        id: reminderNotificationId(data, docId),
+        title: title,
+        body: body,
+        notificationDetails: reminderDetails,
+        payload: jsonEncode(data),
+      );
+    } catch (e) {
+      developer.log('vault doc local notify error: $e', name: 'push');
+    }
+  }
+
+  void _showInAppVaultBanner({
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) {
+    final messenger = _messengerKey?.currentState;
+    if (messenger == null) return;
+    final text = body.isNotEmpty ? '$title: $body' : title;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () => _route(data),
+        ),
+      ),
+    );
   }
 
   /// Automatically fetches and registers the FCM token so the device is reachable by the server push.
@@ -544,6 +661,18 @@ class PushService {
     }
 
     final kind = (message.data['kind'] as String?) ?? '';
+    final vaultDocId = message.data['vault_doc_id']?.toString() ?? '';
+    if (vaultDocId.isNotEmpty) _notifiedDocIds.add(vaultDocId);
+    if (kind.startsWith('vault.') &&
+        notification != null &&
+        !alreadyShown &&
+        AppSettings.instance.notifications.value) {
+      _showInAppVaultBanner(
+        title: notification.title ?? 'Family Vault',
+        body: notification.body ?? '',
+        data: message.data,
+      );
+    }
     if (kind == 'vault.invite') {
       unawaited(FamilyVaultStore.instance.refreshPendingInvitations());
     } else if (kind == 'vault.document_shared') {
@@ -781,6 +910,8 @@ class PushService {
     _openedAppSub = null;
     _stopOutboxRealtime();
     _shownOutboxIds.clear();
+    _notifiedDocIds.clear();
+    _vaultPermPrompted = false;
     _initialised = false;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -94,6 +96,12 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       _time = picked;
       _timeError = null;
     });
+    // Ask notification + exact-alarm permissions right when picking a time so
+    // any system Settings redirect finishes before the user taps Save.
+    if (AppSettings.instance.notifications.value) {
+      unawaited(PushService.instance.requestPermissionIfNeeded());
+    }
+    unawaited(ReminderScheduler.instance.ensureExactPermission());
   }
 
   /// The exact local moment, or null while either half is missing.

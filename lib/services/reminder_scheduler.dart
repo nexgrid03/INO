@@ -32,8 +32,6 @@ class ReminderScheduler {
       FlutterLocalNotificationsPlugin();
 
   bool _tzReady = false;
-  bool _exactChecked = false;
-  bool _exactAllowed = false;
 
   /// Scheduling only exists on the mobile platforms; on web/desktop and in
   /// tests every call is a silent no-op.
@@ -64,8 +62,6 @@ class ReminderScheduler {
       if (!ok) {
         ok = await android.requestExactAlarmsPermission() ?? false;
       }
-      _exactChecked = true;
-      _exactAllowed = ok;
       return ok;
     } catch (e) {
       developer.log('exact-alarm permission check failed: $e', name: 'sched');
@@ -90,9 +86,12 @@ class ReminderScheduler {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       final canExact = await android?.canScheduleExactNotifications() ?? true;
+      // Use alarmClock when exact-alarm permission is not yet toggled on by
+      // the user: Doze batches `inexactAllowWhileIdle` by 2–5 minutes, while
+      // `alarmClock` wakes the device at the exact due minute when allowed.
       return canExact
           ? AndroidScheduleMode.exactAllowWhileIdle
-          : AndroidScheduleMode.inexactAllowWhileIdle;
+          : AndroidScheduleMode.alarmClock;
     } catch (_) {
       return AndroidScheduleMode.exactAllowWhileIdle;
     }
@@ -128,12 +127,18 @@ class ReminderScheduler {
       try {
         await _zoned(r, when, mode);
       } on PlatformException catch (e) {
-        // Permission revoked between the check and the call: degrade to an
-        // inexact alarm rather than dropping the reminder.
-        if (mode == AndroidScheduleMode.exactAllowWhileIdle &&
-            e.code == 'exact_alarms_not_permitted') {
-          _exactAllowed = false;
-          await _zoned(r, when, AndroidScheduleMode.inexactAllowWhileIdle);
+        if (e.code == 'exact_alarms_not_permitted') {
+          if (mode == AndroidScheduleMode.exactAllowWhileIdle) {
+            try {
+              await _zoned(r, when, AndroidScheduleMode.alarmClock);
+            } on PlatformException {
+              await _zoned(r, when, AndroidScheduleMode.inexactAllowWhileIdle);
+            }
+          } else if (mode == AndroidScheduleMode.alarmClock) {
+            await _zoned(r, when, AndroidScheduleMode.inexactAllowWhileIdle);
+          } else {
+            rethrow;
+          }
         } else {
           rethrow;
         }

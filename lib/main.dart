@@ -23,9 +23,12 @@ import 'services/auto_backup_coordinator.dart';
 import 'services/biometric_service.dart';
 import 'services/category_store.dart';
 import 'services/deep_link_service.dart';
+import 'services/family_vault_store.dart';
 import 'services/notification_center.dart';
 import 'services/document_protection_store.dart';
 import 'services/push_service.dart';
+import 'services/reminder_scheduler.dart';
+import 'data/reminder_store.dart';
 import 'services/trusted_device_service.dart';
 import 'services/vault_guard.dart';
 import 'services/voice_manager.dart';
@@ -199,8 +202,28 @@ class _InoAppState extends State<InoApp> with WidgetsBindingObserver {
     TrustedDeviceService.instance.init();
     AutoBackupCoordinator.instance.start();
     unawaited(NotificationCenter.instance.load());
-    unawaited(PushService.instance.init(InoApp.navigatorKey));
+    unawaited(PushService.instance.init(
+      InoApp.navigatorKey,
+      messengerKey: InoApp.messengerKey,
+    ));
     VoiceManager.instance.warmUp();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    // If exact-alarm permission was just granted in Android Settings, re-arm
+    // pending reminders so they fire on the exact minute instead of drifting.
+    if (ReminderStore.instance.isLoaded) {
+      unawaited(ReminderScheduler.instance.sync(ReminderStore.instance.active));
+    }
+    try {
+      if (Supabase.instance.client.auth.currentUser != null) {
+        PushService.instance.ensureRealtimeActive();
+        unawaited(NotificationCenter.instance.refresh());
+        unawaited(FamilyVaultStore.instance.refreshPendingInvitations());
+      }
+    } catch (_) {}
   }
 
   @override

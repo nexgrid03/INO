@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
+import '../data/family_vault_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/family_vault_models.dart';
 
@@ -428,6 +429,48 @@ class NotificationCenter extends ChangeNotifier {
         at: inv.createdAt ?? now,
         targetId: inv.vaultId,
       ));
+    }
+
+    // Fallback: guarantee any recently shared Family Vault document from
+    // another member appears in the Bell feed even if outbox rows predate the
+    // trigger or a re-share updated the row in place.
+    try {
+      await FamilyVaultStore.instance.ensureLoaded();
+      final vaults = FamilyVaultStore.instance.vaults;
+      if (vaults.isNotEmpty) {
+        final cutoff = now.subtract(const Duration(days: 30));
+        final perVaultDocs = await Future.wait([
+          for (final summary in vaults.take(5))
+            FamilyVaultRepository.instance
+                .documents(summary.vault.id)
+                .timeout(const Duration(seconds: 4))
+                .then<List<VaultDocument>>((docs) => docs,
+                    onError: (_) => const <VaultDocument>[]),
+        ]);
+        for (var i = 0; i < perVaultDocs.length; i++) {
+          final summary = vaults[i];
+          final vaultName = summary.vault.name.trim().isNotEmpty
+              ? summary.vault.name.trim()
+              : 'Family Vault';
+          for (final doc in perVaultDocs[i]) {
+            if (doc.sharedBy == uid || !doc.isVisibleToMembers) continue;
+            if (doc.createdAt.isBefore(cutoff)) continue;
+            final notifId = 'vault-doc-${doc.id}';
+            if (!seenIds.add(notifId)) continue;
+            items.add(AppNotification(
+              id: notifId,
+              title: 'New Document in $vaultName',
+              body: 'A family member shared "${doc.name}" in $vaultName.',
+              category: NotificationCategory.system,
+              at: doc.createdAt.toLocal(),
+              targetId: summary.vault.id,
+            ));
+          }
+        }
+      }
+    } catch (e) {
+      developer.log('vault docs fallback fetch failed: $e',
+          name: 'notifications');
     }
   }
 

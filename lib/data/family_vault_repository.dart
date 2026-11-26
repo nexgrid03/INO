@@ -769,12 +769,14 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         'p_document': documentId,
         'p_visible': isVisible,
       }).timeout(NetGuard.mutation);
+      if (isVisible) _triggerPushDrain();
       return;
     } catch (e) {
       if (!_isMissingFunction(e)) rethrow;
       debugPrint('[FamilyVault] visibility RPC missing; writing note flag');
     }
     await _legacyVisibilityWrite(documentId, isVisible);
+    if (isVisible) _triggerPushDrain();
   }
 
   /// The pre-20260909 path: the hidden flag lives inside `note` as JSON.
@@ -827,7 +829,9 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         'p_source_table': sourceTable,
         'p_visible': isVisible,
       }).timeout(NetGuard.mutation);
-      return (changed as num?)?.toInt() ?? 0;
+      final count = (changed as num?)?.toInt() ?? 0;
+      if (isVisible && count > 0) _triggerPushDrain();
+      return count;
     } catch (e) {
       if (!_isMissingFunction(e)) rethrow;
       debugPrint('[FamilyVault] wallet visibility RPC missing; per-document');
@@ -934,6 +938,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         'vault_invitations',
         'family_vaults',
         'vault_join_requests',
+        'vault_documents',
       ]) {
         channel.onPostgresChanges(
           event: PostgresChangeEvent.all,
