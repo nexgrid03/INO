@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:inoapp/models/user_profile.dart';
@@ -87,7 +89,7 @@ void main() {
     expect(find.text('Cancel'), findsWidgets);
   });
 
-  testWidgets('Edit Profile prefills editable fields and locks email',
+  testWidgets('Edit Profile prefills editable fields including email and phone with verification actions',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 8000);
     tester.view.devicePixelRatio = 3.0;
@@ -106,5 +108,28 @@ void main() {
 
     expect(find.text('Tanishq Sharma'), findsWidgets);
     expect(find.text('tanishq@example.com'), findsWidgets);
+    expect(find.byKey(const ValueKey('edit_profile_email_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('edit_profile_phone_field')), findsOneWidget);
+    expect(find.text('Verify'), findsNWidgets(2));
+    expect(
+      find.textContaining('Changing your email or mobile number requires OTP verification'),
+      findsOneWidget,
+    );
+  });
+
+  test('EditProfileScreen never persists email or phone directly without OTP verification', () {
+    final source = File('lib/screens/profile/edit_profile_screen.dart').readAsStringSync();
+    final saveStart = source.indexOf('Future<void> _save()');
+    final saveEnd = source.indexOf('@override', saveStart);
+    final saveBody = source.substring(saveStart, saveEnd);
+
+    expect(saveBody, contains('ensureEmailChangeAllowed'));
+    expect(saveBody, contains('ensurePhoneChangeAllowed'));
+    expect(saveBody, contains('showLinkEntitySheet'));
+
+    final updateStart = saveBody.indexOf('updateProfile(');
+    final updateCall = saveBody.substring(updateStart, saveBody.indexOf(');', updateStart));
+    expect(updateCall.contains('phone:'), isFalse);
+    expect(updateCall.contains('email:'), isFalse);
   });
 }

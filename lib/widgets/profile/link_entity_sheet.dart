@@ -17,12 +17,15 @@ import '../auth/country_code_sheet.dart';
 import '../auth/otp_input.dart';
 import '../pressable_scale.dart';
 
-/// Opens a bottom sheet that leads the user through adding and verifying their
-/// second entity (email or mobile number) to attach it to their existing account.
+/// Opens a bottom sheet that leads the user through adding or changing and
+/// verifying an entity (email or mobile number) on their account.
 Future<UserProfile?> showLinkEntitySheet(
   BuildContext context, {
   required UserProfile profile,
   required VerificationChannel channel,
+  String? initialDestination,
+  bool autoSend = false,
+  bool isChange = false,
 }) {
   return showModalBottomSheet<UserProfile>(
     context: context,
@@ -31,6 +34,9 @@ Future<UserProfile?> showLinkEntitySheet(
     builder: (ctx) => LinkEntitySheet(
       profile: profile,
       channel: channel,
+      initialDestination: initialDestination,
+      autoSend: autoSend,
+      isChange: isChange,
     ),
   );
 }
@@ -40,10 +46,16 @@ class LinkEntitySheet extends StatefulWidget {
     super.key,
     required this.profile,
     required this.channel,
+    this.initialDestination,
+    this.autoSend = false,
+    this.isChange = false,
   });
 
   final UserProfile profile;
   final VerificationChannel channel;
+  final String? initialDestination;
+  final bool autoSend;
+  final bool isChange;
 
   @override
   State<LinkEntitySheet> createState() => _LinkEntitySheetState();
@@ -69,15 +81,26 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
   @override
   void initState() {
     super.initState();
+    final seeded = widget.initialDestination?.trim();
     if (_isEmail) {
-      final email = widget.profile.email;
+      final email = (seeded != null && seeded.isNotEmpty)
+          ? seeded
+          : widget.profile.email;
       _inputController = TextEditingController(
         text: email.contains('@') ? email : '',
       );
     } else {
-      final parsed = _parseSavedPhone(widget.profile.phone);
+      final rawPhone = (seeded != null && seeded.isNotEmpty)
+          ? seeded
+          : widget.profile.phone;
+      final parsed = _parseSavedPhone(rawPhone);
       _countryCode = parsed.country;
       _inputController = TextEditingController(text: parsed.nationalNumber);
+    }
+    if (widget.autoSend && seeded != null && seeded.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _sendCode();
+      });
     }
   }
 
@@ -385,8 +408,12 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
                             Text(
                               _step == 0
                                   ? (_isEmail
-                                      ? 'Verify Email Address'
-                                      : 'Verify Mobile Number')
+                                      ? (widget.isChange
+                                          ? 'Update Email Address'
+                                          : 'Verify Email Address')
+                                      : (widget.isChange
+                                          ? 'Update Mobile Number'
+                                          : 'Verify Mobile Number'))
                                   : 'Enter Verification Code',
                               style: TextStyle(
                                 fontSize: 18,
@@ -399,8 +426,12 @@ class _LinkEntitySheetState extends State<LinkEntitySheet> {
                             Text(
                               _step == 0
                                   ? (_isEmail
-                                      ? 'Secure your account & enable email sign-in'
-                                      : 'Secure your account & enable SMS sign-in')
+                                      ? (widget.isChange
+                                          ? 'Verify your new email to update sign-in'
+                                          : 'Secure your account & enable email sign-in')
+                                      : (widget.isChange
+                                          ? 'Verify your new number to update sign-in'
+                                          : 'Secure your account & enable SMS sign-in'))
                                   : 'Code sent to $_targetDestination',
                               style: TextStyle(
                                 fontSize: 13,

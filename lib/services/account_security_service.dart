@@ -42,8 +42,12 @@ class AccountSecurityService {
       return AccountVerificationStatus.onlyEmailVerified;
     }
 
-    final hasAuthPhone = authUser.phone != null && authUser.phone!.trim().isNotEmpty;
-    final hasAuthEmail = authUser.email != null && authUser.email!.trim().isNotEmpty;
+    final hasAuthPhone = authUser.phone != null &&
+        authUser.phone!.trim().isNotEmpty &&
+        authUser.phoneConfirmedAt != null;
+    final hasAuthEmail = authUser.email != null &&
+        authUser.email!.trim().isNotEmpty &&
+        authUser.emailConfirmedAt != null;
 
     if (hasAuthPhone && hasAuthEmail) {
       return AccountVerificationStatus.fullyVerified;
@@ -74,14 +78,15 @@ class AccountSecurityService {
     }
   }
 
-  /// Confirms email linking OTP and synchronizes the profile table.
+  /// Confirms email linking/change OTP and synchronizes the profile table.
   Future<UserProfile> verifyAndSaveEmailLink({
     required String email,
     required String token,
     required UserProfile currentProfile,
   }) async {
+    final trimmed = email.trim();
     final res = await AuthService.instance.verifyEmailLink(
-      email: email.trim(),
+      email: trimmed,
       token: token.trim(),
     );
     final user = res.user ?? AuthService.instance.currentUser;
@@ -89,10 +94,18 @@ class AccountSecurityService {
       throw const AuthException('Failed to authenticate updated session.');
     }
 
+    final confirmedEmail = (user.email ?? '').trim().toLowerCase();
+    if (confirmedEmail.isNotEmpty &&
+        confirmedEmail != trimmed.toLowerCase()) {
+      throw const AuthException(
+        'Please also confirm the verification sent to your previous email address to complete the change.',
+      );
+    }
+
     // Update public.users database row with the new verified email
     final updated = await UserRepository.instance.updateProfile(
       authUserId: user.id,
-      email: email.trim(),
+      email: trimmed,
     );
     return updated;
   }
@@ -200,8 +213,9 @@ class AccountSecurityService {
     return false;
   }
 
-  /// Initiates linking an email to the currently signed-in account.
-  Future<void> sendEmailLinkOtp(
+  /// Checks that [email] does not already belong to another INO account.
+  /// Returns the trimmed email, or throws an [AuthException] if taken.
+  Future<String> ensureEmailChangeAllowed(
     String email, {
     UserProfile? currentProfile,
   }) async {
@@ -224,19 +238,28 @@ class AccountSecurityService {
     if (!isOwnEmail) {
       if (await AuthService.instance.identifierTaken(trimmed)) {
         throw const AuthException(
-          'That email is already registered to another INO account.',
+          'An INO account already exists with this email address.',
         );
       }
     }
+    return trimmed;
+  }
+
+  /// Initiates linking/updating an email on the currently signed-in account.
+  Future<void> sendEmailLinkOtp(
+    String email, {
+    UserProfile? currentProfile,
+  }) async {
+    final trimmed = await ensureEmailChangeAllowed(
+      email,
+      currentProfile: currentProfile,
+    );
     await AuthService.instance.linkEmail(trimmed);
   }
-  ///
-  /// Rejects only if the normalized phone number is already linked to a
-  /// DIFFERENT INO account. If the matching phone record belongs to the
-  /// CURRENT authenticated account (e.g. contact phone saved during signup
-  /// or profile completion), verification proceeds normally without false
-  /// duplicate errors.
-  Future<void> sendPhoneLinkOtp(
+
+  /// Checks that [phone] does not already belong to another INO account.
+  /// Returns the normalized E.164 target, or throws an [AuthException] if taken.
+  Future<String> ensurePhoneChangeAllowed(
     String phone, {
     UserProfile? currentProfile,
   }) async {
@@ -265,15 +288,32 @@ class AccountSecurityService {
     if (!isOwnPhone) {
       if (await AuthService.instance.identifierTaken(target)) {
         throw const AuthException(
-          'That mobile number is already registered to another INO account.',
+          'An INO account already exists with this mobile number.',
         );
       }
     }
+    return target;
+  }
 
+  /// Initiates linking/updating a phone number on the currently signed-in account.
+  ///
+  /// Rejects only if the normalized phone number is already linked to a
+  /// DIFFERENT INO account. If the matching phone record belongs to the
+  /// CURRENT authenticated account (e.g. contact phone saved during signup
+  /// or profile completion), verification proceeds normally without false
+  /// duplicate errors.
+  Future<void> sendPhoneLinkOtp(
+    String phone, {
+    UserProfile? currentProfile,
+  }) async {
+    final target = await ensurePhoneChangeAllowed(
+      phone,
+      currentProfile: currentProfile,
+    );
     await AuthService.instance.linkPhone(target);
   }
 
-  /// Confirms phone linking OTP and synchronizes the profile table.
+  /// Confirms phone linking/change OTP and synchronizes the profile table.
   Future<UserProfile> verifyAndSavePhoneLink({
     required String phone,
     required String token,
@@ -288,6 +328,14 @@ class AccountSecurityService {
     final user = res.user ?? AuthService.instance.currentUser;
     if (user == null) {
       throw const AuthException('Failed to authenticate updated session.');
+    }
+
+    final confirmedPhone = canonicalPhone(user.phone ?? '');
+    if (confirmedPhone.isNotEmpty &&
+        confirmedPhone != canonicalPhone(target)) {
+      throw const AuthException(
+        'Phone verification did not complete for the new mobile number. Please try again.',
+      );
     }
 
     // Update public.users database row with the new verified phone
