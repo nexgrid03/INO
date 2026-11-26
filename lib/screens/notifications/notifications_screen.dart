@@ -17,8 +17,11 @@ import '../../widgets/home/empty_state.dart';
 import '../../widgets/profile/settings_scaffold.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/reminders/reminder_detail_sheet.dart';
+import '../../models/family_vault_models.dart';
+import '../../services/family_vault_store.dart';
 import '../cards/cards_wallet_screen.dart';
 import '../family/family_vault_screen.dart';
+import '../family/vault_detail_screen.dart';
 import '../profile/two_factor_screen.dart';
 import '../reminders/all_reminders_screen.dart';
 import '../shell/shell_controller.dart';
@@ -158,6 +161,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         break;
 
       case NotificationCategory.system:
+        if (n.id.startsWith('vault-doc-') && n.targetId != null) {
+          VaultSummary? match;
+          if (FamilyVaultStore.instance.vaults.isEmpty) {
+            await FamilyVaultStore.instance.ensureLoaded();
+          }
+          for (final v in FamilyVaultStore.instance.vaults) {
+            if (v.vault.id == n.targetId) {
+              match = v;
+              break;
+            }
+          }
+          if (!mounted) return;
+          if (match != null) {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => VaultDetailScreen(summary: match!),
+              ),
+            );
+            break;
+          }
+        }
         if (n.id.contains('vault')) {
           await Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const FamilyVaultScreen()),

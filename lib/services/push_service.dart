@@ -16,6 +16,7 @@ import '../data/wallet_repository.dart';
 import '../firebase_options.dart';
 import '../models/reminder_models.dart';
 import '../screens/family/family_vault_screen.dart';
+import '../screens/family/vault_detail_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/profile/trusted_devices_screen.dart';
 import '../screens/reminders/all_reminders_screen.dart';
@@ -23,6 +24,7 @@ import '../screens/wallet/wallet_detail_screen.dart';
 import '../widgets/reminders/reminder_detail_sheet.dart';
 import 'app_settings.dart';
 import 'auth_service.dart';
+import 'family_vault_store.dart';
 import 'notification_center.dart';
 import 'security_alert_service.dart';
 
@@ -110,6 +112,9 @@ class PushService {
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<RemoteMessage>? _foregroundSub;
   StreamSubscription<RemoteMessage>? _openedAppSub;
+  RealtimeChannel? _outboxChannel;
+  String? _outboxUid;
+  final Set<String> _shownOutboxIds = <String>{};
 
   /// The current FCM registration token, once [init] has run.
   String? get token => _token;
@@ -142,6 +147,7 @@ class PushService {
 
       _listenForSignIn();
       unawaited(_checkExistingPermissionAndInitToken());
+      _subscribeOutboxRealtime();
 
       // Foreground messages: Android hands them to Dart instead of the tray.
       _foregroundSub = FirebaseMessaging.onMessage
@@ -325,6 +331,7 @@ class PushService {
             state.event == AuthChangeEvent.initialSession ||
             state.event == AuthChangeEvent.tokenRefreshed) {
           unawaited(_checkExistingPermissionAndInitToken());
+          _subscribeOutboxRealtime();
         }
         // Only a REAL sign-in raises the security alert. `initialSession` fires
         // on every cold start with a restored session — alerting on that would
@@ -333,10 +340,98 @@ class PushService {
         if (state.event == AuthChangeEvent.signedIn) {
           unawaited(SecurityAlertService.instance.signedIn());
         }
+        if (state.event == AuthChangeEvent.signedOut) {
+          _stopOutboxRealtime();
+          _shownOutboxIds.clear();
+        }
       },
       onError: (Object e) =>
           developer.log('auth stream error: $e', name: 'push'),
     );
+  }
+
+  /// Listens to new [notification_outbox] rows for the signed-in user so
+  /// Family Vault invites and shared-doc events surface immediately in-app even
+  /// before an FCM banner arrives or on devices without FCM permission yet.
+  void _subscribeOutboxRealtime() {
+    try {
+      final client = Supabase.instance.client;
+      final uid = client.auth.currentUser?.id;
+      if (uid == null) {
+        _stopOutboxRealtime();
+        return;
+      }
+      if (_outboxUid == uid && _outboxChannel != null) return;
+      _stopOutboxRealtime();
+      _outboxUid = uid;
+      final ch = client.channel('push_outbox_$uid');
+      ch.onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'notification_outbox',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'auth_user_id',
+          value: uid,
+        ),
+        callback: (payload) {
+          unawaited(_onOutboxInsert(payload.newRecord));
+        },
+      );
+      ch.subscribe();
+      _outboxChannel = ch;
+    } catch (e) {
+      developer.log('outbox realtime subscribe error: $e', name: 'push');
+    }
+  }
+
+  void _stopOutboxRealtime() {
+    final ch = _outboxChannel;
+    _outboxChannel = null;
+    _outboxUid = null;
+    if (ch != null) {
+      try {
+        Supabase.instance.client.removeChannel(ch);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _onOutboxInsert(Map<String, dynamic> row) async {
+    final kind = (row['kind'] as String?) ?? '';
+    if (!kind.startsWith('vault.')) return;
+    final outboxId = row['id']?.toString() ?? '';
+    final rawData = row['data'];
+    final data = <String, dynamic>{
+      if (rawData is Map)
+        for (final e in rawData.entries) e.key.toString(): e.value,
+      'kind': kind,
+      if (outboxId.isNotEmpty) 'outbox_id': outboxId,
+    };
+    final title = (row['title'] as String?) ?? '';
+    final body = (row['body'] as String?) ?? '';
+    if (title.isNotEmpty &&
+        outboxId.isNotEmpty &&
+        _shownOutboxIds.add(outboxId) &&
+        AppSettings.instance.notifications.value) {
+      try {
+        await localReady;
+        await _local.show(
+          id: reminderNotificationId(data, outboxId),
+          title: title,
+          body: body,
+          notificationDetails: reminderDetails,
+          payload: jsonEncode(data),
+        );
+      } catch (e) {
+        developer.log('outbox local notify error: $e', name: 'push');
+      }
+    }
+    if (kind == 'vault.invite') {
+      unawaited(FamilyVaultStore.instance.refreshPendingInvitations());
+    } else if (kind == 'vault.document_shared') {
+      unawaited(FamilyVaultStore.instance.reload());
+    }
+    await refreshFeed();
   }
 
   /// Automatically fetches and registers the FCM token so the device is reachable by the server push.
@@ -425,8 +520,13 @@ class PushService {
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     developer.log('foreground message ${message.messageId}', name: 'push');
 
+    final outboxId = message.data['outbox_id'] as String?;
+    final alreadyShown = outboxId != null &&
+        outboxId.isNotEmpty &&
+        !_shownOutboxIds.add(outboxId);
+
     final notification = message.notification;
-    if (notification != null) {
+    if (notification != null && !alreadyShown) {
       await _local.show(
         // A stable id per reminder, so a re-send REPLACES the banner instead of
         // stacking a second identical one.
@@ -443,6 +543,13 @@ class PushService {
       await showDueReminder(_local, message.data);
     }
 
+    final kind = (message.data['kind'] as String?) ?? '';
+    if (kind == 'vault.invite') {
+      unawaited(FamilyVaultStore.instance.refreshPendingInvitations());
+    } else if (kind == 'vault.document_shared') {
+      unawaited(FamilyVaultStore.instance.reload());
+    }
+
     await refreshFeed();
   }
 
@@ -457,6 +564,8 @@ class PushService {
       Map<String, dynamic> data, String? fallback) {
     final rid = data['reminder_id'] as String?;
     if (rid != null && rid.isNotEmpty) return rid.hashCode & 0x7fffffff;
+    final oid = data['outbox_id'] as String?;
+    if (oid != null && oid.isNotEmpty) return oid.hashCode & 0x7fffffff;
     return (fallback ?? '').hashCode & 0x7fffffff;
   }
 
@@ -529,8 +638,15 @@ class PushService {
       _routeToScreen(const TrustedDevicesScreen());
       return;
     }
-    // Every family-vault event (invite, join request, approval, role change)
-    // lands on the Family Vault home, which surfaces the pending cards.
+    if (kind == 'vault.document_shared') {
+      final vaultId = data['vault_id'] as String?;
+      if (vaultId != null && vaultId.isNotEmpty) {
+        unawaited(_routeToVault(vaultId));
+        return;
+      }
+    }
+    // Every other family-vault event (invite, join request, approval, role
+    // change) lands on the Family Vault home, which surfaces the pending cards.
     if (kind.startsWith('vault.')) {
       _routeToScreen(const FamilyVaultScreen());
       return;
@@ -544,6 +660,25 @@ class PushService {
       return;
     }
     _routeToReminder(data['reminder_id'] as String?);
+  }
+
+  /// Opens a Family Vault detail screen when the vault summary is available,
+  /// otherwise opens the Family Vault hub.
+  Future<void> _routeToVault(String vaultId) async {
+    try {
+      if (FamilyVaultStore.instance.vaults.isEmpty) {
+        await FamilyVaultStore.instance.ensureLoaded();
+      }
+      for (final v in FamilyVaultStore.instance.vaults) {
+        if (v.vault.id == vaultId) {
+          await _routeToScreen(VaultDetailScreen(summary: v));
+          return;
+        }
+      }
+    } catch (e) {
+      developer.log('routeToVault error: $e', name: 'push');
+    }
+    await _routeToScreen(const FamilyVaultScreen());
   }
 
   /// Opens a wallet by its canonical name, falling back to the notifications
@@ -644,6 +779,8 @@ class PushService {
     _foregroundSub = null;
     _openedAppSub?.cancel();
     _openedAppSub = null;
+    _stopOutboxRealtime();
+    _shownOutboxIds.clear();
     _initialised = false;
   }
 }

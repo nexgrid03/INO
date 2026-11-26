@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -390,6 +391,20 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
 
   // ---- Invitations ---------------------------------------------------------
 
+  /// Triggers the Edge Function to immediately drain queued FCM pushes after
+  /// inviting someone or sharing a document. Fire-and-forget; never blocks or
+  /// throws if offline or unauthenticated.
+  void _triggerPushDrain() {
+    unawaited(
+      _client.functions
+          .invoke('send-push', body: const {'drainOnly': true})
+          .timeout(NetGuard.mutation)
+          .then<void>((_) {}, onError: (Object e) {
+            debugPrint('[FamilyVault] push drain failed (non-fatal): $e');
+          }),
+    );
+  }
+
   @override
   Future<VaultInvitation> invite(
     String vaultId,
@@ -408,6 +423,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     final row = (res is List)
         ? Map<String, dynamic>.from(res.first as Map)
         : Map<String, dynamic>.from(res as Map);
+    _triggerPushDrain();
     return VaultInvitation.fromRow(row);
   }
 
@@ -483,6 +499,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       'p_invitation_id': invitationId,
       'p_role': role?.name,
     }).timeout(NetGuard.mutation);
+    _triggerPushDrain();
   }
 
   @override
@@ -497,6 +514,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
     final row = (res is List)
         ? Map<String, dynamic>.from(res.first as Map)
         : Map<String, dynamic>.from(res as Map);
+    _triggerPushDrain();
     return VaultInvitation.fromRow(row);
   }
 
@@ -652,6 +670,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
       'p_source_id': sanitizedSourceId,
       'p_note': note,
     }).timeout(NetGuard.mutation);
+    _triggerPushDrain();
     return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
   }
 
@@ -706,6 +725,7 @@ class SupabaseFamilyVaultRepository implements FamilyVaultRepository {
         'p_note': note,
         'p_is_hidden': isHidden,
       }).timeout(NetGuard.mutation);
+      if (!isHidden) _triggerPushDrain();
       return VaultDocument.fromRow(Map<String, dynamic>.from(row as Map));
     } catch (e) {
       if (!_isMissingFunction(e)) rethrow;

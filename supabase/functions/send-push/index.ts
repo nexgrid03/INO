@@ -296,7 +296,7 @@ function buildMessage(row: OutboxRow, token: string) {
       // Mirrored into `data`: a `notification` payload is not delivered to Dart
       // when the app is backgrounded, so the tap handler would see nothing.
       data: Object.fromEntries(
-        Object.entries({ ...row.data, kind: row.kind }).map((
+        Object.entries({ ...row.data, kind: row.kind, outbox_id: row.id }).map((
           [k, v],
         ) => [k, String(v)]),
       ),
@@ -459,9 +459,49 @@ function isTrustedCaller(req: Request): boolean {
   return !!(CRON_SECRET && cron && secretEquals(cron, CRON_SECRET));
 }
 
+function bearerToken(req: Request): string {
+  const auth = req.headers.get("authorization") ?? "";
+  return auth.slice(0, 7).toLowerCase() === "bearer "
+    ? auth.slice(7).trim()
+    : "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok");
-  if (!isTrustedCaller(req)) {
+
+  const url = new URL(req.url);
+  let bodyDrainOnly = false;
+  if (
+    req.method === "POST" &&
+    req.headers.get("content-type")?.includes("application/json")
+  ) {
+    try {
+      const parsed = await req.clone().json();
+      bodyDrainOnly = parsed?.drainOnly === true;
+    } catch {
+      // Ignore malformed/empty JSON bodies; query params still apply.
+    }
+  }
+  const drainOnly = url.searchParams.get("drainOnly") === "1" || bodyDrainOnly;
+
+  // Service-role and cron callers can run any mode. Signed-in clients can only
+  // trigger `POST` with `drainOnly` to flush rows created by DB triggers
+  // (never daily scans or `?diag=1`).
+  const isAdminCaller = isTrustedCaller(req);
+  let isAuthenticatedDrain = false;
+  if (!isAdminCaller && req.method === "POST" && drainOnly) {
+    const bearer = bearerToken(req);
+    if (bearer) {
+      const { data: userData, error: userError } = await admin.auth.getUser(
+        bearer,
+      );
+      if (!userError && userData?.user) {
+        isAuthenticatedDrain = true;
+      }
+    }
+  }
+
+  if (!isAdminCaller && !isAuthenticatedDrain) {
     console.warn("send-push: rejected untrusted caller");
     return json({ ok: false, error: "unauthorized" }, 401);
   }
@@ -473,17 +513,12 @@ Deno.serve(async (req) => {
       `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
     const today = istToday();
 
-    // `scanOnly=false` lets a trigger call this purely to flush the queue
-    // without paying for the daily scans.
-    const url = new URL(req.url);
-    const drainOnly = url.searchParams.get("drainOnly") === "1";
-
     // `?diag=1` reports whether each source is actually READABLE, separately
     // from whether it had anything due. Without this a broken scan and a quiet
     // day are indistinguishable from the outside: both scans swallow their own
     // errors so a failure cannot stop the queue draining, which is right for
     // production and useless for diagnosis.
-    if (url.searchParams.get("diag") === "1") {
+    if (isAdminCaller && url.searchParams.get("diag") === "1") {
       const diag: Record<string, unknown> = { today };
       try {
         const { count, error } = await admin

@@ -1,15 +1,18 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/storage/shared_prefs_cache.dart';
 import '../l10n/app_localizations.dart';
+import '../models/family_vault_models.dart';
 
 import '../data/reminder_store.dart';
 import '../repositories/document_repository.dart';
 import 'app_settings.dart';
 import 'biometric_service.dart';
 import 'card_store.dart';
+import 'family_vault_store.dart';
 
 /// The category a notification belongs to (drives its icon / colour / filter).
 enum NotificationCategory { reminder, security, backup, asset, document, system }
@@ -311,9 +314,121 @@ class NotificationCenter extends ChangeNotifier {
       ));
     }
 
+    await _appendFamilyVaultNotifications(items, now);
+
     _all = items;
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Appends pending Family Vault invitations and recently shared Family Vault
+  /// documents for the signed-in user from [notification_outbox] and
+  /// [FamilyVaultStore].
+  Future<void> _appendFamilyVaultNotifications(
+      List<AppNotification> items, DateTime now) async {
+    SupabaseClient? client;
+    String? uid;
+    try {
+      client = Supabase.instance.client;
+      uid = client.auth.currentUser?.id;
+    } catch (_) {
+      return;
+    }
+    if (uid == null) return;
+
+    final seenIds = <String>{};
+    var invitesLoaded = false;
+    final pendingInvites = <VaultInvitation>[];
+    try {
+      await FamilyVaultStore.instance.refreshPendingInvitations();
+      pendingInvites.addAll(FamilyVaultStore.instance.pendingInvites);
+      invitesLoaded = true;
+    } catch (e) {
+      developer.log('vault invites refresh failed: $e', name: 'notifications');
+    }
+    final pendingById = {for (final i in pendingInvites) i.id: i};
+
+    try {
+      final rows = await client
+          .from('notification_outbox')
+          .select('id, kind, title, body, data, created_at')
+          .eq('auth_user_id', uid)
+          .inFilter('kind', ['vault.invite', 'vault.document_shared'])
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      for (final raw in (rows as List)) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        final kind = row['kind']?.toString() ?? '';
+        final outboxId = row['id']?.toString() ?? '';
+        final data = row['data'] is Map
+            ? Map<String, dynamic>.from(row['data'] as Map)
+            : const <String, dynamic>{};
+        final createdAt =
+            DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+                now;
+        final title = row['title']?.toString() ?? '';
+        final body = row['body']?.toString() ?? '';
+
+        if (kind == 'vault.invite') {
+          final invId = data['invitation_id']?.toString() ?? '';
+          if (invitesLoaded &&
+              invId.isNotEmpty &&
+              !pendingById.containsKey(invId)) {
+            continue;
+          }
+          final notifId =
+              invId.isNotEmpty ? 'vault-invite-$invId' : 'vault-outbox-$outboxId';
+          if (!seenIds.add(notifId)) continue;
+          items.add(AppNotification(
+            id: notifId,
+            title: title.isNotEmpty ? title : 'Family Vault Invitation',
+            body: body.isNotEmpty
+                ? body
+                : 'You have been invited to join a Family Vault.',
+            category: NotificationCategory.system,
+            at: createdAt,
+            targetId: data['vault_id']?.toString(),
+          ));
+        } else if (kind == 'vault.document_shared') {
+          final docId = data['vault_doc_id']?.toString() ?? '';
+          final notifId =
+              docId.isNotEmpty ? 'vault-doc-$docId' : 'vault-outbox-$outboxId';
+          if (!seenIds.add(notifId)) continue;
+          items.add(AppNotification(
+            id: notifId,
+            title: title.isNotEmpty ? title : 'New Family Document',
+            body: body.isNotEmpty
+                ? body
+                : 'A document was shared in your Family Vault.',
+            category: NotificationCategory.system,
+            at: createdAt,
+            targetId: data['vault_id']?.toString(),
+          ));
+        }
+      }
+    } catch (e) {
+      developer.log('outbox vault fetch failed: $e', name: 'notifications');
+    }
+
+    for (final inv in pendingInvites) {
+      final notifId = 'vault-invite-${inv.id}';
+      if (!seenIds.add(notifId)) continue;
+      final inviter = (inv.invitedByName ?? '').trim();
+      final vaultName = (inv.vaultName ?? '').trim();
+      final fromText = inviter.isNotEmpty
+          ? '$inviter has invited you to their family'
+          : 'You have been invited to join a family';
+      final vaultSuffix = vaultName.isNotEmpty ? ' ($vaultName)' : '';
+      items.add(AppNotification(
+        id: notifId,
+        title: 'Family Vault Invitation',
+        body: '$fromText$vaultSuffix. Accept the invite to enter the family.',
+        category: NotificationCategory.system,
+        at: inv.createdAt ?? now,
+        targetId: inv.vaultId,
+      ));
+    }
   }
 
   Future<void> markRead(String id) async {
