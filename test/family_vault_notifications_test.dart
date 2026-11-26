@@ -92,5 +92,22 @@ void main() {
       await NotificationCenter.instance.refresh();
       expect(NotificationCenter.instance.isLoaded, isTrue);
     });
+
+    test('reminderOccurrenceKey matches local DateTime and server ISO UTC timestamps',
+        () {
+      final local = DateTime(2026, 11, 26, 15, 43, 0);
+      final k1 = PushService.reminderOccurrenceKey('rem-42', local);
+      final k2 = PushService.occurrenceKeyFromData({
+        'kind': 'reminder.due',
+        'reminder_id': 'rem-42',
+        'due_at': local.toUtc().toIso8601String(),
+      });
+      expect(k2, equals(k1));
+    });
+
+    test('reminderDetails uses onlyAlertOnce to avoid double buzzing on updates',
+        () {
+      expect(PushService.reminderDetails.android?.onlyAlertOnce, isTrue);
+    });
   });
 }

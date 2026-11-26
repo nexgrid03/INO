@@ -99,7 +99,11 @@ class ReminderScheduler {
 
   /// Arms (or re-arms) the notification for [r]. Past or completed reminders
   /// are skipped; an existing schedule for the same id is replaced.
-  Future<void> schedule(Reminder r) async {
+  ///
+  /// [allowCatchUp] is true only when explicitly saving/restoring a reminder
+  /// whose picked minute just ticked past; periodic [sync] passes `false` so
+  /// reloading or returning to the app never re-rings an already-fired alert.
+  Future<void> schedule(Reminder r, {bool allowCatchUp = true}) async {
     if (!_supported) return;
     if (!AppSettings.instance.notifications.value || r.completed) {
       await cancel(r.id);
@@ -108,10 +112,10 @@ class ReminderScheduler {
 
     final now = DateTime.now();
     if (r.date.isBefore(now)) {
-      // If due within the last 5 minutes, fire immediately instead of dropping!
-      if (now.difference(r.date) <= const Duration(minutes: 5)) {
+      if (allowCatchUp && now.difference(r.date) <= const Duration(minutes: 2)) {
         await PushService.instance.showReminderNow(r);
-      } else {
+      } else if (!allowCatchUp &&
+          now.difference(r.date) > const Duration(minutes: 5)) {
         await cancel(r.id);
       }
       return;
@@ -124,6 +128,8 @@ class ReminderScheduler {
       // location sidesteps needing the device's IANA zone name entirely.
       final when = tz.TZDateTime.from(r.date.toUtc(), tz.UTC);
       final mode = await _mode();
+      var usedExact = mode == AndroidScheduleMode.exactAllowWhileIdle ||
+          mode == AndroidScheduleMode.alarmClock;
       try {
         await _zoned(r, when, mode);
       } on PlatformException catch (e) {
@@ -131,17 +137,23 @@ class ReminderScheduler {
           if (mode == AndroidScheduleMode.exactAllowWhileIdle) {
             try {
               await _zoned(r, when, AndroidScheduleMode.alarmClock);
+              usedExact = true;
             } on PlatformException {
               await _zoned(r, when, AndroidScheduleMode.inexactAllowWhileIdle);
+              usedExact = false;
             }
           } else if (mode == AndroidScheduleMode.alarmClock) {
             await _zoned(r, when, AndroidScheduleMode.inexactAllowWhileIdle);
+            usedExact = false;
           } else {
             rethrow;
           }
         } else {
           rethrow;
         }
+      }
+      if (usedExact) {
+        await PushService.markReminderExactArmed(r.id, r.date);
       }
       developer.log('scheduled ${r.id} at ${r.date} ($mode)', name: 'sched');
     } catch (e) {
@@ -174,6 +186,7 @@ class ReminderScheduler {
     try {
       await PushService.instance.localReady;
       await _plugin.cancel(id: idFor(reminderId));
+      await PushService.unmarkReminderScheduled(reminderId);
     } catch (e) {
       developer.log('cancel failed for $reminderId: $e', name: 'sched');
     }
@@ -185,6 +198,7 @@ class ReminderScheduler {
     try {
       await PushService.instance.localReady;
       await _plugin.cancelAllPendingNotifications();
+      await PushService.clearReminderTracking();
     } catch (e) {
       developer.log('cancelAll failed: $e', name: 'sched');
     }
@@ -206,7 +220,7 @@ class ReminderScheduler {
         if (!wanted.contains(p.id)) await _plugin.cancel(id: p.id);
       }
       for (final r in active) {
-        await schedule(r);
+        await schedule(r, allowCatchUp: false);
       }
       developer.log('synced ${active.length} reminder(s)', name: 'sched');
     } catch (e) {

@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/reminder_store.dart';
@@ -93,6 +94,7 @@ class PushService {
       channelDescription: 'Alerts for documents, renewals and due dates.',
       importance: Importance.max,
       priority: Priority.max,
+      onlyAlertOnce: true,
       visibility: NotificationVisibility.private,
       icon: 'ic_notification',
       playSound: true,
@@ -698,14 +700,128 @@ class PushService {
     return (fallback ?? '').hashCode & 0x7fffffff;
   }
 
+  static const String _kRungReminders = 'push_rung_reminders_v1';
+  static const String _kExactArmedReminders = 'push_exact_armed_reminders_v1';
+
+  /// Stable key for a reminder occurrence (`id@epochMinute`) so minute-level
+  /// comparison matches identically between Dart [DateTime] and server `due_at`.
+  static String reminderOccurrenceKey(String reminderId, DateTime dueAt) =>
+      '$reminderId@${dueAt.toUtc().millisecondsSinceEpoch ~/ 60000}';
+
+  static String? occurrenceKeyFromData(Map<String, dynamic> data) {
+    final rid = data['reminder_id'] as String?;
+    if (rid == null || rid.isEmpty) return null;
+    final rawDue = data['due_at']?.toString();
+    if (rawDue != null && rawDue.isNotEmpty) {
+      final parsed = DateTime.tryParse(rawDue);
+      if (parsed != null) return reminderOccurrenceKey(rid, parsed);
+    }
+    return rid;
+  }
+
+  static Future<void> markReminderExactArmed(
+      String reminderId, DateTime dueAt) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = reminderOccurrenceKey(reminderId, dueAt);
+      final list = prefs.getStringList(_kExactArmedReminders)?.toList() ?? [];
+      if (!list.contains(key)) {
+        list.add(key);
+        if (list.length > 200) list.removeRange(0, list.length - 200);
+        await prefs.setStringList(_kExactArmedReminders, list);
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> unmarkReminderScheduled(String reminderId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefix = '$reminderId@';
+      final armed = prefs.getStringList(_kExactArmedReminders);
+      if (armed != null) {
+        await prefs.setStringList(
+          _kExactArmedReminders,
+          armed.where((k) => !k.startsWith(prefix)).toList(),
+        );
+      }
+      final rung = prefs.getStringList(_kRungReminders);
+      if (rung != null) {
+        await prefs.setStringList(
+          _kRungReminders,
+          rung.where((k) => !k.startsWith(prefix)).toList(),
+        );
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> clearReminderTracking() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kExactArmedReminders);
+      await prefs.remove(_kRungReminders);
+    } catch (_) {}
+  }
+
+  static Future<bool> _claimReminderDisplay({
+    required FlutterLocalNotificationsPlugin plugin,
+    required String? occurrenceKey,
+    required int notificationId,
+    required bool respectLocalExactArm,
+  }) async {
+    try {
+      final active = await plugin.getActiveNotifications();
+      if (active.any((n) => n.id == notificationId)) {
+        return false;
+      }
+    } catch (_) {
+      // Unsupported on some platforms/tests; continue to prefs check.
+    }
+
+    if (occurrenceKey == null || occurrenceKey.isEmpty) return true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rung = prefs.getStringList(_kRungReminders)?.toList() ?? [];
+      if (rung.contains(occurrenceKey)) return false;
+
+      if (respectLocalExactArm) {
+        final armed = prefs.getStringList(_kExactArmedReminders) ?? const [];
+        if (armed.contains(occurrenceKey)) {
+          return false;
+        }
+      }
+
+      rung.add(occurrenceKey);
+      if (rung.length > 200) rung.removeRange(0, rung.length - 200);
+      await prefs.setStringList(_kRungReminders, rung);
+    } catch (_) {}
+    return true;
+  }
+
   /// Displays a data-only due-reminder message through [plugin]. Static so the
   /// background isolate (which has none of this singleton's state) can reuse it.
   static Future<void> showDueReminder(
     FlutterLocalNotificationsPlugin plugin,
     Map<String, dynamic> data,
   ) async {
+    final id = reminderNotificationId(data, null);
+    final occKey = occurrenceKeyFromData(data);
+    final shouldShow = await _claimReminderDisplay(
+      plugin: plugin,
+      occurrenceKey: occKey,
+      notificationId: id,
+      respectLocalExactArm: true,
+    );
+    if (!shouldShow) {
+      developer.log('skipped duplicate due reminder $occKey', name: 'push');
+      return;
+    }
+    try {
+      // Cancel any remaining local schedule with the same id so clock skew
+      // cannot fire a second copy right afterwards.
+      await plugin.cancel(id: id);
+    } catch (_) {}
     await plugin.show(
-      id: reminderNotificationId(data, null),
+      id: id,
       title: (data['title'] as String?) ?? 'Reminder',
       body: (data['body'] as String?) ?? '',
       notificationDetails: reminderDetails,
@@ -717,10 +833,22 @@ class PushService {
   Future<void> showReminderNow(Reminder r) async {
     try {
       await localReady;
+      final id = reminderNotificationId({'reminder_id': r.id}, r.id);
+      final occKey = reminderOccurrenceKey(r.id, r.date);
+      final shouldShow = await _claimReminderDisplay(
+        plugin: _local,
+        occurrenceKey: occKey,
+        notificationId: id,
+        respectLocalExactArm: false,
+      );
+      if (!shouldShow) {
+        developer.log('showReminderNow skipped duplicate $occKey', name: 'push');
+        return;
+      }
       final when = reminderDateTimeLabel(r.date);
       final body = r.subtitle.isEmpty ? when : '$when · ${r.subtitle}';
       await _local.show(
-        id: reminderNotificationId({'reminder_id': r.id}, r.id),
+        id: id,
         title: r.title,
         body: body,
         notificationDetails: reminderDetails,
