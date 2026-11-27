@@ -10,11 +10,11 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
-import '../../services/document_crop_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/image_enhancer.dart';
 import '../../services/live_document_detector.dart';
 import '../../services/native_document_edge_service.dart';
+import '../../services/scan_capture_processor.dart';
 import '../../services/scan_pdf_service.dart';
 import '../../widgets/common/ino_loader.dart';
 import '../../widgets/scan/document_highlight.dart';
@@ -107,10 +107,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// Silhouette contrast detects blank pages; keep this reachable for them.
   static const double _kDetectConfidence = 0.34;
   static const double _kLoseConfidence = 0.22;
-  static const Duration _kStableDuration = Duration(milliseconds: 480);
+  static const Duration _kStableDuration = Duration(milliseconds: 420);
   /// Corner jitter below this (normalised) is treated as hand tremor and ignored.
-  /// Kept tight so the outline can still snap onto the real page edge.
-  static const double _kCornerDeadband = 0.024;
+  static const double _kCornerDeadband = 0.030;
 
   @override
   void initState() {
@@ -374,7 +373,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       for (int i = 0; i < 4; i++) {
         totalDist += (aligned[i] - prev[i]).distance;
       }
-      if (totalDist / 4.0 < 0.05) {
+      if (totalDist / 4.0 < 0.065) {
         if (_docCorners.value == null) {
           _docCorners.value = prev;
         }
@@ -599,8 +598,29 @@ class _ScannerScreenState extends State<ScannerScreen>
       HapticFeedback.lightImpact();
       setState(() => _state = ScannerState.success);
 
-      // Automatically crop and align document edges to the locked border
-      var processed = await _cropToOutline(file.path, captureOutline);
+      // Re-detect on the still photo then crop — avoids sideways/crossed scans
+      // from live-overlay vs JPEG orientation mismatches.
+      setState(() => _cropping = true);
+      String processed;
+      try {
+        final uprightLive = captureOutline == null
+            ? null
+            : [
+                for (final c in captureOutline)
+                  rotateSensorPoint(
+                    c,
+                    quarterTurns: _cropQuarterTurns,
+                    mirror: controller.description.lensDirection ==
+                        CameraLensDirection.front,
+                  ),
+              ];
+        processed = await ScanCaptureProcessor.process(
+          capturePath: file.path,
+          liveOutline: uprightLive,
+        );
+      } finally {
+        if (mounted) setState(() => _cropping = false);
+      }
 
       // Apply active filter if one was selected
       if (_activeFilter != ScanColorMode.original) {
@@ -624,33 +644,6 @@ class _ScannerScreenState extends State<ScannerScreen>
       _docCorners.value = null;
       _snack(AppLocalizations.of(context).t('captureFailed'));
       _startDetection();
-    }
-  }
-
-  Future<String> _cropToOutline(String path, List<Offset>? outline) async {
-    if (outline == null || outline.length != 4) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      return path;
-    }
-    final controller = _controller;
-    // Native upright corners already match the EXIF-baked still; local
-    // detector corners are still in sensor space and need the turn.
-    final turns = _cropQuarterTurns;
-    final upright = [
-      for (final c in outline)
-        rotateSensorPoint(
-          c,
-          quarterTurns: turns,
-          mirror: controller?.description.lensDirection ==
-              CameraLensDirection.front,
-        ),
-    ];
-    setState(() => _cropping = true);
-    try {
-      final cropped = await DocumentCropService.rectify(path, upright);
-      return cropped ?? path;
-    } finally {
-      if (mounted) setState(() => _cropping = false);
     }
   }
 
@@ -749,8 +742,12 @@ class _ScannerScreenState extends State<ScannerScreen>
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 140,
+                    width: double.infinity,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       itemCount: _scannedPages.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {

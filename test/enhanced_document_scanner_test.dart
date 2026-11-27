@@ -92,8 +92,8 @@ void main() {
         );
 
         await tester.pump();
-        // Page count badge should display '2'
-        expect(find.text('2'), findsOneWidget);
+        // Page index appears on the scroll strip and the count badge.
+        expect(find.text('2'), findsAtLeastNWidgets(1));
         // Retake option must be visible
         expect(find.text('Retake'), findsOneWidget);
         // Blue checkmark "Done" button must be visible

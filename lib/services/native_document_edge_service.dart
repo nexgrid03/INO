@@ -23,8 +23,10 @@ class NativeDocumentEdgeService {
 
   StreamSubscription<DetectionEvent>? _subscription;
   final CornerStabilizer _stabilizer = CornerStabilizer(
-    smoothing: 0.35,
-    resetDistance: 0.18,
+    // Lower = stickier border (Photos-like lock), higher resetDistance =
+    // only jump when the page truly moves.
+    smoothing: 0.22,
+    resetDistance: 0.25,
   );
 
   final StreamController<NativeEdgeEvent> _events =
@@ -53,7 +55,7 @@ class NativeDocumentEdgeService {
         .detectStream(
           _frames.stream,
           stabilize: _stabilizer,
-          minInterval: const Duration(milliseconds: 90),
+          minInterval: const Duration(milliseconds: 120),
           sensitivity: sensitivity,
           minimumAspectRatio: 0.12,
         )

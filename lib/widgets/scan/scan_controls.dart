@@ -12,10 +12,11 @@ import '../pressable_scale.dart';
 enum CaptureButtonState { idle, detected, capturing, success }
 
 /// The scanner's bottom control bar:
-/// - Left: Gallery button (when 0 pages) OR Captured Page Thumbnail with Page Count Badge + Retake
+/// - Optional horizontally scrollable page strip (all scanned pages, not just last)
+/// - Left: Gallery button (when 0 pages) OR page count + Retake
 /// - Center: Large 80dp circular Capture / Shutter button with state animations
 /// - Right: Filter toggle button (when 0 pages) OR vibrant Blue Checkmark button to finish scanning
-class ScanControls extends StatelessWidget {
+class ScanControls extends StatefulWidget {
   const ScanControls({
     super.key,
     required this.onGallery,
@@ -50,46 +51,179 @@ class ScanControls extends StatelessWidget {
   final bool enabled;
 
   @override
+  State<ScanControls> createState() => _ScanControlsState();
+}
+
+class _ScanControlsState extends State<ScanControls> {
+  final ScrollController _stripScroll = ScrollController();
+
+  @override
+  void didUpdateWidget(covariant ScanControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.scannedPages.length > oldWidget.scannedPages.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollStripToEnd());
+    }
+  }
+
+  @override
+  void dispose() {
+    _stripScroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollStripToEnd() {
+    if (!_stripScroll.hasClients) return;
+    _stripScroll.animateTo(
+      _stripScroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final hasPages = scannedPages.isNotEmpty;
+    final pages = widget.scannedPages;
+    final hasPages = pages.isNotEmpty;
+    final enabled = widget.enabled;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Left slot: Thumbnail with badge + Retake, or Gallery button
-        SizedBox(
-          width: 80,
-          child: hasPages
-              ? _ThumbnailWithBadge(
-                  latestPagePath: scannedPages.last,
-                  pageCount: scannedPages.length,
-                  onTap: enabled ? onTapThumbnail : null,
-                  onRetake: enabled ? onRetake : null,
-                )
-              : _GalleryButton(
-                  onTap: enabled ? onGallery : null,
-                ),
-        ),
-
-        // Center slot: Large capture button
-        _CaptureButton(
-          state: captureState,
-          onTap: enabled ? onCapture : null,
-        ),
-
-        // Right slot: Blue checkmark to finish scanning OR Filter button
-        SizedBox(
-          width: 80,
-          child: hasPages
-              ? _FinishScanButton(
-                  onTap: enabled ? onFinishScanning : null,
-                )
-              : _FilterButton(
-                  active: activeFilter != ScanColorMode.original,
-                  onTap: enabled ? onToggleFilter : null,
-                ),
+        if (hasPages) ...[
+          SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: ListView.separated(
+              controller: _stripScroll,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              itemCount: pages.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final isLatest = index == pages.length - 1;
+                return _StripThumb(
+                  path: pages[index],
+                  index: index,
+                  highlighted: isLatest,
+                  onTap: enabled ? widget.onTapThumbnail : null,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SizedBox(
+              width: 80,
+              child: hasPages
+                  ? _ThumbnailWithBadge(
+                      latestPagePath: pages.last,
+                      pageCount: pages.length,
+                      onTap: enabled ? widget.onTapThumbnail : null,
+                      onRetake: enabled ? widget.onRetake : null,
+                    )
+                  : _GalleryButton(
+                      onTap: enabled ? widget.onGallery : null,
+                    ),
+            ),
+            _CaptureButton(
+              state: widget.captureState,
+              onTap: enabled ? widget.onCapture : null,
+            ),
+            SizedBox(
+              width: 80,
+              child: hasPages
+                  ? _FinishScanButton(
+                      onTap: enabled ? widget.onFinishScanning : null,
+                    )
+                  : _FilterButton(
+                      active: widget.activeFilter != ScanColorMode.original,
+                      onTap: enabled ? widget.onToggleFilter : null,
+                    ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _StripThumb extends StatelessWidget {
+  const _StripThumb({
+    required this.path,
+    required this.index,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  final String path;
+  final int index;
+  final bool highlighted;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      pressedScale: 0.94,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 52,
+          height: 72,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: highlighted ? ScanColors.accent : Colors.white54,
+              width: highlighted ? 2.4 : 1.4,
+            ),
+            boxShadow: highlighted
+                ? [
+                    BoxShadow(
+                      color: ScanColors.accent.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(
+                File(path),
+                fit: BoxFit.cover,
+                cacheWidth: context.decodeWidthFor(52),
+              ),
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
