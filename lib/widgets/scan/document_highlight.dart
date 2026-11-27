@@ -56,11 +56,12 @@ class DocumentHighlight extends StatefulWidget {
 class _DocumentHighlightState extends State<DocumentHighlight>
     with TickerProviderStateMixin {
   /// Fades the outline in when a document appears and out when it is lost, so
-  /// it never pops.
+  /// it never pops. Reverse is deliberately slower so brief detector drops
+  /// (autofocus hunting) never read as a blink.
   late final AnimationController _reveal = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 220),
-    reverseDuration: const Duration(milliseconds: 180),
+    duration: const Duration(milliseconds: 200),
+    reverseDuration: const Duration(milliseconds: 420),
   );
 
   /// Eases `documentDetected` → `readyToScan` (brighter, heavier).
@@ -73,7 +74,7 @@ class _DocumentHighlightState extends State<DocumentHighlight>
   /// it snap around at the sampling rate.
   late final AnimationController _move = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 140),
+    duration: const Duration(milliseconds: 180),
     value: 1,
   );
 
@@ -126,9 +127,23 @@ class _DocumentHighlightState extends State<DocumentHighlight>
       _from = null;
       _to = next;
     }
+    // Skip re-animating tiny updates - the scanner already deadbands, but a
+    // second gate here keeps the stroke visually glued to the page.
+    if (_from != null && _to != null && _from!.length == 4 && _to!.length == 4) {
+      double d = 0;
+      for (int i = 0; i < 4; i++) {
+        d += (_from![i] - _to![i]).distance;
+      }
+      if (d / 4.0 < 0.012 && _reveal.value > 0.9) {
+        _from = _to;
+        _move.value = 1;
+        return;
+      }
+    }
+
     _move
       ..value = 0
-      ..duration = const Duration(milliseconds: 90)
+      ..duration = const Duration(milliseconds: 160)
       ..forward();
     if (_reveal.status != AnimationStatus.completed) _reveal.forward();
   }

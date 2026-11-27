@@ -113,6 +113,17 @@ class LiveDocumentDetector {
   /// Previous shape preserved for stable lock-on when the document is steady.
   _DocumentShape? _prevShape;
 
+  /// How many consecutive empty frames we still replay [_prevShape] for.
+  /// Autofocus hunting and brief glare flashes routinely drop a page for 1–3
+  /// samples; clearing the outline on the first miss is what users read as
+  /// flicker. ~8 samples ≈ a second of hold at the scanner's 85 ms cadence.
+  int _shapeHold = 0;
+  static const int _kShapeHoldFrames = 8;
+
+  /// Corner displacement (normalised) below which we pin to the previous
+  /// outline instead of chasing sensor noise / hand tremor.
+  static const double _lockDeadband = 0.022;
+
   /// True once [_prev] holds a real frame - until then there is nothing to
   /// measure motion against.
   bool _hasPrev = false;
@@ -121,6 +132,7 @@ class LiveDocumentDetector {
   void reset() {
     _hasPrev = false;
     _prevShape = null;
+    _shapeHold = 0;
   }
 
   DocumentSignal analyze(CameraImage image) {
@@ -207,7 +219,9 @@ class LiveDocumentDetector {
         diff += (samples[i] - prev[i]).abs();
       }
       final double motion = diff / samples.length;
-      steady = motion < 6.0; // < ~6/255 average change ⇒ effectively still.
+      // Slightly looser than a perfect still life so ordinary hand tremor
+      // still counts as "steady" and the border can lock.
+      steady = motion < 8.5;
     }
     // Swap the buffers: this frame's readings become next frame's history, and
     // the buffer they displace is what the next frame samples into.
@@ -217,24 +231,61 @@ class LiveDocumentDetector {
 
     final shape = _shape(x0 / w, y0 / h, rw / w, rh / h);
     List<Offset>? finalCorners = shape?.corners;
+    Rect? finalBounds = shape?.bounds;
     if (finalCorners != null && finalCorners.length == 4) {
       finalCorners = orderClockwise(finalCorners);
-      if (steady && _prevShape != null && _prevShape!.corners.length == 4) {
-        final aligned = alignCorners(_prevShape!.corners, finalCorners);
-        finalCorners = [
-          for (int i = 0; i < 4; i++)
-            Offset.lerp(_prevShape!.corners[i], aligned[i], 0.15)!,
-        ];
+      final prev = _prevShape;
+      if (prev != null && prev.corners.length == 4) {
+        final aligned = alignCorners(prev.corners, finalCorners);
+        double totalDist = 0;
+        for (int i = 0; i < 4; i++) {
+          totalDist += (aligned[i] - prev.corners[i]).distance;
+        }
+        final avgDist = totalDist / 4.0;
+
+        if (avgDist < _lockDeadband) {
+          // Pin hard - sensor noise must not wiggle the stroke.
+          finalCorners = prev.corners;
+          finalBounds = prev.bounds;
+        } else if (steady) {
+          // Locked-on page: crawl toward the new reading so the stroke stays
+          // glued to the paper instead of skating with every sample.
+          finalCorners = [
+            for (int i = 0; i < 4; i++)
+              Offset.lerp(prev.corners[i], aligned[i], 0.10)!,
+          ];
+          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.10);
+        } else if (avgDist < 0.12) {
+          // Small nudge while the user repositions - ease, don't snap.
+          finalCorners = [
+            for (int i = 0; i < 4; i++)
+              Offset.lerp(prev.corners[i], aligned[i], 0.28)!,
+          ];
+          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.28);
+        } else {
+          // Large move (page dragged across frame): follow immediately so
+          // tracking tests and real re-framing stay responsive.
+          finalCorners = aligned;
+        }
       }
-      _prevShape = _DocumentShape(shape!.bounds, finalCorners);
+      _prevShape = _DocumentShape(finalBounds ?? shape!.bounds, finalCorners);
+      _shapeHold = _kShapeHoldFrames;
+    } else if (_prevShape != null && _shapeHold > 0) {
+      // Brief detection drop - keep the last good outline instead of blinking.
+      _shapeHold--;
+      finalCorners = _prevShape!.corners;
+      finalBounds = _prevShape!.bounds;
     } else {
       _prevShape = null;
+      _shapeHold = 0;
+      finalCorners = null;
+      finalBounds = null;
     }
 
     return DocumentSignal(
       confidence,
       steady,
-      bounds: shape?.bounds,
+      bounds: finalBounds,
       corners: finalCorners,
     );
   }

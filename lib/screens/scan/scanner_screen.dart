@@ -85,16 +85,24 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   List<Offset>? _lastStableCorners;
   int _consecutiveMissedFrames = 0;
-  static const int _kMaxToleratedMissed = 4;
+  /// Hold the last locked quad across brief detector drops (~1s at 85ms).
+  static const int _kMaxToleratedMissed = 12;
 
   int _presentFrames = 0;
+  int _absentFrames = 0;
   DateTime? _stableStart;
+  bool _focusLocked = false;
 
   static const int _kSampleIntervalMs = 85;
   static const int _kConfirmFrames = 2;
+  /// Require several weak frames before dropping a lock - autofocus hunting
+  /// routinely dips confidence for a sample or two without the page leaving.
+  static const int _kLoseFrames = 5;
   static const double _kDetectConfidence = 0.45;
-  static const double _kLoseConfidence = 0.30;
-  static const Duration _kStableDuration = Duration(milliseconds: 650);
+  static const double _kLoseConfidence = 0.28;
+  static const Duration _kStableDuration = Duration(milliseconds: 550);
+  /// Corner jitter below this (normalised) is treated as hand tremor and ignored.
+  static const double _kCornerDeadband = 0.035;
 
   @override
   void initState() {
@@ -194,6 +202,14 @@ class _ScannerScreenState extends State<ScannerScreen>
       try {
         await controller.setFlashMode(FlashMode.off);
       } catch (_) {}
+      // Continuous autofocus + centre metering so the page locks sharply
+      // instead of hunting (the main cause of a flickering border).
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+        await controller.setFocusPoint(const Offset(0.5, 0.5));
+        await controller.setExposurePoint(const Offset(0.5, 0.5));
+      } catch (_) {}
+      _focusLocked = false;
 
       _controller = controller;
       setState(() => _phase = _Phase.ready);
@@ -237,10 +253,12 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   void _resetDetectionState() {
     _presentFrames = 0;
+    _absentFrames = 0;
     _stableStart = null;
     _docCorners.value = null;
     _lastStableCorners = null;
     _consecutiveMissedFrames = 0;
+    _setFocusLocked(false);
   }
 
   void _onFrame(CameraImage image) {
@@ -265,41 +283,63 @@ class _ScannerScreenState extends State<ScannerScreen>
         _ => false,
       };
 
-      if (shouldShow) {
-        final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
-        final prev = _docCorners.value;
-        if (prev != null && prev.length == 4) {
-          // Align corners to prevent index rotation / cross-interpolation
-          final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
-
-          // Calculate average corner displacement
-          double totalDist = 0;
-          for (int i = 0; i < 4; i++) {
-            totalDist += (aligned[i] - prev[i]).distance;
-          }
-          final avgDist = totalDist / 4.0;
-
-          // DEADBAND: If movement is tiny (< 2.0% of screen), hand jitter is ignored!
-          // Pin firmly to the page!
-          if (avgDist < 0.020) {
-            // Keep exactly on the page, rock-solid
-            return;
-          }
-
-          // Smooth glide: adaptive alpha
-          final double alpha = (avgDist * 2.5).clamp(0.16, 0.40);
-          final smoothed = [
-            for (int i = 0; i < 4; i++)
-              Offset.lerp(prev[i], aligned[i], alpha)!,
-          ];
-          _docCorners.value = smoothed;
-          _lastStableCorners = smoothed;
-        } else {
-          _docCorners.value = ordered;
-          _lastStableCorners = ordered;
-        }
-      } else {
+      if (!shouldShow) {
         _handleMissedDetection();
+        return;
+      }
+
+      final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
+      final prev = _docCorners.value ?? _lastStableCorners;
+
+      // Ready lock: pin the outline unless the page is clearly reframed.
+      if (_state == ScannerState.readyToScan &&
+          prev != null &&
+          prev.length == 4) {
+        final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
+        double totalDist = 0;
+        for (int i = 0; i < 4; i++) {
+          totalDist += (aligned[i] - prev[i]).distance;
+        }
+        if (totalDist / 4.0 < 0.06) {
+          if (_docCorners.value == null) {
+            _docCorners.value = prev;
+          }
+          return;
+        }
+        // Big reframe while "ready" - unlock optics and track again.
+        _stableStart = null;
+        _setFocusLocked(false);
+        _enter(ScannerState.documentDetected);
+      }
+
+      if (prev != null && prev.length == 4) {
+        final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
+
+        double totalDist = 0;
+        for (int i = 0; i < 4; i++) {
+          totalDist += (aligned[i] - prev[i]).distance;
+        }
+        final avgDist = totalDist / 4.0;
+
+        // Deadband: ignore hand tremor / autofocus micro-shifts.
+        if (avgDist < _kCornerDeadband) {
+          if (_docCorners.value == null) {
+            _docCorners.value = prev;
+          }
+          return;
+        }
+
+        // Adaptive glide - small moves ease in; big reframes follow faster.
+        final double alpha = (avgDist * 2.0).clamp(0.12, 0.45);
+        final smoothed = [
+          for (int i = 0; i < 4; i++)
+            Offset.lerp(prev[i], aligned[i], alpha)!,
+        ];
+        _docCorners.value = smoothed;
+        _lastStableCorners = smoothed;
+      } else {
+        _docCorners.value = ordered;
+        _lastStableCorners = ordered;
       }
     } else {
       _handleMissedDetection();
@@ -308,7 +348,8 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   void _handleMissedDetection() {
     _consecutiveMissedFrames++;
-    // Hold the existing stable quad for up to ~350ms across transient drops
+    // Keep the last stable quad on screen across transient drops so the
+    // border does not blink off while the camera re-focuses.
     if (_consecutiveMissedFrames >= _kMaxToleratedMissed) {
       _docCorners.value = null;
     }
@@ -323,6 +364,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       case ScannerState.detecting:
         if (present) {
           _presentFrames++;
+          _absentFrames = 0;
           if (_presentFrames >= _kConfirmFrames) {
             _presentFrames = 0;
             _enter(ScannerState.documentDetected);
@@ -337,16 +379,25 @@ class _ScannerScreenState extends State<ScannerScreen>
       case ScannerState.documentDetected:
       case ScannerState.readyToScan:
         if (!stillPresent) {
-          _resetDetectionState();
-          _enter(ScannerState.idle);
+          _absentFrames++;
+          if (_absentFrames >= _kLoseFrames) {
+            _resetDetectionState();
+            _enter(ScannerState.idle);
+          }
           return;
         }
+        _absentFrames = 0;
         if (steady) {
           _stableStart ??= DateTime.now();
           if (DateTime.now().difference(_stableStart!) >= _kStableDuration) {
             _enter(ScannerState.readyToScan);
           }
         } else {
+          // Brief shake while locked: keep the ready outline. A real reframe
+          // is handled in `_onFrame` via corner displacement.
+          if (_state == ScannerState.readyToScan && _focusLocked) {
+            return;
+          }
           _stableStart = null;
           _enter(ScannerState.documentDetected);
         }
@@ -369,13 +420,56 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     if (newDetection) {
       HapticFeedback.selectionClick();
+      // Meter on the page as soon as we see it so autofocus settles faster.
+      _meterOnDocument();
     } else if (next == ScannerState.readyToScan) {
       HapticFeedback.lightImpact();
+      // Freeze optical focus so the preview (and border) stop hunting.
+      _setFocusLocked(true);
       if (_isAutoMode &&
           _state != ScannerState.capturing &&
           _state != ScannerState.success) {
         _capturePressed();
       }
+    } else if (next == ScannerState.idle || next == ScannerState.detecting) {
+      _setFocusLocked(false);
+    }
+  }
+
+  /// Point focus/exposure at the document centre (preview-normalised 0..1).
+  Future<void> _meterOnDocument() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    final corners = _docCorners.value ?? _lastStableCorners;
+    Offset point = const Offset(0.5, 0.5);
+    if (corners != null && corners.length == 4) {
+      final cx =
+          corners.map((c) => c.dx).reduce((a, b) => a + b) / corners.length;
+      final cy =
+          corners.map((c) => c.dy).reduce((a, b) => a + b) / corners.length;
+      point = Offset(cx.clamp(0.05, 0.95), cy.clamp(0.05, 0.95));
+    }
+    try {
+      await controller.setFocusPoint(point);
+      await controller.setExposurePoint(point);
+    } catch (_) {}
+  }
+
+  Future<void> _setFocusLocked(bool locked) async {
+    if (_focusLocked == locked) return;
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      if (locked) {
+        await _meterOnDocument();
+        await controller.setFocusMode(FocusMode.locked);
+      } else {
+        await controller.setFocusMode(FocusMode.auto);
+      }
+      _focusLocked = locked;
+    } catch (_) {
+      // Some devices reject lock; leave autofocus running.
+      _focusLocked = false;
     }
   }
 
@@ -417,19 +511,32 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
     HapticFeedback.mediumImpact();
 
-    final outline = _docCorners.value ?? _lastStableCorners;
+    // Freeze the border the user saw, lock optics, then snap - same order as
+    // a Photos-app document scan so the crop matches the on-screen outline.
+    final outline = List<Offset>.from(
+      _docCorners.value ?? _lastStableCorners ?? const <Offset>[],
+    );
+    final captureOutline = outline.length == 4 ? outline : null;
+    if (captureOutline != null) {
+      _docCorners.value = captureOutline;
+      _lastStableCorners = captureOutline;
+    }
+    await _setFocusLocked(true);
     await _stopDetection();
     if (!mounted) return;
     setState(() => _state = ScannerState.capturing);
 
     try {
+      // Brief settle so locked focus / exposure bind before the shutter.
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (!mounted) return;
       final file = await controller.takePicture();
       if (!mounted) return;
       HapticFeedback.lightImpact();
       setState(() => _state = ScannerState.success);
 
-      // Automatically crop and align document edges
-      var processed = await _cropToOutline(file.path, outline);
+      // Automatically crop and align document edges to the locked border
+      var processed = await _cropToOutline(file.path, captureOutline);
 
       // Apply active filter if one was selected
       if (_activeFilter != ScanColorMode.original) {
