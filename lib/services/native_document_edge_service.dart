@@ -12,8 +12,7 @@ import 'package:flutter/foundation.dart'
 /// - Android: OpenCV contour pipeline
 ///
 /// Feeds frames from the existing `camera` stream into [DocumentDetector] and
-/// emits stabilized four-corner quads for the in-app scanner overlay. Keeps the
-/// custom UI; only the edge engine is swapped for a product-grade one.
+/// emits stabilized four-corner quads for the in-app scanner overlay.
 class NativeDocumentEdgeService {
   NativeDocumentEdgeService();
 
@@ -22,10 +21,11 @@ class NativeDocumentEdgeService {
       StreamController<ScanInput>.broadcast();
 
   StreamSubscription<DetectionEvent>? _subscription;
-  final CornerStabilizer _stabilizer = CornerStabilizer(
-    // Stickier lock so the border stays glued to the page until it moves.
-    smoothing: 0.18,
-    resetDistance: 0.28,
+
+  /// Stickier EMA on iOS so the blue border stays glued to the page.
+  late final CornerStabilizer _stabilizer = CornerStabilizer(
+    smoothing: _isIOS ? 0.28 : 0.18,
+    resetDistance: _isIOS ? 0.22 : 0.28,
   );
 
   final StreamController<NativeEdgeEvent> _events =
@@ -35,9 +35,11 @@ class NativeDocumentEdgeService {
   bool _nativeFailed = false;
   int _errorStreak = 0;
 
-  /// Whether corners are in upright preview space (native applied [rotation]).
-  bool get cornersAreUpright =>
-      !kIsWeb && defaultTargetPlatform != TargetPlatform.iOS;
+  static bool get _isIOS =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Corners are always in upright preview space when rotation is applied.
+  bool get cornersAreUpright => true;
 
   /// True after repeated native failures — caller should use the local fallback.
   bool get shouldFallback => _nativeFailed || kIsWeb;
@@ -45,22 +47,28 @@ class NativeDocumentEdgeService {
   Stream<NativeEdgeEvent> get events => _events.stream;
 
   Future<void> start({
-    DetectionSensitivity sensitivity = DetectionSensitivity.balanced,
+    DetectionSensitivity? sensitivity,
   }) async {
     if (_running || shouldFallback) return;
     _running = true;
     _errorStreak = 0;
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+    // Live overlay: balanced finds real pages without snapping to desk edges
+    // (lenient) or missing faint sheets (strict).
+    final sense = sensitivity ??
+        (_isIOS
+            ? DetectionSensitivity.balanced
+            : DetectionSensitivity.balanced);
+
     _subscription = _detector
         .detectStream(
           _frames.stream,
           stabilize: _stabilizer,
-          // Fewer native calls on iOS = smoother preview (BGRA frames are big).
-          minInterval: Duration(milliseconds: isIOS ? 200 : 120),
-          sensitivity: sensitivity,
-          // iOS Vision often scores thin receipts / angled A4 lower — allow
-          // smaller aspect ratios so borders still lock.
-          minimumAspectRatio: isIOS ? 0.05 : 0.12,
+          // ~8–10 Hz — smooth overlay without thrashing Vision/OpenCV.
+          minInterval: Duration(milliseconds: _isIOS ? 110 : 100),
+          sensitivity: sense,
+          // Reject table-edge slivers; still allow receipts (~0.24).
+          minimumAspectRatio: _isIOS ? 0.16 : 0.12,
         )
         .listen(
           _onEvent,
@@ -93,6 +101,17 @@ class NativeDocumentEdgeService {
     switch (event) {
       case DetectionSuccess(:final corners):
         _errorStreak = 0;
+        // Drop non-convex / tiny quads — they produce garbage crops.
+        if (!corners.isConvex || corners.area < 0.08) {
+          if (!_events.isClosed) {
+            _events.add(const NativeEdgeEvent(
+              corners: null,
+              confidence: 0,
+              present: false,
+            ));
+          }
+          return;
+        }
         final pts = [
           Offset(corners.topLeft.x, corners.topLeft.y),
           Offset(corners.topRight.x, corners.topRight.y),
@@ -133,15 +152,31 @@ class NativeDocumentEdgeService {
     }
   }
 
+  /// Rotation that brings the camera buffer into upright (preview) space.
+  ///
+  /// Android always needs [sensorOrientation]. iOS BGRA is sometimes already
+  /// preview-oriented; when the buffer is still landscape while the phone is
+  /// portrait, pass sensor orientation so Vision returns upright corners that
+  /// line up with [CameraPreview].
+  static int frameRotation(CameraImage image, int sensorOrientation) {
+    if (kIsWeb) return 0;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final landscapeBuffer = image.width >= image.height;
+      final sensor = sensorOrientation % 360;
+      if (landscapeBuffer && (sensor == 90 || sensor == 270)) {
+        return sensor;
+      }
+      return 0;
+    }
+    return sensorOrientation % 360;
+  }
+
   ScanInput? _toScanInput(
     CameraImage image, {
     required int sensorOrientation,
   }) {
     if (image.planes.isEmpty) return null;
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    // iOS preview already matches the stream; Android buffers stay in sensor
-    // orientation so Vision/OpenCV need the upright rotation.
-    final rotation = isIOS ? 0 : (sensorOrientation % 360);
+    final rotation = frameRotation(image, sensorOrientation);
 
     if (image.format.group == ImageFormatGroup.bgra8888) {
       final plane = image.planes.first;
@@ -166,7 +201,6 @@ class NativeDocumentEdgeService {
       uvRowStride = image.planes[1].bytesPerRow;
       uvPixelStride = image.planes[1].bytesPerPixel ?? 1;
     } else if (image.planes.length == 2) {
-      // NV21 / NV12 semi-planar — pass the chroma plane twice; luma is enough.
       uBytes = image.planes[1].bytes;
       vBytes = image.planes[1].bytes;
       uvRowStride = image.planes[1].bytesPerRow;

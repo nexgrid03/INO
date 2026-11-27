@@ -8,57 +8,91 @@ import 'package:image/image.dart' as img;
 import 'document_crop_service.dart';
 
 /// Finishes a shutter press: find the page on the still (or use the live
-/// outline), then perspective-crop in **full color**.
+/// outline), then perspective-crop in **full color** with a proper homography.
 ///
-/// Important: we deliberately crop with [DocumentCropService] (color JPEG) and
-/// never run document_scan's "enhance" filters here — those desaturate to a
-/// B&W/scan look. Filters stay a user choice in the scanner UI.
+/// Uses [DocumentScanner] / [DocumentProcessor] (same engine as the package
+/// demo) so iOS Vision corners map cleanly into an upright color JPEG — not a
+/// soft/wrong desk crop. Filters stay a user choice in the scanner UI.
 class ScanCaptureProcessor {
   ScanCaptureProcessor._();
 
-  static final DocumentDetector _detector = DocumentDetector();
+  static final DocumentScanner _scanner = DocumentScanner();
+  static const DocumentProcessor _processor = DocumentProcessor();
 
   /// Returns a high-quality color JPEG path for the upright cropped page.
   static Future<String> process({
     required String capturePath,
     List<Offset>? liveOutline,
   }) async {
-    // Prefer still re-detect, but never hang the scanner (iOS Vision can stall).
-    final stillCorners = await _detectCornersOnStill(capturePath)
-        .timeout(const Duration(seconds: 4), onTimeout: () => null);
-    if (stillCorners != null) {
-      final cropped =
-          await DocumentCropService.rectify(capturePath, stillCorners);
-      if (cropped != null) return cropped;
-    }
+    final input = ScanInput.file(capturePath);
 
-    if (liveOutline != null && liveOutline.length == 4) {
-      final cropped =
-          await DocumentCropService.rectify(capturePath, liveOutline);
-      if (cropped != null) return cropped;
+    // 1) Re-detect on the full-res still — Vision is far more accurate here
+    //    than on downscaled preview frames.
+    try {
+      final still = await _scanner
+          .scan(
+            input,
+            filter: ScanFilter.none,
+            output: const ScanOutputFormat.jpegAt(95),
+            maxDimension: 2600,
+            background: true,
+            sensitivity: DetectionSensitivity.balanced,
+            minimumAspectRatio: 0.14,
+          )
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      if (still != null) {
+        return _writeScan(still, capturePath);
+      }
+    } catch (_) {}
+
+    // 2) Crop with the live outline the user locked onto.
+    final liveCorners = _toDocumentCorners(liveOutline);
+    if (liveCorners != null) {
+      try {
+        final cropped = await _processor
+            .crop(
+              input,
+              liveCorners,
+              filter: ScanFilter.none,
+              output: const ScanOutputFormat.jpegAt(95),
+              maxDimension: 2600,
+              background: true,
+            )
+            .timeout(const Duration(seconds: 5), onTimeout: () => null);
+        if (cropped != null) return _writeScan(cropped, capturePath);
+      } catch (_) {}
+
+      // Last resort: our Dart rectify path (same corners, different warp).
+      final fallback =
+          await DocumentCropService.rectify(capturePath, liveOutline!);
+      if (fallback != null) return fallback;
     }
 
     // No document lock — bake EXIF so the stack thumb isn't sideways.
     return uprightJpeg(capturePath);
   }
 
-  static Future<List<Offset>?> _detectCornersOnStill(String path) async {
-    try {
-      final corners = await _detector.detect(
-        ScanInput.file(path),
-        sensitivity: DetectionSensitivity.lenient,
-        minimumAspectRatio: 0.12,
-      );
-      if (corners == null || !corners.isConvex) return null;
-      return [
-        Offset(corners.topLeft.x, corners.topLeft.y),
-        Offset(corners.topRight.x, corners.topRight.y),
-        Offset(corners.bottomRight.x, corners.bottomRight.y),
-        Offset(corners.bottomLeft.x, corners.bottomLeft.y),
-      ];
-    } catch (_) {
-      return null;
-    }
+  static DocumentCorners? _toDocumentCorners(List<Offset>? outline) {
+    if (outline == null || outline.length != 4) return null;
+    final corners = DocumentCorners.fromUnordered([
+      (x: outline[0].dx, y: outline[0].dy),
+      (x: outline[1].dx, y: outline[1].dy),
+      (x: outline[2].dx, y: outline[2].dy),
+      (x: outline[3].dx, y: outline[3].dy),
+    ]);
+    if (!corners.isConvex || corners.area < 0.06) return null;
+    return corners;
+  }
+
+  static Future<String> _writeScan(
+    ScannedDocument scan,
+    String capturePath,
+  ) async {
+    final dir = File(capturePath).parent.path;
+    final outPath =
+        '$dir/ino_scan_${DateTime.now().microsecondsSinceEpoch}.jpg';
+    await File(outPath).writeAsBytes(scan.bytes);
+    return outPath;
   }
 
   /// Rewrites [path] with EXIF orientation baked into pixels (color JPEG).
@@ -72,7 +106,6 @@ class ScanCaptureProcessor {
       var decoded = img.decodeImage(bytes);
       if (decoded == null) return path;
       decoded = img.bakeOrientation(decoded);
-      // Keep full RGB — never collapse to grayscale on the default path.
       if (decoded.numChannels < 3) {
         decoded = decoded.convert(numChannels: 3);
       }

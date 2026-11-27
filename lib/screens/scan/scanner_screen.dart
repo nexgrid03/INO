@@ -2,7 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
-import 'package:document_scan/document_scan.dart' show DetectionSensitivity;
+import 'package:document_scan/document_scan.dart'
+    show
+        AutoCaptureAnalyzer,
+        AutoCaptureStatus,
+        DetectionSensitivity,
+        DocumentCorners;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -83,11 +88,18 @@ class _ScannerScreenState extends State<ScannerScreen>
   // Live document detection — native Vision/OpenCV first, local fallback.
   final LiveDocumentDetector _localDetector = LiveDocumentDetector();
   final NativeDocumentEdgeService _nativeEdges = NativeDocumentEdgeService();
+  /// iOS: package auto-capture gate (confidence + area + steadiness).
+  final AutoCaptureAnalyzer _iosAuto = AutoCaptureAnalyzer(
+    requiredSteadyFrames: 3,
+    minConfidence: 0.42,
+    minArea: 0.10,
+    maxJitter: 0.042,
+  );
   StreamSubscription<NativeEdgeEvent>? _nativeSub;
   final Stopwatch _throttle = Stopwatch();
   bool _streaming = false;
   bool _useNativeEdges = true;
-  /// Native detector returns upright corners (Android after rotation).
+  /// Native detector returns upright corners when rotation is applied.
   bool _nativeUpright = false;
 
   final ValueNotifier<List<Offset>?> _docCorners =
@@ -102,10 +114,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   int _absentFrames = 0;
   DateTime? _stableStart;
   bool _focusLocked = false;
-  /// iOS: space out local silhouette assists so Vision + silhouette don't
-  /// thrash the UI thread every frame.
-  int _iosLocalAssistTick = 0;
-  DateTime? _lastNativeHitAt;
+  DateTime? _lastFocusMeterAt;
 
   static const int _kSampleIntervalMs = 70;
   static const int _kConfirmFrames = 2;
@@ -113,11 +122,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// routinely dips confidence for a sample or two without the page leaving.
   static const int _kLoseFrames = 5;
   /// Silhouette contrast detects blank pages; keep this reachable for them.
-  /// iOS uses slightly lower gates in `_handleSignal` via platform check.
   static const double _kDetectConfidence = 0.34;
   static const double _kLoseConfidence = 0.22;
   static const Duration _kStableDuration = Duration(milliseconds: 420);
-  static const Duration _kStableDurationIos = Duration(milliseconds: 320);
   /// Corner jitter below this (normalised) is treated as hand tremor and ignored.
   static const double _kCornerDeadband = 0.030;
 
@@ -227,11 +234,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       );
 
       final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-      // iOS BGRA frames are heavy — medium keeps detection smooth; Android
-      // keeps high for sharper stills.
+      // High on both — sharp stills + Vision accuracy. Smoothness comes from
+      // throttling detection, not from lowering capture resolution.
       final controller = CameraController(
         back,
-        isIOS ? ResolutionPreset.medium : ResolutionPreset.high,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup:
             isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
@@ -246,14 +253,14 @@ class _ScannerScreenState extends State<ScannerScreen>
       try {
         await controller.setFlashMode(FlashMode.off);
       } catch (_) {}
-      // Continuous autofocus. On iOS, avoid FocusMode.locked — it hunts and
-      // freezes the preview; metering on the page is enough.
+      // Continuous autofocus. Never lock on iOS — locked AF blurs and stutters.
       try {
         await controller.setFocusMode(FocusMode.auto);
         await controller.setFocusPoint(const Offset(0.5, 0.5));
         await controller.setExposurePoint(const Offset(0.5, 0.5));
       } catch (_) {}
       _focusLocked = false;
+      _iosAuto.reset();
 
       _controller = controller;
       setState(() => _phase = _Phase.ready);
@@ -285,14 +292,10 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     if (_useNativeEdges) {
       try {
-        final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
         await _nativeEdges.start(
-          // iOS Vision needs a looser gate or blank/angled pages never lock.
-          sensitivity: isIOS
-              ? DetectionSensitivity.lenient
-              : DetectionSensitivity.balanced,
+          sensitivity: DetectionSensitivity.balanced,
         );
-        _nativeUpright = _nativeEdges.cornersAreUpright || isIOS;
+        _nativeUpright = _nativeEdges.cornersAreUpright;
         _nativeSub = _nativeEdges.events.listen(_onNativeEdge);
       } catch (_) {
         _useNativeEdges = false;
@@ -328,8 +331,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     _docCorners.value = null;
     _lastStableCorners = null;
     _consecutiveMissedFrames = 0;
-    _iosLocalAssistTick = 0;
-    _lastNativeHitAt = null;
+    _iosAuto.reset();
     _nativeEdges.resetStabilizer();
     _setFocusLocked(false);
   }
@@ -344,32 +346,79 @@ class _ScannerScreenState extends State<ScannerScreen>
       _nativeUpright = false;
       return;
     }
+
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final corners = event.corners;
     final present =
         event.present && corners != null && corners.length == 4;
-    // Native stabilizer already damps jitter; treat a confident lock as steady.
-    // iOS Vision confidence is often muted — still treat a hit as lock-worthy.
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    final bool steady =
-        present && event.confidence >= (isIOS ? 0.32 : 0.45);
+
+    // iOS: Vision-only + AutoCaptureAnalyzer (no local silhouette fighting).
+    if (isIOS) {
+      _handleIosNative(present ? corners : null, event.confidence);
+      return;
+    }
+
+    final bool steady = present && event.confidence >= 0.45;
     final confidence = present
-        ? (event.confidence < (isIOS ? 0.48 : 0.55)
-            ? (isIOS ? 0.48 : 0.55)
-            : event.confidence)
+        ? (event.confidence < 0.55 ? 0.55 : event.confidence)
         : 0.0;
-    if (present) _lastNativeHitAt = DateTime.now();
     _handleSignal(confidence, steady);
     if (present) {
       _applyCorners(corners);
-      // Keep AF/AE glued to the page once Vision locks.
-      if (isIOS &&
-          (_state == ScannerState.documentDetected ||
-              _state == ScannerState.readyToScan)) {
-        unawaited(_meterOnDocument());
-      }
     } else {
       _handleMissedDetection();
     }
+  }
+
+  /// iOS path: map Vision hits through [AutoCaptureAnalyzer] for Photos-like
+  /// lock (confident + large enough + steady), and meter AF onto the page.
+  void _handleIosNative(List<Offset>? corners, double confidence) {
+    if (corners != null && corners.length == 4) {
+      _consecutiveMissedFrames = 0;
+      _applyCorners(corners);
+      // Build DocumentCorners for the analyzer from the live outline.
+      final dc = _iosDocumentCorners(corners, confidence);
+      final status = _iosAuto.add(dc).status;
+      switch (status) {
+        case AutoCaptureStatus.searching:
+          _enter(ScannerState.idle);
+        case AutoCaptureStatus.detecting:
+          if (_state != ScannerState.readyToScan) {
+            _enter(ScannerState.documentDetected);
+          }
+        case AutoCaptureStatus.ready:
+          _enter(ScannerState.readyToScan);
+      }
+      _meterOnDocumentThrottled();
+    } else {
+      _iosAuto.add(null);
+      _handleMissedDetection();
+      if (_consecutiveMissedFrames >= _kMaxToleratedMissed) {
+        _enter(ScannerState.idle);
+      }
+    }
+  }
+
+  void _meterOnDocumentThrottled() {
+    final now = DateTime.now();
+    if (_lastFocusMeterAt != null &&
+        now.difference(_lastFocusMeterAt!) < const Duration(milliseconds: 650)) {
+      return;
+    }
+    _lastFocusMeterAt = now;
+    unawaited(_meterOnDocument());
+  }
+
+  DocumentCorners _iosDocumentCorners(List<Offset> corners, double confidence) {
+    return DocumentCorners.fromUnordered(
+      [
+        (x: corners[0].dx, y: corners[0].dy),
+        (x: corners[1].dx, y: corners[1].dy),
+        (x: corners[2].dx, y: corners[2].dy),
+        (x: corners[3].dx, y: corners[3].dy),
+      ],
+      confidence: confidence.clamp(0.0, 1.0),
+    );
   }
 
   void _onFrame(CameraImage image) {
@@ -379,8 +428,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    // Heavier throttle on iOS — BGRA + Vision + UI must stay under budget.
-    final intervalMs = isIOS ? 180 : _kSampleIntervalMs;
+    // Native detectStream already rate-limits; only light-gate the push.
+    final intervalMs = isIOS ? 90 : _kSampleIntervalMs;
     if (_throttle.elapsedMilliseconds < intervalMs) return;
     _throttle.reset();
 
@@ -390,26 +439,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         image,
         sensorOrientation: controller?.description.sensorOrientation ?? 90,
       );
-      // iOS assist: only when Vision has been quiet — avoids fighting native
-      // corners and cuts CPU vs running silhouette every sample.
-      if (isIOS) {
-        _iosLocalAssistTick++;
-        final nativeFresh = _lastNativeHitAt != null &&
-            DateTime.now().difference(_lastNativeHitAt!) <
-                const Duration(milliseconds: 700);
-        final needsAssist = !nativeFresh &&
-            (_docCorners.value == null ||
-                _state == ScannerState.idle ||
-                _state == ScannerState.detecting ||
-                _consecutiveMissedFrames >= 3);
-        if (needsAssist && _iosLocalAssistTick % 2 == 0) {
-          final signal = _localDetector.analyze(image);
-          if (signal.corners != null && signal.corners!.length == 4) {
-            _handleSignal(signal.confidence, signal.steady);
-            _applyCorners(signal.corners!);
-          }
-        }
-      }
+      // iOS: Vision only — local silhouette was fighting borders and stuttering.
+      // Android keeps native-only here too; local runs only on fallback below.
       return;
     }
 
@@ -529,11 +560,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         _absentFrames = 0;
         if (steady) {
           _stableStart ??= DateTime.now();
-          final stableFor = !kIsWeb &&
-                  defaultTargetPlatform == TargetPlatform.iOS
-              ? _kStableDurationIos
-              : _kStableDuration;
-          if (DateTime.now().difference(_stableStart!) >= stableFor) {
+          if (DateTime.now().difference(_stableStart!) >= _kStableDuration) {
             _enter(ScannerState.readyToScan);
           }
         } else {
@@ -662,15 +689,20 @@ class _ScannerScreenState extends State<ScannerScreen>
         _captureSessionBusy) {
       return;
     }
-    HapticFeedback.mediumImpact();
 
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-    // Freeze the border the user saw, lock optics, then snap.
+    // Freeze the border the user saw — require a real lock on iOS so we never
+    // silently save a random desk photo as a "scan".
     final outline = List<Offset>.from(
       _docCorners.value ?? _lastStableCorners ?? const <Offset>[],
     );
     final captureOutline = outline.length == 4 ? outline : null;
+    if (isIOS && captureOutline == null) {
+      _snack('Point at a document until the blue border locks');
+      return;
+    }
+    HapticFeedback.mediumImpact();
     if (captureOutline != null) {
       _docCorners.value = captureOutline;
       _lastStableCorners = captureOutline;
@@ -678,7 +710,15 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     // Keep lifecycle from disposing the camera mid-shutter (critical on iOS).
     _blockBootstrap = true;
-    await _setFocusLocked(true);
+
+    // Settle continuous AF on the page BEFORE stopping the stream.
+    await _meterOnDocument();
+    if (isIOS) {
+      await Future<void>.delayed(const Duration(milliseconds: 380));
+    } else {
+      await _setFocusLocked(true);
+    }
+
     await _stopDetection();
     if (!mounted) {
       _blockBootstrap = false;
@@ -687,10 +727,9 @@ class _ScannerScreenState extends State<ScannerScreen>
     setState(() => _state = ScannerState.capturing);
 
     try {
-      // iOS needs a longer gap after stopping the image stream or takePicture
-      // fails / triggers inactive and the scanner appears to exit.
+      // iOS needs a gap after stopping the image stream or takePicture fails.
       await Future<void>.delayed(
-        Duration(milliseconds: isIOS ? 250 : 120),
+        Duration(milliseconds: isIOS ? 280 : 120),
       );
       if (!mounted) return;
       if (!controller.value.isInitialized) {
