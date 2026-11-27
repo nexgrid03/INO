@@ -90,11 +90,13 @@ class NativeDocumentEdgeService {
   /// Push one camera frame into the native detector (non-blocking).
   void pushFrame(CameraImage image, {required int sensorOrientation}) {
     if (!_running || shouldFallback || _frames.isClosed) return;
-    final input = _toScanInput(image, sensorOrientation: sensorOrientation);
-    if (input == null) return;
-    if (!_frames.isClosed) {
-      _frames.add(input);
-    }
+    try {
+      final input = _toScanInput(image, sensorOrientation: sensorOrientation);
+      if (input == null) return;
+      if (!_frames.isClosed) {
+        _frames.add(input);
+      }
+    } catch (_) {}
   }
 
   void _onEvent(DetectionEvent event) {
@@ -104,11 +106,13 @@ class NativeDocumentEdgeService {
         // Drop non-convex / tiny quads — they produce garbage crops.
         if (!corners.isConvex || corners.area < 0.08) {
           if (!_events.isClosed) {
-            _events.add(const NativeEdgeEvent(
-              corners: null,
-              confidence: 0,
-              present: false,
-            ));
+            try {
+              _events.add(const NativeEdgeEvent(
+                corners: null,
+                confidence: 0,
+                present: false,
+              ));
+            } catch (_) {}
           }
           return;
         }
@@ -119,20 +123,24 @@ class NativeDocumentEdgeService {
           Offset(corners.bottomLeft.x, corners.bottomLeft.y),
         ];
         if (!_events.isClosed) {
-          _events.add(NativeEdgeEvent(
-            corners: pts,
-            confidence: corners.confidence ?? 0.7,
-            present: true,
-          ));
+          try {
+            _events.add(NativeEdgeEvent(
+              corners: pts,
+              confidence: corners.confidence ?? 0.7,
+              present: true,
+            ));
+          } catch (_) {}
         }
       case DetectionEmpty():
         _errorStreak = 0;
         if (!_events.isClosed) {
-          _events.add(const NativeEdgeEvent(
-            corners: null,
-            confidence: 0,
-            present: false,
-          ));
+          try {
+            _events.add(const NativeEdgeEvent(
+              corners: null,
+              confidence: 0,
+              present: false,
+            ));
+          } catch (_) {}
         }
       case DetectionSkipped():
         break;

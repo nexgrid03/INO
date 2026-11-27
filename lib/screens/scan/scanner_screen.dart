@@ -1166,6 +1166,13 @@ class _ScannerScreenState extends State<ScannerScreen>
   Future<void> _finishScanning() async {
     if (_scannedPages.isEmpty || _committing) return;
     HapticFeedback.mediumImpact();
+
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    if (isIOS) {
+      // Freeze camera and detection immediately on iPhone when tapping Done
+      await _stopDetection();
+    }
+
     _blockBootstrap = true;
     setState(() => _buildingPdf = true);
 
