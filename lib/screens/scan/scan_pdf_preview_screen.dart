@@ -6,7 +6,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/perf/image_decode.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/image_enhancer.dart';
+import '../../services/scan_pdf_service.dart';
 import '../../utils/share_origin.dart';
+import 'document_crop_editor.dart';
 import 'scan_theme.dart';
 
 /// Screen showing the assembled high-quality PDF preview after multi-page scan.
@@ -26,6 +29,9 @@ class ScanPdfPreviewScreen extends StatefulWidget {
     required this.onContinue,
     this.onAddMorePages,
     this.onRetake,
+    this.onDiscardScans,
+    this.onPagesChanged,
+    this.initialFilter = ScanColorMode.original,
   });
 
   final String pdfPath;
@@ -33,6 +39,9 @@ class ScanPdfPreviewScreen extends StatefulWidget {
   final ValueChanged<String> onContinue;
   final VoidCallback? onAddMorePages;
   final VoidCallback? onRetake;
+  final VoidCallback? onDiscardScans;
+  final ValueChanged<List<String>>? onPagesChanged;
+  final ScanColorMode initialFilter;
 
   @override
   State<ScanPdfPreviewScreen> createState() => _ScanPdfPreviewScreenState();
@@ -41,12 +50,22 @@ class ScanPdfPreviewScreen extends StatefulWidget {
 class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  late String _pdfPath;
+  late List<String> _sourcePages;
+  late List<String> _displayPages;
+  late ScanColorMode _activeFilter;
+  final Map<String, String> _filterCache = {};
   int _fileSizeBytes = 0;
   bool _continuing = false;
+  bool _editing = false;
 
   @override
   void initState() {
     super.initState();
+    _pdfPath = widget.pdfPath;
+    _sourcePages = List<String>.from(widget.pages);
+    _displayPages = List<String>.from(widget.pages);
+    _activeFilter = widget.initialFilter;
     _loadFileMeta();
   }
 
@@ -58,13 +77,93 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
 
   void _loadFileMeta() {
     try {
-      final file = File(widget.pdfPath);
+      final file = File(_pdfPath);
       if (file.existsSync()) {
         setState(() {
           _fileSizeBytes = file.lengthSync();
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _rebuildPdf() async {
+    if (_displayPages.isEmpty) return;
+    final newPdf = await ScanPdfService.instance.buildPdf(_displayPages);
+    if (!mounted) return;
+    setState(() {
+      _pdfPath = newPdf;
+    });
+    _loadFileMeta();
+    widget.onPagesChanged?.call(List<String>.from(_displayPages));
+  }
+
+  Future<void> _cropCurrentPage() async {
+    if (_editing || _displayPages.isEmpty) return;
+    final idx = _currentIndex.clamp(0, _displayPages.length - 1);
+    final original = _sourcePages[idx];
+    final edited = await DocumentCropEditor.openOrKeep(context, original);
+    if (!mounted || edited == original) return;
+    setState(() => _editing = true);
+    try {
+      _sourcePages[idx] = edited;
+      final rendered = _activeFilter == ScanColorMode.original
+          ? edited
+          : await ImageEnhancer.applyColorMode(edited, _activeFilter);
+      if (!mounted) return;
+      setState(() => _displayPages[idx] = rendered);
+      await _rebuildPdf();
+    } finally {
+      if (mounted) setState(() => _editing = false);
+    }
+  }
+
+  Future<void> _rotateCurrentPage() async {
+    if (_editing || _displayPages.isEmpty) return;
+    final idx = _currentIndex.clamp(0, _displayPages.length - 1);
+    setState(() => _editing = true);
+    try {
+      final rotatedSource = await ImageEnhancer.rotate90(_sourcePages[idx]);
+      _sourcePages[idx] = rotatedSource;
+      final rendered = _activeFilter == ScanColorMode.original
+          ? rotatedSource
+          : await ImageEnhancer.applyColorMode(rotatedSource, _activeFilter);
+      if (!mounted) return;
+      setState(() => _displayPages[idx] = rendered);
+      await _rebuildPdf();
+    } finally {
+      if (mounted) setState(() => _editing = false);
+    }
+  }
+
+  Future<void> _selectFilter(ScanColorMode mode) async {
+    if (_editing || _activeFilter == mode || _sourcePages.isEmpty) return;
+    setState(() {
+      _editing = true;
+      _activeFilter = mode;
+    });
+    try {
+      final updated = <String>[];
+      for (final src in _sourcePages) {
+        if (mode == ScanColorMode.original) {
+          updated.add(src);
+        } else {
+          final key = '$src|${mode.name}';
+          final cached = _filterCache[key];
+          if (cached != null && File(cached).existsSync()) {
+            updated.add(cached);
+          } else {
+            final rendered = await ImageEnhancer.applyColorMode(src, mode);
+            _filterCache[key] = rendered;
+            updated.add(rendered);
+          }
+        }
+      }
+      if (!mounted) return;
+      setState(() => _displayPages = updated);
+      await _rebuildPdf();
+    } finally {
+      if (mounted) setState(() => _editing = false);
+    }
   }
 
   String _formatSize(int bytes) {
@@ -76,7 +175,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
   Future<void> _sharePdf(BuildContext context) async {
     final origin = shareOrigin(context);
     await Share.shareXFiles(
-      [XFile(widget.pdfPath)],
+      [XFile(_pdfPath)],
       subject: 'Scanned Document',
       sharePositionOrigin: origin,
     );
@@ -84,7 +183,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
 
   Future<void> _openExternal() async {
     try {
-      await OpenFilex.open(widget.pdfPath);
+      await OpenFilex.open(_pdfPath);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -100,7 +199,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final fileName = widget.pdfPath.split(RegExp(r'[\\/]')).last;
+    final fileName = _pdfPath.split(RegExp(r'[\\/]')).last;
 
     return Scaffold(
       backgroundColor: const Color(0xFF121820),
@@ -175,7 +274,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${widget.pages.length} ${widget.pages.length == 1 ? 'page' : 'pages'} • ${_formatSize(_fileSizeBytes)} • High Quality',
+                          '${_displayPages.length} ${_displayPages.length == 1 ? 'page' : 'pages'} • ${_formatSize(_fileSizeBytes)} • High Quality',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.65),
                             fontSize: 12,
@@ -198,7 +297,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
 
             // Page Carousel
             Expanded(
-              child: widget.pages.isEmpty
+              child: _displayPages.isEmpty
                   ? const Center(
                       child: Text(
                         'No pages scanned',
@@ -207,10 +306,10 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                     )
                   : PageView.builder(
                       controller: _pageController,
-                      itemCount: widget.pages.length,
+                      itemCount: _displayPages.length,
                       onPageChanged: (i) => setState(() => _currentIndex = i),
                       itemBuilder: (context, index) {
-                        final path = widget.pages[index];
+                        final path = _displayPages[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Center(
@@ -230,6 +329,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: Image(
+                                  key: ValueKey(path),
                                   image: zoomableFileImage(context, File(path)),
                                   fit: BoxFit.contain,
                                 ),
@@ -242,9 +342,9 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
             ),
 
             // Page Indicator
-            if (widget.pages.length > 1) ...[
+            if (_displayPages.length > 1) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -255,7 +355,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${_currentIndex + 1} / ${widget.pages.length}',
+                        '${_currentIndex + 1} / ${_displayPages.length}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -264,6 +364,58 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+
+            // Crop, Rotate & Filter Controls (Android parity on iOS)
+            if (_displayPages.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _PreviewToolChip(
+                        icon: Icons.crop_rounded,
+                        label: 'Crop',
+                        enabled: !_editing,
+                        onTap: _cropCurrentPage,
+                      ),
+                      const SizedBox(width: 8),
+                      _PreviewToolChip(
+                        icon: Icons.rotate_right_rounded,
+                        label: 'Rotate',
+                        enabled: !_editing,
+                        onTap: _rotateCurrentPage,
+                      ),
+                      if (widget.onDiscardScans != null) ...[
+                        const SizedBox(width: 8),
+                        _PreviewToolChip(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Discard',
+                          enabled: !_editing,
+                          destructive: true,
+                          onTap: widget.onDiscardScans!,
+                        ),
+                      ],
+                      const SizedBox(width: 12),
+                      for (final entry in const [
+                        (ScanColorMode.original, 'Original'),
+                        (ScanColorMode.enhanced, 'Enhance'),
+                        (ScanColorMode.blackWhite, 'B&W'),
+                        (ScanColorMode.grayscale, 'Grayscale'),
+                      ]) ...[
+                        _FilterModePill(
+                          label: entry.$2,
+                          active: _activeFilter == entry.$1,
+                          enabled: !_editing,
+                          onTap: () => _selectFilter(entry.$1),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -309,11 +461,11 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                         elevation: 3,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      onPressed: _continuing
+                      onPressed: (_continuing || _editing)
                           ? null
                           : () {
                               setState(() => _continuing = true);
-                              widget.onContinue(widget.pdfPath);
+                              widget.onContinue(_pdfPath);
                             },
                       icon: _continuing
                           ? const SizedBox(
@@ -336,6 +488,106 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewToolChip extends StatelessWidget {
+  const _PreviewToolChip({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = destructive ? Colors.redAccent : Colors.white;
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: destructive
+                  ? Colors.redAccent.withValues(alpha: 0.5)
+                  : Colors.white.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterModePill extends StatelessWidget {
+  const _FilterModePill({
+    required this.label,
+    required this.active,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: active
+                ? ScanColors.accent
+                : Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: active
+                  ? ScanColors.accentDeep
+                  : Colors.white.withValues(alpha: 0.16),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

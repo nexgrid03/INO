@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
-import 'package:document_scan/document_scan.dart'
-    show
-        AutoCaptureAnalyzer,
-        AutoCaptureStatus,
-        DetectionSensitivity,
-        DocumentCorners;
+import 'package:document_scan/document_scan.dart' show DetectionSensitivity;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -18,6 +13,8 @@ import '../../models/scan_models.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/image_enhancer.dart';
+import '../../services/ios_auto_capture_controller.dart';
+import '../../services/ios_vision_scanner_service.dart';
 import '../../services/live_document_detector.dart';
 import '../../services/native_document_edge_service.dart';
 import '../../services/scan_capture_processor.dart';
@@ -26,6 +23,7 @@ import '../../widgets/common/ino_loader.dart';
 import '../../widgets/scan/document_highlight.dart';
 import '../../widgets/scan/scan_controls.dart';
 import '../../widgets/scan/scanner_overlay.dart' show ScanOverlayState;
+import 'document_crop_editor.dart';
 import 'scan_pdf_preview_screen.dart';
 import 'scan_theme.dart';
 
@@ -88,18 +86,15 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// Default is always full-color original. B&W / grayscale only if user picks them.
   ScanColorMode _activeFilter = ScanColorMode.original;
 
-  // Live document detection — native Vision/OpenCV first, local fallback.
+  // Live document detection — Android uses OpenCV via NativeDocumentEdgeService;
+  // iOS uses Apple's iOS 15+ VNDetectDocumentSegmentationRequest via IosVisionScannerService.
   final LiveDocumentDetector _localDetector = LiveDocumentDetector();
   final NativeDocumentEdgeService _nativeEdges = NativeDocumentEdgeService();
-  NativeEdgeEvent? _lastNativeEdgeEvent;
-  /// iOS: package auto-capture gate (confidence + area + steadiness).
-  /// Enforces stable page detection with 2 steady frames for responsive capture.
-  final AutoCaptureAnalyzer _iosAuto = AutoCaptureAnalyzer(
-    requiredSteadyFrames: 2,
-    minConfidence: 0.30,
-    minArea: 0.16,
-    maxJitter: 0.060,
-  );
+  final IosAutoCaptureController _iosAutoController =
+      IosAutoCaptureController();
+  bool _iosVisionActive = false;
+  bool _iosLastBlurry = false;
+  bool _iosLastPoorLighting = false;
   StreamSubscription<NativeEdgeEvent>? _nativeSub;
   final Stopwatch _throttle = Stopwatch();
   bool _streaming = false;
@@ -271,7 +266,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         await controller.setExposurePoint(const Offset(0.5, 0.5));
       } catch (_) {}
       _focusLocked = false;
-      _iosAuto.reset();
+      _iosAutoController.reset();
 
       _controller = controller;
       setState(() => _phase = _Phase.ready);
@@ -285,23 +280,24 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   // ---- Real-time Document Detection ---------------------------------------
 
-  Future<void> _startDetection() async {
+  Future<void> _startDetection({bool preserveCaptureLatch = false}) async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized || _streaming) {
       return;
     }
     _localDetector.reset();
-    _resetDetectionState();
+    _resetDetectionState(preserveCaptureLatch: preserveCaptureLatch);
     _throttle
       ..reset()
       ..start();
 
-    _useNativeEdges = !_nativeEdges.shouldFallback;
-    _nativeUpright = false;
+    _iosVisionActive = IosVisionScannerService.instance.isAvailable;
+    _useNativeEdges = _iosVisionActive || !_nativeEdges.shouldFallback;
+    _nativeUpright = _iosVisionActive;
     await _nativeSub?.cancel();
     _nativeSub = null;
 
-    if (_useNativeEdges) {
+    if (!_iosVisionActive && _useNativeEdges) {
       try {
         await _nativeEdges.start(
           sensitivity: DetectionSensitivity.balanced,
@@ -335,14 +331,16 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  void _resetDetectionState() {
+  void _resetDetectionState({bool preserveCaptureLatch = false}) {
     _presentFrames = 0;
     _absentFrames = 0;
     _stableStart = null;
     _docCorners.value = null;
     _lastStableCorners = null;
     _consecutiveMissedFrames = 0;
-    _iosAuto.reset();
+    _iosLastBlurry = false;
+    _iosLastPoorLighting = false;
+    _iosAutoController.reset(preserveCaptureLatch: preserveCaptureLatch);
     _nativeEdges.resetStabilizer();
     _setFocusLocked(false);
   }
@@ -358,17 +356,9 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
 
-    _lastNativeEdgeEvent = event;
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final corners = event.corners;
     final present =
         event.present && corners != null && corners.length == 4;
-
-    // iOS: Vision + AutoCaptureAnalyzer (with close-up page fallback in _onFrame).
-    if (isIOS) {
-      _handleIosNative(present ? corners : null, event.confidence);
-      return;
-    }
 
     final bool steady = present && event.confidence >= 0.45;
     final confidence = present
@@ -382,32 +372,55 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  /// iOS path: map Vision hits through [AutoCaptureAnalyzer] for Photos-like
-  /// lock (confident + large enough + steady), and meter AF onto the page.
-  void _handleIosNative(List<Offset>? corners, double confidence) {
-    if (corners != null && corners.length == 4) {
-      _consecutiveMissedFrames = 0;
-      // Build DocumentCorners for the analyzer from the live outline.
-      final dc = _iosDocumentCorners(corners, confidence);
-      final status = _iosAuto.add(dc).status;
-      switch (status) {
-        case AutoCaptureStatus.searching:
-          _enter(ScannerState.detecting);
-        case AutoCaptureStatus.detecting:
-          if (_state != ScannerState.readyToScan) {
-            _enter(ScannerState.documentDetected);
-          }
-        case AutoCaptureStatus.ready:
-          _enter(ScannerState.readyToScan);
-      }
-      _applyCorners(corners);
+  /// Native iOS Vision path: runs `VNDetectDocumentSegmentationRequest` +
+  /// Laplacian blur & exposure quality checks, then feeds [IosAutoCaptureController]
+  /// for rock-steady blue boundaries and reliable auto-capture.
+  Future<void> _processIosVisionFrame(
+    CameraImage image,
+    int sensorOrientation,
+  ) async {
+    final result = await IosVisionScannerService.instance.detectFrame(
+      image,
+      sensorOrientation: sensorOrientation,
+    );
+    if (!mounted || !_streaming || _phase != _Phase.ready) return;
+    if (_state == ScannerState.capturing || _state == ScannerState.success) {
+      return;
+    }
+
+    // If the native iOS channel is unavailable (e.g. simulator/test), fall back cleanly.
+    if (!IosVisionScannerService.instance.isAvailable) {
+      _iosVisionActive = false;
+      _useNativeEdges = false;
+      _nativeUpright = false;
+      return;
+    }
+
+    final decision = _iosAutoController.addFrame(
+      result,
+      autoCaptureEnabled: _isAutoMode,
+    );
+
+    _iosLastBlurry = decision.isBlurry;
+    _iosLastPoorLighting = decision.isPoorLighting;
+
+    if (decision.corners != null && decision.corners!.length == 4) {
+      _docCorners.value = decision.corners;
+      _lastStableCorners = decision.corners;
       _meterOnDocumentThrottled();
     } else {
-      _iosAuto.add(null);
-      _handleMissedDetection();
-      if (_consecutiveMissedFrames >= _kMaxToleratedMissed) {
+      _docCorners.value = null;
+      _lastStableCorners = null;
+    }
+
+    switch (decision.phase) {
+      case IosCapturePhase.searching:
         _enter(ScannerState.idle);
-      }
+      case IosCapturePhase.stabilizing:
+      case IosCapturePhase.cooldown:
+        _enter(ScannerState.documentDetected);
+      case IosCapturePhase.readyToCapture:
+        _enter(ScannerState.readyToScan, triggerAutoCapture: decision.shouldAutoCapture);
     }
   }
 
@@ -421,28 +434,23 @@ class _ScannerScreenState extends State<ScannerScreen>
     unawaited(_meterOnDocument());
   }
 
-  DocumentCorners _iosDocumentCorners(List<Offset> corners, double confidence) {
-    return DocumentCorners.fromUnordered(
-      [
-        (x: corners[0].dx, y: corners[0].dy),
-        (x: corners[1].dx, y: corners[1].dy),
-        (x: corners[2].dx, y: corners[2].dy),
-        (x: corners[3].dx, y: corners[3].dy),
-      ],
-      confidence: confidence.clamp(0.0, 1.0),
-    );
-  }
-
   void _onFrame(CameraImage image) {
     if (!mounted || _phase != _Phase.ready) return;
     if (_state == ScannerState.capturing || _state == ScannerState.success) {
       return;
     }
 
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    // Native detectStream already rate-limits; fast gate on iOS (45ms).
-    final intervalMs = isIOS ? 45 : _kSampleIntervalMs;
-    if (_throttle.elapsedMilliseconds < intervalMs) return;
+    // iOS native Vision path (VNDetectDocumentSegmentationRequest).
+    if (_iosVisionActive) {
+      if (_throttle.elapsedMilliseconds < 65) return;
+      _throttle.reset();
+      final sensorOrientation =
+          _controller?.description.sensorOrientation ?? 90;
+      unawaited(_processIosVisionFrame(image, sensorOrientation));
+      return;
+    }
+
+    if (_throttle.elapsedMilliseconds < _kSampleIntervalMs) return;
     _throttle.reset();
 
     if (_useNativeEdges && !_nativeEdges.shouldFallback) {
@@ -451,29 +459,6 @@ class _ScannerScreenState extends State<ScannerScreen>
         image,
         sensorOrientation: controller?.description.sensorOrientation ?? 90,
       );
-
-      // On iOS: run close-up page detection when native detector finds no outer border
-      if (isIOS) {
-        final hasNativeQuad = _lastNativeEdgeEvent?.present == true &&
-            _lastNativeEdgeEvent?.corners != null &&
-            _lastNativeEdgeEvent!.corners!.length == 4;
-
-        if (!hasNativeQuad) {
-          final signal = _localDetector.analyze(image);
-          if (signal.corners != null && signal.corners!.length == 4) {
-            _handleIosNative(signal.corners, signal.confidence);
-          } else if (signal.confidence >= 0.28) {
-            // Camera held close to page filling the view (Image 1 case)
-            const closeUpPageQuad = [
-              Offset(0.06, 0.06),
-              Offset(0.94, 0.06),
-              Offset(0.94, 0.94),
-              Offset(0.06, 0.94),
-            ];
-            _handleIosNative(closeUpPageQuad, signal.confidence);
-          }
-        }
-      }
       return;
     }
 
@@ -613,7 +598,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  void _enter(ScannerState next) {
+  void _enter(ScannerState next, {bool? triggerAutoCapture}) {
     if (_state == next || !mounted) return;
     final prev = _state;
     final bool newDetection = next == ScannerState.documentDetected &&
@@ -633,10 +618,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       HapticFeedback.lightImpact();
       _meterOnDocument();
       if (!isIOS) _setFocusLocked(true);
-      if (_isAutoMode &&
+      final shouldFire = triggerAutoCapture ?? _isAutoMode;
+      if (shouldFire &&
           _state != ScannerState.capturing &&
           _state != ScannerState.success) {
-        _capturePressed();
+        _capturePressed(isAutoTrigger: true);
       }
     } else if (next == ScannerState.idle || next == ScannerState.detecting) {
       if (!isIOS) _setFocusLocked(false);
@@ -714,7 +700,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         _ => AppLocalizations.of(context).t('off'),
       };
 
-  Future<void> _capturePressed() async {
+  Future<void> _capturePressed({bool isAutoTrigger = false}) async {
     final controller = _controller;
     if (_phase != _Phase.ready ||
         controller == null ||
@@ -726,15 +712,17 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-    // Freeze the border the user saw — require a real lock on iOS so we never
-    // silently save a random desk photo as a "scan".
+    // Freeze the border the user saw. Manual capture ALWAYS works independently
+    // even if no live border is currently locked; auto-capture requires a lock.
     final outline = List<Offset>.from(
       _docCorners.value ?? _lastStableCorners ?? const <Offset>[],
     );
     final captureOutline = outline.length == 4 ? outline : null;
-    if (isIOS && captureOutline == null) {
-      _snack('Point at a document until the blue border locks');
+    if (isIOS && isAutoTrigger && captureOutline == null) {
       return;
+    }
+    if (isIOS) {
+      _iosAutoController.markCaptured(captureOutline);
     }
     HapticFeedback.mediumImpact();
     if (captureOutline != null) {
@@ -745,11 +733,10 @@ class _ScannerScreenState extends State<ScannerScreen>
     // Keep lifecycle from disposing the camera mid-shutter (critical on iOS).
     _blockBootstrap = true;
 
-    // Settle continuous AF on the page BEFORE stopping the stream.
+    // Meter AF on the page. On iOS continuous AF is already sharp during the
+    // steady hold — avoid long blind delays that introduce hand-movement blur.
     await _meterOnDocument();
-    if (isIOS) {
-      await Future<void>.delayed(const Duration(milliseconds: 380));
-    } else {
+    if (!isIOS) {
       await _setFocusLocked(true);
     }
 
@@ -761,9 +748,9 @@ class _ScannerScreenState extends State<ScannerScreen>
     setState(() => _state = ScannerState.capturing);
 
     try {
-      // iOS needs a gap after stopping the image stream or takePicture fails.
+      // Short settle gap after stopping the image stream before takePicture.
       await Future<void>.delayed(
-        Duration(milliseconds: isIOS ? 280 : 120),
+        Duration(milliseconds: isIOS ? 100 : 120),
       );
       if (!mounted) return;
       if (!controller.value.isInitialized) {
@@ -828,7 +815,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       if (_controller == null || !_controller!.value.isInitialized) {
         await _bootstrap();
       } else {
-        _startDetection();
+        _startDetection(preserveCaptureLatch: true);
       }
     } catch (e) {
       if (!mounted) return;
@@ -843,7 +830,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       if (_controller == null || !_controller!.value.isInitialized) {
         await _bootstrap();
       } else {
-        _startDetection();
+        _startDetection(preserveCaptureLatch: false);
       }
     }
   }
@@ -910,8 +897,26 @@ class _ScannerScreenState extends State<ScannerScreen>
         File(removed).deleteSync();
       } catch (_) {}
     });
+    _iosAutoController.reset();
     HapticFeedback.selectionClick();
     _snack('Last page discarded. Ready to retake.');
+    _startDetection();
+  }
+
+  void _discardAllScans() {
+    if (_scannedPages.isEmpty) return;
+    final toDelete = List<String>.from(_scannedPages);
+    setState(() {
+      _scannedPages.clear();
+    });
+    for (final path in toDelete) {
+      try {
+        File(path).deleteSync();
+      } catch (_) {}
+    }
+    _iosAutoController.reset();
+    HapticFeedback.mediumImpact();
+    _snack('Scans discarded');
     _startDetection();
   }
 
@@ -1003,18 +1008,33 @@ class _ScannerScreenState extends State<ScannerScreen>
                                   return Stack(
                                     children: [
                                       Positioned.fill(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            border: Border.all(
-                                                color: ScanColors.accent),
-                                          ),
-                                          clipBehavior: Clip.antiAlias,
-                                          child: Image.file(
-                                            File(page),
-                                            fit: BoxFit.cover,
-                                            cacheWidth: 240,
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            Navigator.of(ctx).pop();
+                                            final edited =
+                                                await DocumentCropEditor
+                                                    .openOrKeep(context, page);
+                                            if (!mounted) return;
+                                            if (edited != page &&
+                                                index < _scannedPages.length) {
+                                              setState(() {
+                                                _scannedPages[index] = edited;
+                                              });
+                                            }
+                                          },
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                  color: ScanColors.accent),
+                                            ),
+                                            clipBehavior: Clip.antiAlias,
+                                            child: Image.file(
+                                              File(page),
+                                              fit: BoxFit.cover,
+                                              cacheWidth: 240,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1076,23 +1096,51 @@ class _ScannerScreenState extends State<ScannerScreen>
                               ),
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ScanColors.accent,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                      Row(
+                        children: [
+                          if (_scannedPages.isNotEmpty) ...[
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(
+                                      color: Colors.redAccent),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  Navigator.of(ctx).pop();
+                                  _discardAllScans();
+                                },
+                                child: const Text(
+                                  'Discard scans',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ScanColors.accent,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text(
+                                'Back to Camera',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ),
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text(
-                            'Back to Camera',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -1214,8 +1262,22 @@ class _ScannerScreenState extends State<ScannerScreen>
           builder: (ctx) => ScanPdfPreviewScreen(
             pdfPath: pdfPath,
             pages: List<String>.from(_scannedPages),
+            initialFilter: _activeFilter,
             onContinue: (committedPdf) {
               if (ctx.mounted) Navigator.of(ctx).pop(committedPdf);
+            },
+            onPagesChanged: (updatedPages) {
+              if (mounted) {
+                setState(() {
+                  _scannedPages
+                    ..clear()
+                    ..addAll(updatedPages);
+                });
+              }
+            },
+            onDiscardScans: () {
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              _discardAllScans();
             },
             onAddMorePages: () {
               _blockBootstrap = false;
@@ -1315,25 +1377,30 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   String _statusBubbleText(AppLocalizations l10n) {
-    if (_scannedPages.isNotEmpty) {
-      if (_state == ScannerState.readyToScan) {
-        return _isAutoMode ? 'Holding steady... auto-capturing' : 'Hold steady to capture';
-      }
-      if (_state == ScannerState.documentDetected) {
-        return 'Document detected • Page ${_scannedPages.length + 1}';
-      }
-      return '${_scannedPages.length} ${_scannedPages.length == 1 ? 'page' : 'pages'} scanned • Position next page or tap Done';
-    }
-    if (_state == ScannerState.readyToScan) {
-      return _isAutoMode ? 'Holding steady... auto-capturing' : 'Hold steady to capture';
-    }
-    if (_state == ScannerState.documentDetected) {
-      return 'Document detected';
+    if (_state == ScannerState.capturing) {
+      return 'Scanning... hold steady';
     }
     if (_state == ScannerState.success) {
       return 'Page captured';
     }
-    return 'Position document within blue frame';
+    if (_state == ScannerState.readyToScan) {
+      return _isAutoMode
+          ? 'Scanning... hold steady'
+          : 'Hold steady to capture';
+    }
+    if (_state == ScannerState.documentDetected) {
+      if (_iosVisionActive && _iosLastPoorLighting) {
+        return 'Adjust lighting and hold steady';
+      }
+      if (_iosVisionActive && _iosLastBlurry) {
+        return 'Focusing... hold steady';
+      }
+      return 'Scanning... hold steady';
+    }
+    if (_scannedPages.isNotEmpty) {
+      return '${_scannedPages.length} ${_scannedPages.length == 1 ? 'page' : 'pages'} scanned • Position next page or tap Done';
+    }
+    return 'Position document in frame';
   }
 
   // ---- Build --------------------------------------------------------------
