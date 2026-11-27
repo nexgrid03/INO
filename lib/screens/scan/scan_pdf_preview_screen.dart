@@ -42,6 +42,7 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   int _fileSizeBytes = 0;
+  bool _continuing = false;
 
   @override
   void initState() {
@@ -308,13 +309,26 @@ class _ScanPdfPreviewScreenState extends State<ScanPdfPreviewScreen> {
                         elevation: 3,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      onPressed: () {
-                        widget.onContinue(widget.pdfPath);
-                      },
-                      icon: const Icon(Icons.check_rounded, size: 22),
+                      onPressed: _continuing
+                          ? null
+                          : () {
+                              setState(() => _continuing = true);
+                              widget.onContinue(widget.pdfPath);
+                            },
+                      icon: _continuing
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_rounded, size: 22),
                       label: Text(
                         l10n.t('continue'),
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15),
                       ),
                     ),
                   ),

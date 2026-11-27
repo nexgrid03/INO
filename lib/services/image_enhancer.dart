@@ -156,19 +156,30 @@ class ImageEnhancer {
   /// Downscales (≤[_kMaxDim]) and re-encodes [path] as a compact JPEG suitable
   /// for embedding in a PDF page. Returns the optimized sibling path, or the
   /// original on failure. Runs in a background isolate.
-  static Future<String> optimizeForPdf(String path) =>
-      Isolate.run(() => _optimizeForPdfSync(path));
+  static Future<String> optimizeForPdf(String path) async {
+    final sized = await optimizeForPdfSized(path);
+    return sized.path;
+  }
 
-  static Future<String> _optimizeForPdfSync(String path) async {
+  /// Same as [optimizeForPdf] but also returns pixel size so callers can skip
+  /// a second full JPEG decode (e.g. PDF page orientation).
+  static Future<({String path, int width, int height})> optimizeForPdfSized(
+    String path,
+  ) =>
+      Isolate.run(() => _optimizeForPdfSizedSync(path));
+
+  static Future<({String path, int width, int height})>
+      _optimizeForPdfSizedSync(String path) async {
     try {
       final bytes = await File(path).readAsBytes();
       var im = img.decodeImage(bytes);
-      if (im == null) return path;
+      if (im == null) return (path: path, width: 0, height: 0);
       im = img.bakeOrientation(im);
       im = _capLongestSide(im, _kMaxDim);
-      return await _writeJpg(path, im, 'pdfpage', 86);
+      final out = await _writeJpg(path, im, 'pdfpage', 82);
+      return (path: out, width: im.width, height: im.height);
     } catch (_) {
-      return path;
+      return (path: path, width: 0, height: 0);
     }
   }
 

@@ -79,6 +79,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   bool _blockBootstrap = false;
   bool _isBootstrapping = false;
   bool _isRequestingPermission = false;
+  /// Prevents Continue / dispose from double-disposing the camera (iOS crash).
+  bool _cameraTeardownStarted = false;
+  bool _committing = false;
 
   // Multi-page session state
   final List<String> _scannedPages = [];
@@ -138,12 +141,18 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    final controller = _controller;
-    _controller = null;
     _streaming = false;
     _nativeSub?.cancel();
-    _nativeEdges.dispose();
-    _teardownCamera(controller);
+    _nativeSub = null;
+    // If Continue already detached the camera, do not dispose it again —
+    // double CameraController.dispose() jetsams the iOS app.
+    if (!_cameraTeardownStarted) {
+      _cameraTeardownStarted = true;
+      final controller = _controller;
+      _controller = null;
+      unawaited(_teardownCamera(controller));
+      unawaited(_nativeEdges.dispose());
+    }
     _docCorners.dispose();
     super.dispose();
   }
@@ -1155,7 +1164,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// Triggered by the blue checkmark button:
   /// Combines all scanned pages into a single PDF and opens PDF Preview
   Future<void> _finishScanning() async {
-    if (_scannedPages.isEmpty) return;
+    if (_scannedPages.isEmpty || _committing) return;
     HapticFeedback.mediumImpact();
     _blockBootstrap = true;
     setState(() => _buildingPdf = true);
@@ -1167,19 +1176,14 @@ class _ScannerScreenState extends State<ScannerScreen>
       if (!mounted) return;
       setState(() => _buildingPdf = false);
 
-      await Navigator.of(context).push(
+      // Preview pops with the PDF path on Continue; null = back / add pages.
+      final committed = await Navigator.of(context).push<String>(
         MaterialPageRoute(
           builder: (ctx) => ScanPdfPreviewScreen(
             pdfPath: pdfPath,
             pages: List<String>.from(_scannedPages),
             onContinue: (committedPdf) {
-              // Pop preview first, then commit on the next frame after camera
-              // teardown — double-pop during dispose was closing the whole app
-              // on iPhone.
-              if (ctx.mounted) Navigator.of(ctx).pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _safeCommitResult(committedPdf);
-              });
+              if (ctx.mounted) Navigator.of(ctx).pop(committedPdf);
             },
             onAddMorePages: () {
               _blockBootstrap = false;
@@ -1192,6 +1196,11 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
         ),
       );
+
+      if (committed != null && mounted) {
+        await _safeCommitResult(committed);
+        return;
+      }
       // Returned from preview without continuing — allow camera again.
       if (mounted) _blockBootstrap = false;
     } catch (e) {
@@ -1207,28 +1216,48 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
+  /// Leave the scanner without awaiting camera dispose on the UI path —
+  /// awaiting dispose then popping raced and killed the iOS process.
   Future<void> _safeCommitResult(String pdfPath) async {
-    if (!mounted) return;
+    if (!mounted || _committing) return;
+    _committing = true;
     _blockBootstrap = true;
-    try {
-      await _stopDetection();
-    } catch (_) {}
+
+    final pages = List<String>.from(_scannedPages);
+    final onCompleted = widget.onCompleted;
+    final onCaptured = widget.onCaptured;
+
     final cam = _controller;
     _controller = null;
-    await _teardownCamera(cam);
+    _streaming = false;
+    if (!_cameraTeardownStarted) {
+      _cameraTeardownStarted = true;
+      unawaited(_nativeSub?.cancel());
+      _nativeSub = null;
+      // Hardware teardown AFTER we navigate away (next event-loop turn).
+      scheduleMicrotask(() async {
+        try {
+          await _nativeEdges.stop();
+        } catch (_) {}
+        try {
+          await _teardownCamera(cam);
+        } catch (_) {}
+        try {
+          await _nativeEdges.dispose();
+        } catch (_) {}
+      });
+    }
 
     if (!mounted) return;
-    final pages = List<String>.from(_scannedPages);
     try {
-      if (widget.onCompleted != null) {
-        widget.onCompleted!(pdfPath, pages);
-      } else if (widget.onCaptured != null) {
-        widget.onCaptured!(pdfPath);
+      if (onCompleted != null) {
+        onCompleted(pdfPath, pages);
+      } else if (onCaptured != null) {
+        onCaptured(pdfPath);
       } else if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(pdfPath);
       }
     } catch (_) {
-      // Never let a callback crash kill the process on iOS.
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(pdfPath);
       }

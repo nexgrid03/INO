@@ -25,28 +25,9 @@ class ScanCaptureProcessor {
     List<Offset>? liveOutline,
   }) async {
     final input = ScanInput.file(capturePath);
-
-    // 1) Re-detect on the full-res still — Vision is far more accurate here
-    //    than on downscaled preview frames.
-    try {
-      final still = await _scanner
-          .scan(
-            input,
-            filter: ScanFilter.none,
-            output: const ScanOutputFormat.jpegAt(95),
-            maxDimension: 2600,
-            background: true,
-            sensitivity: DetectionSensitivity.balanced,
-            minimumAspectRatio: 0.14,
-          )
-          .timeout(const Duration(seconds: 5), onTimeout: () => null);
-      if (still != null) {
-        return _writeScan(still, capturePath);
-      }
-    } catch (_) {}
-
-    // 2) Crop with the live outline the user locked onto.
     final liveCorners = _toDocumentCorners(liveOutline);
+
+    // 1) Fast path: crop with the locked live outline (no second Vision pass).
     if (liveCorners != null) {
       try {
         final cropped = await _processor
@@ -54,19 +35,36 @@ class ScanCaptureProcessor {
               input,
               liveCorners,
               filter: ScanFilter.none,
-              output: const ScanOutputFormat.jpegAt(95),
-              maxDimension: 2600,
+              output: const ScanOutputFormat.jpegAt(92),
+              maxDimension: 2400,
               background: true,
             )
-            .timeout(const Duration(seconds: 5), onTimeout: () => null);
+            .timeout(const Duration(seconds: 3), onTimeout: () => null);
         if (cropped != null) return _writeScan(cropped, capturePath);
       } catch (_) {}
 
-      // Last resort: our Dart rectify path (same corners, different warp).
       final fallback =
           await DocumentCropService.rectify(capturePath, liveOutline!);
       if (fallback != null) return fallback;
     }
+
+    // 2) No live lock — detect on the still (slower, but recovers the page).
+    try {
+      final still = await _scanner
+          .scan(
+            input,
+            filter: ScanFilter.none,
+            output: const ScanOutputFormat.jpegAt(92),
+            maxDimension: 2400,
+            background: true,
+            sensitivity: DetectionSensitivity.balanced,
+            minimumAspectRatio: 0.14,
+          )
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+      if (still != null) {
+        return _writeScan(still, capturePath);
+      }
+    } catch (_) {}
 
     // No document lock — bake EXIF so the stack thumb isn't sideways.
     return uprightJpeg(capturePath);
