@@ -6,6 +6,7 @@ import 'package:document_scan/document_scan.dart';
 import 'package:image/image.dart' as img;
 
 import 'document_crop_service.dart';
+import 'ios_vision_scanner_service.dart';
 
 /// Finishes a shutter press: find the page on the still (or use the live
 /// outline), then perspective-crop in **full color** with a proper homography.
@@ -24,6 +25,25 @@ class ScanCaptureProcessor {
     required String capturePath,
     List<Offset>? liveOutline,
   }) async {
+    // iOS native path: run Apple's ML VNDetectDocumentSegmentationRequest +
+    // GPU CIPerspectiveCorrection directly on the EXIF-upright full-res capture.
+    // This eliminates preview-vs-still aspect drift (16:9 preview vs 4:3 still)
+    // and avoids Dart-heap OOM on high-resolution iPhone photos.
+    if (IosVisionScannerService.instance.isAvailable) {
+      try {
+        final nativeResult = await IosVisionScannerService.instance
+            .processCapture(
+              capturePath: capturePath,
+              fallbackCorners: liveOutline,
+              maxDimension: 2400,
+            )
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
+        if (nativeResult != null && nativeResult.path.isNotEmpty) {
+          return nativeResult.path;
+        }
+      } catch (_) {}
+    }
+
     final input = ScanInput.file(capturePath);
     final liveCorners = _toDocumentCorners(liveOutline);
 
