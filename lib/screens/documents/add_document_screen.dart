@@ -18,7 +18,6 @@ import '../../services/app_settings.dart';
 import '../../services/camera_permission_service.dart';
 import '../../services/category_store.dart';
 import '../../services/document_protection_store.dart';
-import '../../services/document_scanner_service.dart';
 import '../../services/push_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../services/screen_security_service.dart';
@@ -300,56 +299,39 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     setState(() => _capturing = true);
     try {
       if (source == _DocSource.scan) {
-        if (DocumentScannerService.instance.isSupported) {
-          try {
-            final pages = await DocumentScannerService.instance.scanPages(
-              pageLimit: 20,
-              allowGalleryImport: true,
-            );
-            if (pages == null || pages.isEmpty || !mounted) return;
-            setState(() {
-              _source = source;
-              _localFilePath = pages.first;
-              _tempFileName = pages.first.split(RegExp(r'[\\/]')).last;
-              _extraPages
-                ..clear()
-                ..addAll(pages.skip(1));
-            });
-            return;
-          } catch (e) {
-            if (DocumentScannerService.isUserCancelled(e)) return;
-            developer.log(
-              'Native document scanner failed, falling back to camera: $e',
-              name: 'documents',
-            );
-          }
-        }
-        // Ask for camera access first (shows the "Allow" prompt), then open the fallback in-app ScannerScreen.
         final access = await CameraPermissionService.instance.requestCamera();
         if (access != CameraAccess.granted) {
           _handleDenied(access, 'camera');
           return;
         }
         if (!mounted) return;
-        final capturedPath = await Navigator.of(context).push<String>(
+        String? finalPath;
+        List<String>? scannedPages;
+        await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => ScannerScreen(
               onClose: () => Navigator.of(context).pop(),
-              onCaptured: (p) => Navigator.of(context).pop(p),
+              onCaptured: (p) {
+                finalPath = p;
+                Navigator.of(context).pop();
+              },
+              onCompleted: (pdfPath, pages) {
+                finalPath = pdfPath;
+                scannedPages = pages;
+                Navigator.of(context).pop();
+              },
             ),
           ),
         );
-        if (capturedPath == null || !mounted) return;
-        final croppedPath =
-            await DocumentCropEditor.openOrKeep(context, capturedPath);
-        if (!mounted) return;
-        // A scan attaches its single capture; further pages are added
-        // afterwards from the page strip, which reopens this same scanner.
+        if (finalPath == null || !mounted) return;
         setState(() {
           _source = source;
-          _localFilePath = croppedPath;
-          _tempFileName = croppedPath.split(RegExp(r'[\\/]')).last;
+          _localFilePath = finalPath;
+          _tempFileName = finalPath!.split(RegExp(r'[\\/]')).last;
           _extraPages.clear();
+          if (scannedPages != null && scannedPages!.length > 1) {
+            _extraPages.addAll(scannedPages!.skip(1));
+          }
         });
         return;
       } else {
@@ -467,41 +449,34 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     try {
       final added = <String>[];
       if (_source == _DocSource.scan) {
-        if (DocumentScannerService.instance.isSupported) {
-          try {
-            final pages = await DocumentScannerService.instance.scanPages(
-              pageLimit: 10,
-              allowGalleryImport: true,
-            );
-            if (pages != null && pages.isNotEmpty) {
-              added.addAll(pages);
-            }
-          } catch (e) {
-            if (DocumentScannerService.isUserCancelled(e)) return;
-            developer.log(
-              'Native document scanner failed on add page: $e',
-              name: 'documents',
-            );
-          }
+        final access = await CameraPermissionService.instance.requestCamera();
+        if (access != CameraAccess.granted) {
+          _handleDenied(access, 'camera');
+          return;
         }
-        if (added.isEmpty && (!DocumentScannerService.instance.isSupported)) {
-          final access = await CameraPermissionService.instance.requestCamera();
-          if (access != CameraAccess.granted) {
-            _handleDenied(access, 'camera');
-            return;
-          }
-          if (!mounted) return;
-          final captured = await Navigator.of(context).push<String>(
-            MaterialPageRoute(
-              builder: (context) => ScannerScreen(
-                onClose: () => Navigator.of(context).pop(),
-                onCaptured: (p) => Navigator.of(context).pop(p),
-              ),
+        if (!mounted) return;
+        String? captured;
+        List<String>? newPages;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ScannerScreen(
+              onClose: () => Navigator.of(context).pop(),
+              onCaptured: (p) {
+                captured = p;
+                Navigator.of(context).pop();
+              },
+              onCompleted: (pdfPath, pages) {
+                captured = pdfPath;
+                newPages = pages;
+                Navigator.of(context).pop();
+              },
             ),
-          );
-          if (captured != null && mounted) {
-            added.add(await DocumentCropEditor.openOrKeep(context, captured));
-          }
+          ),
+        );
+        if (newPages != null && newPages!.isNotEmpty) {
+          added.addAll(newPages!);
+        } else if (captured != null) {
+          added.add(captured!);
         }
       } else {
         final access = await CameraPermissionService.instance.requestPhotos();

@@ -8,7 +8,6 @@ import '../../services/scan_pdf_service.dart';
 import '../../theme/app_dimens.dart';
 import '../../theme/app_theme.dart';
 import '../documents/add_document_screen.dart';
-import 'document_crop_editor.dart';
 import 'ocr_processing_screen.dart';
 import 'ocr_result_screen.dart';
 import 'scan_review_screen.dart';
@@ -87,26 +86,6 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
   void _go(_Stage stage) => setState(() => _stage = stage);
 
   void _exit(ScanFlowResult? result) => Navigator.of(context).pop(result);
-
-  /// Opens the [DocumentCropEditor] immediately after capture so the user can
-  /// manually drag four corner handles to perspective-correct the image.
-  /// Falls back to the uncropped image if the editor is dismissed without
-  /// applying (Navigator.pop with null).
-  Future<void> _openCropEditor(String path) async {
-    if (!mounted) return;
-    final cropped = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => DocumentCropEditor(imagePath: path),
-      ),
-    );
-    if (!mounted) return;
-    final finalPath = cropped ?? path;
-    setState(() {
-      _capturePath = finalPath;
-      _pages = [finalPath];
-      _stage = _Stage.review;
-    });
-  }
 
   /// Retake / review-back: return to the in-app camera.
   void _recapture() {
@@ -210,8 +189,18 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
         return ScannerScreen(
           onClose: () => _exit(null),
           onCaptured: (path) {
-            // After manual capture, open the crop editor immediately.
-            _openCropEditor(path);
+            setState(() {
+              _capturePath = path;
+              _pages = [path];
+              _stage = _Stage.processing;
+            });
+          },
+          onCompleted: (pdfPath, pages) {
+            setState(() {
+              _capturePath = pdfPath;
+              _pages = pages;
+              _stage = _Stage.processing;
+            });
           },
         );
       case _Stage.review:
@@ -221,21 +210,18 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           onClose: _recapture,
           onRetake: _recapture,
           onAddPage: () async {
-            // Add another page via the in-app manual camera + crop editor.
             if (!mounted) return;
             String? newPage;
             await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (ctx) => ScannerScreen(
                   onClose: () => Navigator.of(ctx).pop(),
-                  onCaptured: (captured) async {
-                    // Crop before adding.
-                    final cropped = await Navigator.of(ctx).push<String>(
-                      MaterialPageRoute(
-                        builder: (_) => DocumentCropEditor(imagePath: captured),
-                      ),
-                    );
-                    newPage = cropped ?? captured;
+                  onCaptured: (captured) {
+                    newPage = captured;
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                  },
+                  onCompleted: (pdf, pages) {
+                    newPage = pages.isNotEmpty ? pages.last : pdf;
                     if (ctx.mounted) Navigator.of(ctx).pop();
                   },
                 ),

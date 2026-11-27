@@ -118,12 +118,36 @@ class _DocumentHighlightState extends State<DocumentHighlight>
     }
     // A quad arriving after the outline faded out has no meaningful "from" -
     // place it and fade in, rather than sliding across from a stale position.
-    _from = _reveal.value == 0 ? null : _quadNow();
-    _to = next;
+    final current = _reveal.value == 0 ? null : _quadNow();
+    if (current != null && current.length == 4) {
+      _from = current;
+      _to = _alignQuad(current, next);
+    } else {
+      _from = null;
+      _to = next;
+    }
     _move
       ..value = 0
+      ..duration = const Duration(milliseconds: 90)
       ..forward();
     if (_reveal.status != AnimationStatus.completed) _reveal.forward();
+  }
+
+  static List<Offset> _alignQuad(List<Offset> prev, List<Offset> next) {
+    if (prev.length != 4 || next.length != 4) return next;
+    double bestDist = double.infinity;
+    int bestShift = 0;
+    for (int shift = 0; shift < 4; shift++) {
+      double d = 0;
+      for (int i = 0; i < 4; i++) {
+        d += (prev[i] - next[(i + shift) % 4]).distanceSquared;
+      }
+      if (d < bestDist) {
+        bestDist = d;
+        bestShift = shift;
+      }
+    }
+    return [for (int i = 0; i < 4; i++) next[(i + bestShift) % 4]];
   }
 
   void _syncLock() {

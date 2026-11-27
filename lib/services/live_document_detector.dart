@@ -110,12 +110,18 @@ class LiveDocumentDetector {
   final List<int> _colHits = List<int>.filled(_grid, 0);
   final List<int> _histogram = List<int>.filled(256, 0);
 
+  /// Previous shape preserved for stable lock-on when the document is steady.
+  _DocumentShape? _prevShape;
+
   /// True once [_prev] holds a real frame - until then there is nothing to
   /// measure motion against.
   bool _hasPrev = false;
 
   /// Forget history (call when the stream stops / camera is freed).
-  void reset() => _hasPrev = false;
+  void reset() {
+    _hasPrev = false;
+    _prevShape = null;
+  }
 
   DocumentSignal analyze(CameraImage image) {
     if (image.planes.isEmpty) return DocumentSignal.none;
@@ -210,12 +216,82 @@ class LiveDocumentDetector {
     _hasPrev = true;
 
     final shape = _shape(x0 / w, y0 / h, rw / w, rh / h);
+    List<Offset>? finalCorners = shape?.corners;
+    if (finalCorners != null && finalCorners.length == 4) {
+      finalCorners = orderClockwise(finalCorners);
+      if (steady && _prevShape != null && _prevShape!.corners.length == 4) {
+        final aligned = alignCorners(_prevShape!.corners, finalCorners);
+        finalCorners = [
+          for (int i = 0; i < 4; i++)
+            Offset.lerp(_prevShape!.corners[i], aligned[i], 0.15)!,
+        ];
+      }
+      _prevShape = _DocumentShape(shape!.bounds, finalCorners);
+    } else {
+      _prevShape = null;
+    }
+
     return DocumentSignal(
       confidence,
       steady,
       bounds: shape?.bounds,
-      corners: shape?.corners,
+      corners: finalCorners,
     );
+  }
+
+  /// Ensures 4 corners are strictly ordered clockwise:
+  /// Index 0: Top-Left
+  /// Index 1: Top-Right
+  /// Index 2: Bottom-Right
+  /// Index 3: Bottom-Left
+  static List<Offset> orderClockwise(List<Offset> corners) {
+    if (corners.length != 4) return corners;
+    final cx = (corners[0].dx + corners[1].dx + corners[2].dx + corners[3].dx) / 4.0;
+    final cy = (corners[0].dy + corners[1].dy + corners[2].dy + corners[3].dy) / 4.0;
+    final c = Offset(cx, cy);
+
+    final sorted = List<Offset>.from(corners);
+    sorted.sort((a, b) {
+      final angleA = math.atan2(a.dy - c.dy, a.dx - c.dx);
+      final angleB = math.atan2(b.dy - c.dy, b.dx - c.dx);
+      return angleA.compareTo(angleB);
+    });
+
+    int tlIndex = 0;
+    double minSum = double.infinity;
+    for (int i = 0; i < 4; i++) {
+      final sum = sorted[i].dx + sorted[i].dy;
+      if (sum < minSum) {
+        minSum = sum;
+        tlIndex = i;
+      }
+    }
+
+    return [
+      sorted[tlIndex],
+      sorted[(tlIndex + 1) % 4],
+      sorted[(tlIndex + 2) % 4],
+      sorted[(tlIndex + 3) % 4],
+    ];
+  }
+
+  /// Aligns candidate corners cyclically to match the permutation of reference corners
+  /// minimizing the total squared distance between corresponding points.
+  static List<Offset> alignCorners(List<Offset> reference, List<Offset> candidate) {
+    if (reference.length != 4 || candidate.length != 4) return candidate;
+    double bestDist = double.infinity;
+    int bestShift = 0;
+    for (int shift = 0; shift < 4; shift++) {
+      double d = 0;
+      for (int i = 0; i < 4; i++) {
+        d += (reference[i] - candidate[(i + shift) % 4]).distanceSquared;
+      }
+      if (d < bestDist) {
+        bestDist = d;
+        bestShift = shift;
+      }
+    }
+    return [for (int i = 0; i < 4; i++) candidate[(i + bestShift) % 4]];
   }
 
   /// Rec. 601 luma from a BGRA pixel starting at [i]. iOS reports this layout
@@ -358,16 +434,16 @@ class LiveDocumentDetector {
     }
     if (tl == null || tr == null || br == null || bl == null) return null;
 
-    final quad = <Offset>[tl, tr, br, bl];
+    final ordered = orderClockwise([tl, tr, br, bl]);
     // A quad that has collapsed (a thin band, or every extreme landing on the
     // same few cells) is not a document outline.
-    if (_area(quad) < _minBoundsExtent * _minBoundsExtent) return null;
+    if (_area(ordered) < _minBoundsExtent * _minBoundsExtent) return null;
 
     // Push each corner out from the centroid so the stroke frames the page.
-    final cx = quad.map((p) => p.dx).reduce((a, b) => a + b) / 4;
-    final cy = quad.map((p) => p.dy).reduce((a, b) => a + b) / 4;
+    final cx = ordered.map((p) => p.dx).reduce((a, b) => a + b) / 4;
+    final cy = ordered.map((p) => p.dy).reduce((a, b) => a + b) / 4;
     return [
-      for (final p in quad)
+      for (final p in ordered)
         Offset(
           (p.dx + (p.dx - cx) * _quadPad).clamp(0.0, 1.0),
           (p.dy + (p.dy - cy) * _quadPad).clamp(0.0, 1.0),

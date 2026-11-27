@@ -8,6 +8,8 @@ import '../../models/document.dart';
 import '../../models/property_models.dart';
 import '../../repositories/document_repository.dart';
 import '../../services/document_protection_store.dart';
+import '../../services/camera_permission_service.dart';
+import '../../screens/scan/scanner_screen.dart';
 import '../../screens/scan/document_crop_editor.dart';
 import '../../services/file_picker_service.dart';
 import '../../services/gallery_import_service.dart';
@@ -63,9 +65,27 @@ class _PropertyDocumentPickerSheetState
 
       switch (source) {
         case _PickerSource.scan:
-          final captured = await GalleryImportService.instance.captureFromCamera();
+          final access = await CameraPermissionService.instance.requestCamera();
+          if (access != CameraAccess.granted) return;
+          if (!mounted) return;
+          String? captured;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (ctx) => ScannerScreen(
+                onClose: () => Navigator.of(ctx).pop(),
+                onCaptured: (p) {
+                  captured = p;
+                  Navigator.of(ctx).pop();
+                },
+                onCompleted: (pdfPath, _) {
+                  captured = pdfPath;
+                  Navigator.of(ctx).pop();
+                },
+              ),
+            ),
+          );
           if (captured == null || !mounted) return;
-          localPath = await DocumentCropEditor.openOrKeep(context, captured);
+          localPath = captured;
           originalName = 'Scanned Document';
           break;
 
@@ -225,7 +245,7 @@ class _PropertyDocumentPickerSheetState
                 Expanded(
                   child: _SourceTile(
                     title: l10n.t('scanDocument'),
-                    subtitle: 'Camera + Manual Crop',
+                    subtitle: l10n.t('scanUsingCamera'),
                     icon: Icons.document_scanner_rounded,
                     accent: AppColors.primaryGreen,
                     onTap: _busy ? null : () => _pickSource(_PickerSource.scan),
