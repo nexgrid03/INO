@@ -144,6 +144,13 @@ class OcrService {
 
     stage(OcrStage.uploading);
 
+    // PDFs cannot be decoded by ML Kit vision image recognizer.
+    if (imagePath.toLowerCase().endsWith('.pdf')) {
+      _step('SKIP extract: PDF files not supported by image OCR', sw: sw);
+      stage(OcrStage.finishing);
+      throw const OcrException('PDF file format is not supported for image OCR');
+    }
+
     // Result cache - the same unchanged file never pays for OCR twice.
     final cacheKey = _cacheKey(imagePath);
     final cached = cacheKey == null ? null : _cache[cacheKey];
@@ -429,6 +436,9 @@ class OcrService {
 
   Future<_Recognized?> _recognize(String path, String label) async {
     try {
+      if (path.toLowerCase().endsWith('.pdf')) {
+        return null;
+      }
       final input = InputImage.fromFilePath(path);
       final result = await _recognizer.processImage(input);
       return _Recognized(label, result);

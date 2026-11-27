@@ -149,7 +149,7 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
   Future<void> _finish(OcrResult confirmed, {String? wallet}) async {
     if (_building) return;
     var filePath = _capturePath;
-    if (_isMulti) {
+    if (_isMulti && (filePath == null || !filePath.toLowerCase().endsWith('.pdf'))) {
       setState(() => _building = true);
       try {
         filePath = await ScanPdfService.instance.buildPdf(_pages!);
@@ -258,8 +258,12 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
           },
         );
       case _Stage.processing:
+        // OCR analyzes the first image page (never the assembled PDF)
+        final ocrImage = (_pages != null && _pages!.isNotEmpty)
+            ? _pages!.first
+            : _capturePath;
         return OcrProcessingScreen(
-          imagePath: _capturePath,
+          imagePath: ocrImage,
           assumeClean: true, // manual crop; already cropped & rectified by editor
           onResult: (result) {
             _ocr = result;

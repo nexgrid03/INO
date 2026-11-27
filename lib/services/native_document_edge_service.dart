@@ -24,8 +24,8 @@ class NativeDocumentEdgeService {
 
   /// Stickier EMA on iOS so the blue border stays glued to the page.
   late final CornerStabilizer _stabilizer = CornerStabilizer(
-    smoothing: _isIOS ? 0.28 : 0.18,
-    resetDistance: _isIOS ? 0.22 : 0.28,
+    smoothing: _isIOS ? 0.65 : 0.18,
+    resetDistance: _isIOS ? 0.15 : 0.28,
   );
 
   final StreamController<NativeEdgeEvent> _events =
@@ -64,11 +64,11 @@ class NativeDocumentEdgeService {
         .detectStream(
           _frames.stream,
           stabilize: _stabilizer,
-          // ~8–10 Hz — smooth overlay without thrashing Vision/OpenCV.
-          minInterval: Duration(milliseconds: _isIOS ? 110 : 100),
+          // Fast overlay on iOS (55ms ~ 18 FPS) so detection is immediate; 100ms on Android.
+          minInterval: Duration(milliseconds: _isIOS ? 55 : 100),
           sensitivity: sense,
-          // Reject table-edge slivers; still allow receipts (~0.24).
-          minimumAspectRatio: _isIOS ? 0.16 : 0.12,
+          // On iOS, reject thin strips / text lines (<0.30); allow standard page aspect ratios.
+          minimumAspectRatio: _isIOS ? 0.30 : 0.12,
         )
         .listen(
           _onEvent,
@@ -103,8 +103,11 @@ class NativeDocumentEdgeService {
     switch (event) {
       case DetectionSuccess(:final corners):
         _errorStreak = 0;
-        // Drop non-convex / tiny quads — they produce garbage crops.
-        if (!corners.isConvex || corners.area < 0.08) {
+        // Drop non-convex / tiny quads.
+        // On iOS, enforce minimum area of 0.20 to fix to the whole page only,
+        // preventing Vision from snapping to inner paragraphs/text blocks.
+        final minArea = _isIOS ? 0.20 : 0.08;
+        if (!corners.isConvex || corners.area < minArea) {
           if (!_events.isClosed) {
             try {
               _events.add(const NativeEdgeEvent(
@@ -116,6 +119,28 @@ class NativeDocumentEdgeService {
           }
           return;
         }
+
+        // On iOS, reject non-page aspect ratios (inner text lines, wide slivers)
+        if (_isIOS) {
+          final width = (corners.topRight.x - corners.topLeft.x).abs();
+          final height = (corners.bottomLeft.y - corners.topLeft.y).abs();
+          if (height > 0) {
+            final aspect = width / height;
+            if (aspect < 0.35 || aspect > 2.8) {
+              if (!_events.isClosed) {
+                try {
+                  _events.add(const NativeEdgeEvent(
+                    corners: null,
+                    confidence: 0,
+                    present: false,
+                  ));
+                } catch (_) {}
+              }
+              return;
+            }
+          }
+        }
+
         final pts = [
           Offset(corners.topLeft.x, corners.topLeft.y),
           Offset(corners.topRight.x, corners.topRight.y),

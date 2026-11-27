@@ -92,11 +92,13 @@ class _ScannerScreenState extends State<ScannerScreen>
   final LiveDocumentDetector _localDetector = LiveDocumentDetector();
   final NativeDocumentEdgeService _nativeEdges = NativeDocumentEdgeService();
   /// iOS: package auto-capture gate (confidence + area + steadiness).
+  /// Requires at least 0.20 area so it strictly locks onto full document pages,
+  /// with 2 steady frames for fast capture.
   final AutoCaptureAnalyzer _iosAuto = AutoCaptureAnalyzer(
-    requiredSteadyFrames: 3,
-    minConfidence: 0.42,
-    minArea: 0.10,
-    maxJitter: 0.042,
+    requiredSteadyFrames: 2,
+    minConfidence: 0.35,
+    minArea: 0.20,
+    maxJitter: 0.070,
   );
   StreamSubscription<NativeEdgeEvent>? _nativeSub;
   final Stopwatch _throttle = Stopwatch();
@@ -437,8 +439,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    // Native detectStream already rate-limits; only light-gate the push.
-    final intervalMs = isIOS ? 90 : _kSampleIntervalMs;
+    // Native detectStream already rate-limits; fast gate on iOS (45ms).
+    final intervalMs = isIOS ? 45 : _kSampleIntervalMs;
     if (_throttle.elapsedMilliseconds < intervalMs) return;
     _throttle.reset();
 
@@ -480,6 +482,14 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    if (isIOS) {
+      // iOS: native corners are already smoothed by CornerStabilizer.
+      // Update immediately so the blue outline locks instantly onto the page without sluggish lag.
+      _docCorners.value = ordered;
+      _lastStableCorners = ordered;
+      return;
+    }
     final prev = _docCorners.value ?? _lastStableCorners;
 
     if (_state == ScannerState.readyToScan &&
@@ -1205,6 +1215,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       );
 
       if (committed != null && mounted) {
+        if (isIOS) {
+          // Allow ScanPdfPreviewScreen route pop transition to finish cleanly before committing
+          await Future<void>.delayed(const Duration(milliseconds: 80));
+          if (!mounted) return;
+        }
         await _safeCommitResult(committed);
         return;
       }
