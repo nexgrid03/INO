@@ -98,7 +98,11 @@ class DocumentCropService {
       final dir = File(srcPath).parent.path;
       final outPath =
           '$dir/ino_crop_${DateTime.now().microsecondsSinceEpoch}.jpg';
-      await File(outPath).writeAsBytes(img.encodeJpg(rectified, quality: 92));
+      // Keep full-color RGB output at high quality (never desaturate here).
+      final color = rectified.numChannels < 3
+          ? rectified.convert(numChannels: 3)
+          : rectified;
+      await File(outPath).writeAsBytes(img.encodeJpg(color, quality: 95));
       return outPath;
     } catch (_) {
       return null;

@@ -67,6 +67,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   bool _isAutoMode = true;
   bool _cropping = false;
   bool _buildingPdf = false;
+  bool _captureFlash = false;
+  bool _showPageSavedToast = false;
   int _flash = 0; // 0 = off, 1 = auto, 2 = on(torch)
   bool _blockBootstrap = false;
   bool _isBootstrapping = false;
@@ -74,6 +76,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   // Multi-page session state
   final List<String> _scannedPages = [];
+  /// Default is always full-color original. B&W / grayscale only if user picks them.
   ScanColorMode _activeFilter = ScanColorMode.original;
 
   // Live document detection — native Vision/OpenCV first, local fallback.
@@ -143,17 +146,40 @@ class _ScannerScreenState extends State<ScannerScreen>
     } catch (_) {}
   }
 
+  /// True while shutter / crop / PDF work is in flight. iOS briefly reports
+  /// [AppLifecycleState.inactive] during `takePicture` — tearing the camera
+  /// down then kills the capture and looks like the scanner "went back".
+  bool get _captureSessionBusy =>
+      _blockBootstrap ||
+      _cropping ||
+      _buildingPdf ||
+      _state == ScannerState.capturing ||
+      _state == ScannerState.success;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_isRequestingPermission) return;
+    if (_isRequestingPermission || _captureSessionBusy) return;
+
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final controller = _controller;
+
+    // iOS: ignore brief `inactive` (Control Center, shutter, banners).
+    // Only release the camera when the app is actually backgrounded.
+    if (state == AppLifecycleState.inactive && isIOS) {
+      return;
+    }
+
     if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       _controller = null;
+      _streaming = false;
       _teardownCamera(controller);
       if (mounted) setState(() => _state = ScannerState.idle);
     } else if (state == AppLifecycleState.resumed) {
-      if (mounted && !_blockBootstrap) _bootstrap();
+      if (mounted && !_blockBootstrap && !_captureSessionBusy) {
+        _bootstrap();
+      }
     }
   }
 
@@ -483,11 +509,11 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     if (newDetection) {
       HapticFeedback.selectionClick();
-      // Meter on the page as soon as we see it so autofocus settles faster.
+      // Meter + begin locking as soon as the page appears so the snap is sharp.
       _meterOnDocument();
+      _setFocusLocked(true);
     } else if (next == ScannerState.readyToScan) {
       HapticFeedback.lightImpact();
-      // Freeze optical focus so the preview (and border) stop hunting.
       _setFocusLocked(true);
       if (_isAutoMode &&
           _state != ScannerState.capturing &&
@@ -569,13 +595,15 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (_phase != _Phase.ready ||
         controller == null ||
         !controller.value.isInitialized ||
-        _state == ScannerState.capturing) {
+        _state == ScannerState.capturing ||
+        _captureSessionBusy) {
       return;
     }
     HapticFeedback.mediumImpact();
 
-    // Freeze the border the user saw, lock optics, then snap - same order as
-    // a Photos-app document scan so the crop matches the on-screen outline.
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+    // Freeze the border the user saw, lock optics, then snap.
     final outline = List<Offset>.from(
       _docCorners.value ?? _lastStableCorners ?? const <Offset>[],
     );
@@ -584,22 +612,40 @@ class _ScannerScreenState extends State<ScannerScreen>
       _docCorners.value = captureOutline;
       _lastStableCorners = captureOutline;
     }
+
+    // Keep lifecycle from disposing the camera mid-shutter (critical on iOS).
+    _blockBootstrap = true;
     await _setFocusLocked(true);
     await _stopDetection();
-    if (!mounted) return;
+    if (!mounted) {
+      _blockBootstrap = false;
+      return;
+    }
     setState(() => _state = ScannerState.capturing);
 
     try {
-      // Brief settle so locked focus / exposure bind before the shutter.
-      await Future<void>.delayed(const Duration(milliseconds: 60));
+      // iOS needs a longer gap after stopping the image stream or takePicture
+      // fails / triggers inactive and the scanner appears to exit.
+      await Future<void>.delayed(
+        Duration(milliseconds: isIOS ? 250 : 120),
+      );
       if (!mounted) return;
+      if (!controller.value.isInitialized) {
+        throw StateError('camera not ready');
+      }
+
+      setState(() => _captureFlash = true);
       final file = await controller.takePicture();
       if (!mounted) return;
-      HapticFeedback.lightImpact();
-      setState(() => _state = ScannerState.success);
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _captureFlash = false;
+        _state = ScannerState.success;
+      });
 
-      // Re-detect on the still photo then crop — avoids sideways/crossed scans
-      // from live-overlay vs JPEG orientation mismatches.
+      // Copy off the volatile camera temp path before heavy processing.
+      final stablePath = await _persistCapture(file.path);
+
       setState(() => _cropping = true);
       String processed;
       try {
@@ -615,35 +661,69 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
               ];
         processed = await ScanCaptureProcessor.process(
-          capturePath: file.path,
+          capturePath: stablePath,
           liveOutline: uprightLive,
         );
       } finally {
         if (mounted) setState(() => _cropping = false);
       }
 
-      // Apply active filter if one was selected
+      // Color by default. Only B&W / grayscale / enhanced when user picked them.
       if (_activeFilter != ScanColorMode.original) {
-        processed = await ImageEnhancer.applyColorMode(processed, _activeFilter);
+        processed =
+            await ImageEnhancer.applyColorMode(processed, _activeFilter);
       }
 
       if (!mounted) return;
 
       setState(() {
         _scannedPages.add(processed);
-        _state = ScannerState.idle;
+        _showPageSavedToast = true;
       });
 
-      _snack('Page ${_scannedPages.length} scanned');
-
-      // Resume detection for multi-page scanning session
-      _startDetection();
+      // Hold the shutter checkmark + "saved" toast, stay on scanner.
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (!mounted) return;
+      setState(() {
+        _showPageSavedToast = false;
+        _state = ScannerState.idle;
+      });
+      _blockBootstrap = false;
+      if (_controller == null || !_controller!.value.isInitialized) {
+        await _bootstrap();
+      } else {
+        _startDetection();
+      }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _state = ScannerState.idle);
+      setState(() {
+        _captureFlash = false;
+        _showPageSavedToast = false;
+        _state = ScannerState.idle;
+      });
       _docCorners.value = null;
+      _blockBootstrap = false;
       _snack(AppLocalizations.of(context).t('captureFailed'));
-      _startDetection();
+      if (_controller == null || !_controller!.value.isInitialized) {
+        await _bootstrap();
+      } else {
+        _startDetection();
+      }
+    }
+  }
+
+  /// Camera temp files can disappear on iOS once the session churns — copy first.
+  Future<String> _persistCapture(String path) async {
+    try {
+      final src = File(path);
+      if (!await src.exists()) return path;
+      final dir = src.parent.path;
+      final dest =
+          '$dir/ino_capture_${DateTime.now().microsecondsSinceEpoch}.jpg';
+      await src.copy(dest);
+      return dest;
+    } catch (_) {
+      return path;
     }
   }
 
@@ -854,11 +934,16 @@ class _ScannerScreenState extends State<ScannerScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 6),
+              const Text(
+                'Default is Color (Original). B&W only if you pick it.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
               const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _filterChip(ScanColorMode.original, 'Original', Icons.image_rounded),
+                  _filterChip(ScanColorMode.original, 'Color', Icons.image_rounded),
                   _filterChip(ScanColorMode.enhanced, 'Enhanced', Icons.auto_fix_high_rounded),
                   _filterChip(ScanColorMode.blackWhite, 'B & W', Icons.contrast_rounded),
                   _filterChip(ScanColorMode.grayscale, 'Grayscale', Icons.filter_b_and_w_rounded),
@@ -913,12 +998,14 @@ class _ScannerScreenState extends State<ScannerScreen>
   Future<void> _finishScanning() async {
     if (_scannedPages.isEmpty) return;
     HapticFeedback.mediumImpact();
+    _blockBootstrap = true;
     setState(() => _buildingPdf = true);
 
     try {
       final pdfPath = await ScanPdfService.instance.buildPdf(_scannedPages);
       if (!mounted) return;
       setState(() => _buildingPdf = false);
+      _blockBootstrap = false;
 
       // Open PDF Preview screen
       await Navigator.of(context).push(
@@ -940,6 +1027,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _buildingPdf = false);
+      _blockBootstrap = false;
       _snack('Failed to generate PDF: $e');
     }
   }
@@ -1005,8 +1093,27 @@ class _ScannerScreenState extends State<ScannerScreen>
           _viewport(),
           if (ready) ...[
             _documentHighlight(),
+            // Shutter white-flash (Photos / Lens style)
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _captureFlash ? 1 : 0,
+                duration: const Duration(milliseconds: 70),
+                child: const ColoredBox(color: Colors.white),
+              ),
+            ),
             if (_cropping) const _CroppingScrim(),
             if (_buildingPdf) const _BuildingPdfScrim(),
+            // "Page saved" confirmation toast
+            if (_showPageSavedToast)
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 72),
+                    child: _PageSavedToast(pageNumber: _scannedPages.length),
+                  ),
+                ),
+              ),
             // Top Controls Bar
             SafeArea(
               bottom: false,
@@ -1260,6 +1367,47 @@ class _CleanIconButton extends StatelessWidget {
   }
 }
 
+class _PageSavedToast extends StatelessWidget {
+  const _PageSavedToast({required this.pageNumber});
+
+  final int pageNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          color: ScanColors.green,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: ScanColors.green.withValues(alpha: 0.40),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              'Page $pageNumber saved',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CroppingScrim extends StatelessWidget {
   const _CroppingScrim();
 
@@ -1268,7 +1416,7 @@ class _CroppingScrim extends StatelessWidget {
     return Positioned.fill(
       child: IgnorePointer(
         child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.6),
+          color: Colors.black.withValues(alpha: 0.55),
           child: const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1276,7 +1424,7 @@ class _CroppingScrim extends StatelessWidget {
                 InoLoader(size: 36, color: ScanColors.accent),
                 SizedBox(height: 14),
                 Text(
-                  'Aligning edges…',
+                  'Saving color scan…',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,

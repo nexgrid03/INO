@@ -23,10 +23,9 @@ class NativeDocumentEdgeService {
 
   StreamSubscription<DetectionEvent>? _subscription;
   final CornerStabilizer _stabilizer = CornerStabilizer(
-    // Lower = stickier border (Photos-like lock), higher resetDistance =
-    // only jump when the page truly moves.
-    smoothing: 0.22,
-    resetDistance: 0.25,
+    // Stickier lock so the border stays glued to the page until it moves.
+    smoothing: 0.18,
+    resetDistance: 0.28,
   );
 
   final StreamController<NativeEdgeEvent> _events =
