@@ -22,10 +22,10 @@ class NativeDocumentEdgeService {
 
   StreamSubscription<DetectionEvent>? _subscription;
 
-  /// Stickier EMA on iOS so the blue border stays glued to the page.
+  /// Stickier EMA on iOS so the blue border stays glued to the page without jitter.
   late final CornerStabilizer _stabilizer = CornerStabilizer(
-    smoothing: _isIOS ? 0.65 : 0.18,
-    resetDistance: _isIOS ? 0.15 : 0.28,
+    smoothing: _isIOS ? 0.35 : 0.18,
+    resetDistance: _isIOS ? 0.20 : 0.28,
   );
 
   final StreamController<NativeEdgeEvent> _events =
@@ -53,19 +53,19 @@ class NativeDocumentEdgeService {
     _running = true;
     _errorStreak = 0;
 
-    // Live overlay: balanced finds real pages without snapping to desk edges
-    // (lenient) or missing faint sheets (strict).
+    // Live overlay: strict on iOS to enforce full document/page detection and reject
+    // internal handwriting paragraphs; balanced on Android.
     final sense = sensitivity ??
         (_isIOS
-            ? DetectionSensitivity.balanced
+            ? DetectionSensitivity.strict
             : DetectionSensitivity.balanced);
 
     _subscription = _detector
         .detectStream(
           _frames.stream,
           stabilize: _stabilizer,
-          // Fast overlay on iOS (55ms ~ 18 FPS) so detection is immediate; 100ms on Android.
-          minInterval: Duration(milliseconds: _isIOS ? 55 : 100),
+          // Fast overlay on iOS (50ms ~ 20 FPS) so detection is immediate; 100ms on Android.
+          minInterval: Duration(milliseconds: _isIOS ? 50 : 100),
           sensitivity: sense,
           // On iOS, reject thin strips / text lines (<0.30); allow standard page aspect ratios.
           minimumAspectRatio: _isIOS ? 0.30 : 0.12,
@@ -104,9 +104,9 @@ class NativeDocumentEdgeService {
       case DetectionSuccess(:final corners):
         _errorStreak = 0;
         // Drop non-convex / tiny quads.
-        // On iOS, enforce minimum area of 0.20 to fix to the whole page only,
+        // On iOS, enforce minimum area of 0.22 to fix to the whole page only,
         // preventing Vision from snapping to inner paragraphs/text blocks.
-        final minArea = _isIOS ? 0.20 : 0.08;
+        final minArea = _isIOS ? 0.22 : 0.08;
         if (!corners.isConvex || corners.area < minArea) {
           if (!_events.isClosed) {
             try {
@@ -126,7 +126,7 @@ class NativeDocumentEdgeService {
           final height = (corners.bottomLeft.y - corners.topLeft.y).abs();
           if (height > 0) {
             final aspect = width / height;
-            if (aspect < 0.35 || aspect > 2.8) {
+            if (aspect < 0.30 || aspect > 3.0) {
               if (!_events.isClosed) {
                 try {
                   _events.add(const NativeEdgeEvent(

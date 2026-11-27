@@ -91,14 +91,14 @@ class _ScannerScreenState extends State<ScannerScreen>
   // Live document detection — native Vision/OpenCV first, local fallback.
   final LiveDocumentDetector _localDetector = LiveDocumentDetector();
   final NativeDocumentEdgeService _nativeEdges = NativeDocumentEdgeService();
+  NativeEdgeEvent? _lastNativeEdgeEvent;
   /// iOS: package auto-capture gate (confidence + area + steadiness).
-  /// Requires at least 0.20 area so it strictly locks onto full document pages,
-  /// with 2 steady frames for fast capture.
+  /// Enforces stable page detection with 2 steady frames for responsive capture.
   final AutoCaptureAnalyzer _iosAuto = AutoCaptureAnalyzer(
     requiredSteadyFrames: 2,
-    minConfidence: 0.35,
-    minArea: 0.20,
-    maxJitter: 0.070,
+    minConfidence: 0.30,
+    minArea: 0.16,
+    maxJitter: 0.060,
   );
   StreamSubscription<NativeEdgeEvent>? _nativeSub;
   final Stopwatch _throttle = Stopwatch();
@@ -358,12 +358,13 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
 
+    _lastNativeEdgeEvent = event;
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final corners = event.corners;
     final present =
         event.present && corners != null && corners.length == 4;
 
-    // iOS: Vision-only + AutoCaptureAnalyzer (no local silhouette fighting).
+    // iOS: Vision + AutoCaptureAnalyzer (with close-up page fallback in _onFrame).
     if (isIOS) {
       _handleIosNative(present ? corners : null, event.confidence);
       return;
@@ -386,13 +387,12 @@ class _ScannerScreenState extends State<ScannerScreen>
   void _handleIosNative(List<Offset>? corners, double confidence) {
     if (corners != null && corners.length == 4) {
       _consecutiveMissedFrames = 0;
-      _applyCorners(corners);
       // Build DocumentCorners for the analyzer from the live outline.
       final dc = _iosDocumentCorners(corners, confidence);
       final status = _iosAuto.add(dc).status;
       switch (status) {
         case AutoCaptureStatus.searching:
-          _enter(ScannerState.idle);
+          _enter(ScannerState.detecting);
         case AutoCaptureStatus.detecting:
           if (_state != ScannerState.readyToScan) {
             _enter(ScannerState.documentDetected);
@@ -400,6 +400,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         case AutoCaptureStatus.ready:
           _enter(ScannerState.readyToScan);
       }
+      _applyCorners(corners);
       _meterOnDocumentThrottled();
     } else {
       _iosAuto.add(null);
@@ -450,8 +451,29 @@ class _ScannerScreenState extends State<ScannerScreen>
         image,
         sensorOrientation: controller?.description.sensorOrientation ?? 90,
       );
-      // iOS: Vision only — local silhouette was fighting borders and stuttering.
-      // Android keeps native-only here too; local runs only on fallback below.
+
+      // On iOS: run close-up page detection when native detector finds no outer border
+      if (isIOS) {
+        final hasNativeQuad = _lastNativeEdgeEvent?.present == true &&
+            _lastNativeEdgeEvent?.corners != null &&
+            _lastNativeEdgeEvent!.corners!.length == 4;
+
+        if (!hasNativeQuad) {
+          final signal = _localDetector.analyze(image);
+          if (signal.corners != null && signal.corners!.length == 4) {
+            _handleIosNative(signal.corners, signal.confidence);
+          } else if (signal.confidence >= 0.28) {
+            // Camera held close to page filling the view (Image 1 case)
+            const closeUpPageQuad = [
+              Offset(0.06, 0.06),
+              Offset(0.94, 0.06),
+              Offset(0.94, 0.94),
+              Offset(0.06, 0.94),
+            ];
+            _handleIosNative(closeUpPageQuad, signal.confidence);
+          }
+        }
+      }
       return;
     }
 
@@ -482,14 +504,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    if (isIOS) {
-      // iOS: native corners are already smoothed by CornerStabilizer.
-      // Update immediately so the blue outline locks instantly onto the page without sluggish lag.
-      _docCorners.value = ordered;
-      _lastStableCorners = ordered;
-      return;
-    }
     final prev = _docCorners.value ?? _lastStableCorners;
 
     if (_state == ScannerState.readyToScan &&
@@ -524,7 +538,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         }
         return;
       }
-      final double alpha = (avgDist * 2.0).clamp(0.12, 0.45);
+      final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+      final double alpha = isIOS ? 0.35 : (avgDist * 2.0).clamp(0.12, 0.45);
       final smoothed = [
         for (int i = 0; i < 4; i++) Offset.lerp(prev[i], aligned[i], alpha)!,
       ];
