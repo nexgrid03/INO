@@ -309,16 +309,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         List<String>? scannedPages;
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ScannerScreen(
-              onClose: () => Navigator.of(context).pop(),
+            builder: (ctx) => ScannerScreen(
+              onClose: () {
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
               onCaptured: (p) {
                 finalPath = p;
-                Navigator.of(context).pop();
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
               },
               onCompleted: (pdfPath, pages) {
                 finalPath = pdfPath;
                 scannedPages = pages;
-                Navigator.of(context).pop();
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
               },
             ),
           ),
@@ -459,16 +467,24 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         List<String>? newPages;
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ScannerScreen(
-              onClose: () => Navigator.of(context).pop(),
+            builder: (ctx) => ScannerScreen(
+              onClose: () {
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
+              },
               onCaptured: (p) {
                 captured = p;
-                Navigator.of(context).pop();
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
               },
               onCompleted: (pdfPath, pages) {
                 captured = pdfPath;
                 newPages = pages;
-                Navigator.of(context).pop();
+                if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                  Navigator.of(ctx).pop();
+                }
               },
             ),
           ),

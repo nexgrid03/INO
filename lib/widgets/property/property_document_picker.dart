@@ -72,14 +72,22 @@ class _PropertyDocumentPickerSheetState
           await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (ctx) => ScannerScreen(
-                onClose: () => Navigator.of(ctx).pop(),
+                onClose: () {
+                  if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                },
                 onCaptured: (p) {
                   captured = p;
-                  Navigator.of(ctx).pop();
+                  if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
                 },
                 onCompleted: (pdfPath, _) {
                   captured = pdfPath;
-                  Navigator.of(ctx).pop();
+                  if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
                 },
               ),
             ),

@@ -215,14 +215,22 @@ class _ScanFlowScreenState extends State<ScanFlowScreen> {
             await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (ctx) => ScannerScreen(
-                  onClose: () => Navigator.of(ctx).pop(),
+                  onClose: () {
+                    if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
+                  },
                   onCaptured: (captured) {
                     newPage = captured;
-                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
                   },
                   onCompleted: (pdf, pages) {
                     newPage = pages.isNotEmpty ? pages.last : pdf;
-                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                      Navigator.of(ctx).pop();
+                    }
                   },
                 ),
               ),

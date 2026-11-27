@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:document_scan/document_scan.dart' show DetectionSensitivity;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -101,6 +102,10 @@ class _ScannerScreenState extends State<ScannerScreen>
   int _absentFrames = 0;
   DateTime? _stableStart;
   bool _focusLocked = false;
+  /// iOS: space out local silhouette assists so Vision + silhouette don't
+  /// thrash the UI thread every frame.
+  int _iosLocalAssistTick = 0;
+  DateTime? _lastNativeHitAt;
 
   static const int _kSampleIntervalMs = 70;
   static const int _kConfirmFrames = 2;
@@ -108,9 +113,11 @@ class _ScannerScreenState extends State<ScannerScreen>
   /// routinely dips confidence for a sample or two without the page leaving.
   static const int _kLoseFrames = 5;
   /// Silhouette contrast detects blank pages; keep this reachable for them.
+  /// iOS uses slightly lower gates in `_handleSignal` via platform check.
   static const double _kDetectConfidence = 0.34;
   static const double _kLoseConfidence = 0.22;
   static const Duration _kStableDuration = Duration(milliseconds: 420);
+  static const Duration _kStableDurationIos = Duration(milliseconds: 320);
   /// Corner jitter below this (normalised) is treated as hand tremor and ignored.
   static const double _kCornerDeadband = 0.030;
 
@@ -220,9 +227,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       );
 
       final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+      // iOS BGRA frames are heavy — medium keeps detection smooth; Android
+      // keeps high for sharper stills.
       final controller = CameraController(
         back,
-        ResolutionPreset.high,
+        isIOS ? ResolutionPreset.medium : ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup:
             isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
@@ -237,8 +246,8 @@ class _ScannerScreenState extends State<ScannerScreen>
       try {
         await controller.setFlashMode(FlashMode.off);
       } catch (_) {}
-      // Continuous autofocus + centre metering so the page locks sharply
-      // instead of hunting (the main cause of a flickering border).
+      // Continuous autofocus. On iOS, avoid FocusMode.locked — it hunts and
+      // freezes the preview; metering on the page is enough.
       try {
         await controller.setFocusMode(FocusMode.auto);
         await controller.setFocusPoint(const Offset(0.5, 0.5));
@@ -276,9 +285,14 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     if (_useNativeEdges) {
       try {
-        await _nativeEdges.start();
-        _nativeUpright = _nativeEdges.cornersAreUpright ||
-            (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS);
+        final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+        await _nativeEdges.start(
+          // iOS Vision needs a looser gate or blank/angled pages never lock.
+          sensitivity: isIOS
+              ? DetectionSensitivity.lenient
+              : DetectionSensitivity.balanced,
+        );
+        _nativeUpright = _nativeEdges.cornersAreUpright || isIOS;
         _nativeSub = _nativeEdges.events.listen(_onNativeEdge);
       } catch (_) {
         _useNativeEdges = false;
@@ -314,6 +328,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     _docCorners.value = null;
     _lastStableCorners = null;
     _consecutiveMissedFrames = 0;
+    _iosLocalAssistTick = 0;
+    _lastNativeHitAt = null;
     _nativeEdges.resetStabilizer();
     _setFocusLocked(false);
   }
@@ -332,13 +348,25 @@ class _ScannerScreenState extends State<ScannerScreen>
     final present =
         event.present && corners != null && corners.length == 4;
     // Native stabilizer already damps jitter; treat a confident lock as steady.
-    final bool steady = present && event.confidence >= 0.45;
+    // iOS Vision confidence is often muted — still treat a hit as lock-worthy.
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final bool steady =
+        present && event.confidence >= (isIOS ? 0.32 : 0.45);
     final confidence = present
-        ? (event.confidence < 0.55 ? 0.55 : event.confidence)
+        ? (event.confidence < (isIOS ? 0.48 : 0.55)
+            ? (isIOS ? 0.48 : 0.55)
+            : event.confidence)
         : 0.0;
+    if (present) _lastNativeHitAt = DateTime.now();
     _handleSignal(confidence, steady);
     if (present) {
       _applyCorners(corners);
+      // Keep AF/AE glued to the page once Vision locks.
+      if (isIOS &&
+          (_state == ScannerState.documentDetected ||
+              _state == ScannerState.readyToScan)) {
+        unawaited(_meterOnDocument());
+      }
     } else {
       _handleMissedDetection();
     }
@@ -350,19 +378,42 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
 
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    // Heavier throttle on iOS — BGRA + Vision + UI must stay under budget.
+    final intervalMs = isIOS ? 180 : _kSampleIntervalMs;
+    if (_throttle.elapsedMilliseconds < intervalMs) return;
+    _throttle.reset();
+
     if (_useNativeEdges && !_nativeEdges.shouldFallback) {
       final controller = _controller;
       _nativeEdges.pushFrame(
         image,
         sensorOrientation: controller?.description.sensorOrientation ?? 90,
       );
+      // iOS assist: only when Vision has been quiet — avoids fighting native
+      // corners and cuts CPU vs running silhouette every sample.
+      if (isIOS) {
+        _iosLocalAssistTick++;
+        final nativeFresh = _lastNativeHitAt != null &&
+            DateTime.now().difference(_lastNativeHitAt!) <
+                const Duration(milliseconds: 700);
+        final needsAssist = !nativeFresh &&
+            (_docCorners.value == null ||
+                _state == ScannerState.idle ||
+                _state == ScannerState.detecting ||
+                _consecutiveMissedFrames >= 3);
+        if (needsAssist && _iosLocalAssistTick % 2 == 0) {
+          final signal = _localDetector.analyze(image);
+          if (signal.corners != null && signal.corners!.length == 4) {
+            _handleSignal(signal.confidence, signal.steady);
+            _applyCorners(signal.corners!);
+          }
+        }
+      }
       return;
     }
 
     // Local silhouette fallback when native edge engine is unavailable.
-    if (_throttle.elapsedMilliseconds < _kSampleIntervalMs) return;
-    _throttle.reset();
-
     final signal = _localDetector.analyze(image);
     _handleSignal(signal.confidence, signal.steady);
     final rawCorners = signal.corners;
@@ -478,7 +529,11 @@ class _ScannerScreenState extends State<ScannerScreen>
         _absentFrames = 0;
         if (steady) {
           _stableStart ??= DateTime.now();
-          if (DateTime.now().difference(_stableStart!) >= _kStableDuration) {
+          final stableFor = !kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.iOS
+              ? _kStableDurationIos
+              : _kStableDuration;
+          if (DateTime.now().difference(_stableStart!) >= stableFor) {
             _enter(ScannerState.readyToScan);
           }
         } else {
@@ -507,21 +562,23 @@ class _ScannerScreenState extends State<ScannerScreen>
       _state = next;
     });
 
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     if (newDetection) {
       HapticFeedback.selectionClick();
-      // Meter + begin locking as soon as the page appears so the snap is sharp.
+      // Meter on the page. Lock optics on Android only — iOS lock causes lag.
       _meterOnDocument();
-      _setFocusLocked(true);
+      if (!isIOS) _setFocusLocked(true);
     } else if (next == ScannerState.readyToScan) {
       HapticFeedback.lightImpact();
-      _setFocusLocked(true);
+      _meterOnDocument();
+      if (!isIOS) _setFocusLocked(true);
       if (_isAutoMode &&
           _state != ScannerState.capturing &&
           _state != ScannerState.success) {
         _capturePressed();
       }
     } else if (next == ScannerState.idle || next == ScannerState.detecting) {
-      _setFocusLocked(false);
+      if (!isIOS) _setFocusLocked(false);
     }
   }
 
@@ -546,6 +603,12 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Future<void> _setFocusLocked(bool locked) async {
     if (_focusLocked == locked) return;
+    // iOS: keep continuous AF — locking freezes/blurs and makes the UI stutter.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      await _meterOnDocument();
+      _focusLocked = false;
+      return;
+    }
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
     try {
@@ -782,133 +845,190 @@ class _ScannerScreenState extends State<ScannerScreen>
   void _showPagesManager() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF1B232D),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) {
+        final height = MediaQuery.sizeOf(ctx).height * 0.72;
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: SizedBox(
+                height: height,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Scanned Pages (${_scannedPages.length})',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(ctx).pop();
-                          _retakeLastPage();
-                        },
-                        icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.amber),
-                        label: const Text(
-                          'Retake Last',
-                          style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w600),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Scanned Pages (${_scannedPages.length})',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _scannedPages.isEmpty
+                                ? null
+                                : () {
+                                    Navigator.of(ctx).pop();
+                                    _retakeLastPage();
+                                  },
+                            icon: const Icon(Icons.refresh_rounded,
+                                size: 18, color: Colors.amber),
+                            label: const Text(
+                              'Retake Last',
+                              style: TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: _scannedPages.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No pages yet',
+                                  style: TextStyle(color: Colors.white54),
+                                ),
+                              )
+                            : GridView.builder(
+                                physics: const BouncingScrollPhysics(
+                                  parent: AlwaysScrollableScrollPhysics(),
+                                ),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                  childAspectRatio: 0.72,
+                                ),
+                                itemCount: _scannedPages.length,
+                                itemBuilder: (context, index) {
+                                  final page = _scannedPages[index];
+                                  return Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: ScanColors.accent),
+                                          ),
+                                          clipBehavior: Clip.antiAlias,
+                                          child: Image.file(
+                                            File(page),
+                                            fit: BoxFit.cover,
+                                            cacheWidth: 240,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 6,
+                                        left: 6,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black87,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'P${index + 1}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              final removed =
+                                                  _scannedPages.removeAt(index);
+                                              try {
+                                                File(removed).deleteSync();
+                                              } catch (_) {}
+                                            });
+                                            setSheetState(() {});
+                                            if (_scannedPages.isEmpty) {
+                                              Navigator.of(ctx).pop();
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.redAccent,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close_rounded,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ScanColors.accent,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text(
+                            'Back to Camera',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 140,
-                    width: double.infinity,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                      itemCount: _scannedPages.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        final page = _scannedPages[index];
-                        return Stack(
-                          children: [
-                            Container(
-                              width: 100,
-                              height: 140,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: ScanColors.accent),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: Image.file(File(page), fit: BoxFit.cover),
-                            ),
-                            Positioned(
-                              top: 6,
-                              left: 6,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'P${index + 1}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    final removed = _scannedPages.removeAt(index);
-                                    try {
-                                      File(removed).deleteSync();
-                                    } catch (_) {}
-                                  });
-                                  setSheetState(() {});
-                                  if (_scannedPages.isEmpty) {
-                                    Navigator.of(ctx).pop();
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.redAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ScanColors.accent,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Back to Camera', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1002,43 +1122,77 @@ class _ScannerScreenState extends State<ScannerScreen>
     setState(() => _buildingPdf = true);
 
     try {
+      // Freeze camera before heavy PDF work — prevents iOS jetsam/exit.
+      await _stopDetection();
       final pdfPath = await ScanPdfService.instance.buildPdf(_scannedPages);
       if (!mounted) return;
       setState(() => _buildingPdf = false);
-      _blockBootstrap = false;
 
-      // Open PDF Preview screen
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (ctx) => ScanPdfPreviewScreen(
             pdfPath: pdfPath,
             pages: List<String>.from(_scannedPages),
             onContinue: (committedPdf) {
-              Navigator.of(ctx).pop(); // pop preview
-              _commitResult(committedPdf);
+              // Pop preview first, then commit on the next frame after camera
+              // teardown — double-pop during dispose was closing the whole app
+              // on iPhone.
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _safeCommitResult(committedPdf);
+              });
             },
             onAddMorePages: () {
-              // resume camera
-              _startDetection();
+              _blockBootstrap = false;
+              if (_controller == null || !_controller!.value.isInitialized) {
+                _bootstrap();
+              } else {
+                _startDetection();
+              }
             },
           ),
         ),
       );
+      // Returned from preview without continuing — allow camera again.
+      if (mounted) _blockBootstrap = false;
     } catch (e) {
       if (!mounted) return;
       setState(() => _buildingPdf = false);
       _blockBootstrap = false;
       _snack('Failed to generate PDF: $e');
+      if (_controller == null || !_controller!.value.isInitialized) {
+        _bootstrap();
+      } else {
+        _startDetection();
+      }
     }
   }
 
-  void _commitResult(String pdfPath) {
-    if (widget.onCompleted != null) {
-      widget.onCompleted!(pdfPath, List<String>.from(_scannedPages));
-    } else if (widget.onCaptured != null) {
-      widget.onCaptured!(pdfPath);
-    } else {
-      Navigator.of(context).pop(pdfPath);
+  Future<void> _safeCommitResult(String pdfPath) async {
+    if (!mounted) return;
+    _blockBootstrap = true;
+    try {
+      await _stopDetection();
+    } catch (_) {}
+    final cam = _controller;
+    _controller = null;
+    await _teardownCamera(cam);
+
+    if (!mounted) return;
+    final pages = List<String>.from(_scannedPages);
+    try {
+      if (widget.onCompleted != null) {
+        widget.onCompleted!(pdfPath, pages);
+      } else if (widget.onCaptured != null) {
+        widget.onCaptured!(pdfPath);
+      } else if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(pdfPath);
+      }
+    } catch (_) {
+      // Never let a callback crash kill the process on iOS.
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(pdfPath);
+      }
     }
   }
 
@@ -1255,7 +1409,28 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (controller == null || !controller.value.isInitialized) {
       return const SizedBox.shrink();
     }
-    return _CoverCameraPreview(controller: controller);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (details) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        final local = details.localPosition;
+        final nx = (local.dx / box.size.width).clamp(0.05, 0.95);
+        final ny = (local.dy / box.size.height).clamp(0.05, 0.95);
+        unawaited(_focusAt(Offset(nx, ny)));
+      },
+      child: _CoverCameraPreview(controller: controller),
+    );
+  }
+
+  Future<void> _focusAt(Offset normalized) async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      await controller.setFocusMode(FocusMode.auto);
+      await controller.setFocusPoint(normalized);
+      await controller.setExposurePoint(normalized);
+    } catch (_) {}
   }
 
   Widget _documentHighlight() {

@@ -50,13 +50,17 @@ class NativeDocumentEdgeService {
     if (_running || shouldFallback) return;
     _running = true;
     _errorStreak = 0;
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     _subscription = _detector
         .detectStream(
           _frames.stream,
           stabilize: _stabilizer,
-          minInterval: const Duration(milliseconds: 120),
+          // Fewer native calls on iOS = smoother preview (BGRA frames are big).
+          minInterval: Duration(milliseconds: isIOS ? 200 : 120),
           sensitivity: sensitivity,
-          minimumAspectRatio: 0.12,
+          // iOS Vision often scores thin receipts / angled A4 lower — allow
+          // smaller aspect ratios so borders still lock.
+          minimumAspectRatio: isIOS ? 0.05 : 0.12,
         )
         .listen(
           _onEvent,
