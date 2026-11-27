@@ -14,6 +14,7 @@ import '../../services/document_crop_service.dart';
 import '../../services/gallery_import_service.dart';
 import '../../services/image_enhancer.dart';
 import '../../services/live_document_detector.dart';
+import '../../services/native_document_edge_service.dart';
 import '../../services/scan_pdf_service.dart';
 import '../../widgets/common/ino_loader.dart';
 import '../../widgets/scan/document_highlight.dart';
@@ -75,10 +76,15 @@ class _ScannerScreenState extends State<ScannerScreen>
   final List<String> _scannedPages = [];
   ScanColorMode _activeFilter = ScanColorMode.original;
 
-  // Live document detection
-  final LiveDocumentDetector _detector = LiveDocumentDetector();
+  // Live document detection — native Vision/OpenCV first, local fallback.
+  final LiveDocumentDetector _localDetector = LiveDocumentDetector();
+  final NativeDocumentEdgeService _nativeEdges = NativeDocumentEdgeService();
+  StreamSubscription<NativeEdgeEvent>? _nativeSub;
   final Stopwatch _throttle = Stopwatch();
   bool _streaming = false;
+  bool _useNativeEdges = true;
+  /// Native detector returns upright corners (Android after rotation).
+  bool _nativeUpright = false;
 
   final ValueNotifier<List<Offset>?> _docCorners =
       ValueNotifier<List<Offset>?>(null);
@@ -93,16 +99,18 @@ class _ScannerScreenState extends State<ScannerScreen>
   DateTime? _stableStart;
   bool _focusLocked = false;
 
-  static const int _kSampleIntervalMs = 85;
+  static const int _kSampleIntervalMs = 70;
   static const int _kConfirmFrames = 2;
   /// Require several weak frames before dropping a lock - autofocus hunting
   /// routinely dips confidence for a sample or two without the page leaving.
   static const int _kLoseFrames = 5;
-  static const double _kDetectConfidence = 0.45;
-  static const double _kLoseConfidence = 0.28;
-  static const Duration _kStableDuration = Duration(milliseconds: 550);
+  /// Silhouette contrast detects blank pages; keep this reachable for them.
+  static const double _kDetectConfidence = 0.34;
+  static const double _kLoseConfidence = 0.22;
+  static const Duration _kStableDuration = Duration(milliseconds: 480);
   /// Corner jitter below this (normalised) is treated as hand tremor and ignored.
-  static const double _kCornerDeadband = 0.035;
+  /// Kept tight so the outline can still snap onto the real page edge.
+  static const double _kCornerDeadband = 0.024;
 
   @override
   void initState() {
@@ -117,6 +125,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     final controller = _controller;
     _controller = null;
     _streaming = false;
+    _nativeSub?.cancel();
+    _nativeEdges.dispose();
     _teardownCamera(controller);
     _docCorners.dispose();
     super.dispose();
@@ -228,11 +238,29 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (controller == null || !controller.value.isInitialized || _streaming) {
       return;
     }
-    _detector.reset();
+    _localDetector.reset();
     _resetDetectionState();
     _throttle
       ..reset()
       ..start();
+
+    _useNativeEdges = !_nativeEdges.shouldFallback;
+    _nativeUpright = false;
+    await _nativeSub?.cancel();
+    _nativeSub = null;
+
+    if (_useNativeEdges) {
+      try {
+        await _nativeEdges.start();
+        _nativeUpright = _nativeEdges.cornersAreUpright ||
+            (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS);
+        _nativeSub = _nativeEdges.events.listen(_onNativeEdge);
+      } catch (_) {
+        _useNativeEdges = false;
+        _nativeUpright = false;
+      }
+    }
+
     try {
       await controller.startImageStream(_onFrame);
       _streaming = true;
@@ -244,6 +272,9 @@ class _ScannerScreenState extends State<ScannerScreen>
   Future<void> _stopDetection() async {
     final controller = _controller;
     _streaming = false;
+    await _nativeSub?.cancel();
+    _nativeSub = null;
+    await _nativeEdges.stop();
     if (controller != null && controller.value.isStreamingImages) {
       try {
         await controller.stopImageStream();
@@ -258,7 +289,34 @@ class _ScannerScreenState extends State<ScannerScreen>
     _docCorners.value = null;
     _lastStableCorners = null;
     _consecutiveMissedFrames = 0;
+    _nativeEdges.resetStabilizer();
     _setFocusLocked(false);
+  }
+
+  void _onNativeEdge(NativeEdgeEvent event) {
+    if (!mounted || _phase != _Phase.ready) return;
+    if (_state == ScannerState.capturing || _state == ScannerState.success) {
+      return;
+    }
+    if (event.failed) {
+      _useNativeEdges = false;
+      _nativeUpright = false;
+      return;
+    }
+    final corners = event.corners;
+    final present =
+        event.present && corners != null && corners.length == 4;
+    // Native stabilizer already damps jitter; treat a confident lock as steady.
+    final bool steady = present && event.confidence >= 0.45;
+    final confidence = present
+        ? (event.confidence < 0.55 ? 0.55 : event.confidence)
+        : 0.0;
+    _handleSignal(confidence, steady);
+    if (present) {
+      _applyCorners(corners);
+    } else {
+      _handleMissedDetection();
+    }
   }
 
   void _onFrame(CameraImage image) {
@@ -266,83 +324,89 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (_state == ScannerState.capturing || _state == ScannerState.success) {
       return;
     }
+
+    if (_useNativeEdges && !_nativeEdges.shouldFallback) {
+      final controller = _controller;
+      _nativeEdges.pushFrame(
+        image,
+        sensorOrientation: controller?.description.sensorOrientation ?? 90,
+      );
+      return;
+    }
+
+    // Local silhouette fallback when native edge engine is unavailable.
     if (_throttle.elapsedMilliseconds < _kSampleIntervalMs) return;
     _throttle.reset();
 
-    final signal = _detector.analyze(image);
+    final signal = _localDetector.analyze(image);
     _handleSignal(signal.confidence, signal.steady);
-
     final rawCorners = signal.corners;
     if (rawCorners != null && rawCorners.length == 4) {
-      _consecutiveMissedFrames = 0;
-      final shouldShow = switch (_state) {
-        ScannerState.detecting ||
-        ScannerState.documentDetected ||
-        ScannerState.readyToScan =>
-          true,
-        _ => false,
-      };
-
-      if (!shouldShow) {
-        _handleMissedDetection();
-        return;
-      }
-
-      final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
-      final prev = _docCorners.value ?? _lastStableCorners;
-
-      // Ready lock: pin the outline unless the page is clearly reframed.
-      if (_state == ScannerState.readyToScan &&
-          prev != null &&
-          prev.length == 4) {
-        final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
-        double totalDist = 0;
-        for (int i = 0; i < 4; i++) {
-          totalDist += (aligned[i] - prev[i]).distance;
-        }
-        if (totalDist / 4.0 < 0.06) {
-          if (_docCorners.value == null) {
-            _docCorners.value = prev;
-          }
-          return;
-        }
-        // Big reframe while "ready" - unlock optics and track again.
-        _stableStart = null;
-        _setFocusLocked(false);
-        _enter(ScannerState.documentDetected);
-      }
-
-      if (prev != null && prev.length == 4) {
-        final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
-
-        double totalDist = 0;
-        for (int i = 0; i < 4; i++) {
-          totalDist += (aligned[i] - prev[i]).distance;
-        }
-        final avgDist = totalDist / 4.0;
-
-        // Deadband: ignore hand tremor / autofocus micro-shifts.
-        if (avgDist < _kCornerDeadband) {
-          if (_docCorners.value == null) {
-            _docCorners.value = prev;
-          }
-          return;
-        }
-
-        // Adaptive glide - small moves ease in; big reframes follow faster.
-        final double alpha = (avgDist * 2.0).clamp(0.12, 0.45);
-        final smoothed = [
-          for (int i = 0; i < 4; i++)
-            Offset.lerp(prev[i], aligned[i], alpha)!,
-        ];
-        _docCorners.value = smoothed;
-        _lastStableCorners = smoothed;
-      } else {
-        _docCorners.value = ordered;
-        _lastStableCorners = ordered;
-      }
+      _applyCorners(rawCorners);
     } else {
       _handleMissedDetection();
+    }
+  }
+
+  void _applyCorners(List<Offset> rawCorners) {
+    _consecutiveMissedFrames = 0;
+    final shouldShow = switch (_state) {
+      ScannerState.detecting ||
+      ScannerState.documentDetected ||
+      ScannerState.readyToScan =>
+        true,
+      _ => false,
+    };
+
+    if (!shouldShow) {
+      _handleMissedDetection();
+      return;
+    }
+
+    final ordered = LiveDocumentDetector.orderClockwise(rawCorners);
+    final prev = _docCorners.value ?? _lastStableCorners;
+
+    if (_state == ScannerState.readyToScan &&
+        prev != null &&
+        prev.length == 4) {
+      final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
+      double totalDist = 0;
+      for (int i = 0; i < 4; i++) {
+        totalDist += (aligned[i] - prev[i]).distance;
+      }
+      if (totalDist / 4.0 < 0.05) {
+        if (_docCorners.value == null) {
+          _docCorners.value = prev;
+        }
+        return;
+      }
+      _stableStart = null;
+      _setFocusLocked(false);
+      _enter(ScannerState.documentDetected);
+    }
+
+    if (prev != null && prev.length == 4) {
+      final aligned = LiveDocumentDetector.alignCorners(prev, ordered);
+      double totalDist = 0;
+      for (int i = 0; i < 4; i++) {
+        totalDist += (aligned[i] - prev[i]).distance;
+      }
+      final avgDist = totalDist / 4.0;
+      if (avgDist < _kCornerDeadband) {
+        if (_docCorners.value == null) {
+          _docCorners.value = prev;
+        }
+        return;
+      }
+      final double alpha = (avgDist * 2.0).clamp(0.12, 0.45);
+      final smoothed = [
+        for (int i = 0; i < 4; i++) Offset.lerp(prev[i], aligned[i], alpha)!,
+      ];
+      _docCorners.value = smoothed;
+      _lastStableCorners = smoothed;
+    } else {
+      _docCorners.value = ordered;
+      _lastStableCorners = ordered;
     }
   }
 
@@ -569,11 +633,14 @@ class _ScannerScreenState extends State<ScannerScreen>
       return path;
     }
     final controller = _controller;
+    // Native upright corners already match the EXIF-baked still; local
+    // detector corners are still in sensor space and need the turn.
+    final turns = _cropQuarterTurns;
     final upright = [
       for (final c in outline)
         rotateSensorPoint(
           c,
-          quarterTurns: _sensorQuarterTurns,
+          quarterTurns: turns,
           mirror: controller?.description.lensDirection ==
               CameraLensDirection.front,
         ),
@@ -596,6 +663,12 @@ class _ScannerScreenState extends State<ScannerScreen>
       sensorOrientation: controller.description.sensorOrientation,
     );
   }
+
+  /// Overlay / crop turns for the active detector coordinate space.
+  int get _overlayQuarterTurns =>
+      (_useNativeEdges && _nativeUpright) ? 0 : _sensorQuarterTurns;
+
+  int get _cropQuarterTurns => _overlayQuarterTurns;
 
   Future<void> _galleryPressed() async {
     setState(() => _blockBootstrap = true);
@@ -1090,7 +1163,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       corners: _docCorners,
       state: _overlayState,
       sourceSize: _previewDisplaySize(controller),
-      quarterTurns: _sensorQuarterTurns,
+      quarterTurns: _overlayQuarterTurns,
       mirror: controller.description.lensDirection == CameraLensDirection.front,
     );
   }
@@ -1098,7 +1171,12 @@ class _ScannerScreenState extends State<ScannerScreen>
   Size _previewDisplaySize(CameraController controller) {
     final preview = controller.value.previewSize;
     if (preview == null) return const Size(1, 1);
-    final turns = _sensorQuarterTurns;
+    // Matches `_CoverCameraPreview`'s swapped FittedBox when the overlay is
+    // already in upright space, or when the sensor buffer needs a 90° turn.
+    final turns = _overlayQuarterTurns;
+    if (_useNativeEdges && _nativeUpright) {
+      return Size(preview.height, preview.width);
+    }
     return (turns % 2 == 1)
         ? Size(preview.height, preview.width)
         : Size(preview.width, preview.height);

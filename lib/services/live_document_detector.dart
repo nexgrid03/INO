@@ -7,128 +7,85 @@ import 'package:camera/camera.dart';
 class DocumentSignal {
   const DocumentSignal(this.confidence, this.steady, {this.bounds, this.corners});
 
-  /// 0..1 - how "document-like" the framed subject is right now (a sharp,
-  /// high-contrast page fills the centre with edges; empty/blurry scenes score
-  /// low).
+  /// 0..1 - how "document-like" the framed subject is right now.
   final double confidence;
 
-  /// True when the frame is holding still (low frame-to-frame change) - the
-  /// signal used to decide the document is stable enough to scan.
+  /// True when the frame is holding still (low frame-to-frame change).
   final bool steady;
 
-  /// Where the document sits, as a rect normalised to the raw camera frame
-  /// (0..1 of `image.width` × `image.height`, i.e. still in *sensor*
-  /// coordinates - the caller rotates it to display space).
-  ///
-  /// Null when no plausible document region could be isolated this frame.
+  /// Document bounds normalised to the raw camera frame (0..1 sensor space).
   final Rect? bounds;
 
-  /// The document's four corners - top-left, top-right, bottom-right,
-  /// bottom-left - in the same normalised sensor coordinates as [bounds].
-  ///
-  /// This is the shape the on-screen border traces: a page held at an angle is
-  /// a skewed quadrilateral on the sensor, and outlining it with [bounds]'
-  /// upright rectangle would sit visibly wide of the page on two corners.
-  /// Null whenever no convincing quad could be fitted.
+  /// Four corners TL → TR → BR → BL in the same normalised sensor coordinates.
   final List<Offset>? corners;
 
   static const DocumentSignal none = DocumentSignal(0, false);
 }
 
-/// A lightweight, dependency-free document presence detector fed by the live
-/// camera image stream.
+/// Live document edge detector for the in-app scanner preview.
 ///
-/// It does NOT pretend to be a full edge/rectangle detector (ML Kit owns that
-/// on the capture path). Instead it derives three honest, cheap signals from
-/// the luminance (Y) plane of each frame, sampled on a small fixed grid over
-/// the scanner region:
+/// Finds the **page silhouette against the background** (the real paper /
+/// book / screen border), not interior text texture. That is what Photos /
+/// Lens lock onto: contrast between the sheet and the desk, then the outer
+/// contour of that sheet as a four-corner quad.
 ///
-///   • confidence - mean local gradient (edge energy) over the central area. A
-///     document page with text/borders on a contrasting surface produces far
-///     more edge energy than an empty wall or a blurry, out-of-focus view.
-///   • steady     - mean absolute difference against the previous frame's
-///     samples. Low movement ⇒ the user is holding the document still.
-///   • bounds     - the bounding box of the cells carrying that edge energy,
-///     which is what the on-screen highlight border traces.
-///
-/// Only ~[_grid]² pixels are read per frame regardless of resolution, so this
-/// stays cheap even at high capture presets. Thresholds live in the scanner
-/// screen so they can be tuned without touching this math.
+/// Pipeline (all on a fixed [_grid]² luminance sample - cheap every frame):
+///   1. Estimate background from the frame's outer ring.
+///   2. Build a solid foreground mask (page vs desk), close small holes.
+///   3. Keep only the largest blob so desk clutter cannot steal the outline.
+///   4. Fit corners from the **silhouette boundary** (cells that touch
+///      background) - interior ink cannot bend the quad.
+///   5. Score confidence from silhouette contrast so blank white pages still
+///      detect, not only busy text pages.
 class LiveDocumentDetector {
-  /// Sampling grid density over the sampled region (40×40 = 1600 reads/frame).
-  static const int _grid = 40;
+  static const int _grid = 48;
 
-  /// The slice of the frame that is sampled (4%..96%). Wider than the central
-  /// region the confidence uses, so a document that fills most of the viewport
-  /// still gets a bounding box that hugs it instead of clipping at the guide.
-  static const double _regionStart = 0.04;
-  static const double _regionEnd = 0.96;
+  static const double _regionStart = 0.03;
+  static const double _regionEnd = 0.97;
 
-  /// Grid indices bounding the central 15%..85% window that feeds [confidence]
-  /// - the same area the previous central-only sampling covered, so detection
-  /// thresholds keep their meaning.
   static final int _coreLo =
       (((0.15 - _regionStart) / (_regionEnd - _regionStart)) * _grid).floor();
   static final int _coreHi =
       (((0.85 - _regionStart) / (_regionEnd - _regionStart)) * _grid).ceil();
 
-  /// Converts mean gradient (0..255) into 0..1 confidence. ~22 of average
-  /// neighbour contrast maps to full confidence - enough to separate a framed
-  /// document from a flat background, without needing a pristine scan.
-  static const double _focusNorm = 22.0;
+  /// Interior edge energy → confidence (textured pages).
+  static const double _focusNorm = 20.0;
 
-  /// A cell counts as "document" when its edge energy clears this fraction of
-  /// the frame's strong-edge level (the 95th percentile), floored by
-  /// [_minCellEnergy] so a flat wall's sensor noise never forms a box.
-  static const double _boundsEnergyFraction = 0.24;
-  static const int _minCellEnergy = 10;
+  /// |page − desk| contrast → confidence (blank pages on a desk).
+  static const double _contrastNorm = 48.0;
 
-  /// A row/column joins the box once this fraction of its cells are active -
-  /// isolated specks (dust, a pen on the desk) can't stretch the border.
-  static const double _boundsRowFill = 0.10;
+  /// Minimum |luma − background| to count as page/foreground.
+  static const int _fgContrast = 22;
 
-  /// A believable document fills at least this fraction of the frame on both
-  /// axes; anything smaller is treated as clutter rather than a page.
-  static const double _minBoundsExtent = 0.16;
+  /// Minimum strong edge response to reinforce a silhouette cell.
+  static const int _edgeBoost = 18;
 
-  /// A cell can only anchor a corner when at least this many of its eight
-  /// neighbours are active too - one hot pixel on the desk is not a corner.
-  static const int _minCornerNeighbours = 2;
+  static const double _minBoundsExtent = 0.14;
+  static const double _minAspect = 0.42;
+  static const double _maxAspect = 2.35;
 
-  /// The fitted quad is pushed this far out from its own centroid, in units of
-  /// its half-diagonal, so the stroke frames the page instead of cutting it.
-  static const double _quadPad = 0.045;
+  /// Tiny outward pad so the stroke sits on the paper edge, not inside it.
+  static const double _quadPad = 0.018;
 
-  /// Scratch buffers, reused across frames so the analysis loop allocates
-  /// nothing per frame. [_samples] and [_prev] are double-buffered: each frame
-  /// writes into [_samples] and then swaps, so last frame's readings survive
-  /// for the motion estimate without a copy.
+  /// Largest blob must cover at least this fraction of the sample grid.
+  static const double _minBlobFill = 0.045;
+
   List<int> _samples = List<int>.filled(_grid * _grid, 0);
   List<int> _prev = List<int>.filled(_grid * _grid, 0);
   final List<int> _energy = List<int>.filled(_grid * _grid, 0);
-  final List<int> _rowHits = List<int>.filled(_grid, 0);
-  final List<int> _colHits = List<int>.filled(_grid, 0);
-  final List<int> _histogram = List<int>.filled(256, 0);
+  final List<int> _mask = List<int>.filled(_grid * _grid, 0);
+  final List<int> _scratch = List<int>.filled(_grid * _grid, 0);
+  final List<int> _labels = List<int>.filled(_grid * _grid, 0);
+  final List<int> _queue = List<int>.filled(_grid * _grid, 0);
+  final List<int> _borderLuma = List<int>.filled(_grid * 4, 0);
 
-  /// Previous shape preserved for stable lock-on when the document is steady.
   _DocumentShape? _prevShape;
-
-  /// How many consecutive empty frames we still replay [_prevShape] for.
-  /// Autofocus hunting and brief glare flashes routinely drop a page for 1–3
-  /// samples; clearing the outline on the first miss is what users read as
-  /// flicker. ~8 samples ≈ a second of hold at the scanner's 85 ms cadence.
   int _shapeHold = 0;
-  static const int _kShapeHoldFrames = 8;
+  static const int _kShapeHoldFrames = 6;
+  static const double _lockDeadband = 0.016;
 
-  /// Corner displacement (normalised) below which we pin to the previous
-  /// outline instead of chasing sensor noise / hand tremor.
-  static const double _lockDeadband = 0.022;
-
-  /// True once [_prev] holds a real frame - until then there is nothing to
-  /// measure motion against.
   bool _hasPrev = false;
 
-  /// Forget history (call when the stream stops / camera is freed).
   void reset() {
     _hasPrev = false;
     _prevShape = null;
@@ -137,17 +94,13 @@ class LiveDocumentDetector {
 
   DocumentSignal analyze(CameraImage image) {
     if (image.planes.isEmpty) return DocumentSignal.none;
-    final plane = image.planes.first; // Y (luminance) plane for YUV420.
+    final plane = image.planes.first;
     final bytes = plane.bytes;
     final int w = image.width;
     final int h = image.height;
     if (w == 0 || h == 0 || bytes.isEmpty) return DocumentSignal.none;
 
     final int rowStride = plane.bytesPerRow;
-    // Android YUV: one luma byte per pixel (bytesPerPixel is 1). iOS leaves
-    // bytesPerPixel null on the Y plane, which is the same stride of 1.
-    // iOS BGRA is interleaved; sampling byte 0 of each pixel would read only
-    // blue and invent edges that are not on the page.
     final bool bgra = image.format.group == ImageFormatGroup.bgra8888;
     final int pixStride = bgra
         ? (plane.bytesPerPixel ?? 4)
@@ -176,9 +129,6 @@ class LiveDocumentDetector {
       }
     }
 
-    // Edge energy per cell: absolute gradient to the right & lower neighbours.
-    // The central window's mean feeds `confidence`; the whole grid feeds the
-    // bounding box.
     final energy = _energy;
     int coreGrad = 0;
     int coreCount = 0;
@@ -207,10 +157,27 @@ class LiveDocumentDetector {
         energy[i] = cell;
       }
     }
-    final double focus = coreCount == 0 ? 0.0 : coreGrad / coreCount;
-    final double confidence = (focus / _focusNorm).clamp(0.0, 1.0);
 
-    // Temporal steadiness vs the previous frame's samples.
+    final int bg = _backgroundLuma(samples);
+    final shape = _shapeFromSilhouette(
+      samples: samples,
+      energy: energy,
+      bg: bg,
+      rx: x0 / w,
+      ry: y0 / h,
+      rw: rw / w,
+      rh: rh / h,
+    );
+
+    // Confidence: strongest of interior texture OR page-vs-desk contrast so
+    // blank sheets still light up the border.
+    final double texture =
+        coreCount == 0 ? 0.0 : (coreGrad / coreCount) / _focusNorm;
+    final double contrast = shape == null
+        ? 0.0
+        : (shape.contrast / _contrastNorm).clamp(0.0, 1.0);
+    final double confidence = math.max(texture, contrast).clamp(0.0, 1.0);
+
     bool steady = false;
     if (_hasPrev) {
       final prev = _prev;
@@ -218,18 +185,12 @@ class LiveDocumentDetector {
       for (int i = 0; i < samples.length; i++) {
         diff += (samples[i] - prev[i]).abs();
       }
-      final double motion = diff / samples.length;
-      // Slightly looser than a perfect still life so ordinary hand tremor
-      // still counts as "steady" and the border can lock.
-      steady = motion < 8.5;
+      steady = (diff / samples.length) < 8.0;
     }
-    // Swap the buffers: this frame's readings become next frame's history, and
-    // the buffer they displace is what the next frame samples into.
     _samples = _prev;
     _prev = samples;
     _hasPrev = true;
 
-    final shape = _shape(x0 / w, y0 / h, rw / w, rh / h);
     List<Offset>? finalCorners = shape?.corners;
     Rect? finalBounds = shape?.bounds;
     if (finalCorners != null && finalCorners.length == 4) {
@@ -244,34 +205,33 @@ class LiveDocumentDetector {
         final avgDist = totalDist / 4.0;
 
         if (avgDist < _lockDeadband) {
-          // Pin hard - sensor noise must not wiggle the stroke.
           finalCorners = prev.corners;
           finalBounds = prev.bounds;
-        } else if (steady) {
-          // Locked-on page: crawl toward the new reading so the stroke stays
-          // glued to the paper instead of skating with every sample.
-          finalCorners = [
-            for (int i = 0; i < 4; i++)
-              Offset.lerp(prev.corners[i], aligned[i], 0.10)!,
-          ];
-          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.10);
-        } else if (avgDist < 0.12) {
-          // Small nudge while the user repositions - ease, don't snap.
-          finalCorners = [
-            for (int i = 0; i < 4; i++)
-              Offset.lerp(prev.corners[i], aligned[i], 0.28)!,
-          ];
-          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.28);
-        } else {
-          // Large move (page dragged across frame): follow immediately so
-          // tracking tests and real re-framing stay responsive.
+        } else if (avgDist > 0.10) {
+          // Clearly better / reframed reading - snap to the real border.
           finalCorners = aligned;
+          finalBounds = shape!.bounds;
+        } else if (steady) {
+          finalCorners = [
+            for (int i = 0; i < 4; i++)
+              Offset.lerp(prev.corners[i], aligned[i], 0.22)!,
+          ];
+          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.22);
+        } else {
+          finalCorners = [
+            for (int i = 0; i < 4; i++)
+              Offset.lerp(prev.corners[i], aligned[i], 0.40)!,
+          ];
+          finalBounds = Rect.lerp(prev.bounds, shape!.bounds, 0.40);
         }
       }
-      _prevShape = _DocumentShape(finalBounds ?? shape!.bounds, finalCorners);
+      _prevShape = _DocumentShape(
+        finalBounds ?? shape!.bounds,
+        finalCorners,
+        shape?.contrast ?? prev?.contrast ?? 0,
+      );
       _shapeHold = _kShapeHoldFrames;
     } else if (_prevShape != null && _shapeHold > 0) {
-      // Brief detection drop - keep the last good outline instead of blinking.
       _shapeHold--;
       finalCorners = _prevShape!.corners;
       finalBounds = _prevShape!.bounds;
@@ -290,15 +250,14 @@ class LiveDocumentDetector {
     );
   }
 
-  /// Ensures 4 corners are strictly ordered clockwise:
-  /// Index 0: Top-Left
-  /// Index 1: Top-Right
-  /// Index 2: Bottom-Right
-  /// Index 3: Bottom-Left
   static List<Offset> orderClockwise(List<Offset> corners) {
     if (corners.length != 4) return corners;
-    final cx = (corners[0].dx + corners[1].dx + corners[2].dx + corners[3].dx) / 4.0;
-    final cy = (corners[0].dy + corners[1].dy + corners[2].dy + corners[3].dy) / 4.0;
+    final cx =
+        (corners[0].dx + corners[1].dx + corners[2].dx + corners[3].dx) /
+            4.0;
+    final cy =
+        (corners[0].dy + corners[1].dy + corners[2].dy + corners[3].dy) /
+            4.0;
     final c = Offset(cx, cy);
 
     final sorted = List<Offset>.from(corners);
@@ -326,9 +285,8 @@ class LiveDocumentDetector {
     ];
   }
 
-  /// Aligns candidate corners cyclically to match the permutation of reference corners
-  /// minimizing the total squared distance between corresponding points.
-  static List<Offset> alignCorners(List<Offset> reference, List<Offset> candidate) {
+  static List<Offset> alignCorners(
+      List<Offset> reference, List<Offset> candidate) {
     if (reference.length != 4 || candidate.length != 4) return candidate;
     double bestDist = double.infinity;
     int bestShift = 0;
@@ -345,8 +303,6 @@ class LiveDocumentDetector {
     return [for (int i = 0; i < 4; i++) candidate[(i + bestShift) % 4]];
   }
 
-  /// Rec. 601 luma from a BGRA pixel starting at [i]. iOS reports this layout
-  /// with a null bytes-per-pixel, so the caller passes a stride of 4.
   static int _bgraLuma(List<int> bytes, int i) {
     if (i < 0 || i + 2 >= bytes.length) return 0;
     final b = bytes[i];
@@ -355,47 +311,100 @@ class LiveDocumentDetector {
     return (r * 77 + g * 150 + b * 29) >> 8;
   }
 
-  /// The document's outline: an upright bounding box plus the four-corner quad
-  /// that actually hugs it.
-  ///
-  /// [rx]/[ry] are the sampled region's normalised origin and [rw]/[rh] its
-  /// normalised size, so grid indices can be projected straight into 0..1
-  /// frame coordinates.
-  _DocumentShape? _shape(double rx, double ry, double rw, double rh) {
-    final energy = _energy;
+  /// Median luminance of the outer ring - that is the desk / wall, not the page.
+  int _backgroundLuma(List<int> samples) {
+    final border = _borderLuma;
+    int n = 0;
+    for (int gx = 0; gx < _grid; gx++) {
+      border[n++] = samples[gx];
+      border[n++] = samples[(_grid - 1) * _grid + gx];
+    }
+    for (int gy = 1; gy < _grid - 1; gy++) {
+      border[n++] = samples[gy * _grid];
+      border[n++] = samples[gy * _grid + (_grid - 1)];
+    }
+    // Partial sort for median of the ring we filled.
+    final values = border.sublist(0, n)..sort();
+    return values[n ~/ 2];
+  }
 
-    // Strong-edge level: the 95th percentile, so one specular highlight can't
-    // drag the threshold up and erase the whole document.
-    final int strong = _percentile(energy, 0.95);
-    final int threshold =
-        math.max(_minCellEnergy, (strong * _boundsEnergyFraction).round());
+  _DocumentShape? _shapeFromSilhouette({
+    required List<int> samples,
+    required List<int> energy,
+    required int bg,
+    required double rx,
+    required double ry,
+    required double rw,
+    required double rh,
+  }) {
+    final mask = _mask;
+    // 1) Seed foreground from contrast vs desk background.
+    for (int i = 0; i < _grid * _grid; i++) {
+      final int d = (samples[i] - bg).abs();
+      mask[i] = (d >= _fgContrast || energy[i] >= _edgeBoost * 2) ? 1 : 0;
+    }
 
-    final rowHits = _rowHits;
-    final colHits = _colHits;
-    rowHits.fillRange(0, _grid, 0);
-    colHits.fillRange(0, _grid, 0);
+    // 1b) Reinforce real page edges: a strong gradient between a desk-like
+    // cell and a page-like cell is the border Photos/Lens lock onto.
     for (int gy = 0; gy < _grid; gy++) {
+      for (int gx = 0; gx < _grid - 1; gx++) {
+        final int i = gy * _grid + gx;
+        final int a = samples[i];
+        final int b = samples[i + 1];
+        if ((a - b).abs() < _edgeBoost) continue;
+        final bool aBg = (a - bg).abs() < _fgContrast;
+        final bool bBg = (b - bg).abs() < _fgContrast;
+        if (aBg == bBg) continue;
+        mask[i] = 1;
+        mask[i + 1] = 1;
+      }
+    }
+    for (int gy = 0; gy < _grid - 1; gy++) {
       for (int gx = 0; gx < _grid; gx++) {
-        if (energy[gy * _grid + gx] >= threshold) {
-          rowHits[gy]++;
-          colHits[gx]++;
-        }
+        final int i = gy * _grid + gx;
+        final int a = samples[i];
+        final int b = samples[i + _grid];
+        if ((a - b).abs() < _edgeBoost) continue;
+        final bool aBg = (a - bg).abs() < _fgContrast;
+        final bool bBg = (b - bg).abs() < _fgContrast;
+        if (aBg == bBg) continue;
+        mask[i] = 1;
+        mask[i + _grid] = 1;
       }
     }
 
-    final int minFill = math.max(2, (_grid * _boundsRowFill).round());
-    final int top = _firstAbove(rowHits, minFill, forward: true);
-    if (top < 0) return null;
-    final int bottom = _firstAbove(rowHits, minFill, forward: false);
-    final int left = _firstAbove(colHits, minFill, forward: true);
-    if (left < 0) return null;
-    final int right = _firstAbove(colHits, minFill, forward: false);
+    // 2) Close holes (ink gaps / faint print) so the page is one solid sheet.
+    _dilate(mask, _scratch);
+    _dilate(_scratch, mask);
+    _erode(mask, _scratch);
+    _erode(_scratch, mask);
 
-    // Half-open on the far edge, plus a cell of breathing room so the border
-    // reads as sitting *around* the document rather than cutting into it.
-    const double pad = 1.5;
+    // 3) Keep the largest connected blob - reject desk clutter / hands.
+    final kept = _keepLargestBlob(mask);
+    if (kept < (_grid * _grid * _minBlobFill).round()) return null;
+
+    // 4) Bounding box of the page blob.
+    int left = _grid, right = -1, top = _grid, bottom = -1;
+    int fgSum = 0;
+    int fgCount = 0;
+    for (int gy = 0; gy < _grid; gy++) {
+      for (int gx = 0; gx < _grid; gx++) {
+        final int i = gy * _grid + gx;
+        if (mask[i] == 0) continue;
+        if (gx < left) left = gx;
+        if (gx > right) right = gx;
+        if (gy < top) top = gy;
+        if (gy > bottom) bottom = gy;
+        fgSum += samples[i];
+        fgCount++;
+      }
+    }
+    if (right < left || bottom < top || fgCount == 0) return null;
+
     final double cellW = rw / _grid;
     final double cellH = rh / _grid;
+    // Half-cell pad only - hug the real edge, do not balloon past it.
+    const double pad = 0.55;
     final double l = (rx + (left - pad) * cellW).clamp(0.0, 1.0);
     final double t = (ry + (top - pad) * cellH).clamp(0.0, 1.0);
     final double r = (rx + (right + 1 + pad) * cellW).clamp(0.0, 1.0);
@@ -404,62 +413,53 @@ class LiveDocumentDetector {
     final double bw = r - l;
     final double bh = b - t;
     if (bw < _minBoundsExtent || bh < _minBoundsExtent) return null;
-
-    // Aspect ratio filter: legitimate rectangular documents (Aadhar, PAN, certificates,
-    // A4 sheets, bills) possess aspect ratios between 0.45 and 2.2.
-    // Extremely wide (keyboards, desk edges) or narrow objects are ignored.
     final double aspect = bw / bh;
-    if (aspect < 0.45 || aspect > 2.2) return null;
+    if (aspect < _minAspect || aspect > _maxAspect) return null;
 
     final bounds = Rect.fromLTRB(l, t, r, b);
-
-    final corners = _corners(
+    final corners = _silhouetteCorners(
+      mask: mask,
       rx: rx,
       ry: ry,
       cellW: cellW,
       cellH: cellH,
-      threshold: threshold,
       left: left,
       top: top,
       right: right,
       bottom: bottom,
     );
-    // No convincing quad (a sliver, a bow-tie) - fall back to the upright box
-    // rather than drawing a shape the detector cannot actually justify.
-    return _DocumentShape(bounds, corners ?? _rectCorners(bounds));
+    if (corners == null) return null;
+
+    final double contrast = (fgSum / fgCount - bg).abs().toDouble();
+    return _DocumentShape(bounds, corners, contrast);
   }
 
-  /// Fits the document's four corners by taking, among the active cells inside
-  /// the bounding box, the extreme cell along each of the four diagonals:
-  /// min(x+y) is the top-left, max(x-y) the top-right, and so on.
-  ///
-  /// This is the cheap standard trick for recovering a rotated rectangle from a
-  /// mask, and it is exactly right for the case that matters here - a page or
-  /// card lying at an angle, whose sensor footprint is a convex quad.
-  List<Offset>? _corners({
+  /// Corners from silhouette **boundary** cells only (touch background).
+  /// Interior text never participates, so the quad cannot bend inward.
+  List<Offset>? _silhouetteCorners({
+    required List<int> mask,
     required double rx,
     required double ry,
     required double cellW,
     required double cellH,
-    required int threshold,
     required int left,
     required int top,
     required int right,
     required int bottom,
   }) {
-    final energy = _energy;
-
-    // Running extremes: [sum-min, diff-max, sum-max, diff-min] → TL, TR, BR, BL.
     var bestSumLo = double.infinity;
     var bestDiffHi = -double.infinity;
     var bestSumHi = -double.infinity;
     var bestDiffLo = double.infinity;
     Offset? tl, tr, br, bl;
+    int boundaryCount = 0;
 
     for (int gy = top; gy <= bottom; gy++) {
       for (int gx = left; gx <= right; gx++) {
-        if (energy[gy * _grid + gx] < threshold) continue;
-        if (_neighbourCount(gx, gy, threshold) < _minCornerNeighbours) continue;
+        final int i = gy * _grid + gx;
+        if (mask[i] == 0) continue;
+        if (!_isBoundary(mask, gx, gy)) continue;
+        boundaryCount++;
 
         final double nx = rx + (gx + 0.5) * cellW;
         final double ny = ry + (gy + 0.5) * cellH;
@@ -484,13 +484,25 @@ class LiveDocumentDetector {
       }
     }
     if (tl == null || tr == null || br == null || bl == null) return null;
+    if (boundaryCount < 12) return null;
 
     final ordered = orderClockwise([tl, tr, br, bl]);
-    // A quad that has collapsed (a thin band, or every extreme landing on the
-    // same few cells) is not a document outline.
     if (_area(ordered) < _minBoundsExtent * _minBoundsExtent) return null;
 
-    // Push each corner out from the centroid so the stroke frames the page.
+    // Reject self-intersecting / collapsed quads (bent bow-ties).
+    if (!_isConvexQuad(ordered)) {
+      return _rectCorners(Rect.fromPoints(
+        Offset(
+          math.min(tl.dx, math.min(tr.dx, math.min(br.dx, bl.dx))),
+          math.min(tl.dy, math.min(tr.dy, math.min(br.dy, bl.dy))),
+        ),
+        Offset(
+          math.max(tl.dx, math.max(tr.dx, math.max(br.dx, bl.dx))),
+          math.max(tl.dy, math.max(tr.dy, math.max(br.dy, bl.dy))),
+        ),
+      ));
+    }
+
     final cx = ordered.map((p) => p.dx).reduce((a, b) => a + b) / 4;
     final cy = ordered.map((p) => p.dy).reduce((a, b) => a + b) / 4;
     return [
@@ -502,24 +514,119 @@ class LiveDocumentDetector {
     ];
   }
 
-  /// How many of a cell's eight neighbours are active.
-  int _neighbourCount(int gx, int gy, int threshold) {
-    final energy = _energy;
-    int n = 0;
+  bool _isBoundary(List<int> mask, int gx, int gy) {
     for (int dy = -1; dy <= 1; dy++) {
-      final int y = gy + dy;
-      if (y < 0 || y >= _grid) continue;
       for (int dx = -1; dx <= 1; dx++) {
         if (dx == 0 && dy == 0) continue;
         final int x = gx + dx;
-        if (x < 0 || x >= _grid) continue;
-        if (energy[y * _grid + x] >= threshold) n++;
+        final int y = gy + dy;
+        if (x < 0 || x >= _grid || y < 0 || y >= _grid) return true;
+        if (mask[y * _grid + x] == 0) return true;
       }
     }
-    return n;
+    return false;
   }
 
-  /// Shoelace area of a quad, in normalised frame units.
+  void _dilate(List<int> src, List<int> dst) {
+    for (int gy = 0; gy < _grid; gy++) {
+      for (int gx = 0; gx < _grid; gx++) {
+        int v = 0;
+        for (int dy = -1; dy <= 1 && v == 0; dy++) {
+          final int y = gy + dy;
+          if (y < 0 || y >= _grid) continue;
+          for (int dx = -1; dx <= 1; dx++) {
+            final int x = gx + dx;
+            if (x < 0 || x >= _grid) continue;
+            if (src[y * _grid + x] != 0) {
+              v = 1;
+              break;
+            }
+          }
+        }
+        dst[gy * _grid + gx] = v;
+      }
+    }
+  }
+
+  void _erode(List<int> src, List<int> dst) {
+    for (int gy = 0; gy < _grid; gy++) {
+      for (int gx = 0; gx < _grid; gx++) {
+        // Out-of-bounds neighbours are ignored so a page that fills the
+        // sample region is not eaten away at the frame edge.
+        int v = src[gy * _grid + gx] == 0 ? 0 : 1;
+        if (v == 0) {
+          dst[gy * _grid + gx] = 0;
+          continue;
+        }
+        for (int dy = -1; dy <= 1 && v == 1; dy++) {
+          final int y = gy + dy;
+          if (y < 0 || y >= _grid) continue;
+          for (int dx = -1; dx <= 1; dx++) {
+            final int x = gx + dx;
+            if (x < 0 || x >= _grid) continue;
+            if (src[y * _grid + x] == 0) {
+              v = 0;
+              break;
+            }
+          }
+        }
+        dst[gy * _grid + gx] = v;
+      }
+    }
+  }
+
+  /// Flood-label blobs; keep only the largest. Returns its cell count.
+  int _keepLargestBlob(List<int> mask) {
+    final labels = _labels;
+    labels.fillRange(0, labels.length, 0);
+    int nextLabel = 0;
+    int bestLabel = 0;
+    int bestCount = 0;
+    final queue = _queue;
+
+    for (int start = 0; start < mask.length; start++) {
+      if (mask[start] == 0 || labels[start] != 0) continue;
+      nextLabel++;
+      int count = 0;
+      int head = 0;
+      int tail = 0;
+      queue[tail++] = start;
+      labels[start] = nextLabel;
+
+      while (head < tail) {
+        final int i = queue[head++];
+        count++;
+        final int gx = i % _grid;
+        final int gy = i ~/ _grid;
+        for (int dy = -1; dy <= 1; dy++) {
+          for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            final int x = gx + dx;
+            final int y = gy + dy;
+            if (x < 0 || x >= _grid || y < 0 || y >= _grid) continue;
+            final int j = y * _grid + x;
+            if (mask[j] == 0 || labels[j] != 0) continue;
+            labels[j] = nextLabel;
+            queue[tail++] = j;
+          }
+        }
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        bestLabel = nextLabel;
+      }
+    }
+
+    if (bestLabel == 0) {
+      mask.fillRange(0, mask.length, 0);
+      return 0;
+    }
+    for (int i = 0; i < mask.length; i++) {
+      mask[i] = labels[i] == bestLabel ? 1 : 0;
+    }
+    return bestCount;
+  }
+
   static double _area(List<Offset> q) {
     var a = 0.0;
     for (int i = 0; i < q.length; i++) {
@@ -530,48 +637,31 @@ class LiveDocumentDetector {
     return a.abs() / 2;
   }
 
-  /// The upright fallback quad, in the same TL/TR/BR/BL order.
+  static bool _isConvexQuad(List<Offset> q) {
+    if (q.length != 4) return false;
+    bool? prevPositive;
+    for (int i = 0; i < 4; i++) {
+      final a = q[i];
+      final b = q[(i + 1) % 4];
+      final c = q[(i + 2) % 4];
+      final cross =
+          (b.dx - a.dx) * (c.dy - b.dy) - (b.dy - a.dy) * (c.dx - b.dx);
+      if (cross.abs() < 1e-9) continue;
+      final positive = cross > 0;
+      if (prevPositive != null && positive != prevPositive) return false;
+      prevPositive = positive;
+    }
+    return prevPositive != null;
+  }
+
   static List<Offset> _rectCorners(Rect r) =>
       [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft];
-
-  /// First index (from either end) whose value reaches [minValue], or -1.
-  static int _firstAbove(List<int> hits, int minValue, {required bool forward}) {
-    if (forward) {
-      for (int i = 0; i < hits.length; i++) {
-        if (hits[i] >= minValue) return i;
-      }
-    } else {
-      for (int i = hits.length - 1; i >= 0; i--) {
-        if (hits[i] >= minValue) return i;
-      }
-    }
-    return -1;
-  }
-
-  /// Approximate percentile via a 256-bucket histogram - O(n) and allocation
-  /// free, versus sorting 1600 ints every frame. Energy is clamped into the
-  /// bucket range because two gradients can sum past 255.
-  int _percentile(List<int> values, double fraction) {
-    final hist = _histogram;
-    hist.fillRange(0, 256, 0);
-    for (final v in values) {
-      hist[v > 255 ? 255 : (v < 0 ? 0 : v)]++;
-    }
-    final int target = (values.length * fraction).floor();
-    int seen = 0;
-    for (int i = 0; i < 256; i++) {
-      seen += hist[i];
-      if (seen > target) return i;
-    }
-    return 255;
-  }
 }
 
-/// The detector's read on where the document is: an upright bounding box and
-/// the four-corner quad that hugs it.
 class _DocumentShape {
-  const _DocumentShape(this.bounds, this.corners);
+  const _DocumentShape(this.bounds, this.corners, this.contrast);
 
   final Rect bounds;
   final List<Offset> corners;
+  final double contrast;
 }
