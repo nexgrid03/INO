@@ -115,6 +115,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   DateTime? _stableStart;
   bool _focusLocked = false;
   DateTime? _lastFocusMeterAt;
+  Offset? _lastFocusPoint;
 
   static const int _kSampleIntervalMs = 70;
   static const int _kConfirmFrames = 2;
@@ -240,11 +241,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       );
 
       final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-      // High on both — sharp stills + Vision accuracy. Smoothness comes from
-      // throttling detection, not from lowering capture resolution.
+      // Full-sensor max stills on Android (CameraX keeps analysis fast), and
+      // 1080p (veryHigh) on iOS so stills are sharp without 12MP BGRA stream copies.
       final controller = CameraController(
         back,
-        ResolutionPreset.high,
+        isIOS ? ResolutionPreset.veryHigh : ResolutionPreset.max,
         enableAudio: false,
         imageFormatGroup:
             isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
@@ -430,8 +431,28 @@ class _ScannerScreenState extends State<ScannerScreen>
         now.difference(_lastFocusMeterAt!) < const Duration(milliseconds: 650)) {
       return;
     }
+    final point = _currentDocumentCenter();
+    if (_lastFocusPoint != null &&
+        _lastFocusMeterAt != null &&
+        (point - _lastFocusPoint!).distance < 0.08 &&
+        now.difference(_lastFocusMeterAt!) < const Duration(seconds: 3)) {
+      return;
+    }
     _lastFocusMeterAt = now;
-    unawaited(_meterOnDocument());
+    _lastFocusPoint = point;
+    unawaited(_meterOnDocument(point: point));
+  }
+
+  Offset _currentDocumentCenter() {
+    final corners = _docCorners.value ?? _lastStableCorners;
+    if (corners != null && corners.length == 4) {
+      final cx =
+          corners.map((c) => c.dx).reduce((a, b) => a + b) / corners.length;
+      final cy =
+          corners.map((c) => c.dy).reduce((a, b) => a + b) / corners.length;
+      return Offset(cx.clamp(0.05, 0.95), cy.clamp(0.05, 0.95));
+    }
+    return const Offset(0.5, 0.5);
   }
 
   void _onFrame(CameraImage image) {
@@ -630,21 +651,15 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   /// Point focus/exposure at the document centre (preview-normalised 0..1).
-  Future<void> _meterOnDocument() async {
+  Future<void> _meterOnDocument({Offset? point}) async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
-    final corners = _docCorners.value ?? _lastStableCorners;
-    Offset point = const Offset(0.5, 0.5);
-    if (corners != null && corners.length == 4) {
-      final cx =
-          corners.map((c) => c.dx).reduce((a, b) => a + b) / corners.length;
-      final cy =
-          corners.map((c) => c.dy).reduce((a, b) => a + b) / corners.length;
-      point = Offset(cx.clamp(0.05, 0.95), cy.clamp(0.05, 0.95));
-    }
+    final target = point ?? _currentDocumentCenter();
+    _lastFocusMeterAt = DateTime.now();
+    _lastFocusPoint = target;
     try {
-      await controller.setFocusPoint(point);
-      await controller.setExposurePoint(point);
+      await controller.setFocusPoint(target);
+      await controller.setExposurePoint(target);
     } catch (_) {}
   }
 
@@ -733,9 +748,14 @@ class _ScannerScreenState extends State<ScannerScreen>
     // Keep lifecycle from disposing the camera mid-shutter (critical on iOS).
     _blockBootstrap = true;
 
-    // Meter AF on the page. On iOS continuous AF is already sharp during the
-    // steady hold — avoid long blind delays that introduce hand-movement blur.
-    await _meterOnDocument();
+    // Only trigger a fresh AF sweep if focus hasn't already metered recently;
+    // re-triggering right before takePicture() forces the lens to hunt mid-shot.
+    final needsFreshFocus = _lastFocusMeterAt == null ||
+        DateTime.now().difference(_lastFocusMeterAt!) >
+            const Duration(seconds: 2);
+    if (needsFreshFocus) {
+      await _meterOnDocument();
+    }
     if (!isIOS) {
       await _setFocusLocked(true);
     }
@@ -748,9 +768,9 @@ class _ScannerScreenState extends State<ScannerScreen>
     setState(() => _state = ScannerState.capturing);
 
     try {
-      // Short settle gap after stopping the image stream before takePicture.
+      // Give AF time to converge if we just metered, otherwise keep settle brief.
       await Future<void>.delayed(
-        Duration(milliseconds: isIOS ? 100 : 120),
+        Duration(milliseconds: needsFreshFocus ? 280 : (isIOS ? 100 : 120)),
       );
       if (!mounted) return;
       if (!controller.value.isInitialized) {
@@ -1598,6 +1618,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   Future<void> _focusAt(Offset normalized) async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
+    _lastFocusMeterAt = DateTime.now();
+    _lastFocusPoint = normalized;
     try {
       await controller.setFocusMode(FocusMode.auto);
       await controller.setFocusPoint(normalized);

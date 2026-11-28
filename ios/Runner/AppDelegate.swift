@@ -654,14 +654,32 @@ private final class InoVisionDocumentEngine {
           }
         }
 
-        // Cap output resolution to maxDimension while preserving aspect ratio.
+        // Cap output resolution with high-quality Lanczos resampling when larger than maxDimension.
         let workExtent = workingImage.extent
         let longSide = max(workExtent.width, workExtent.height)
         if maxDimension > 0 && longSide > CGFloat(maxDimension) {
           let scale = CGFloat(maxDimension) / longSide
-          workingImage = workingImage.transformed(
-            by: CGAffineTransform(scaleX: scale, y: scale)
-          )
+          if let lanczos = CIFilter(name: "CILanczosScaleTransform") {
+            lanczos.setValue(workingImage, forKey: kCIInputImageKey)
+            lanczos.setValue(scale, forKey: kCIInputScaleKey)
+            lanczos.setValue(1.0, forKey: kCIInputAspectRatioKey)
+            if let scaled = lanczos.outputImage {
+              workingImage = scaled
+            }
+          } else {
+            workingImage = workingImage.transformed(
+              by: CGAffineTransform(scaleX: scale, y: scale)
+            )
+          }
+        }
+
+        // Subtle luminance sharpen so rectified text stays crisp without halos.
+        if let sharpen = CIFilter(name: "CISharpenLuminance") {
+          sharpen.setValue(workingImage, forKey: kCIInputImageKey)
+          sharpen.setValue(0.32, forKey: kCIInputSharpnessKey)
+          if let sharpened = sharpen.outputImage {
+            workingImage = sharpened
+          }
         }
 
         guard let cgImage = self.renderContext.createCGImage(
@@ -673,7 +691,7 @@ private final class InoVisionDocumentEngine {
         }
 
         let uiImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
-        guard let jpegData = uiImage.jpegData(compressionQuality: 0.92) else {
+        guard let jpegData = uiImage.jpegData(compressionQuality: 0.95) else {
           DispatchQueue.main.async { result(nil) }
           return
         }

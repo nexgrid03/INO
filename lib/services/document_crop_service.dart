@@ -20,8 +20,8 @@ import 'package:image/image.dart' as img;
 class DocumentCropService {
   DocumentCropService._();
 
-  /// Longest-side cap for the cropped output, to bound memory.
-  static const int _kMaxDim = 2600;
+  /// Longest-side cap for the cropped output, preserving high-DPI text clarity.
+  static const int _kMaxDim = 3200;
 
   /// [corners] are normalized (0..1) in image space, ordered TL, TR, BR, BL.
   /// Returns the new file path, or null on failure.
@@ -55,9 +55,9 @@ class DocumentCropService {
       if (longest > _kMaxDim) {
         src = src.width >= src.height
             ? img.copyResize(src,
-                width: _kMaxDim, interpolation: img.Interpolation.average)
+                width: _kMaxDim, interpolation: img.Interpolation.cubic)
             : img.copyResize(src,
-                height: _kMaxDim, interpolation: img.Interpolation.average);
+                height: _kMaxDim, interpolation: img.Interpolation.cubic);
       }
 
       final w = src.width;
@@ -91,7 +91,7 @@ class DocumentCropService {
         topRight: toPixel(tr),
         bottomLeft: toPixel(bl),
         bottomRight: toPixel(br),
-        interpolation: img.Interpolation.linear,
+        interpolation: img.Interpolation.cubic,
         toImage: dst,
       );
 

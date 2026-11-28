@@ -35,9 +35,9 @@ class ScanCaptureProcessor {
             .processCapture(
               capturePath: capturePath,
               fallbackCorners: liveOutline,
-              maxDimension: 2400,
+              maxDimension: 3200,
             )
-            .timeout(const Duration(seconds: 4), onTimeout: () => null);
+            .timeout(const Duration(seconds: 5), onTimeout: () => null);
         if (nativeResult != null && nativeResult.path.isNotEmpty) {
           return nativeResult.path;
         }
@@ -55,11 +55,11 @@ class ScanCaptureProcessor {
               input,
               liveCorners,
               filter: ScanFilter.none,
-              output: const ScanOutputFormat.jpegAt(92),
-              maxDimension: 2400,
+              output: const ScanOutputFormat.jpegAt(95),
+              maxDimension: 3200,
               background: true,
             )
-            .timeout(const Duration(seconds: 3), onTimeout: () => null);
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
         if (cropped != null) return _writeScan(cropped, capturePath);
       } catch (_) {}
 
@@ -74,13 +74,13 @@ class ScanCaptureProcessor {
           .scan(
             input,
             filter: ScanFilter.none,
-            output: const ScanOutputFormat.jpegAt(92),
-            maxDimension: 2400,
+            output: const ScanOutputFormat.jpegAt(95),
+            maxDimension: 3200,
             background: true,
             sensitivity: DetectionSensitivity.balanced,
             minimumAspectRatio: 0.14,
           )
-          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
       if (still != null) {
         return _writeScan(still, capturePath);
       }

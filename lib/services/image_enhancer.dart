@@ -53,10 +53,13 @@ class ProcessedImage {
 class ImageEnhancer {
   ImageEnhancer._();
 
-  /// Hard cap on the longest side of any processed image. 2000 px keeps small
-  /// document text legible for ML Kit while bounding peak memory (~21 MB per
-  /// RGBA buffer) and ML Kit's native bitmap allocation.
+  /// Hard cap on the longest side of OCR base/candidate images. 2000 px keeps
+  /// small document text legible for ML Kit while bounding peak memory (~21 MB
+  /// per RGBA buffer) and ML Kit's native bitmap allocation.
   static const int _kMaxDim = 2000;
+
+  /// Higher resolution cap for saved PDFs and user-viewed scanned documents.
+  static const int kScanHighResMaxDim = 3200;
 
   /// Upscale target (width) for the cropped "enhanced" candidate.
   static const int _kCandidateTargetWidth = 1200;
@@ -97,10 +100,10 @@ class ImageEnhancer {
       final bytes = await File(path).readAsBytes();
       var im = img.decodeImage(bytes);
       if (im == null) return path;
-      im = _capLongestSide(im, _kMaxDim);
+      im = _capLongestSide(im, kScanHighResMaxDim);
       var out = img.grayscale(im);
       out = img.adjustColor(out, contrast: 1.18, brightness: 1.04);
-      return await _writeJpg(path, out, 'enhanced', 90);
+      return await _writeJpg(path, out, 'enhanced', 94);
     } catch (_) {
       return path;
     }
@@ -129,7 +132,7 @@ class ImageEnhancer {
       final bytes = await File(path).readAsBytes();
       var im = img.decodeImage(bytes);
       if (im == null) return path;
-      im = _capLongestSide(im, _kMaxDim);
+      im = _capLongestSide(im, kScanHighResMaxDim);
       final img.Image out;
       if (modeIdx == ScanColorMode.blackWhite.index) {
         out = scanBinarize(im);
@@ -147,7 +150,7 @@ class ImageEnhancer {
         out = e;
       }
       return await _writeJpg(
-          path, out, ScanColorMode.values[modeIdx].name, 90);
+          path, out, ScanColorMode.values[modeIdx].name, 94);
     } catch (_) {
       return path;
     }
@@ -175,8 +178,8 @@ class ImageEnhancer {
       var im = img.decodeImage(bytes);
       if (im == null) return (path: path, width: 0, height: 0);
       im = img.bakeOrientation(im);
-      im = _capLongestSide(im, _kMaxDim);
-      final out = await _writeJpg(path, im, 'pdfpage', 82);
+      im = _capLongestSide(im, kScanHighResMaxDim);
+      final out = await _writeJpg(path, im, 'pdfpage', 92);
       return (path: out, width: im.width, height: im.height);
     } catch (_) {
       return (path: path, width: 0, height: 0);
@@ -194,7 +197,7 @@ class ImageEnhancer {
       final bytes = await File(path).readAsBytes();
       var im = img.decodeImage(bytes);
       if (im == null) return path;
-      im = _capLongestSide(im, _kMaxDim);
+      im = _capLongestSide(im, kScanHighResMaxDim);
       final rotated =
           img.copyRotate(im, angle: 90, interpolation: img.Interpolation.cubic);
       return await _writeJpg(path, rotated, 'rot', 95);

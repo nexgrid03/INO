@@ -18,9 +18,9 @@ class GalleryImportService {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 2000,
-        maxHeight: 2000,
+        imageQuality: 92,
+        maxWidth: 3000,
+        maxHeight: 3000,
       );
       return file?.path;
     } on Object catch (_) {
@@ -37,9 +37,9 @@ class GalleryImportService {
   Future<List<String>> pickImages() async {
     try {
       final List<XFile> files = await _picker.pickMultiImage(
-        imageQuality: 85,
-        maxWidth: 2000,
-        maxHeight: 2000,
+        imageQuality: 92,
+        maxWidth: 3000,
+        maxHeight: 3000,
       );
       return [for (final f in files) f.path];
     } on Object catch (_) {
@@ -54,9 +54,9 @@ class GalleryImportService {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 88,
-        maxWidth: 2600,
-        maxHeight: 2600,
+        imageQuality: 94,
+        maxWidth: 3200,
+        maxHeight: 3200,
       );
       return file?.path;
     } on Object catch (_) {
